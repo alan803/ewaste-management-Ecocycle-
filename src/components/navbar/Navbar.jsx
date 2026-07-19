@@ -1,6 +1,7 @@
 import "./Navbar.css";
 import logo from "../../assets/images/n_logo.png";
 import { Link } from "react-router-dom";
+import { HashLink } from "react-router-hash-link";
 
 function Navbar() {
     return (
@@ -10,10 +11,26 @@ function Navbar() {
             </div>
 
             <ul>
-                <li><Link to="/">Home</Link></li>
-                <li><Link to="/about">About</Link></li>
-                <li><Link to="/services">Services</Link></li>
-                <li><Link to="/contact">Contact</Link></li>
+                <li>
+                    <HashLink smooth to="/#home">
+                        Home
+                    </HashLink>
+                </li>
+                <li>
+                    <HashLink smooth to="/#about">
+                        About
+                    </HashLink>
+                </li>
+                <li>
+                    <HashLink smooth to="/#services">
+                        Services
+                    </HashLink>
+                </li>
+                <li>
+                    <HashLink smooth to="/#contact">
+                        Contact
+                    </HashLink>
+                </li>
                 <li><Link to="/login">Login</Link></li>
             </ul>
         </nav>

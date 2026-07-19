@@ -75,7 +75,7 @@ function Home() {
         <>
             <Navbar />
 
-            <main className="home">
+            <main className="home" id="home">
                 <section className="hero">
                     <div className="hero-content">
                         <span className="eyebrow">Sustainable Electronics</span>
@@ -304,6 +304,160 @@ function Home() {
     </div>
 
 </section>
+
+                <section className="about" id="about">
+                    <div className="section-head">
+                        <span className="eyebrow">About Us</span>
+                        <h2>Committed to a Greener Tomorrow</h2>
+                        <p>
+                            We are a certified e-waste management platform dedicated to
+                            responsible electronics recycling, environmental protection, and
+                            sustainable resource recovery.
+                        </p>
+                    </div>
+
+                    <div className="about-grid">
+                        <div className="about-card">
+                            <h3>Our Mission</h3>
+                            <p>
+                                To provide accessible, certified e-waste recycling services that
+                                protect the environment, recover valuable materials, and promote
+                                circular economy principles.
+                            </p>
+                        </div>
+
+                        <div className="about-card">
+                            <h3>Our Vision</h3>
+                            <p>
+                                A world where electronic waste is eliminated through responsible
+                                recycling, refurbishment, and sustainable consumption practices.
+                            </p>
+                        </div>
+
+                        <div className="about-card">
+                            <h3>Certified Excellence</h3>
+                            <p>
+                                ISO 14001 certified and compliant with all environmental regulations,
+                                ensuring safe handling and processing of electronic waste.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="services" id="services">
+                    <div className="section-head">
+                        <span className="eyebrow">Our Services</span>
+                        <h2>Comprehensive E-Waste Solutions</h2>
+                        <p>
+                            From residential pickups to enterprise recycling programs, we offer
+                            tailored solutions for all your electronic waste management needs.
+                        </p>
+                    </div>
+
+                    <div className="services-grid">
+                        <div className="service-card">
+                            <h3>Residential Pickup</h3>
+                            <p>
+                                Schedule convenient home pickups for your old electronics. Our
+                                certified agents collect devices safely and provide documentation.
+                            </p>
+                        </div>
+
+                        <div className="service-card">
+                            <h3>Business Recycling</h3>
+                            <p>
+                                Enterprise-grade e-waste management for companies. Bulk pickups,
+                                data destruction, and compliance reporting included.
+                            </p>
+                        </div>
+
+                        <div className="service-card">
+                            <h3>Device Refurbishment</h3>
+                            <p>
+                                Functional devices are professionally refurbished and resold,
+                                extending product lifecycle and reducing environmental impact.
+                            </p>
+                        </div>
+
+                        <div className="service-card">
+                            <h3>Data Destruction</h3>
+                            <p>
+                                Secure data wiping and physical destruction of storage devices
+                                following industry standards to protect your information.
+                            </p>
+                        </div>
+
+                        <div className="service-card">
+                            <h3>Certification</h3>
+                            <p>
+                                Official recycling certificates for all processed items,
+                                providing proof of responsible disposal for compliance.
+                            </p>
+                        </div>
+
+                        <div className="service-card">
+                            <h3>Consulting Services</h3>
+                            <p>
+                                Expert guidance on e-waste management strategies, regulatory
+                                compliance, and sustainability reporting for organizations.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="contact" id="contact">
+                    <div className="section-head">
+                        <span className="eyebrow">Contact Us</span>
+                        <h2>Get in Touch</h2>
+                        <p>
+                            Have questions about our services or need assistance with your
+                            e-waste? Our team is here to help.
+                        </p>
+                    </div>
+
+                    <div className="contact-form-wrapper">
+                        <div className="contact-form">
+                            <form>
+                                <div className="form-group">
+                                    <label htmlFor="name">Name</label>
+                                    <input 
+                                        type="text" 
+                                        id="name" 
+                                        name="name" 
+                                        placeholder="Your full name" 
+                                        required 
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="email">Email</label>
+                                    <input 
+                                        type="email" 
+                                        id="email" 
+                                        name="email" 
+                                        placeholder="your@email.com" 
+                                        required 
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="message">Message</label>
+                                    <textarea 
+                                        id="message" 
+                                        name="message" 
+                                        rows="5" 
+                                        placeholder="How can we help you today?"
+                                        required
+                                    ></textarea>
+                                </div>
+
+                                <button type="submit" className="btn btn-primary">
+                                    Send Message
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
 
                 <section className="cta-band">
                     <span className="eyebrow">Get Started</span>

@@ -161,14 +161,14 @@ function Login() {
 
           <div className="login-links">
             <p>
-              <a href="#">Forgot password?</a>
+              <a href="/forgot-password">Forgot password?</a>
             </p>
             <p>
               Don't have an account?{" "}
-              <a href="#">Sign up</a>
+              <a href="/signup">Sign up</a>
             </p>
             <p>
-              <a href="#" className="login-back">← Back to home</a>
+              <a href="/" className="login-back">← Back to home</a>
             </p>
           </div>
         </div>
