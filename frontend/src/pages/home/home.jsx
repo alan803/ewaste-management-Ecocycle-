@@ -170,7 +170,7 @@ function Home() {
                             <a href="/services" className="btn btn-primary">
                                 Schedule Pickup
                             </a>
-                            <a href="/about" className="btn btn-ghost">
+                            <a href="/#process" className="btn btn-ghost">
                                 How It Works
                             </a>
                         </div>
@@ -310,7 +310,7 @@ function Home() {
         </p>
     </div>
 
-    <div className="process-list">
+    <div className="process-list" id="process">
 
         <div className="process-card">
             <div className="process-step">01</div>

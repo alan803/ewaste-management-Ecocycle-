@@ -161,36 +161,49 @@ function Login()
     {
         return;
     }
-    try
+    try 
     {
-      const response=await axios.post("https://localhost:7102/api/User/Login",form_dta);  
-      switch(response.data.role)
-      {
-        case "Citizen":
-          navigate("/citizen");
-          break;
-        case "Admin":
-          navigate("/admin");
-          break;
-        case "CollectionAgent":
-          navigate("/collectionagent");
-          break;
-        default:
-          break;
-      }
-    }
-    catch (error)
-    {
-      if (error.response)
-      {
-          const { field, message } = error.response.data;
+      const response = await axios.post(
+          "https://localhost:7102/api/Login/Login",
+          form_dta
+      );
+      console.log(response.data);
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("userId", response.data.userId);
+      localStorage.setItem("firstName", response.data.firstName);
+      localStorage.setItem("roleId", response.data.roleId);
+      localStorage.setItem("role", response.data.role);
 
-          setErrors(prev => ({
-              ...prev,
-              [field]: message
-          }));
-      }
+    switch (response.data.role) 
+    {
+        case "Citizen":
+            navigate("/citizen");
+            break;
+
+        case "Administrator":
+            navigate("/admin");
+            break;
+
+        case "CollectionAgent":
+            navigate("/collectionagent");
+            break;
+
+        default:
+            console.log("Invalid role:", response.data.role);
+            navigate("/");
+            break;
     }
+  }
+catch (error) {
+    if (error.response) {
+        const { field, message } = error.response.data;
+
+        setErrors(prev => ({
+            ...prev,
+            [field]: message
+        }));
+    }
+}
   }
   return (
     <div className="login">

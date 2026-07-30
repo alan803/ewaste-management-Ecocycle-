@@ -62,7 +62,7 @@ function Signup() {
     const toggleConfirmPasswordVisibility = () => {
         setShowConfirmPassword(!showConfirmPassword);
     };
-    const [serverError, setServerError] = useState("");
+    const [ setServerError] = useState("");
     const [form_dta, set_form_dta] = useState({
     firstName: "",
     lastName: "",
@@ -619,6 +619,7 @@ function Signup() {
                         <p>
                             <a href="/" className="signup-back">← Back to home</a>
                         </p>
+                        <p><a href="/signup/collection-agent">Sign up as Collection Agent</a></p>
                     </div>
                 </div>
             </div>

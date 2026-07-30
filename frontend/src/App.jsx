@@ -7,6 +7,10 @@ import Signup from "./pages/signup/Signup";
 import Citizen from "./pages/citizen/Citizendashboard";
 import Admin from "./pages/Administrator/Admindashboard";
 import collectionagent from "./pages/Collection Agent/Collectionagent_dashboard";
+import Logout from "./pages/logout/logout";
+import Navbar from "./pages/Administrator/Navbar";
+import Usermanagement from "./pages/Administrator/Usermanagement";
+import CollectionAgent_signup from "./pages/signup/CollectionAgent_signup";
 
 function App() {
     return (
@@ -18,6 +22,10 @@ function App() {
             <Route path="/citizen" element={<Citizen/>}/>
             <Route path="/admin" element={<Admin/>}/>
             <Route path="/collectionagent" element={<collectionagent/>}/>
+            <Route path="/logout" element={<Logout/>}/>
+            <Route path="/navbar" element={<Navbar/>}/>
+            <Route path="/usermanagement" element={<Usermanagement/>}/>
+            <Route path="/signup/collection-agent" element={<CollectionAgent_signup/>}/>
         </Routes>
     );
 }

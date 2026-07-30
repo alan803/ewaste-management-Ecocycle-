@@ -1,0 +1,359 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap");
+
+.collectionagent-signup {
+  --surface: #ffffff;
+  --border: #d4e4da;
+  --text: #1a2e22;
+  --text-muted: #5a7264;
+  --primary: #1e8a55;
+  --primary-hover: #176b42;
+  --primary-light: #e8f5ee;
+  --navy: #1e3a5f;
+
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 100vh;
+  overflow: hidden;
+  font-family: "Inter", sans-serif;
+  color: var(--text);
+}
+
+/* ---------- ILLUSTRATION PANEL ---------- */
+.collectionagent-visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  overflow: hidden;
+  background: linear-gradient(145deg, #1e8a55 0%, #176b42 45%, #1e3a5f 100%);
+}
+
+.collectionagent-visual-content {
+  position: relative;
+  z-index: 2;
+  max-width: 440px;
+  color: #ffffff;
+  text-align: center;
+}
+
+.collectionagent-brand {
+  display: inline-block;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  margin-bottom: 1.5rem;
+  padding: 0.4rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.collectionagent-visual-content h2 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  margin: 0 0 1rem;
+}
+
+.collectionagent-visual-content p {
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.82);
+  margin: 0 0 2rem;
+}
+
+.collectionagent-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.collectionagent-blob--1 { width: 320px; height: 320px; background: #4ade80; top: -80px; right: -60px; }
+.collectionagent-blob--2 { width: 260px; height: 260px; background: #60a5fa; bottom: -40px; left: -40px; }
+.collectionagent-blob--3 { width: 180px; height: 180px; background: #fbbf24; top: 50%; left: 60%; opacity: 0.25; }
+
+/* ---------- FORM PANEL ---------- */
+.collectionagent-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(160deg, #edf8f1 0%, #f8fbf9 55%, #ffffff 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.collectionagent-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 700px;
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(30, 138, 85, 0.08);
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.collectionagent-header { text-align: center; margin-bottom: 0.75rem; }
+
+.collectionagent-eyebrow {
+  display: inline-block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 0.3rem;
+}
+
+.collectionagent-header h1 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.25rem;
+  color: var(--text);
+}
+
+.collectionagent-header p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+.collectionagent-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-section {
+  margin-bottom: 0.75rem;
+}
+
+.form-section h3 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--navy);
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.01em;
+}
+
+.collectionagent-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.collectionagent-form-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.collectionagent-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.collectionagent-field label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--navy);
+}
+
+.collectionagent-field input,
+.collectionagent-field select {
+  font-family: "Inter", sans-serif;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fbf9;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 38px;
+}
+
+.collectionagent-field input[type="file"] {
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+}
+
+.collectionagent-field input::placeholder { color: #9ab0a4; }
+
+.collectionagent-field input:focus,
+.collectionagent-field select:focus {
+  border-color: var(--primary);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(30, 138, 85, 0.12);
+}
+
+.collectionagent-field input.input-error,
+.collectionagent-field select.input-error {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.collectionagent-field input.input-error:focus,
+.collectionagent-field select.input-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.error-message {
+  font-size: 0.7rem;
+  color: #ef4444;
+  margin-top: 0.1rem;
+  line-height: 1.2;
+}
+
+/* Password field with icon inside */
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 3rem;
+  box-sizing: border-box;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  transition: color 0.15s ease;
+}
+
+.password-toggle-btn:hover { color: var(--primary); }
+
+.password-toggle-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.collectionagent-btn {
+  margin-top: 0.5rem;
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.7rem 1.6rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(30, 138, 85, 0.25);
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+}
+
+.collectionagent-btn:hover {
+  transform: translateY(-2px);
+  background: var(--primary-hover);
+  box-shadow: 0 6px 18px rgba(30, 138, 85, 0.3);
+}
+
+.form-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  gap: 1rem;
+}
+
+.nav-btn {
+  font-family: "Inter", sans-serif;
+  font-weight: 500;
+  font-size: 0.9rem;
+  padding: 0.7rem 1.6rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-btn--prev {
+  background: #f8fbf9;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.nav-btn--prev:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.nav-btn--next {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(30, 138, 85, 0.25);
+}
+
+.nav-btn--next:hover {
+  background: var(--primary-hover);
+  box-shadow: 0 6px 18px rgba(30, 138, 85, 0.3);
+  transform: translateY(-2px);
+}
+
+.collectionagent-links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.collectionagent-links a {
+  color: var(--primary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.collectionagent-links a:hover { color: var(--primary-hover); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .collectionagent-signup { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .collectionagent-visual { padding: 2.5rem 2rem 2rem; min-height: 280px; }
+  .collectionagent-visual-content p { display: none; }
+  .collectionagent-panel { padding: 2rem 1.5rem 3rem; }
+  .collectionagent-form-grid { grid-template-columns: 1fr; gap: 1.25rem; }
+}
+
+@media (max-width: 480px) {
+  .collectionagent-visual { padding: 2rem 1.25rem 1.5rem; min-height: 220px; }
+  .collectionagent-card { padding: 2rem 1.5rem; }
+  .collectionagent-header h1 { font-size: 1.6rem; }
+}
