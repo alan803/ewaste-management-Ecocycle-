@@ -182,13 +182,6 @@ function CollectionAgent_signup()
                     adhaarNumber_er:validate_adhaarNumber(value)
                 });
             }
-            if(name==="adhaarProof")
-            {
-                seterror({
-                    ...error,
-                    adhaarProof_er:validateFile(value)
-                });
-            }
             if(name==="address")
             {
                 seterror({
@@ -347,6 +340,23 @@ function CollectionAgent_signup()
                 }
             }
         }
+        if(name === "adhaarProof")
+        {
+            if(files)
+            {
+                const file = files[0];
+
+                set_form_dta({
+                    ...form_dta,
+                    [name]: file
+                });
+
+                seterror(prev => ({
+                    ...prev,
+                    adhaarProof_er: validateFile(file)
+                }));
+            }
+}
         function validate_first_name(value)
         {
             if(value==="")
@@ -470,7 +480,7 @@ function CollectionAgent_signup()
             {
                 return"Adhaar number is required";
             }
-            if(!/^[1-9]\d{12}$/.test(value))
+            if(!/^[1-9]\d{11}$/.test(value))
             {
                 return"Adhaar number must be 12 digits and start with 1-9";
             }
@@ -861,6 +871,7 @@ function CollectionAgent_signup()
                                         <input
                                             type="file"
                                             name="profile_picture"
+                                            accept="image/jpeg,image/png"
                                             onChange={handleInputChange}
                                             className={error.profile_picture_er ? "input-error" : ""}
                                         />
@@ -918,6 +929,7 @@ function CollectionAgent_signup()
                                         <input
                                             type="file"
                                             name="adhaarProof"
+                                            accept="image/jpeg,image/png,application/pdf"
                                             onChange={handleInputChange}
                                             className={error.adhaarProof_er ? "input-error" : ""}
                                         />
@@ -926,10 +938,11 @@ function CollectionAgent_signup()
                                 </div>
                                 <div className="collectionagent-form-column">
                                     <div className="collectionagent-field">
-                                        <label>Address Proof</label>
+                                        <label>Address Proof(any home bills)</label>
                                         <input
                                             type="file"
                                             name="addressProof"
+                                            accept="image/jpeg,image/png,application/pdf"
                                             onChange={handleInputChange}
                                             className={error.addressProof_er ? "input-error" : ""}
                                         />
@@ -1091,6 +1104,7 @@ function CollectionAgent_signup()
                                         <input
                                             type="file"
                                             name="vehicleInsurance"
+                                            accept="image/jpeg,image/png,application/pdf"
                                             onChange={handleInputChange}
                                             className={error.vehicleInsurance_er ? "input-error" : ""}
                                         />
@@ -1101,6 +1115,7 @@ function CollectionAgent_signup()
                                         <input
                                             type="file"
                                             name="vehiclePollution"
+                                            accept="image/jpeg,image/png,application/pdf"
                                             onChange={handleInputChange}
                                             className={error.vehiclePollution_er ? "input-error" : ""}
                                         />
