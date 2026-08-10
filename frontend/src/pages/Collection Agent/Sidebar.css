@@ -1,0 +1,214 @@
+/* Sidebar.css - Compact Sleek Collection Agent Sidebar Navigation System */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
+.agent-mobile-toggle {
+  display: none;
+  position: fixed;
+  top: 0.85rem;
+  left: 0.85rem;
+  z-index: 1001;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+  font-size: 1.1rem;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.agent-sidebar-aside {
+  width: 230px;
+  height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  padding: 1.25rem 1rem;
+  box-sizing: border-box;
+  z-index: 50;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  flex-shrink: 0;
+}
+
+/* Sidebar Brand Header */
+.agent-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 1rem;
+  text-decoration: none;
+}
+
+.agent-brand-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  box-shadow: 0 3px 8px rgba(5, 150, 105, 0.2);
+}
+
+.agent-brand-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.agent-brand-sub {
+  font-size: 0.675rem;
+  color: #059669;
+  font-weight: 700;
+}
+
+/* Nav Section & Items */
+.agent-sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.agent-nav-group {
+  margin-bottom: 1.25rem;
+}
+
+.agent-group-title {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+.agent-sidebar-ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.agent-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  color: #475569;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.agent-sidebar-link:hover {
+  background: #f8fafc;
+  color: #059669;
+}
+
+.agent-sidebar-link.active {
+  background: #ecfdf5;
+  color: #059669;
+  font-weight: 700;
+  border-color: rgba(5, 150, 105, 0.15);
+}
+
+.agent-sidebar-icon {
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+}
+
+.agent-logout-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: #ef4444;
+}
+
+.agent-logout-btn:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+/* Bottom Vehicle Info Card */
+.agent-vehicle-card {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+.agent-vehicle-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.675rem;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 0.25rem;
+}
+
+.agent-vehicle-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.agent-vehicle-sub {
+  font-size: 0.7rem;
+  color: #10b981;
+  font-weight: 600;
+  margin-top: 0.1rem;
+}
+
+.agent-sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 45;
+}
+
+@media (max-width: 900px) {
+  .agent-mobile-toggle {
+    display: flex;
+  }
+  .agent-sidebar-aside {
+    position: fixed;
+    left: -250px;
+    transition: left 0.3s ease;
+    z-index: 1000;
+  }
+  .agent-sidebar-aside.open {
+    left: 0;
+  }
+  .agent-sidebar-overlay {
+    display: block;
+  }
+}

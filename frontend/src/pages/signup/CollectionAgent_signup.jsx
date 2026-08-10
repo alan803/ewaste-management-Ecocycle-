@@ -1,7 +1,36 @@
-import { useState } from "react";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import { FaEye, FaEyeSlash, FaClock } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import "./CollectionAgent_signup.css";
+import {
+    validate_first_name,
+    validate_last_name,
+    validate_email,
+    validate_phone,
+    alternate_validate_phone,
+    validate_dob,
+    validate_gender,
+    validate_adhaarNumber,
+    validateFile,
+    validateDocument,
+    validate_address,
+    validate_state,
+    validate_district,
+    validate_city,
+    validate_pincode,
+    validate_vehicleType,
+    validate_vehicleNumber,
+    validate_licenseNumber,
+    validate_vehicleInsurance,
+    validate_vehiclePollution,
+    validate_accountHolder,
+    validate_bankName,
+    validate_accountNumber,
+    validate_ifscCode,
+    validate_password_simple as validate_password,
+    validate_confirm_password
+} from "../../utils/validation";
 
 function CollectionAgent_signup()
 {
@@ -9,6 +38,9 @@ function CollectionAgent_signup()
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
+    const [pincodeLoading, setPincodeLoading] = useState(false);
+    const [pincodeError, setPincodeError] = useState("");
+    const [isSubmitted, setIsSubmitted] = useState(false);
 
     const sections = [
         "Personal Details",
@@ -19,6 +51,120 @@ function CollectionAgent_signup()
         "Login Details"
     ];
 
+    const[form_dta, set_form_dta] = useState({
+            firstname: "",
+            lastname: "",
+            email: "",
+            phone: "",
+            alternatePhone: "",
+            ProfilePicture: "",
+            dob: "",
+            gender: "",
+            adhaarNumber: "",
+            adhaarProof: "",
+            address: "",
+            pincode: "",
+            state: "",
+            district: "",
+            city: "",
+            vehicleType: "",
+            vehicleNumber: "",
+            vehicleInsurance: "",
+            vehiclePollution: "",
+            licenseNumber: "",
+            accountHolder: "",
+            bankName: "",
+            accountNumber: "",
+            ifscCode: "",
+            password: "",
+            confirmPassword: ""
+        });
+
+    const[error,seterror]=useState({
+            firstname_er:"",
+            lastname_er:"",
+            email_er:"",
+            phone_er:"",
+            alternatePhone_er:"",
+            ProfilePicture_er:"",
+            dob_er:"",
+            gender_er:"",
+            adhaarNumber_er:"",
+            adhaarProof_er:"",
+            address_er:"",
+            pincode_er:"",
+            district_er:"",
+            city_er:"",
+            vehicleType_er:"",
+            vehicleNumber_er:"",
+            vehicleInsurance_er:"",
+            vehiclePollution_er:"",
+            licenseNumber_er:"",
+            accountHolder_er:"",
+            bankName_er:"",
+            accountNumber_er:"",
+            ifscCode_er:"",
+            password_er:"",
+            confirmPassword_er:""
+        });
+
+    const[touched, setTouched] = useState({});
+
+    // Fetch location data when PIN code changes
+    useEffect(() => {
+        if (form_dta.pincode && form_dta.pincode.length === 6) {
+            fetchPincodeData(form_dta.pincode);
+        } else {
+            setPincodeError("");
+            // Clear location fields when PIN is invalid
+            set_form_dta(prev => ({
+                ...prev,
+                state: "",
+                district: "",
+                city: ""
+            }));
+        }
+    }, [form_dta.pincode]);
+
+    const fetchPincodeData = async (pincode) => {
+        setPincodeLoading(true);
+        setPincodeError("");
+        
+        try {
+            const response = await axios.get(`https://api.postalpincode.in/pincode/${pincode}`);
+            
+            if (response.data && response.data[0].Status === "Success") {
+                const data = response.data[0].PostOffice[0];
+                
+                // Auto-populate state, district, city
+                set_form_dta(prev => ({
+                    ...prev,
+                    state: data.State,
+                    district: data.District,
+                    city: data.Block || data.District
+                }));
+            } else {
+                setPincodeError("Invalid PIN code");
+                set_form_dta(prev => ({
+                    ...prev,
+                    state: "",
+                    district: "",
+                    city: ""
+                }));
+            }
+        } catch (err) {
+            setPincodeError("Failed to fetch location data");
+            set_form_dta(prev => ({
+                ...prev,
+                state: "",
+                district: "",
+                city: ""
+            }));
+        } finally {
+            setPincodeLoading(false);
+        }
+    };
+
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
     };
@@ -28,6 +174,98 @@ function CollectionAgent_signup()
     };
 
     const handleNext = () => {
+        if(currentStep === 0)
+        {
+            const errors = {
+                firstname_er: validate_first_name(form_dta.firstname),
+                lastname_er: validate_last_name(form_dta.lastname),
+                email_er: validate_email(form_dta.email),
+                phone_er: validate_phone(form_dta.phone),
+                alternatePhone_er: alternate_validate_phone(form_dta.alternatePhone),
+                ProfilePicture_er: validateFile(form_dta.ProfilePicture),
+                dob_er: validate_dob(form_dta.dob),
+                gender_er: validate_gender(form_dta.gender)
+            };
+
+            seterror(prev => ({
+                ...prev,
+                ...errors
+            }));
+
+            if(Object.values(errors).some(e => e !== ""))
+                return;
+        }
+
+        if(currentStep === 1)
+        {
+            const errors = {
+                adhaarNumber_er: validate_adhaarNumber(form_dta.adhaarNumber),
+                adhaarProof_er: validateFile(form_dta.adhaarProof)
+            };
+
+            seterror(prev => ({
+                ...prev,
+                ...errors
+            }));
+
+            if(Object.values(errors).some(e => e !== ""))
+                return;
+        }
+
+        if(currentStep === 2)
+        {
+            const errors = {
+                address_er: validate_address(form_dta.address),
+                pincode_er: validate_pincode(form_dta.pincode),
+                district_er: validate_district(form_dta.district)
+            };
+
+            seterror(prev => ({
+                ...prev,
+                ...errors
+            }));
+
+            if(Object.values(errors).some(e => e !== ""))
+                return;
+        }
+
+        if(currentStep === 3)
+        {
+            const errors = {
+                vehicleType_er: validate_vehicleType(form_dta.vehicleType),
+                vehicleNumber_er: validate_vehicleNumber(form_dta.vehicleNumber),
+                licenseNumber_er: validate_licenseNumber(form_dta.licenseNumber),
+                vehicleInsurance_er: validate_vehicleInsurance(form_dta.vehicleInsurance),
+                vehiclePollution_er: validate_vehiclePollution(form_dta.vehiclePollution)
+            };
+
+            seterror(prev => ({
+                ...prev,
+                ...errors
+            }));
+
+            if(Object.values(errors).some(e => e !== ""))
+                return;
+        }
+
+        if(currentStep === 4)
+        {
+            const errors = {
+                accountHolder_er: validate_accountHolder(form_dta.accountHolder),
+                bankName_er: validate_bankName(form_dta.bankName),
+                accountNumber_er: validate_accountNumber(form_dta.accountNumber),
+                ifscCode_er: validate_ifscCode(form_dta.ifscCode)
+            };
+
+            seterror(prev => ({
+                ...prev,
+                ...errors
+            }));
+
+            if(Object.values(errors).some(e => e !== ""))
+                return;
+        }
+
         if (currentStep < sections.length - 1) {
             setCurrentStep(currentStep + 1);
         }
@@ -39,72 +277,81 @@ function CollectionAgent_signup()
         }
     };
 
-    const[form_dta, set_form_dta] = useState({
-            firstname: "",
-            lastname: "",
-            email: "",
-            phone: "",
-            alternatePhone: "",
-            profile_picture: "",
-            dob: "",
-            gender: "",
-            adhaarNumber: "",
-            adhaarProof: "",
-            addressProof: "",
-            address: "",
-            state: "",
-            district: "",
-            city: "",
-            pincode: "",
-            serviceArea: "",
-            vehicleType: "",
-            vehicleNumber: "",
-            vehicleInsurance: "",
-            vehiclePollution: "",
-            vehicle_capacity: "",
-            licenseNumber: "",
-            accountHolder: "",
-            bankName: "",
-            accountNumber: "",
-            ifscCode: "",
-            password: "",
-            confirmPassword: ""
-        });
-
-        const[error,seterror]=useState({
-            firstname_er:"",
-            lastname_er:"",
-            email_er:"",
-            phone_er:"",
-            alternatePhone_er:"",
-            profile_picture_er:"",
-            dob_er:"",
-            gender_er:"",
-            adhaarNumber_er:"",
-            adhaarProof_er:"",
-            addressProof_er:"",
-            address_er:"",
-            state_er:"",
-            district_er:"",
-            city_er:"",
-            pincode_er:"",
-            serviceArea_er:"",
-            vehicleType_er:"",
-            vehicleNumber_er:"",
-            vehicleInsurance_er:"",
-            vehiclePollution_er:"",
-            vehicle_capacity_er:"",
-            licenseNumber_er:"",
-            accountHolder_er:"",
-            bankName_er:"",
-            accountNumber_er:"",
-            ifscCode_er:"",
-            password_er:"",
-            confirmPassword_er:""
-        });
-        function handleInputChange(e)
+    function handleInputChange(e)
         {
             const {name,value,files}=e.target;
+
+            // Mark field as touched
+            setTouched(prev => ({
+                ...prev,
+                [name]: true
+            }));
+
+            if(name==="pincode")
+            {
+                // Allow only numbers and max 6 digits
+                const numericValue = value.replace(/\D/g, "").slice(0, 6);
+                set_form_dta({
+                    ...form_dta,
+                    [name]: numericValue
+                });
+                seterror({
+                    ...error,
+                    pincode_er: validate_pincode(numericValue)
+                });
+                return;
+            }
+
+            // Handle file inputs
+            if (files)
+            {
+                const file = files[0];
+
+                // Save file in state
+                set_form_dta(prev => ({
+                    ...prev,
+                    [name]: file
+                }));
+
+                // Validate based on file type
+                if (name === "ProfilePicture")
+                {
+                    seterror(prev => ({
+                        ...prev,
+                        ProfilePicture_er:
+                            touched.ProfilePicture || file
+                                ? validateFile(file)
+                                : ""
+                    }));
+                }
+
+                if (name === "adhaarProof")
+                {
+                    seterror(prev => ({
+                        ...prev,
+                        adhaarProof_er: validateDocument(file)
+                    }));
+                }
+
+                if (name === "vehicleInsurance")
+                {
+                    seterror(prev => ({
+                        ...prev,
+                        vehicleInsurance_er: validate_vehicleInsurance(file)
+                    }));
+                }
+
+                if (name === "vehiclePollution")
+                {
+                    seterror(prev => ({
+                        ...prev,
+                        vehiclePollution_er: validate_vehiclePollution(file)
+                    }));
+                }
+
+                return;
+            }
+
             set_form_dta({
                 ...form_dta,
                 [name]:value
@@ -144,23 +391,6 @@ function CollectionAgent_signup()
                     alternatePhone_er:alternate_validate_phone(value)
                 });
             }
-            if (files)
-            {
-                const file = files[0];
-
-                set_form_dta({
-                    ...form_dta,
-                    [name]: file
-                });
-
-                if (name === "profile_picture")
-                {
-                    seterror({
-                        ...error,
-                        profile_picture_er: validateFile(file)
-                    });
-                }
-            }
             if(name==="dob")
             {
                 seterror({
@@ -189,40 +419,12 @@ function CollectionAgent_signup()
                     address_er:validate_address(value)
                 });
             }
-            if(name==="state")
-            {
-                seterror({
-                    ...error,
-                    state_er:validate_state(value)
-                });
-            }
             if(name==="district")
             {
                 seterror({
                     ...error,
                     district_er:validate_district(value)
                 });
-            }
-            if(name==="city")
-            {
-                seterror({
-                    ...error,
-                    city_er:validate_city(value)
-                });
-            }
-            if(name==="pincode")
-            {
-                seterror({
-                    ...error,
-                    pincode_er:validate_pincode(value)
-                });
-            }
-            if(name === "serviceArea")
-            {
-                seterror(prev => ({
-                    ...prev,
-                    serviceArea_er: validate_serviceArea(value)
-                }));
             }
             if(name === "vehicleType")
             {
@@ -275,13 +477,6 @@ function CollectionAgent_signup()
                     }));
                 }
             }
-            if(name === "vehicle_capacity")
-            {
-                seterror(prev => ({
-                    ...prev,
-                    vehicle_capacity_er: validate_vehicle_capacity(value)
-                }));
-            }
             if(name === "accountHolder")
             {
                 seterror(prev => ({
@@ -314,423 +509,41 @@ function CollectionAgent_signup()
             {
                 seterror(prev => ({
                     ...prev,
-                    password_er: validate_password(value)
+                    password_er:
+                        touched.password || value
+                            ? validate_password(value)
+                            : ""
                 }));
             }
             if(name === "confirmPassword")
             {
                 seterror(prev => ({
                     ...prev,
-                    confirmPassword_er: validate_confirmPassword(value)
+                    confirmPassword_er:
+                        touched.confirmPassword || value
+                            ? validate_confirm_password(value, form_dta.password)
+                            : ""
                 }));
             }
-            if(name === "addressProof")
+            if(name === "adhaarProof")
             {
                 if(files)
                 {
                     const file = files[0];
+
                     set_form_dta({
                         ...form_dta,
                         [name]: file
                     });
+
                     seterror(prev => ({
                         ...prev,
-                        addressProof_er: validateFile(file)
+                        adhaarProof_er: validateFile(file)
                     }));
                 }
             }
         }
-        if(name === "adhaarProof")
-        {
-            if(files)
-            {
-                const file = files[0];
-
-                set_form_dta({
-                    ...form_dta,
-                    [name]: file
-                });
-
-                seterror(prev => ({
-                    ...prev,
-                    adhaarProof_er: validateFile(file)
-                }));
-            }
-}
-        function validate_first_name(value)
-        {
-            if(value==="")
-            {
-                return"First name is required";
-            }
-            else if(!/^[a-zA-Z\s]+$/.test(value) || value.length<3)
-            {
-                return"First name must be at least 3 characters long and contain only letters and spaces.";
-            }
-            return"";
-        }
-        function validate_last_name(value)
-        {
-            if(value==="")
-            {
-                return"Last name is required";
-            }
-            else if(!/^[a-zA-Z\s]+$/.test(value) || value.length<3)
-            {
-                return"Last name must be at least 3 characters long and contain only letters and spaces.";
-            }
-            return"";
-        }
-        function validate_email(value)
-        {
-            if(value==="")
-            {
-                return "Email is required";
-            }
-            else if(!/^[a-zA-Z0-9._%+-]+@gmail.com$/.test(value))
-            {
-                return "Email must be a valid Gmail address";
-            }
-            return "";
-        }
-        function validate_phone(value)
-        {
-            if(value==="")
-            {
-                return"Phone number is required";
-            }
-            if(!/^[6-9]\d{9}$/.test(value))
-            {
-                return"Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9";
-            }
-            if(/(\d)\1{4}/.test(value))
-            {
-                return"Phone number cannot contain 5 or more consecutive identical digits.";
-            }
-            return "";
-        }
-        function alternate_validate_phone(value)
-        {
-            if(value==="")
-            {
-                return"Phone number is required";
-            }
-            if(!/^[6-9]\d{9}$/.test(value))
-            {
-                return"Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9";
-            }
-            if(/(\d)\1{4}/.test(value))
-            {
-                return"Phone number cannot contain 5 or more consecutive identical digits.";
-            }
-            return "";
-        }
-        function validateFile(file)
-        {
-            if (!file)
-            {
-                return "Please select a file";
-            }
-
-            const allowedTypes = [
-                "image/jpeg",
-                "image/png"
-            ];
-
-            if (!allowedTypes.includes(file.type))
-            {
-                return "Only JPG, PNG files are allowed";
-            }
-            if (file.size > 2 * 1024 * 1024)
-            {
-                return "File size must be less than 2 MB";
-            }
-            return "";
-        }
-        function validate_dob(value)
-        {
-            if(value==="")
-            {
-                return"Date of birth is required";
-            }
-            const today = new Date();
-            const dob = new Date(value);
-            const age=today.getFullYear()-dob.getFullYear();
-            if(dob > today)
-            {
-                return"Date of birth cannot be in the future.";
-            }
-            else if(age<18)
-            {
-                return"You must be at least 18 years old to sign up.";
-            }
-            return "";
-        }
-        function validate_gender(value)
-        {
-            if(value==="")
-            {
-                return"Gender is required";
-            }
-            return "";
-        }
-        function validate_adhaarNumber(value)
-        {
-            if(value==="")
-            {
-                return"Adhaar number is required";
-            }
-            if(!/^[1-9]\d{11}$/.test(value))
-            {
-                return"Adhaar number must be 12 digits and start with 1-9";
-            }
-            return "";
-        }
-        function validate_address(value)
-        {
-            if(value==="")
-            {
-                return"Address is required";
-            }
-            if(value.length<5 || !/^[a-zA-Z\s,.-]+$/.test(value))
-            {
-                return"Address should be at least 5 characters long and contain only alphabets, spaces, commas, and hyphens";
-            }
-            return "";
-        }
-        function validate_state(value)
-        {
-            if(value==="")
-            {
-                return"State is required";
-            }
-            if(value.length<2 || !/^[a-zA-Z\s]+$/.test(value))
-            {
-                return"State should be at least 2 characters long and contain only alphabets and spaces";
-            }
-            return "";
-        }
-        function validate_district(value)
-        {
-            if(value==="")
-            {
-                return"District is required";
-            }
-            if(value.length<2 || !/^[a-zA-Z\s]+$/.test(value))
-            {
-                return"District should be at least 2 characters long and contain only alphabets and spaces";
-            }
-            return "";
-        }
-        function validate_city(value)
-        {
-            if(value==="")
-            {
-                return"City is required";
-            }
-            if(value.length<2 || !/^[a-zA-Z\s]+$/.test(value))
-            {
-                return"City should be at least 2 characters long and contain only alphabets and spaces";
-            }
-            return "";
-        }
-        function validate_pincode(value)
-        {
-            if(value==="")
-            {
-                return"PIN code is required";
-            }
-            if(!/^[1-9][0-9]{5}$/.test(value))
-            {
-                return"Please enter a valid 6-digit PIN code.";
-            }
-            if(value.startsWith('0'))
-            {
-                return"PIN code cannot start with 0.";
-            }
-            if(/^(\d)\1{5}$/.test(value))
-            {
-                return"PIN code cannot have all identical digits.";
-            }
-            return "";
-        }
-        function validate_serviceArea(value)
-        {
-            if (value.trim() === "")
-            {
-                return "Service area is required";
-            }
-
-            if (!/^[a-zA-Z\s,]+$/.test(value))
-            {
-                return "Only letters, spaces and commas are allowed.";
-            }
-
-            return "";
-        }
-        function validate_vehicleType(value)
-        {
-            if(value === "")
-            {
-                return "Please select a vehicle type.";
-            }
-
-            return "";
-        }
-        function validate_vehicleNumber(value)
-        {
-            if(value.trim() === "")
-            {
-                return "Vehicle number is required.";
-            }
-
-            const vehicleRegex = /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,2}[0-9]{4}$/;
-
-            if(!vehicleRegex.test(value.toUpperCase()))
-            {
-                return "Enter a valid vehicle number.";
-            }
-            return "";
-        }
-        function validate_licenseNumber(value)
-        {
-            if(value.trim() === "")
-            {
-                return "Driving license number is required.";
-            }
-
-            const licenseRegex = /^[A-Z]{2}[0-9]{2}[0-9]{4}[0-9]{7}$/;
-
-            if(!licenseRegex.test(value.toUpperCase()))
-            {
-                return "Enter a valid driving license number.";
-            }
-
-            return "";
-        }
-        function validate_vehicleInsurance(file)
-        {
-            if (!file)
-            {
-                return "Vehicle insurance document is required";
-            }
-            const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
-            if (!allowedTypes.includes(file.type))
-            {
-                return "Only JPG, PNG, or PDF files are allowed";
-            }
-            if (file.size > 5 * 1024 * 1024)
-            {
-                return "File size must be less than 5 MB";
-            }
-            return "";
-        }
-        function validate_vehiclePollution(file)
-        {
-            if (!file)
-            {
-                return "Vehicle pollution certificate is required";
-            }
-            const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
-            if (!allowedTypes.includes(file.type))
-            {
-                return "Only JPG, PNG, or PDF files are allowed";
-            }
-            if (file.size > 5 * 1024 * 1024)
-            {
-                return "File size must be less than 5 MB";
-            }
-            return "";
-        }
-        function validate_vehicle_capacity(value)
-        {
-            if(value.trim() === "")
-            {
-                return "Vehicle capacity is required";
-            }
-            if(!/^\d+$/.test(value))
-            {
-                return "Vehicle capacity must be a number";
-            }
-            return "";
-        }
-        function validate_accountHolder(value)
-        {
-            if(value.trim() === "")
-            {
-                return "Account holder name is required";
-            }
-            if(!/^[a-zA-Z\s]+$/.test(value))
-            {
-                return "Account holder name should contain only letters and spaces";
-            }
-            return "";
-        }
-        function validate_bankName(value)
-        {
-            if(value.trim() === "")
-            {
-                return "Bank name is required";
-            }
-            if(!/^[a-zA-Z\s]+$/.test(value))
-            {
-                return "Bank name should contain only letters and spaces";
-            }
-            return "";
-        }
-        function validate_accountNumber(value)
-        {
-            if(value.trim() === "")
-            {
-                return "Account number is required";
-            }
-            if(!/^\d{9,18}$/.test(value))
-            {
-                return "Account number must be 9-18 digits";
-            }
-            return "";
-        }
-        function validate_ifscCode(value)
-        {
-            if(value.trim() === "")
-            {
-                return "IFSC code is required";
-            }
-            if(!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(value.toUpperCase()))
-            {
-                return "Please enter a valid IFSC code";
-            }
-            return "";
-        }
-        function validate_password(value)
-        {
-            if(value === "")
-            {
-                return "Password is required";
-            }
-            if(value.length < 6)
-            {
-                return "Password must be at least 6 characters";
-            }
-            if(!/[!@#$%^&*(),.?":{}|<>]/.test(value))
-            {
-                return "Password must contain at least one special character";
-            }
-            return "";
-        }
-        function validate_confirmPassword(value)
-        {
-            if(value === "")
-            {
-                return "Please confirm your password";
-            }
-            if(value !== form_dta.password)
-            {
-                return "Passwords do not match";
-            }
-            return "";
-        }
-        function collectionagent_validation(e)
+        async function collectionagent_validation(e)
         {
             e.preventDefault();
 
@@ -740,39 +553,60 @@ function CollectionAgent_signup()
                 email_er: validate_email(form_dta.email),
                 phone_er: validate_phone(form_dta.phone),
                 alternatePhone_er:alternate_validate_phone(form_dta.alternatePhone),
-                profile_picture_er: validateFile(form_dta.profile_picture),
+                ProfilePicture_er: validateFile(form_dta.ProfilePicture),
                 dob_er: validate_dob(form_dta.dob),
                 gender_er: validate_gender(form_dta.gender),
                 adhaarNumber_er: validate_adhaarNumber(form_dta.adhaarNumber),
-                adhaarProof_er: validateFile(form_dta.adhaarProof),
-                addressProof_er: validateFile(form_dta.addressProof),
+                adhaarProof_er: validateDocument(form_dta.adhaarProof),
                 address_er:validate_address(form_dta.address),
-                state_er:validate_state(form_dta.state),
                 district_er:validate_district(form_dta.district),
-                city_er:validate_city(form_dta.city),
                 pincode_er:validate_pincode(form_dta.pincode),
-                serviceArea_er:validate_serviceArea(form_dta.serviceArea),
                 vehicleType_er: validate_vehicleType(form_dta.vehicleType),
                 vehicleNumber_er:validate_vehicleNumber(form_dta.vehicleNumber),
                 licenseNumber_er:validate_licenseNumber(form_dta.licenseNumber),
                 vehicleInsurance_er: validate_vehicleInsurance(form_dta.vehicleInsurance),
                 vehiclePollution_er: validate_vehiclePollution(form_dta.vehiclePollution),
-                vehicle_capacity_er: validate_vehicle_capacity(form_dta.vehicle_capacity),
                 accountHolder_er: validate_accountHolder(form_dta.accountHolder),
                 bankName_er: validate_bankName(form_dta.bankName),
                 accountNumber_er: validate_accountNumber(form_dta.accountNumber),
                 ifscCode_er: validate_ifscCode(form_dta.ifscCode),
-                password_er: validate_password(form_dta.password),
-                confirmPassword_er: validate_confirmPassword(form_dta.confirmPassword)
+                password_er:
+                    form_dta.password === ""
+                        ? "Password is required"
+                        : validate_password(form_dta.password),
+                confirmPassword_er:
+                    form_dta.confirmPassword === ""
+                        ? "Please confirm your password"
+                        : validate_confirm_password(form_dta.confirmPassword, form_dta.password)
             };
-
+            const formData = new FormData();
+            Object.keys(form_dta).forEach((key) => {
+                formData.append(key, form_dta[key]);
+            });
             seterror(newErrors);
 
             if (Object.values(newErrors).some(err => err !== ""))
             {
                 return;
             }
-            navigate("/collectionagent");
+            try
+            {
+                await axios.post(
+                    "https://localhost:7102/api/CollectionAgent/Register",
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data"
+                        }
+                    }
+                );
+                setIsSubmitted(true);
+            }
+            catch (error)
+            {
+                console.error("Registration failed:", error);
+                alert("Registration failed. Please try again.");
+            }
         }
     return (
         <div className="collectionagent-signup">
@@ -792,10 +626,74 @@ function CollectionAgent_signup()
 
             <div className="collectionagent-panel">
                 <div className="collectionagent-card">
+                    {isSubmitted ? (
+                        <div className="registration-success-container" style={{ textAlign: "center", padding: "2rem 1rem" }}>
+                            <div className="success-icon-wrapper" style={{
+                                width: "76px",
+                                height: "76px",
+                                borderRadius: "50%",
+                                background: "linear-gradient(135deg, rgba(234, 179, 8, 0.18), rgba(245, 158, 11, 0.08))",
+                                border: "2px solid #eab308",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                margin: "0 auto 1.25rem auto",
+                                color: "#eab308",
+                                fontSize: "2.25rem"
+                            }}>
+                                <FaClock />
+                            </div>
+                            <h2 style={{ fontSize: "1.6rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.75rem", fontFamily: "'Space Grotesk', sans-serif" }}>
+                                Application Submitted Successfully!
+                            </h2>
+                            <div style={{
+                                background: "rgba(234, 179, 8, 0.08)",
+                                border: "1px solid rgba(234, 179, 8, 0.3)",
+                                borderRadius: "12px",
+                                padding: "1.25rem 1.5rem",
+                                marginBottom: "1.5rem",
+                                textAlign: "left"
+                            }}>
+                                <p style={{ margin: 0, fontWeight: 700, fontSize: "0.95rem", color: "#a16207", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                    <span>⏳</span> Account Verification Pending
+                                </p>
+                                <p style={{ margin: "0.5rem 0 0 0", color: "#475569", fontSize: "0.9rem", lineHeight: 1.6 }}>
+                                    Your Collection Agent account has been created. <strong>Please note that your account needs to be verified and approved by the Administrator before you can log in.</strong>
+                                </p>
+                            </div>
+                            <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "2rem", lineHeight: 1.5 }}>
+                                Thank you for registering with EcoCycle. Please wait for admin approval. You can return to the login page to sign in once approved.
+                            </p>
+                            <button
+                                type="button"
+                                className="collectionagent-btn"
+                                onClick={() => navigate("/login")}
+                                style={{ maxWidth: "220px", margin: "0 auto", display: "block", textTransform: "none" }}
+                            >
+                                Back to Login
+                            </button>
+                        </div>
+                    ) : (
+                        <>
                     <div className="collectionagent-header">
                         <div className="collectionagent-eyebrow">AGENT REGISTRATION</div>
                         <h1>Sign Up</h1>
                         <p>Fill in your details to get started</p>
+                        <div className="role-signup-select-wrapper header-role-select">
+                            <label htmlFor="agent-role-select">Select Registration Role:</label>
+                            <select
+                                id="agent-role-select"
+                                className="role-signup-select"
+                                value="/signup/collection-agent"
+                                onChange={(e) => navigate(e.target.value)}
+                            >
+                                <option value="/signup">Individual / Citizen</option>
+                                <option value="/signup/collection-agent">Collection Agent</option>
+                                <option value="/technician_signup">Inspection Technician</option>
+                                <option value="/signup/refurbishmententer_signup">Refurbishment Center</option>
+                                <option value="/signup/recyclingcenter_signup">Recycling Center</option>
+                            </select>
+                        </div>
                     </div>
 
                     <form className="collectionagent-form" onSubmit={collectionagent_validation}>
@@ -840,6 +738,8 @@ function CollectionAgent_signup()
                                         />
                                         {error.email_er && <div className="error-message">{error.email_er}</div>}
                                     </div>
+                                </div>
+                                <div className="collectionagent-form-column">
                                     <div className="collectionagent-field">
                                         <label>Phone Number</label>
                                         <input
@@ -852,8 +752,6 @@ function CollectionAgent_signup()
                                         />
                                         {error.phone_er && <div className="error-message">{error.phone_er}</div>}
                                     </div>
-                                </div>
-                                <div className="collectionagent-form-column">
                                     <div className="collectionagent-field">
                                         <label>Alternate Phone</label>
                                         <input
@@ -870,13 +768,17 @@ function CollectionAgent_signup()
                                         <label>Profile Picture</label>
                                         <input
                                             type="file"
-                                            name="profile_picture"
+                                            name="ProfilePicture"
                                             accept="image/jpeg,image/png"
                                             onChange={handleInputChange}
-                                            className={error.profile_picture_er ? "input-error" : ""}
+                                            className={error.ProfilePicture_er ? "input-error" : ""}
                                         />
-                                        {error.profile_picture_er && <div className="error-message">{error.profile_picture_er}</div>}
+                                        {error.ProfilePicture_er && <div className="error-message">{error.ProfilePicture_er}</div>}
                                     </div>
+                                </div>
+                            </div>
+                            <div className="collectionagent-form-grid">
+                                <div className="collectionagent-form-column">
                                     <div className="collectionagent-field">
                                         <label>Date of Birth</label>
                                         <input
@@ -888,6 +790,8 @@ function CollectionAgent_signup()
                                         />
                                         {error.dob_er && <div className="error-message">{error.dob_er}</div>}
                                     </div>
+                                </div>
+                                <div className="collectionagent-form-column">
                                     <div className="collectionagent-field">
                                         <label>Gender</label>
                                         <select
@@ -924,6 +828,8 @@ function CollectionAgent_signup()
                                         />
                                         {error.adhaarNumber_er && <div className="error-message">{error.adhaarNumber_er}</div>}
                                     </div>
+                                </div>
+                                <div className="collectionagent-form-column">
                                     <div className="collectionagent-field">
                                         <label>Aadhaar Proof</label>
                                         <input
@@ -934,19 +840,6 @@ function CollectionAgent_signup()
                                             className={error.adhaarProof_er ? "input-error" : ""}
                                         />
                                         {error.adhaarProof_er && <div className="error-message">{error.adhaarProof_er}</div>}
-                                    </div>
-                                </div>
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Address Proof(any home bills)</label>
-                                        <input
-                                            type="file"
-                                            name="addressProof"
-                                            accept="image/jpeg,image/png,application/pdf"
-                                            onChange={handleInputChange}
-                                            className={error.addressProof_er ? "input-error" : ""}
-                                        />
-                                        {error.addressProof_er && <div className="error-message">{error.addressProof_er}</div>}
                                     </div>
                                 </div>
                             </div>
@@ -971,66 +864,54 @@ function CollectionAgent_signup()
                                         {error.address_er && <div className="error-message">{error.address_er}</div>}
                                     </div>
                                     <div className="collectionagent-field">
-                                        <label>State</label>
+                                        <label>PIN Code</label>
                                         <input
                                             type="text"
-                                            placeholder="Enter your state"
-                                            name="state"
-                                            value={form_dta.state}
+                                            placeholder="Enter 6-digit PIN code"
+                                            name="pincode"
+                                            value={form_dta.pincode}
                                             onChange={handleInputChange}
-                                            className={error.state_er ? "input-error" : ""}
+                                            maxLength={6}
+                                            className={error.pincode_er || pincodeError ? "input-error" : ""}
                                         />
-                                        {error.state_er && <div className="error-message">{error.state_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>City</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter your city"
-                                            name="city"
-                                            value={form_dta.city}
-                                            onChange={handleInputChange}
-                                            className={error.city_er ? "input-error" : ""}
-                                        />
-                                        {error.city_er && <div className="error-message">{error.city_er}</div>}
+                                        {pincodeLoading && <div className="loading-text">Fetching location...</div>}
+                                        {pincodeError && <div className="error-message">{pincodeError}</div>}
+                                        {error.pincode_er && <div className="error-message">{error.pincode_er}</div>}
                                     </div>
                                 </div>
                                 <div className="collectionagent-form-column">
                                     <div className="collectionagent-field">
+                                        <label>State</label>
+                                        <input
+                                            type="text"
+                                            name="state"
+                                            value={form_dta.state}
+                                            onChange={handleInputChange}
+                                            readOnly
+                                            className="readonly-field"
+                                        />
+                                    </div>
+                                    <div className="collectionagent-field">
                                         <label>District</label>
                                         <input
                                             type="text"
-                                            placeholder="Enter your district"
                                             name="district"
                                             value={form_dta.district}
                                             onChange={handleInputChange}
-                                            className={error.district_er ? "input-error" : ""}
+                                            readOnly
+                                            className="readonly-field"
                                         />
-                                        {error.district_er && <div className="error-message">{error.district_er}</div>}
                                     </div>
                                     <div className="collectionagent-field">
-                                        <label>PIN Code</label>
+                                        <label>City/Taluk</label>
                                         <input
                                             type="text"
-                                            placeholder="Enter PIN code"
-                                            name="pincode"
-                                            value={form_dta.pincode}
+                                            name="city"
+                                            value={form_dta.city}
                                             onChange={handleInputChange}
-                                            className={error.pincode_er ? "input-error" : ""}
+                                            readOnly
+                                            className="readonly-field"
                                         />
-                                        {error.pincode_er && <div className="error-message">{error.pincode_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>Service Area</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Service areas"
-                                            name="serviceArea"
-                                            value={form_dta.serviceArea}
-                                            onChange={handleInputChange}
-                                            className={error.serviceArea_er ? "input-error" : ""}
-                                        />
-                                        {error.serviceArea_er && <div className="error-message">{error.serviceArea_er}</div>}
                                     </div>
                                 </div>
                             </div>
@@ -1073,6 +954,8 @@ function CollectionAgent_signup()
                                         />
                                         {error.vehicleNumber_er && <div className="error-message">{error.vehicleNumber_er}</div>}
                                     </div>
+                                </div>
+                                <div className="collectionagent-form-column">
                                     <div className="collectionagent-field">
                                         <label>Driving License Number</label>
                                         <input
@@ -1084,20 +967,6 @@ function CollectionAgent_signup()
                                             className={error.licenseNumber_er ? "input-error" : ""}
                                         />
                                         {error.licenseNumber_er && <div className="error-message">{error.licenseNumber_er}</div>}
-                                    </div>
-                                </div>
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Vehicle Capacity</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter vehicle capacity"
-                                            name="vehicle_capacity"
-                                            value={form_dta.vehicle_capacity}
-                                            onChange={handleInputChange}
-                                            className={error.vehicle_capacity_er ? "input-error" : ""}
-                                        />
-                                        {error.vehicle_capacity_er && <div className="error-message">{error.vehicle_capacity_er}</div>}
                                     </div>
                                     <div className="collectionagent-field">
                                         <label>Vehicle Insurance</label>
@@ -1202,7 +1071,8 @@ function CollectionAgent_signup()
                                                 onChange={handleInputChange}
                                                 className={error.password_er ? "input-error" : ""}
                                             />
-                                            {error.password_er && <div className="error-message">{error.password_er}</div>}
+                                            {(touched.password || error.password_er) &&
+                                                error.password_er && <div className="error-message">{error.password_er}</div>}
                                             <button
                                                 type="button"
                                                 className="password-toggle-btn"
@@ -1226,7 +1096,8 @@ function CollectionAgent_signup()
                                                 onChange={handleInputChange}
                                                 className={error.confirmPassword_er ? "input-error" : ""}
                                             />
-                                            {error.confirmPassword_er && <div className="error-message">{error.confirmPassword_er}</div>}
+                                            {(touched.confirmPassword || error.confirmPassword_er) &&
+                                                error.confirmPassword_er && <div className="error-message">{error.confirmPassword_er}</div>}
                                             <button
                                                 type="button"
                                                 className="password-toggle-btn"
@@ -1258,6 +1129,17 @@ function CollectionAgent_signup()
                                 </button>
                             )}
                         </div>
+
+                        <div className="step-indicator">
+                            {sections.map((_, index) => (
+                                <div
+                                    key={index}
+                                    className={`step-dot ${index === currentStep ? 'active' : ''} ${index < currentStep ? 'completed' : ''}`}
+                                >
+                                    {index + 1}
+                                </div>
+                            ))}
+                        </div>
                     </form>
 
                     <div className="collectionagent-links">
@@ -1269,6 +1151,8 @@ function CollectionAgent_signup()
                             <a href="/" className="collectionagent-back">← Back to home</a>
                         </p>
                     </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

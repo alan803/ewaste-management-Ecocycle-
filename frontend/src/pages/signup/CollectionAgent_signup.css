@@ -343,6 +343,57 @@
 
 .collectionagent-links a:hover { color: var(--primary-hover); }
 
+.readonly-field {
+  background: #f8fbf9;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.loading-text {
+  font-size: 0.75rem;
+  color: var(--primary);
+  margin-top: 0.25rem;
+  font-weight: 500;
+}
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+
+.step-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--border, #e2e8f0);
+  color: var(--text-muted, #64748b);
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+  user-select: none;
+  line-height: 1;
+}
+
+.step-dot.active {
+  background: var(--primary, #1e8a55);
+  color: #ffffff;
+  font-weight: 700;
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(30, 138, 85, 0.35);
+}
+
+.step-dot.completed {
+  background: var(--primary, #1e8a55);
+  color: #ffffff;
+  opacity: 0.85;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .collectionagent-signup { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
@@ -356,4 +407,49 @@
   .collectionagent-visual { padding: 2rem 1.25rem 1.5rem; min-height: 220px; }
   .collectionagent-card { padding: 2rem 1.5rem; }
   .collectionagent-header h1 { font-size: 1.6rem; }
+}
+
+/* Role Selection Dropdown */
+.role-signup-select-wrapper {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.role-signup-select-wrapper.header-role-select {
+  margin-top: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.role-signup-select-wrapper label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted, #5a7264);
+}
+
+.role-signup-select {
+  font-family: "Inter", sans-serif;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border, #d4e4da);
+  border-radius: 8px;
+  background: #f8fbf9;
+  color: var(--primary, #1e8a55);
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  max-width: 280px;
+  width: 100%;
+  text-align: center;
+}
+
+.role-signup-select:hover,
+.role-signup-select:focus {
+  border-color: var(--primary, #1e8a55);
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(30, 138, 85, 0.12);
 }

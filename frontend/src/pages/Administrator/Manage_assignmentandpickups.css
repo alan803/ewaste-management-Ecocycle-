@@ -1,0 +1,71 @@
+@import "./Manage_device.css";
+
+/* Custom Enhancements for Manage Assignments and Pickups */
+
+.assignment-rejection-box {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.assignment-rejection-box svg {
+  color: var(--rose);
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.assignment-rejection-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--rose);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.2rem;
+}
+
+.assignment-rejection-text {
+  font-size: 0.85rem;
+  color: #9f1239;
+  margin: 0;
+}
+
+.rejection-note-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #e11d48;
+  font-size: 0.775rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+.deadline-cell-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.deadline-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-main);
+}
+
+.deadline-item-sub {
+  font-size: 0.725rem;
+  color: var(--text-muted);
+}
+
+.badge-tag--reassign {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}

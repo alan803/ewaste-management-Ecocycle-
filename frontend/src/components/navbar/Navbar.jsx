@@ -5,7 +5,7 @@ import { HashLink } from "react-router-hash-link";
 
 function Navbar() {
     return (
-        <nav>
+        <nav className="main-site-navbar">
             <div>
                 <img src={logo} alt="Logo" />
             </div>

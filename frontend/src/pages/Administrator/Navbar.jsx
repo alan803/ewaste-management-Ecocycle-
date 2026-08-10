@@ -1,148 +1,388 @@
+import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { FaLeaf, FaLaptop } from "react-icons/fa";
+import {
+    FiGrid,
+    FiUsers,
+    FiPackage,
+    FiTruck,
+    FiMapPin,
+    FiBarChart2,
+    FiShield,
+    FiSettings,
+    FiLogOut,
+    FiMenu,
+    FiX,
+    FiUserCheck,
+    FiUserPlus,
+    FiChevronRight,
+    FiChevronDown,
+    FiUser,
+    FiCpu,
+    FiTool,
+    FiRefreshCw
+} from "react-icons/fi";
 import "./Navbar.css";
 
 function Navbar() {
     const location = useLocation();
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     const isActive = (path) => {
+        if (path === "/admin") {
+            return location.pathname === "/admin" || location.pathname === "/admin/";
+        }
         return location.pathname === path || location.pathname.startsWith(path + "/");
     };
 
+    const isUserMgmtActive =
+        isActive("/usermanagement") ||
+        isActive("/manage-collectionagent") ||
+        isActive("/manage-refurbishmentcenter") ||
+        isActive("/manage-technicians") ||
+        isActive("/manage-recyclingcenter") ||
+        location.pathname.startsWith("/view-");
+
+    const isManageAccountsActive =
+        isActive("/manage-users") ||
+        isActive("/manage-collectionagents") ||
+        isActive("/manage-refurbishmentcenters") ||
+        isActive("/manage-recyclingcenters") ||
+        isActive("/manage-technicians-list");
+
+    const [userMgmtOpen, setUserMgmtOpen] = useState(false);
+    const [manageAccountsOpen, setManageAccountsOpen] = useState(false);
+
+    const toggleMobileMenu = () => {
+        setMobileOpen(!mobileOpen);
+    };
+
+    const closeMobileMenu = () => {
+        setMobileOpen(false);
+    };
+
+    const handleSublinkClick = () => {
+        setUserMgmtOpen(false);
+        closeMobileMenu();
+    };
+
+    const handleManageAccountsSublinkClick = () => {
+        setManageAccountsOpen(false);
+        closeMobileMenu();
+    };
+
     return (
-        <div className="admin-sidebar">
-            <div className="sidebar-header">
-                <div className="sidebar-logo">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                    </svg>
-                    <span>EcoCycle</span>
-                </div>
-            </div>
+        <>
+            {/* Mobile Menu Toggle Button */}
+            <button className="admin-sb-mobile-toggle" onClick={toggleMobileMenu} aria-label="Toggle sidebar">
+                {mobileOpen ? <FiX /> : <FiMenu />}
+            </button>
 
-            <nav className="sidebar-nav">
-                <div className="sidebar-section">
-                    <span className="sidebar-section-title">Main</span>
-                    <ul className="sidebar-menu">
-                        <li>
-                            <Link to="/admin" className={`sidebar-link ${isActive("/admin") && !isActive("/admin/") ? "active" : ""}`}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <rect x="3" y="3" width="7" height="7"></rect>
-                                    <rect x="14" y="3" width="7" height="7"></rect>
-                                    <rect x="14" y="14" width="7" height="7"></rect>
-                                    <rect x="3" y="14" width="7" height="7"></rect>
-                                </svg>
-                                <span>Dashboard</span>
-                            </Link>
-                        </li>
-                        <li>
-                            <Link to="/usermanagement" className={`sidebar-link ${isActive("/usermanagement") ? "active" : ""}`}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                    <circle cx="9" cy="7" r="4"></circle>
-                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                                </svg>
-                                <span>User Management</span>
-                            </Link>
-                        </li>
-                        <li>
-                            <Link to="/admin/users" className={`sidebar-link ${isActive("/admin/users") ? "active" : ""}`}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                    <circle cx="9" cy="7" r="4"></circle>
-                                </svg>
-                                <span>Manage Users</span>
-                            </Link>
-                        </li>
-                    </ul>
+            {/* Backdrop overlay for mobile */}
+            {mobileOpen && <div className="admin-sb-backdrop" onClick={closeMobileMenu}></div>}
+
+            <aside className={`admin-sidebar ${mobileOpen ? "open" : ""}`}>
+                {/* Brand Header */}
+                <div className="admin-sb-header">
+                    <Link to="/admin" className="admin-sb-logo-link" onClick={closeMobileMenu}>
+                        <div className="admin-sb-logo-icon">
+                            <FaLeaf />
+                        </div>
+                        <div className="admin-sb-logo-text">
+                            <span className="admin-sb-brand-name">EcoCycle</span>
+                            <span className="admin-sb-brand-tag">ADMIN HUB</span>
+                        </div>
+                    </Link>
                 </div>
 
-                <div className="sidebar-section">
-                    <span className="sidebar-section-title">Pickup Management</span>
-                    <ul className="sidebar-menu">
-                        <li>
-                            <Link to="/admin/pickups" className={`sidebar-link ${isActive("/admin/pickups") ? "active" : ""}`}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                                </svg>
-                                <span>Pickup Requests</span>
-                            </Link>
-                        </li>
-                        <li>
-                            <Link to="/admin/assign-pickups" className={`sidebar-link ${isActive("/admin/assign-pickups") ? "active" : ""}`}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                    <circle cx="8.5" cy="7" r="4"></circle>
-                                    <line x1="20" y1="8" x2="20" y2="14"></line>
-                                    <line x1="23" y1="11" x2="17" y2="11"></line>
-                                </svg>
-                                <span>Assign Pickups</span>
-                            </Link>
-                        </li>
-                        <li>
-                            <Link to="/admin/tracking" className={`sidebar-link ${isActive("/admin/tracking") ? "active" : ""}`}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
-                                </svg>
-                                <span>Pickup Tracking</span>
-                            </Link>
-                        </li>
-                    </ul>
-                </div>
+                {/* Navigation Links */}
+                <nav className="admin-sb-nav">
+                    <div className="admin-sb-section">
+                        <span className="admin-sb-section-title">Main Control</span>
+                        <ul className="admin-sb-menu">
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/admin"
+                                    className={`admin-sb-link ${isActive("/admin") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--emerald">
+                                        <FiGrid />
+                                    </div>
+                                    <span className="admin-sb-link-text">Dashboard</span>
+                                    {isActive("/admin") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
 
-                <div className="sidebar-section">
-                    <span className="sidebar-section-title">Analytics & Settings</span>
-                    <ul className="sidebar-menu">
-                        <li>
-                            <Link to="/admin/reports" className={`sidebar-link ${isActive("/admin/reports") ? "active" : ""}`}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <line x1="18" y1="20" x2="18" y2="10"></line>
-                                    <line x1="12" y1="20" x2="12" y2="4"></line>
-                                    <line x1="6" y1="20" x2="6" y2="14"></line>
-                                </svg>
-                                <span>Reports & Analytics</span>
-                            </Link>
-                        </li>
-                        <li>
-                            <Link to="/admin/audit" className={`sidebar-link ${isActive("/admin/audit") ? "active" : ""}`}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                                    <polyline points="10 9 9 9 8 9"></polyline>
-                                </svg>
-                                <span>Audit Logs</span>
-                            </Link>
-                        </li>
-                        <li>
-                            <Link to="/admin/settings" className={`sidebar-link ${isActive("/admin/settings") ? "active" : ""}`}>
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <circle cx="12" cy="12" r="3"></circle>
-                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                                </svg>
-                                <span>Settings</span>
-                            </Link>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
+                            {/* User Management Collapsible Section */}
+                            <li className={`admin-sb-item admin-sb-has-submenu ${userMgmtOpen ? "expanded" : ""}`}>
+                                <div
+                                    className={`admin-sb-link ${isUserMgmtActive ? "active" : ""}`}
+                                    onClick={() => setUserMgmtOpen(!userMgmtOpen)}
+                                    style={{ cursor: "pointer" }}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--blue">
+                                        <FiUserCheck />
+                                    </div>
+                                    <span className="admin-sb-link-text">Account Approvals</span>
+                                    <button
+                                        type="button"
+                                        className="admin-sb-chevron-btn"
+                                        aria-label="Toggle User Management sub-menu"
+                                    >
+                                        <FiChevronDown className={`admin-sb-chevron-icon ${userMgmtOpen ? "rotate" : ""}`} />
+                                    </button>
+                                </div>
 
-            <div className="sidebar-footer">
-                <Link to="/logout" className="sidebar-link sidebar-link--logout">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                    <span>Logout</span>
-                </Link>
-            </div>
-        </div>
+                                {userMgmtOpen && (
+                                    <div className="admin-sb-submenu-wrapper">
+                                        {/* Submenu Items List */}
+                                        <ul className="admin-sb-submenu">
+                                            <li>
+                                                <Link
+                                                    to="/manage-collectionagent"
+                                                    className={`admin-sb-sublink ${isActive("/manage-collectionagent") || location.pathname.startsWith("/view-collectionagent") ? "active" : ""}`}
+                                                    onClick={handleSublinkClick}
+                                                >
+                                                    <FiTruck className="sublink-icon icon--amber" />
+                                                    <span>Collection Agent</span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    to="/manage-technicians"
+                                                    className={`admin-sb-sublink ${isActive("/manage-technicians") || location.pathname.startsWith("/view-technician") ? "active" : ""}`}
+                                                    onClick={handleSublinkClick}
+                                                >
+                                                    <FiTool className="sublink-icon icon--cyan" />
+                                                    <span>Technician</span>
+                                                </Link>
+                                            </li>
+                                             <li>
+                                                <Link
+                                                    to="/manage-recyclingcenter"
+                                                    className={`admin-sb-sublink ${isActive("/manage-recyclingcenter") || location.pathname.startsWith("/view-recycling") ? "active" : ""}`}
+                                                    onClick={handleSublinkClick}
+                                                >
+                                                    <FiRefreshCw className="sublink-icon icon--teal" />
+                                                    <span>Recycling Center</span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    to="/manage-refurbishmentcenter"
+                                                    className={`admin-sb-sublink ${isActive("/manage-refurbishmentcenter") || location.pathname.startsWith("/view-refurbishmentcenter") ? "active" : ""}`}
+                                                    onClick={handleSublinkClick}
+                                                >
+                                                    <FiCpu className="sublink-icon icon--purple" />
+                                                    <span>Refurbishment Center</span>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </li>
+
+                            {/* Manage Accounts Collapsible Section */}
+                            <li className={`admin-sb-item admin-sb-has-submenu ${manageAccountsOpen ? "expanded" : ""}`}>
+                                <div
+                                    className={`admin-sb-link ${isManageAccountsActive ? "active" : ""}`}
+                                    onClick={() => setManageAccountsOpen(!manageAccountsOpen)}
+                                    style={{ cursor: "pointer" }}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--indigo">
+                                        <FiUsers />
+                                    </div>
+                                    <span className="admin-sb-link-text">Manage Accounts</span>
+                                    <button
+                                        type="button"
+                                        className="admin-sb-chevron-btn"
+                                        aria-label="Toggle Manage Accounts sub-menu"
+                                    >
+                                        <FiChevronDown className={`admin-sb-chevron-icon ${manageAccountsOpen ? "rotate" : ""}`} />
+                                    </button>
+                                </div>
+
+                                {manageAccountsOpen && (
+                                    <div className="admin-sb-submenu-wrapper">
+                                        <ul className="admin-sb-submenu">
+                                            <li>
+                                                <Link
+                                                    to="/manage-users"
+                                                    className={`admin-sb-sublink ${isActive("/manage-users") ? "active" : ""}`}
+                                                    onClick={handleManageAccountsSublinkClick}
+                                                >
+                                                    <FiUser className="sublink-icon icon--emerald" />
+                                                    <span>Citizen</span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    to="/managetechnicians"
+                                                    className={`admin-sb-sublink ${isActive("/managetechnicians") ? "active" : ""}`}
+                                                    onClick={handleManageAccountsSublinkClick}
+                                                >
+                                                    <FiTool className="sublink-icon icon--cyan" />
+                                                    <span>Technician</span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    to="/manage-collectionagents"
+                                                    className={`admin-sb-sublink ${isActive("/manage-collectionagents") ? "active" : ""}`}
+                                                    onClick={handleManageAccountsSublinkClick}
+                                                >
+                                                    <FiTruck className="sublink-icon icon--amber" />
+                                                    <span>Collection Agent</span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    to="/manage-recyclingcenters"
+                                                    className={`admin-sb-sublink ${isActive("/manage-recyclingcenters") ? "active" : ""}`}
+                                                    onClick={handleManageAccountsSublinkClick}
+                                                >
+                                                    <FiRefreshCw className="sublink-icon icon--teal" />
+                                                    <span>Recycling Center</span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    to="/manage-refurbishment"
+                                                    className={`admin-sb-sublink ${isActive("/manage-refurbishment") ? "active" : ""}`}
+                                                    onClick={handleManageAccountsSublinkClick}
+                                                >
+                                                    <FiCpu className="sublink-icon icon--purple" />
+                                                    <span>Refurbishment Center</span>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/manage-device"
+                                    className={`admin-sb-link ${isActive("/manage-device") || isActive("/admin/device") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--purple">
+                                        <FaLaptop />
+                                    </div>
+                                    <span className="admin-sb-link-text">Manage Device</span>
+                                    {(isActive("/manage-device") || isActive("/admin/device")) && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="admin-sb-section">
+                        <span className="admin-sb-section-title">Pickup Operations</span>
+                        <ul className="admin-sb-menu">
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/admin/pickups"
+                                    className={`admin-sb-link ${isActive("/admin/pickups") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--amber">
+                                        <FiPackage />
+                                    </div>
+                                    <span className="admin-sb-link-text">Pickup Requests</span>
+                                    {isActive("/admin/pickups") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/manage-assignmentandpickups"
+                                    className={`admin-sb-link ${isActive("/manage-assignmentandpickups") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--cyan">
+                                        <FiTruck />
+                                    </div>
+                                    <span className="admin-sb-link-text">Manage Pickups</span>
+                                    {isActive("/manage-assignmentandpickups") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/admin/tracking"
+                                    className={`admin-sb-link ${isActive("/admin/tracking") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--purple">
+                                        <FiMapPin />
+                                    </div>
+                                    <span className="admin-sb-link-text">Pickup Tracking</span>
+                                    {isActive("/admin/tracking") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="admin-sb-section">
+                        <span className="admin-sb-section-title">Analytics &amp; Security</span>
+                        <ul className="admin-sb-menu">
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/admin/reports"
+                                    className={`admin-sb-link ${isActive("/admin/reports") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--teal">
+                                        <FiBarChart2 />
+                                    </div>
+                                    <span className="admin-sb-link-text">Reports &amp; Analytics</span>
+                                    {isActive("/admin/reports") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/admin/audit"
+                                    className={`admin-sb-link ${isActive("/admin/audit") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--slate">
+                                        <FiShield />
+                                    </div>
+                                    <span className="admin-sb-link-text">Audit Logs</span>
+                                    {isActive("/admin/audit") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/admin/settings"
+                                    className={`admin-sb-link ${isActive("/admin/settings") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--gray">
+                                        <FiSettings />
+                                    </div>
+                                    <span className="admin-sb-link-text">Settings</span>
+                                    {isActive("/admin/settings") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+                </nav>
+
+                {/* Footer Section */}
+                <div className="admin-sb-footer">
+                    <div className="admin-sb-health-pill">
+                        <span className="admin-sb-health-dot"></span>
+                        <span className="admin-sb-health-text">v2.4 • System Normal</span>
+                    </div>
+
+                    <Link to="/logout" className="admin-sb-link admin-sb-link--logout">
+                        <div className="admin-sb-icon-box icon-box--rose">
+                            <FiLogOut />
+                        </div>
+                        <span className="admin-sb-link-text">Logout</span>
+                    </Link>
+                </div>
+            </aside>
+        </>
     );
 }
 

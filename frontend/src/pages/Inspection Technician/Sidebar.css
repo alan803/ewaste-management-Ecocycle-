@@ -1,0 +1,282 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
+.clean-sidebar {
+  width: 250px;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.25rem 1rem;
+  z-index: 100;
+  transition: transform 0.25s ease;
+  color: #0f172a;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.02);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.sidebar-top-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+/* Brand Header */
+.sidebar-brand {
+  margin-bottom: 1.25rem;
+}
+
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+}
+
+.brand-logo-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #10b981;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.brand-role {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* Status Badge Chip */
+.status-badge-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #047857;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.verified-icon {
+  margin-left: auto;
+  color: #10b981;
+}
+
+/* Navigation Links */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.nav-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: block;
+  margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.nav-menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  color: #475569;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.nav-icon {
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  color: #64748b;
+  transition: color 0.2s ease;
+}
+
+.nav-link:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.nav-link:hover .nav-icon {
+  color: #10b981;
+}
+
+.nav-link.active {
+  background: #ecfdf5;
+  color: #047857;
+  font-weight: 700;
+}
+
+.nav-link.active .nav-icon {
+  color: #10b981;
+}
+
+/* Footer Section */
+.sidebar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #ffffff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-name {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.user-role {
+  font-size: 0.725rem;
+  color: #64748b;
+}
+
+.logout-btn {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #e11d48;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+/* Mobile Toggle */
+.clean-mobile-toggle {
+  display: none;
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 1001;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  font-size: 1.25rem;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 992px) {
+  .clean-mobile-toggle {
+    display: flex;
+  }
+
+  .clean-sidebar {
+    transform: translateX(-100%);
+  }
+
+  .clean-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 99;
+  }
+}
