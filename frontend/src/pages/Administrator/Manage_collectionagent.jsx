@@ -204,6 +204,12 @@ function Manage_collectionagent() {
         return `https://localhost:7102/uploads/pollution/${agent.vehiclePollution}`;
     };
 
+    const getVehiclePhotoPath = (agent) => {
+        if (!agent?.vehiclePhoto) return null;
+        if (agent.vehiclePhoto.startsWith("http")) return agent.vehiclePhoto;
+        return `https://localhost:7102/uploads/vehicle/${agent.vehiclePhoto}`;
+    };
+
     const formatDate = (dateString) => {
         if (!dateString) return "N/A";
         try {
@@ -549,7 +555,7 @@ function Manage_collectionagent() {
                                 </div>
                             </div>
 
-                            {(getAadhaarProofPath(selectedAgent) || getInsurancePath(selectedAgent) || getPollutionPath(selectedAgent) || getPhotoSrc(selectedAgent)) && (
+                            {(getAadhaarProofPath(selectedAgent) || getInsurancePath(selectedAgent) || getPollutionPath(selectedAgent) || getVehiclePhotoPath(selectedAgent) || getPhotoSrc(selectedAgent)) && (
                                 <div className="device-photos-section">
                                     <h4>Uploaded Verification Documents</h4>
                                     <div className="photos-grid">
@@ -586,6 +592,18 @@ function Manage_collectionagent() {
                                                     className="document-link-btn"
                                                 >
                                                     Vehicle Pollution Cert ↗
+                                                </a>
+                                            </div>
+                                        )}
+                                        {getVehiclePhotoPath(selectedAgent) && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={getVehiclePhotoPath(selectedAgent)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                >
+                                                    Vehicle Photo ↗
                                                 </a>
                                             </div>
                                         )}

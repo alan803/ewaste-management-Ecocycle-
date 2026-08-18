@@ -32,6 +32,12 @@ function Manage_device() {
     const [activeFilter, setActiveFilter] = useState("All");
     const [selectedDevice, setSelectedDevice] = useState(null);
     const [allocatingId, setAllocatingId] = useState(null);
+    const [manualAllocatingDevice, setManualAllocatingDevice] = useState(null);
+    const [activeTechnicians, setActiveTechnicians] = useState([]);
+    const [selectedTechId, setSelectedTechId] = useState("");
+    const [manualAllocatingLoading, setManualAllocatingLoading] = useState(false);
+    const [manualAllocatingMessage, setManualAllocatingMessage] = useState("");
+    const [techSearchQuery, setTechSearchQuery] = useState("");
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -158,6 +164,59 @@ function Manage_device() {
             setAllocatingId(null);
         }
     };
+
+    const fetchActiveTechnicians = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const response = await axios.get("https://localhost:7102/api/Technician/All", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const activeOnly = (response.data || []).filter(t => (t.status || t.Status) === "Active");
+            setActiveTechnicians(activeOnly.length > 0 ? activeOnly : response.data || []);
+        } catch (err) {
+            console.error("Error fetching active technicians:", err);
+        }
+    };
+
+    const allocateTechnicianManually = async (deviceId, techId = null) => {
+        try {
+            setAllocatingId(deviceId);
+            setManualAllocatingLoading(true);
+            setManualAllocatingMessage("");
+            const token = localStorage.getItem("token");
+
+            const url = techId 
+                ? `https://localhost:7102/api/Inspection/manual-allocate/${deviceId}/${techId}`
+                : `https://localhost:7102/api/Inspection/manual-allocate/${deviceId}`;
+
+            const response = await axios.post(
+                url,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            console.log("Manual allocation response:", response.data);
+            setManualAllocatingMessage(response.data?.message || "Technician allocated successfully.");
+
+            setTimeout(() => {
+                setManualAllocatingDevice(null);
+                setSelectedTechId("");
+                setManualAllocatingMessage("");
+                fetchAllDevices();
+            }, 1200);
+
+        } catch (err) {
+            console.error("Error manually allocating technician:", err);
+            setManualAllocatingMessage(err.response?.data?.message || "Failed to manually allocate technician.");
+        } finally {
+            setAllocatingId(null);
+            setManualAllocatingLoading(false);
+        }
+    };
     const getStatusBadge = (status) => {
         switch (status?.toLowerCase()) {
             case "pending":
@@ -175,22 +234,46 @@ function Manage_device() {
 
     const getLifecycleInfo = (device) => {
         if (!device) return { label: "Pending", isAllocated: false, icon: <FiClock />, className: "status-btn--pending" };
+        if (device.inspectionRequestStatus?.toLowerCase() === "waiting") {
+            return {
+                statusKey: "InspectionWaiting",
+                label: "Inspection Waiting",
+                isAllocated: false,
+                icon: <FiClock />,
+                className: "status-btn--pending"
+            };
+        }
         const rawStatus = device.lifecycleStatus || device.LifecycleStatus || "Pending";
         const status = rawStatus.trim();
         const lower = status.toLowerCase();
 
         switch (lower) {
             case "pending":
+            case "inspectionpending":
                 return {
-                    statusKey: "Pending",
-                    label: "Pending",
+                    statusKey: "InspectionPending",
+                    label: "Inspection Pending",
                     isAllocated: false,
                     icon: <FiClock />,
                     className: "status-btn--pending"
                 };
-            case "pickupscheduled":
             case "inspectionassigned":
+                return {
+                    statusKey: "InspectionAssigned",
+                    label: "Inspection Assigned",
+                    isAllocated: true,
+                    icon: <FiCpu />,
+                    className: "status-btn--scheduled"
+                };
             case "inspectionaccepted":
+                return {
+                    statusKey: "InspectionAccepted",
+                    label: "Inspection Accepted",
+                    isAllocated: true,
+                    icon: <FiCheckCircle />,
+                    className: "status-btn--scheduled"
+                };
+            case "pickupscheduled":
                 return {
                     statusKey: "PickupScheduled",
                     label: "Pickup Scheduled",
@@ -295,7 +378,7 @@ function Manage_device() {
                     className: "status-btn--completed"
                 };
             default:
-                const isAllocated = lower !== "pending" && lower !== "none" && lower !== "";
+                const isAllocated = lower !== "pending" && lower !== "inspectionpending" && lower !== "none" && lower !== "";
                 return {
                     statusKey: status,
                     label: status.replace(/([A-Z])/g, ' $1').trim(),
@@ -335,6 +418,21 @@ function Manage_device() {
             </button>
         );
     };
+
+    const filteredTechniciansForModal = activeTechnicians.filter(tech => {
+        const query = techSearchQuery.toLowerCase().trim();
+        if (!query) return true;
+        const name = `${tech.firstName || tech.FirstName || ""} ${tech.lastName || tech.LastName || ""}`.toLowerCase();
+        const city = (tech.city || tech.City || "").toLowerCase();
+        const district = (tech.district || tech.District || "").toLowerCase();
+        const state = (tech.state || tech.State || "").toLowerCase();
+        const pincode = (tech.pinCode || tech.PinCode || "").toLowerCase();
+        const spec = (tech.specialization || tech.Specialization || "").toLowerCase();
+        const center = (tech.inspectionCenterName || tech.InspectionCenterName || "").toLowerCase();
+        const phone = (tech.phoneNumber || tech.PhoneNumber || "").toLowerCase();
+
+        return name.includes(query) || city.includes(query) || district.includes(query) || state.includes(query) || pincode.includes(query) || spec.includes(query) || center.includes(query) || phone.includes(query);
+    });
 
     const filteredDevices = devices.filter((d) => {
         const matchesSearch =
@@ -456,6 +554,7 @@ function Manage_device() {
                                             <th>Condition</th>
                                             <th>Preference</th>
                                             <th>Status</th>
+                                            <th>Lifecycle Status</th>
                                             <th>Actions</th>
                                         </tr>
                                     </thead>
@@ -486,6 +585,17 @@ function Manage_device() {
                                                 </td>
                                                 <td>{getStatusBadge(d.status)}</td>
                                                 <td>
+                                                    <button
+                                                        className={`action-btn action-btn--lifecycle ${getLifecycleInfo(d).className}`}
+                                                        style={{ cursor: "default" }}
+                                                        disabled
+                                                        title={`Lifecycle Status: ${getLifecycleInfo(d).label}`}
+                                                    >
+                                                        {getLifecycleInfo(d).icon}
+                                                        <span>{getLifecycleInfo(d).label}</span>
+                                                    </button>
+                                                </td>
+                                                <td>
                                                     <div className="action-buttons">
                                                         <button
                                                             className="action-btn action-btn--view"
@@ -512,11 +622,43 @@ function Manage_device() {
                                                                 </button>
                                                             </>
                                                         )}
-                                                        {/* Active / Accepted Device */}
+                                                        {/* Active / Accepted Device -> Allocate vs Allocate Manually vs Lifecycle Status */}
                                                         {(d.status?.toLowerCase() === "active" ||
                                                         d.status?.toLowerCase() === "accepted" ||
                                                         d.status?.toLowerCase() === "approved") && (
-                                                            renderLifecycleAction(d, false)
+                                                            <>
+                                                                {d.inspectionRequestStatus?.toLowerCase() === "waiting" ? (
+                                                                    <button
+                                                                        className="action-btn action-btn--allocate"
+                                                                        style={{ background: "#fffbebf0", color: "#b45309", border: "1px solid #fde68a" }}
+                                                                        onClick={() => {
+                                                                            setManualAllocatingDevice(d);
+                                                                            fetchActiveTechnicians();
+                                                                        }}
+                                                                        disabled={allocatingId === d.deviceId}
+                                                                        title="Manually Allocate Technician"
+                                                                    >
+                                                                        <FiCpu className={allocatingId === d.deviceId ? "spin-icon" : ""} />
+                                                                        <span>
+                                                                            {allocatingId === d.deviceId ? "Allocating..." : "Allocate Manually"}
+                                                                        </span>
+                                                                    </button>
+                                                                ) : (
+                                                                    !getLifecycleInfo(d).isAllocated && (
+                                                                        <button
+                                                                            className="action-btn action-btn--allocate"
+                                                                            onClick={() => allocateTechnician(d.deviceId)}
+                                                                            disabled={allocatingId === d.deviceId}
+                                                                            title="Allocate Technician for Inspection"
+                                                                        >
+                                                                            <FiCpu className={allocatingId === d.deviceId ? "spin-icon" : ""} />
+                                                                            <span>
+                                                                                {allocatingId === d.deviceId ? "Allocating..." : "Allocate"}
+                                                                            </span>
+                                                                        </button>
+                                                                    )
+                                                                )}
+                                                            </>
                                                         )}
                                                     </div>
                                                 </td>
@@ -594,7 +736,16 @@ function Manage_device() {
                                 </div>
                                 <div className="detail-item">
                                     <label>Lifecycle Status</label>
-                                    <span>{getLifecycleInfo(selectedDevice).label}</span>
+                                    <span style={{ display: "flex", marginTop: "0.25rem" }}>
+                                        <button
+                                            className={`action-btn action-btn--lifecycle ${getLifecycleInfo(selectedDevice).className}`}
+                                            style={{ cursor: "default" }}
+                                            disabled
+                                        >
+                                            {getLifecycleInfo(selectedDevice).icon}
+                                            <span>{getLifecycleInfo(selectedDevice).label}</span>
+                                        </button>
+                                    </span>
                                 </div>
                             </div>
 
@@ -650,6 +801,183 @@ function Manage_device() {
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Manual Allocation Modal */}
+                {manualAllocatingDevice && (
+                    <div className="modal-overlay" onClick={() => setManualAllocatingDevice(null)}>
+                        <div className="device-modal-card" style={{ maxWidth: "680px", width: "90%" }} onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <div>
+                                    <h2>Manually Allocate Technician</h2>
+                                    <p className="panel-subtitle">
+                                        Device #{manualAllocatingDevice.deviceId} • {manualAllocatingDevice.brand} {manualAllocatingDevice.model}
+                                    </p>
+                                </div>
+                                <button className="modal-close-btn" onClick={() => setManualAllocatingDevice(null)}>
+                                    <FiX />
+                                </button>
+                            </div>
+
+                            <div style={{ padding: "1.25rem 0 0.5rem 0" }}>
+                                <div style={{ background: "#fffbeb", border: "1px solid #fde68a", padding: "0.85rem 1.15rem", borderRadius: "12px", marginBottom: "1.25rem", color: "#b45309", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                                    <FiClock style={{ fontSize: "1.1rem", flexShrink: 0 }} />
+                                    <span><strong>Inspection Request Status:</strong> Waiting for technician assignment.</span>
+                                </div>
+
+                                {manualAllocatingMessage && (
+                                    <div style={{ padding: "0.85rem 1.15rem", borderRadius: "10px", background: manualAllocatingMessage.includes("Failed") ? "#fff1f2" : "#f0fdf4", color: manualAllocatingMessage.includes("Failed") ? "#e11d48" : "#15803d", fontWeight: 600, fontSize: "0.875rem", marginBottom: "1.25rem" }}>
+                                        {manualAllocatingMessage}
+                                    </div>
+                                )}
+
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        if (selectedTechId) {
+                                            allocateTechnicianManually(manualAllocatingDevice.deviceId, selectedTechId);
+                                        }
+                                    }}
+                                    style={{ background: "#f8fafc", padding: "1.15rem", borderRadius: "14px", border: "1px solid #e2e8f0" }}
+                                >
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem" }}>
+                                        <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0284c7", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                                            Select Active Technician
+                                        </div>
+                                        <span style={{ fontSize: "0.75rem", background: "#e0f2fe", color: "#0369a1", padding: "0.2rem 0.6rem", borderRadius: "9999px", fontWeight: 700 }}>
+                                            {filteredTechniciansForModal.length} Available
+                                        </span>
+                                    </div>
+
+                                    {/* Technician Search Bar */}
+                                    <div style={{ position: "relative", marginBottom: "1rem", width: "100%", boxSizing: "border-box" }}>
+                                        <FiSearch style={{ position: "absolute", left: "0.9rem", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "1rem", zIndex: 1 }} />
+                                        <input
+                                            type="text"
+                                            placeholder="Search by technician name, city, district, state, specialization..."
+                                            value={techSearchQuery}
+                                            onChange={(e) => setTechSearchQuery(e.target.value)}
+                                            style={{
+                                                width: "100%",
+                                                boxSizing: "border-box",
+                                                padding: "0.7rem 0.9rem 0.7rem 2.5rem",
+                                                borderRadius: "10px",
+                                                border: "1px solid #cbd5e1",
+                                                fontSize: "0.875rem",
+                                                outline: "none",
+                                                background: "#ffffff",
+                                                boxShadow: "inset 0 1px 2px rgba(0,0,0,0.02)"
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* Interactive Custom Card List */}
+                                    <div style={{ maxHeight: "280px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.6rem", marginBottom: "1rem", paddingRight: "0.3rem" }}>
+                                        {filteredTechniciansForModal.length === 0 ? (
+                                            <div style={{ textAlign: "center", padding: "2rem 1rem", background: "#ffffff", borderRadius: "10px", border: "1px dashed #cbd5e1", color: "#64748b", fontSize: "0.875rem" }}>
+                                                No technicians match "{techSearchQuery}".
+                                            </div>
+                                        ) : (
+                                            filteredTechniciansForModal.map(tech => {
+                                                const id = String(tech.technicianId || tech.TechnicianId);
+                                                const name = `${tech.firstName || tech.FirstName || ""} ${tech.lastName || tech.LastName || ""}`.trim();
+                                                const city = tech.city || tech.City || "";
+                                                const district = tech.district || tech.District || "";
+                                                const state = tech.state || tech.State || "";
+                                                const pin = tech.pinCode || tech.PinCode || "";
+                                                const locParts = [city, district, state].filter(Boolean);
+                                                const locString = locParts.length > 0 ? (pin ? `${locParts.join(", ")} - ${pin}` : locParts.join(", ")) : "Location N/A";
+                                                const spec = tech.specialization || tech.Specialization || tech.inspectionCenterName || tech.InspectionCenterName || "";
+                                                const isSelected = String(selectedTechId) === id;
+
+                                                return (
+                                                    <div
+                                                        key={id}
+                                                        onClick={() => setSelectedTechId(id)}
+                                                        style={{
+                                                            padding: "0.85rem 1rem",
+                                                            borderRadius: "12px",
+                                                            border: isSelected ? "2px solid #0284c7" : "1px solid #e2e8f0",
+                                                            background: isSelected ? "#f0f9ff" : "#ffffff",
+                                                            cursor: "pointer",
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "space-between",
+                                                            gap: "1rem",
+                                                            transition: "all 0.15s ease",
+                                                            boxShadow: isSelected ? "0 4px 12px rgba(2,132,199,0.12)" : "0 1px 3px rgba(0,0,0,0.02)"
+                                                        }}
+                                                    >
+                                                        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+                                                            <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: isSelected ? "#0284c7" : "#e2e8f0", color: isSelected ? "#ffffff" : "#475569", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "1rem", flexShrink: 0 }}>
+                                                                {name.charAt(0).toUpperCase() || "T"}
+                                                            </div>
+                                                            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                                                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                                                                    <span style={{ fontWeight: 700, color: "#0f172a", fontSize: "0.925rem" }}>{name}</span>
+                                                                    {spec && (
+                                                                        <span style={{ background: "#e0f2fe", color: "#0369a1", padding: "0.15rem 0.55rem", borderRadius: "6px", fontSize: "0.725rem", fontWeight: 700 }}>
+                                                                            {spec}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "#64748b", fontSize: "0.8rem" }}>
+                                                                    <FiMapPin style={{ color: "#0284c7", flexShrink: 0 }} />
+                                                                    <span>{locString}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div style={{ display: "flex", alignItems: "center" }}>
+                                                            {isSelected ? (
+                                                                <FiCheckCircle style={{ color: "#0284c7", fontSize: "1.3rem" }} />
+                                                            ) : (
+                                                                <div style={{ width: "20px", height: "20px", borderRadius: "50%", border: "2px solid #cbd5e1" }}></div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={manualAllocatingLoading || !selectedTechId}
+                                        style={{
+                                            width: "100%",
+                                            padding: "0.75rem",
+                                            borderRadius: "10px",
+                                            background: selectedTechId ? "#0284c7" : "#cbd5e1",
+                                            color: "#ffffff",
+                                            border: "none",
+                                            fontWeight: 700,
+                                            fontSize: "0.9rem",
+                                            cursor: selectedTechId ? "pointer" : "not-allowed",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.5rem",
+                                            boxShadow: selectedTechId ? "0 4px 12px rgba(2,132,199,0.2)" : "none",
+                                            transition: "all 0.2s ease"
+                                        }}
+                                    >
+                                        <FiCpu /> Assign Selected Technician
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div className="modal-footer-actions" style={{ marginTop: "1rem" }}>
+                                <button
+                                    className="action-btn action-btn--view"
+                                    onClick={() => setManualAllocatingDevice(null)}
+                                    style={{ width: "auto", padding: "0 1.5rem", height: "42px", borderRadius: "10px", fontWeight: 700 }}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

@@ -6,8 +6,10 @@ import { HashLink } from "react-router-hash-link";
 function Navbar() {
     return (
         <nav className="main-site-navbar">
-            <div>
-                <img src={logo} alt="Logo" />
+            <div className="navbar-brand">
+                <HashLink smooth to="/#home" className="brand-link">
+                    <img src={logo} alt="EcoCycle Logo" />
+                </HashLink>
             </div>
 
             <ul>
@@ -31,7 +33,9 @@ function Navbar() {
                         Contact
                     </HashLink>
                 </li>
-                <li><Link to="/login">Login</Link></li>
+                <li>
+                    <Link to="/login">Login</Link>
+                </li>
             </ul>
         </nav>
     );

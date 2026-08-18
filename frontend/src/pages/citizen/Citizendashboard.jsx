@@ -10,6 +10,9 @@ import {
     FiPlusCircle,
     FiClock,
     FiUser,
+    FiUserCheck,
+    FiPhone,
+    FiEye,
     FiDroplet,
     FiSun,
     FiDatabase,
@@ -103,17 +106,39 @@ function CitizenDashboard() {
           localStorage.getItem("name") ||
           "Citizen Champion";
 
-    const activeCount = inspectionRequests.filter(r => r.requestStatus !== "Completed" && r.requestStatus !== "Rejected").length;
+    // Filter to only show devices where Collection Agent has accepted for delivery
+    const acceptedDeliveryRequests = inspectionRequests.filter(req => {
+        if (req.collectionAgentAccepted === true) return true;
+        const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
+        if (cas === "accepted" || cas === "completed" || cas === "intransit" || cas === "pickedup" || cas === "delivered") return true;
+        const reqStatus = String(req.requestStatus || "").toLowerCase();
+        if (reqStatus === "accepted" || reqStatus === "completed" || reqStatus === "in inspection") return true;
+        return false;
+    });
+
+    const activeCount = acceptedDeliveryRequests.filter(r => r.requestStatus !== "Completed" && r.requestStatus !== "Rejected").length;
+
+    const totalRecycledWeight = acceptedDeliveryRequests
+        .reduce((sum, r) => sum + ((Number(r.weight) || 0) * (Number(r.quantity) || 1)), 0);
+
+    const capitalizeWords = (str) => {
+        if (!str) return "";
+        return str
+            .toLowerCase()
+            .split(" ")
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" ");
+    };
 
     const getStatusBadge = (status) => {
-        const s = String(status || "").toLowerCase();
+        const s = String(status || "").toLowerCase().replace(/\s+/g, "");
         if (s === "completed") {
             return <span className="status-pill status-completed">Completed</span>;
-        } else if (s === "assigned") {
-            return <span className="status-pill status-scheduled">Inspector Assigned</span>;
+        } else if (s === "assigned" || s === "inspectorassigned") {
+            return <span className="status-pill status-assigned">Inspector Assigned</span>;
         } else if (s === "accepted" || s === "ininspection" || s === "inprogress") {
             return <span className="status-pill status-progress">In Inspection</span>;
-        } else if (s === "rejected") {
+        } else if (s === "rejected" || s === "cancelled") {
             return <span className="status-pill status-cancelled">Rejected</span>;
         } else {
             return <span className="status-pill status-scheduled">Scheduled</span>;
@@ -175,8 +200,7 @@ function CitizenDashboard() {
                         <div>
                             <span className="vd-kpi-label">E-Waste Recycled</span>
                             <div className="vd-kpi-body">
-                                <h3 className="vd-kpi-number">{inspectionRequests.filter(r => r.requestStatus === "Completed").length * 5 || 120} kg</h3>
-                                <span className="vd-kpi-badge">+80% Goal</span>
+                                <h3 className="vd-kpi-number">{totalRecycledWeight} kg</h3>
                             </div>
                         </div>
                     </div>
@@ -192,7 +216,7 @@ function CitizenDashboard() {
                         <div>
                             <span className="vd-kpi-label">Pickup Requests</span>
                             <div className="vd-kpi-body">
-                                <h3 className="vd-kpi-number">{inspectionRequests.length}</h3>
+                                <h3 className="vd-kpi-number">{acceptedDeliveryRequests.length}</h3>
                                 <span className="vd-kpi-badge">+{activeCount} Active</span>
                             </div>
                         </div>
@@ -293,17 +317,17 @@ function CitizenDashboard() {
                                     <div style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>
                                         Loading your pickup requests...
                                     </div>
-                                ) : inspectionRequests.length === 0 ? (
+                                ) : acceptedDeliveryRequests.length === 0 ? (
                                     <div style={{ padding: "2.5rem 1.5rem", textAlign: "center", color: "#64748b" }}>
                                         <FiBox style={{ fontSize: "2rem", color: "#94a3b8", marginBottom: "0.5rem" }} />
-                                        <p style={{ margin: 0, fontWeight: 600 }}>No pickup requests scheduled yet.</p>
-                                        <p style={{ margin: "0.25rem 0 1rem", fontSize: "0.85rem", color: "#94a3b8" }}>Register a device to schedule your first e-waste collection.</p>
+                                        <p style={{ margin: 0, fontWeight: 600 }}>No pickup requests accepted for delivery yet.</p>
+                                        <p style={{ margin: "0.25rem 0 1rem", fontSize: "0.85rem", color: "#94a3b8" }}>Requests will appear here once accepted by a collection agent.</p>
                                         <Link to="/add-device" className="profile-btn save" style={{ textDecoration: "none", display: "inline-flex", padding: "0.55rem 1.25rem" }}>
                                             + Schedule Pickup
                                         </Link>
                                     </div>
                                 ) : (
-                                    <table className="glass-table">
+                                     <table className="glass-table">
                                         <thead>
                                             <tr>
                                                 <th>Request Tag</th>
@@ -316,63 +340,72 @@ function CitizenDashboard() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {inspectionRequests.map((req) => (
+                                            {acceptedDeliveryRequests.map((req) => (
                                                 <tr key={req.deviceId} style={{ cursor: "pointer" }} onClick={() => setSelectedPickupDetails(req)}>
                                                     <td>
-                                                        <span className="id-badge">#DEV-{req.deviceId}</span>
+                                                        <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#635bff", fontFamily: "monospace" }}>
+                                                            #DEV-{req.deviceId}
+                                                        </div>
                                                         {req.inspectionRequestId && (
-                                                            <div style={{ fontSize: "0.7rem", color: "#0284c7", fontWeight: 600, marginTop: "0.2rem" }}>
+                                                            <div style={{ fontSize: "0.725rem", color: "#64748b", fontWeight: 500, marginTop: "0.15rem" }}>
                                                                 #INSP-{req.inspectionRequestId}
                                                             </div>
                                                         )}
                                                     </td>
                                                     <td>
-                                                        <div style={{ fontWeight: 600, color: "#1e293b" }}>
-                                                            {req.brand} {req.model}
+                                                        <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>
+                                                            {capitalizeWords(`${req.brand || ""} ${req.model || ""}`.trim()) || "E-Waste Item"}
                                                         </div>
-                                                        <span style={{ fontSize: "0.75rem", color: "#059669", fontWeight: 500 }}>
-                                                            {req.categoryName} • {req.quantity} unit(s)
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ fontWeight: 600, fontSize: "0.825rem", color: "#0f172a" }}>
-                                                            📅 {formatDate(req.pickupDate)}
-                                                        </div>
-                                                        <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
-                                                            🕒 {req.timeSlot}
+                                                        <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem" }}>
+                                                            {req.categoryName || "Device"} • {req.quantity || 1} unit(s)
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <div style={{ fontWeight: 500, fontSize: "0.825rem", color: "#334155", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={req.address}>
-                                                            📍 {req.address}
+                                                        <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#0f172a" }}>
+                                                            {formatDate(req.pickupDate)}
+                                                        </div>
+                                                        <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem" }}>
+                                                            {req.timeSlot || "Scheduled Slot"}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div style={{ fontWeight: 500, fontSize: "0.85rem", color: "#334155", maxWidth: "170px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={req.address}>
+                                                            {capitalizeWords(req.address)}
                                                         </div>
                                                         {req.landmark && (
-                                                            <div style={{ fontSize: "0.725rem", color: "#64748b" }}>
-                                                                Near: {req.landmark}
+                                                            <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "0.15rem" }}>
+                                                                Near: {capitalizeWords(req.landmark)}
                                                             </div>
                                                         )}
                                                     </td>
                                                     <td>
-                                                        <div style={{ fontWeight: 500, fontSize: "0.825rem", color: "#334155" }}>
-                                                            {req.technicianName}
-                                                        </div>
-                                                        {req.technicianPhone && (
-                                                            <div style={{ fontSize: "0.725rem", color: "#64748b" }}>
-                                                                📞 {req.technicianPhone}
+                                                        {req.technicianName && req.technicianName !== "Not Assigned" ? (
+                                                            <div>
+                                                                <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#0f172a" }}>
+                                                                    {capitalizeWords(req.technicianName)}
+                                                                </div>
+                                                                {req.technicianPhone && (
+                                                                    <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem" }}>
+                                                                        {req.technicianPhone}
+                                                                    </div>
+                                                                )}
                                                             </div>
+                                                        ) : (
+                                                            <span style={{ fontSize: "0.775rem", color: "#94a3b8", fontWeight: 500 }}>
+                                                                Pending Assignment
+                                                            </span>
                                                         )}
                                                     </td>
                                                     <td>{getStatusBadge(req.requestStatus)}</td>
                                                     <td>
                                                         <button 
-                                                            className="profile-btn secondary"
-                                                            style={{ padding: "0.35rem 0.65rem", fontSize: "0.75rem" }}
+                                                            className="table-view-btn"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 setSelectedPickupDetails(req);
                                                             }}
                                                         >
-                                                            <FiInfo /> View
+                                                            View
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -390,12 +423,12 @@ function CitizenDashboard() {
                             <h3 className="vd-panel-header-title">Scheduled Pickup Slots</h3>
 
                             <div className="vd-appt-list">
-                                {inspectionRequests.length === 0 ? (
+                                {acceptedDeliveryRequests.length === 0 ? (
                                     <div style={{ padding: "1.5rem 0", textAlign: "center", color: "#64748b", fontSize: "0.85rem" }}>
                                         No active pickup schedules.
                                     </div>
                                 ) : (
-                                    inspectionRequests.slice(0, 5).map((pick) => (
+                                    acceptedDeliveryRequests.slice(0, 5).map((pick) => (
                                         <div 
                                             key={pick.deviceId} 
                                             className="vd-appt-item" 
@@ -409,7 +442,7 @@ function CitizenDashboard() {
                                                 <div>
                                                     <div className="vd-appt-name">{pick.brand} {pick.model}</div>
                                                     <div className="vd-appt-loc" style={{ fontSize: "0.75rem" }}>
-                                                        📍 {pick.address ? (pick.address.length > 22 ? pick.address.substring(0, 22) + "..." : pick.address) : "Home Pickup"}
+                                                        {pick.address ? (pick.address.length > 22 ? pick.address.substring(0, 22) + "..." : pick.address) : "Home Pickup"}
                                                     </div>
                                                 </div>
                                             </div>
@@ -504,10 +537,10 @@ function CitizenDashboard() {
                                         <FiClock /> Scheduled Date & Time
                                     </div>
                                     <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#065f46", marginTop: "0.2rem" }}>
-                                        📅 {formatDate(selectedPickupDetails.pickupDate)}
+                                        {formatDate(selectedPickupDetails.pickupDate)}
                                     </div>
                                     <div style={{ fontSize: "0.85rem", color: "#047857", fontWeight: 500, marginTop: "0.1rem" }}>
-                                        🕒 Time Slot: {selectedPickupDetails.timeSlot}
+                                        Time Slot: {selectedPickupDetails.timeSlot}
                                     </div>
                                 </div>
 
@@ -521,7 +554,7 @@ function CitizenDashboard() {
                                     </div>
                                     {selectedPickupDetails.landmark && (
                                         <div style={{ fontSize: "0.8rem", color: "#475569", marginTop: "0.2rem" }}>
-                                            📍 Landmark: {selectedPickupDetails.landmark}
+                                             Landmark: {selectedPickupDetails.landmark}
                                         </div>
                                     )}
                                 </div>
@@ -553,7 +586,7 @@ function CitizenDashboard() {
                                     </div>
                                     {selectedPickupDetails.technicianPhone && (
                                         <div style={{ fontSize: "0.8rem", color: "#0284c7", fontWeight: 500, marginTop: "0.15rem" }}>
-                                            📞 Contact: {selectedPickupDetails.technicianPhone}
+                                            Contact: {selectedPickupDetails.technicianPhone}
                                         </div>
                                     )}
                                 </div>

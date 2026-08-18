@@ -664,9 +664,9 @@ export function validate_modelname(value)
     {
         return "Model name is required";
     }
-    if(!/^[A-Za-z][a-zA-Z0-9-]+$/.test(value)||value.length<=4 || value.lenght>=20)
+    if(!/^[A-Za-z][a-zA-Z0-9-\s]+$/.test(value)||value.length<=4 || value.lenght>=20)
     {
-        return "Model name must start with a letter and can contain letters, numbers, and hyphens (3-20 characters)";
+        return "Model name must start with a letter and can contain letters, numbers,space and hyphens (3-20 characters)";
     }
     if (/^(.)\1+$/.test(value)) 
     {
@@ -681,9 +681,9 @@ export function validate_modelnumber(value)
         return "";
     }
 
-    if (!/^[A-Za-z0-9-]+$/.test(value)) 
+    if (!/^[A-Za-z0-9-\s]+$/.test(value)) 
     {
-        return "Model number can contain letters, numbers and hyphens";
+        return "Model number can contain letters, numbers,space and hyphens";
     }
 
     return "";
@@ -816,5 +816,36 @@ export function validate_custom_address(value)
     {
         return "Address must contain only alphabets, spaces, and commas";
     }
+    return "";
+}
+export function validate_pickup_instructions(value)
+{
+    if (!value || value.trim() === "")
+    {
+        return "";
+    }
+    if (!/^[a-zA-Z0-9\s,.\/#-]+$/.test(value))
+    {
+        return "Pickup instructions can contain letters, numbers, spaces, and punctuation (,. / # -)";
+    }
+    return "";
+}
+export function validate_weight(value) 
+{
+    if (value === undefined || value === null || String(value).trim() === "")
+    {
+        return "Weight is required";
+    }
+
+    const weight = Number(value);
+
+    if (isNaN(weight) || weight <= 0) {
+        return "Please enter a valid weight (minimum 1 kg)";
+    }
+
+    if (weight > 1000) {
+        return "Weight cannot be more than 1000 kg";
+    }
+
     return "";
 }

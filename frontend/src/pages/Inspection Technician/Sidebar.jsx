@@ -50,13 +50,11 @@ function Sidebar() {
 
     const menuItems = [
         { path: "/technician_dashboard", label: "Dashboard", icon: <FiHome /> },
-        { path: "/technician/inspections", label: "Assigned Devices", icon: <FiClipboard /> },
         { path: "/technician/reports", label: "Inspection Reports", icon: <FiFileText /> }
     ];
 
     const accountItems = [
         { path: "/technician/profile", label: "My Profile", icon: <FiUser /> },
-        { path: "/technician/settings", label: "Settings", icon: <FiSettings /> }
     ];
 
     return (

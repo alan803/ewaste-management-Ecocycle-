@@ -37,8 +37,7 @@ function Sidebar() {
         { path: "/citizen", label: "Dashboard", icon: <FiHome /> },
         { path: "/add-device", label: "Add Device", icon: <FiPlusCircle /> },
         { path: "/view-device", label: "My Devices", icon: <FiBox /> },
-        { path: "/citizen/pickup", label: "Schedule Pickup", icon: <FiCalendar /> },
-        { path: "/citizen/history", label: "Pickup History", icon: <FiClock /> },
+        { path: "/pickupuser", label: "Pickup details", icon: <FiCalendar /> },
         { path: "/citizen/rewards", label: "Eco Rewards", icon: <FiAward /> }
     ];
 

@@ -348,7 +348,7 @@
   border-radius: 6px;
 }
 
-/* Glass Table */
+/* Glass Table & Airier Soft Dashboard Rows */
 .glass-table-wrapper {
   overflow-x: auto;
   scrollbar-width: none;
@@ -361,60 +361,93 @@
 
 .glass-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .glass-table th {
-  background: #f8fafc;
-  padding: 0.85rem 1rem;
-  font-size: 0.775rem;
+  background: #ffffff;
+  padding: 0.9rem 1.25rem;
+  font-size: 0.725rem;
   font-weight: 700;
-  color: #4a5568;
+  color: #64748b;
   text-transform: uppercase;
-  border-bottom: 1px solid #e2e8f0;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #f1f5f9;
   text-align: left;
+  white-space: nowrap;
 }
 
 .glass-table td {
-  padding: 0.95rem 1rem;
-  border-bottom: 1px solid #edf2f7;
+  padding: 1.15rem 1.25rem;
+  border-bottom: 1px solid #f8fafc;
   font-size: 0.875rem;
-  color: #2d3748;
+  color: #1e293b;
+  vertical-align: middle;
 }
 
-.glass-table tr:hover td {
+.glass-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.glass-table tbody tr:hover td {
   background: #f8fafc;
 }
 
-.id-badge {
-  font-family: monospace;
-  font-weight: 700;
-  color: #635bff;
-}
-
+/* Minimal Soft Status Badges */
 .status-pill {
-  padding: 0.25rem 0.65rem;
+  padding: 0.35rem 0.85rem;
   border-radius: 9999px;
-  font-size: 0.75rem;
+  font-size: 0.775rem;
   font-weight: 700;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+  display: inline-block;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
 }
 
 .status-completed {
-  background: #e6f4ea;
-  color: #137333;
+  background: #ecfdf5;
+  color: #047857;
 }
 
 .status-progress {
-  background: #fffbe6;
-  color: #b45309;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-assigned {
+  background: #e0f2fe;
+  color: #0369a1;
 }
 
 .status-scheduled {
   background: #eff6ff;
   color: #1d4ed8;
+}
+
+.status-cancelled {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Minimal Action View Button */
+.table-view-btn {
+  padding: 0.4rem 0.95rem;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.table-view-btn:hover {
+  background: #059669;
+  color: #ffffff;
+  border-color: #059669;
 }
 
 /* Right Side Panel Appointments */

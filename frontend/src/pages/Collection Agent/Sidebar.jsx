@@ -11,7 +11,8 @@ import {
     FiX,
     FiBox,
     FiCheckCircle,
-    FiZap
+    FiZap,
+    FiBell
 } from "react-icons/fi";
 import "./Sidebar.css";
 
@@ -33,8 +34,7 @@ function Sidebar() {
 
     const navItems = [
         { path: "/collectionagent/dashboard", label: "My Pickup Tasks", icon: <FiTruck /> },
-        { path: "/manage-userprofile", label: "Agent Profile", icon: <FiUser /> },
-        { path: "/citizen", label: "Hub Drop-off Logs", icon: <FiPackage /> }
+        { path: "/agent-profile", label: "Profile", icon: <FiUser /> }
     ];
 
     return (

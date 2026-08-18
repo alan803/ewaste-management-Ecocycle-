@@ -476,6 +476,7 @@ function View_device() {
                                             <div className="vd-chip-row">
                                                 <span className="vd-chip">Condition: <strong>{item.condition || "N/A"}</strong></span>
                                                 <span className="vd-chip">Working: <strong>{item.working || "N/A"}</strong></span>
+                                                {item.weight && <span className="vd-chip">Weight: <strong>{item.weight} kg</strong></span>}
                                                 {item.quantity && <span className="vd-chip">Qty: <strong>{item.quantity}</strong></span>}
                                             </div>
 
@@ -523,6 +524,7 @@ function View_device() {
                                 <tr>
                                     <th>Tag ID</th>
                                     <th>Brand & Model</th>
+                                    <th>Weight</th>
                                     <th>Condition</th>
                                     <th>Logistics Slot</th>
                                     <th>Status</th>
@@ -543,6 +545,9 @@ function View_device() {
                                                 <div style={{ fontSize: "0.775rem", color: "#718096" }}>
                                                     {item.modelNumber ? `Model: ${item.modelNumber}` : (item.serialNumber ? `SN: ${item.serialNumber}` : "Electronics")}
                                                 </div>
+                                            </td>
+                                            <td>
+                                                <strong style={{ color: "#1a202c" }}>{item.weight ? `${item.weight} kg` : "N/A"}</strong>
                                             </td>
                                             <td>
                                                 <strong style={{ color: "#1a202c" }}>{item.condition || "N/A"}</strong>
@@ -649,6 +654,10 @@ function View_device() {
                                 <span style={{ color: "#718096", fontSize: "0.75rem", display: "block", fontWeight: 700 }}>WORKING STATE</span>
                                 <strong>{selectedDevice.working || "N/A"}</strong>
                             </div>
+                            <div style={{ background: "#f7fafc", padding: "0.85rem", borderRadius: "10px" }}>
+                                <span style={{ color: "#718096", fontSize: "0.75rem", display: "block", fontWeight: 700 }}>WEIGHT</span>
+                                <strong>{selectedDevice.weight ? `${selectedDevice.weight} kg` : "N/A"}</strong>
+                            </div>
                         </div>
 
                         <div style={{ background: "#f7fafc", padding: "0.85rem", borderRadius: "10px", marginBottom: "1.25rem" }}>
@@ -664,25 +673,25 @@ function View_device() {
                                     {selectedDevice.frontPhoto && (
                                         <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.frontPhoto, "FrontPhotos"))} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.4rem", textAlign: "center", cursor: "pointer" }}>
                                             <img src={getPhotoUrl(selectedDevice.frontPhoto, "FrontPhotos")} alt="Front" style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", marginBottom: "0.25rem" }} />
-                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Front View 🔍</span>
+                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Front View </span>
                                         </div>
                                     )}
                                     {selectedDevice.backPhoto && (
                                         <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.backPhoto, "BackPhotos"))} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.4rem", textAlign: "center", cursor: "pointer" }}>
                                             <img src={getPhotoUrl(selectedDevice.backPhoto, "BackPhotos")} alt="Back" style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", marginBottom: "0.25rem" }} />
-                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Rear View 🔍</span>
+                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Rear View </span>
                                         </div>
                                     )}
                                     {selectedDevice.damagePhoto && (
                                         <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.damagePhoto, "DamagePhotos"))} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.4rem", textAlign: "center", cursor: "pointer" }}>
                                             <img src={getPhotoUrl(selectedDevice.damagePhoto, "DamagePhotos")} alt="Damage" style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", marginBottom: "0.25rem" }} />
-                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Damage View 🔍</span>
+                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Damage View </span>
                                         </div>
                                     )}
                                     {selectedDevice.labelPhoto && (
                                         <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.labelPhoto, "LabelPhotos"))} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.4rem", textAlign: "center", cursor: "pointer" }}>
                                             <img src={getPhotoUrl(selectedDevice.labelPhoto, "LabelPhotos")} alt="Label" style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", marginBottom: "0.25rem" }} />
-                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Label View 🔍</span>
+                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Label View </span>
                                         </div>
                                     )}
                                 </div>

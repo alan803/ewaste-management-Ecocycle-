@@ -71,6 +71,7 @@ function CollectionAgent_signup()
             vehicleNumber: "",
             vehicleInsurance: "",
             vehiclePollution: "",
+            vehiclePhoto: "",
             licenseNumber: "",
             accountHolder: "",
             bankName: "",
@@ -99,6 +100,7 @@ function CollectionAgent_signup()
             vehicleNumber_er:"",
             vehicleInsurance_er:"",
             vehiclePollution_er:"",
+            vehiclePhoto_er: "",
             licenseNumber_er:"",
             accountHolder_er:"",
             bankName_er:"",
@@ -236,7 +238,8 @@ function CollectionAgent_signup()
                 vehicleNumber_er: validate_vehicleNumber(form_dta.vehicleNumber),
                 licenseNumber_er: validate_licenseNumber(form_dta.licenseNumber),
                 vehicleInsurance_er: validate_vehicleInsurance(form_dta.vehicleInsurance),
-                vehiclePollution_er: validate_vehiclePollution(form_dta.vehiclePollution)
+                vehiclePollution_er: validate_vehiclePollution(form_dta.vehiclePollution),
+                vehiclePhoto_er: validateFile(form_dta.vehiclePhoto)
             };
 
             seterror(prev => ({
@@ -346,6 +349,14 @@ function CollectionAgent_signup()
                     seterror(prev => ({
                         ...prev,
                         vehiclePollution_er: validate_vehiclePollution(file)
+                    }));
+                }
+
+                if (name === "vehiclePhoto")
+                {
+                    seterror(prev => ({
+                        ...prev,
+                        vehiclePhoto_er: validateFile(file)
                     }));
                 }
 
@@ -566,6 +577,7 @@ function CollectionAgent_signup()
                 licenseNumber_er:validate_licenseNumber(form_dta.licenseNumber),
                 vehicleInsurance_er: validate_vehicleInsurance(form_dta.vehicleInsurance),
                 vehiclePollution_er: validate_vehiclePollution(form_dta.vehiclePollution),
+                vehiclePhoto_er: validateFile(form_dta.vehiclePhoto),
                 accountHolder_er: validate_accountHolder(form_dta.accountHolder),
                 bankName_er: validate_bankName(form_dta.bankName),
                 accountNumber_er: validate_accountNumber(form_dta.accountNumber),
@@ -934,8 +946,6 @@ function CollectionAgent_signup()
                                             <option value="">Select vehicle type</option>
                                             <option value="Bike">Bike</option>
                                             <option value="Scooter">Scooter</option>
-                                            <option value="Auto Rickshaw">Auto Rickshaw</option>
-                                            <option value="Car">Car</option>
                                             <option value="Van">Van</option>
                                             <option value="Mini Truck">Mini Truck</option>
                                             <option value="Pickup Truck">Pickup Truck</option>
@@ -989,6 +999,17 @@ function CollectionAgent_signup()
                                             className={error.vehiclePollution_er ? "input-error" : ""}
                                         />
                                         {error.vehiclePollution_er && <div className="error-message">{error.vehiclePollution_er}</div>}
+                                    </div>
+                                    <div className="collectionagent-field">
+                                        <label>Vehicle Photo</label>
+                                        <input
+                                            type="file"
+                                            name="vehiclePhoto"
+                                            accept="image/jpeg,image/png,application/pdf"
+                                            onChange={handleInputChange}
+                                            className={error.vehiclePhoto_er ? "input-error" : ""}
+                                        />
+                                        {error.vehiclePhoto_er && <div className="error-message">{error.vehiclePhoto_er}</div>}
                                     </div>
                                 </div>
                             </div>
@@ -1071,8 +1092,6 @@ function CollectionAgent_signup()
                                                 onChange={handleInputChange}
                                                 className={error.password_er ? "input-error" : ""}
                                             />
-                                            {(touched.password || error.password_er) &&
-                                                error.password_er && <div className="error-message">{error.password_er}</div>}
                                             <button
                                                 type="button"
                                                 className="password-toggle-btn"
@@ -1082,6 +1101,7 @@ function CollectionAgent_signup()
                                                 {showPassword ? <FaEyeSlash /> : <FaEye />}
                                             </button>
                                         </div>
+                                        {error.password_er && <div className="error-message">{error.password_er}</div>}
                                     </div>
                                 </div>
                                 <div className="collectionagent-form-column">
@@ -1096,8 +1116,6 @@ function CollectionAgent_signup()
                                                 onChange={handleInputChange}
                                                 className={error.confirmPassword_er ? "input-error" : ""}
                                             />
-                                            {(touched.confirmPassword || error.confirmPassword_er) &&
-                                                error.confirmPassword_er && <div className="error-message">{error.confirmPassword_er}</div>}
                                             <button
                                                 type="button"
                                                 className="password-toggle-btn"
@@ -1107,6 +1125,7 @@ function CollectionAgent_signup()
                                                 {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                                             </button>
                                         </div>
+                                        {error.confirmPassword_er && <div className="error-message">{error.confirmPassword_er}</div>}
                                     </div>
                                 </div>
                             </div>

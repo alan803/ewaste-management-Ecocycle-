@@ -3,6 +3,8 @@ import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import {
+    validate_first_name,
+    validate_last_name,
     validate_email,
     validate_phone,
     validate_address,
@@ -49,9 +51,11 @@ function Manage_userprofile() {
     const [successMessage, setSuccessMessage] = useState("");
     const [saving, setSaving] = useState(false);
 
-    // Edit Mode & Form State (Only gender, dateOfBirth, email, phoneNumber, and address are editable)
+    // Edit Mode & Form State
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({
+        firstName: "",
+        lastName: "",
         gender: "",
         dateOfBirth: "",
         email: "",
@@ -212,6 +216,8 @@ function Manage_userprofile() {
 
             // Set initial form state for editable fields
             setEditForm({
+                firstName: data.firstName || "",
+                lastName: data.lastName || "",
                 gender: normalizeGender(data.gender),
                 dateOfBirth: data.dateOfBirth ? data.dateOfBirth.split("T")[0] : "",
                 email: data.email || "",
@@ -289,6 +295,8 @@ function Manage_userprofile() {
 
         // Validate individual editable field
         let err = "";
+        if (field === "firstName") err = validate_first_name(value);
+        if (field === "lastName") err = validate_last_name(value);
         if (field === "gender") err = validate_gender(value);
         if (field === "dateOfBirth") err = validate_dob(value);
         if (field === "email") err = validate_email(value);
@@ -301,6 +309,8 @@ function Manage_userprofile() {
     // Validate form prior to save submission
     const validateForm = () => {
         const errors = {
+            firstName: validate_first_name(editForm.firstName),
+            lastName: validate_last_name(editForm.lastName),
             gender: validate_gender(editForm.gender),
             dateOfBirth: validate_dob(editForm.dateOfBirth),
             email: validate_email(editForm.email),
@@ -329,6 +339,15 @@ function Manage_userprofile() {
 
         const formData = new FormData();
         let hasChanges = false;
+
+        if (editForm.firstName !== profile?.firstName) {
+            formData.append("FirstName", editForm.firstName);
+            hasChanges = true;
+        }
+        if (editForm.lastName !== profile?.lastName) {
+            formData.append("LastName", editForm.lastName);
+            hasChanges = true;
+        }
 
         if (editForm.gender !== currentGender) {
             formData.append("Gender", editForm.gender);
@@ -381,6 +400,10 @@ function Manage_userprofile() {
             setSelectedFile(null);
             await loadprofile();
 
+            if (editForm.firstName) {
+                localStorage.setItem("firstName", editForm.firstName);
+            }
+
             setIsEditing(false);
             setSuccessMessage(
                 response.data?.message || "Profile updated successfully."
@@ -412,6 +435,8 @@ function Manage_userprofile() {
     const handleCancelEdit = () => {
         if (profile) {
             setEditForm({
+                firstName: profile.firstName || "",
+                lastName: profile.lastName || "",
                 gender: normalizeGender(profile.gender),
                 dateOfBirth: profile.dateOfBirth ? profile.dateOfBirth.split("T")[0] : "",
                 email: profile.email || "",
@@ -593,32 +618,56 @@ function Manage_userprofile() {
                                     </div>
 
                                     <div className="profile-details-grid">
-                                        {/* Read-Only First Name */}
-                                        <div className="profile-field-box readonly-box">
+                                        {/* Editable First Name */}
+                                        <div className={`profile-field-box ${isEditing ? "editing" : ""}`}>
                                             <div className="profile-field-header">
                                                 <div className="profile-field-label-group">
                                                     <FiUser className="profile-field-icon" />
                                                     <span>First Name</span>
-                                                    <FiLock className="readonly-lock-icon" title="First name cannot be modified" />
                                                 </div>
                                             </div>
-                                            <p className="profile-field-value">
-                                                {profile?.firstName || "Not Specified"}
-                                            </p>
+                                            {isEditing ? (
+                                                <>
+                                                    <input 
+                                                        type="text"
+                                                        className="profile-input"
+                                                        value={editForm.firstName}
+                                                        placeholder="First Name"
+                                                        onChange={(e) => handleInputChange("firstName", e.target.value)}
+                                                    />
+                                                    {formErrors.firstName && <span className="profile-field-error">{formErrors.firstName}</span>}
+                                                </>
+                                            ) : (
+                                                <p className="profile-field-value">
+                                                    {profile?.firstName || "Not Specified"}
+                                                </p>
+                                            )}
                                         </div>
 
-                                        {/* Read-Only Last Name */}
-                                        <div className="profile-field-box readonly-box">
+                                        {/* Editable Last Name */}
+                                        <div className={`profile-field-box ${isEditing ? "editing" : ""}`}>
                                             <div className="profile-field-header">
                                                 <div className="profile-field-label-group">
                                                     <FiUser className="profile-field-icon" />
                                                     <span>Last Name</span>
-                                                    <FiLock className="readonly-lock-icon" title="Last name cannot be modified" />
                                                 </div>
                                             </div>
-                                            <p className="profile-field-value">
-                                                {profile?.lastName || "Not Specified"}
-                                            </p>
+                                            {isEditing ? (
+                                                <>
+                                                    <input 
+                                                        type="text"
+                                                        className="profile-input"
+                                                        value={editForm.lastName}
+                                                        placeholder="Last Name"
+                                                        onChange={(e) => handleInputChange("lastName", e.target.value)}
+                                                    />
+                                                    {formErrors.lastName && <span className="profile-field-error">{formErrors.lastName}</span>}
+                                                </>
+                                            ) : (
+                                                <p className="profile-field-value">
+                                                    {profile?.lastName || "Not Specified"}
+                                                </p>
+                                            )}
                                         </div>
 
                                         {/* Editable Gender */}

@@ -1137,7 +1137,6 @@ function Technician_signup()
                                                 onChange={handleInputChange}
                                                 className={error.password_er ? "input-error" : ""}
                                             />
-                                            {error.password_er && <div className="error-message">{error.password_er}</div>}
                                             <button
                                                 type="button"
                                                 className="password-toggle-btn"
@@ -1147,6 +1146,7 @@ function Technician_signup()
                                                 {showPassword ? <FaEyeSlash /> : <FaEye />}
                                             </button>
                                         </div>
+                                        {error.password_er && <div className="error-message">{error.password_er}</div>}
                                     </div>
                                 </div>
                                 <div className="technician-form-column">
@@ -1161,7 +1161,6 @@ function Technician_signup()
                                                 onChange={handleInputChange}
                                                 className={error.confirmPassword_er ? "input-error" : ""}
                                             />
-                                            {error.confirmPassword_er && <div className="error-message">{error.confirmPassword_er}</div>}
                                             <button
                                                 type="button"
                                                 className="password-toggle-btn"
@@ -1171,6 +1170,7 @@ function Technician_signup()
                                                 {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                                             </button>
                                         </div>
+                                        {error.confirmPassword_er && <div className="error-message">{error.confirmPassword_er}</div>}
                                     </div>
                                 </div>
                             </div>

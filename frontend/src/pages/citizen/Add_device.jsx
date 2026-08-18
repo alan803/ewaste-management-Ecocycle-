@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./Add_device.css";
 import Sidebar from "./Sidebar";
 import axios from "axios";
-import { FiCheck, FiArrowLeft, FiArrowRight, FiSearch, FiBell, FiChevronDown, FiCalendar } from "react-icons/fi";
+import { FiCheck, FiArrowLeft, FiArrowRight, FiSearch, FiBell, FiChevronDown, FiCalendar, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
 import {
     validate_brand,
     validate_modelname,
@@ -18,15 +18,22 @@ import {
     validate_specialization,
     validate_confirmation,
     validate_timeslot,
-    validate_custom_address
+    validate_custom_address,
+    validate_pickup_instructions,
+    validate_weight
 } from "../../utils/validation";
 
 function Add_device() {
+    const navigate = useNavigate();
     const [currentStep, setCurrentStep] = useState(0);
     const stepTitles = ["Device Info", "Condition", "Photos", "Pickup Details", "Confirmation"];
 
     const [userProfile, setUserProfile] = useState(null);
     const [profileImage, setProfileImage] = useState(null);
+
+    const [successMessage, setSuccessMessage] = useState("");
+    const [submissionError, setSubmissionError] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -60,6 +67,7 @@ function Add_device() {
         modelNumber: "",
         serialNumber: "",
         quantity: 1,
+        weight:"",
 
         condition: "",
         working: "",
@@ -95,7 +103,7 @@ function Add_device() {
         modelNumber_er: "",
         serialNumber_er: "",
         quantity_er: "",
-
+        weight_er:"",
         condition_er: "",
         working_er: "",
         physicalDamage_er: "",
@@ -179,6 +187,7 @@ function Add_device() {
         if (name === "modelNumber") seterror(prev => ({ ...prev, modelNumber_er: validate_modelnumber(value) }));
         if (name === "serialNumber") seterror(prev => ({ ...prev, serialNumber_er: validate_serialnumber(value) }));
         if (name === "quantity") seterror(prev => ({ ...prev, quantity_er: validate_quantity(value) }));
+        if(name==="weight") seterror(prev => ({ ...prev, weight_er: validate_weight(value) }));
         if (name === "condition") seterror(prev => ({ ...prev, condition_er: validate_condition(value) }));
         if (name === "physicalDamage") seterror(prev => ({ ...prev, physicalDamage_er: validate_physicaldamage(value) }));
         if (name === "displayCondition") seterror(prev => ({ ...prev, displayCondition_er: validate_condition(value) }));
@@ -186,6 +195,7 @@ function Add_device() {
         if (name === "landmark") seterror(prev => ({ ...prev, landmark_er: validate_address(value) }));
         if (name === "pickupDate") seterror(prev => ({ ...prev, pickupDate_er: validate_pickupdate(value) }));
         if (name === "timeSlot") seterror(prev => ({ ...prev, timeSlot_er: validate_timeslot(value) }));
+        if (name === "pickupInstructions") seterror(prev => ({ ...prev, pickupInstructions_er: validate_pickup_instructions(value) }));
         if (name === "ownership") seterror(prev => ({ ...prev, ownership_er: validate_confirmation(value) }));
         if (name === "ownershipConfirmed") seterror(prev => ({ ...prev, ownershipConfirmed_er: checked ? "" : "Please confirm ownership" }));
         if (name === "termsAccepted") seterror(prev => ({ ...prev, termsAccepted_er: checked ? "" : "Please accept terms and conditions" }));
@@ -206,7 +216,8 @@ function Add_device() {
                 model_er: validate_modelname(form_data.model),
                 modelNumber_er: validate_modelnumber(form_data.modelNumber),
                 serialNumber_er: validate_serialnumber(form_data.serialNumber),
-                quantity_er: validate_quantity(form_data.quantity)
+                quantity_er: validate_quantity(form_data.quantity),
+                weight_er: validate_weight(form_data.weight),
             };
         } else if (currentStep === 1) {
             stepErrors = {
@@ -232,7 +243,7 @@ function Add_device() {
                 landmark_er: validate_address(form_data.landmark),
                 pickupDate_er: validate_pickupdate(form_data.pickupDate),
                 timeSlot_er: validate_timeslot(form_data.timeSlot),
-                pickupInstructions_er: validate_address(form_data.pickupInstructions)
+                pickupInstructions_er: validate_pickup_instructions(form_data.pickupInstructions)
             };
         }
 
@@ -259,6 +270,7 @@ function Add_device() {
             modelNumber_er: validate_modelnumber(form_data.modelNumber),
             serialNumber_er: validate_serialnumber(form_data.serialNumber),
             quantity_er: validate_quantity(form_data.quantity),
+            weight_er: validate_weight(form_data.weight),
             condition_er: validate_condition(form_data.condition),
             working_er: validate_confirmation(form_data.working),
             physicalDamage_er: validate_physicaldamage(form_data.physicalDamage),
@@ -275,7 +287,7 @@ function Add_device() {
             landmark_er: validate_address(form_data.landmark),
             pickupDate_er: validate_pickupdate(form_data.pickupDate),
             timeSlot_er: validate_timeslot(form_data.timeSlot),
-            pickupInstructions_er: validate_address(form_data.pickupInstructions),
+            pickupInstructions_er: validate_pickup_instructions(form_data.pickupInstructions),
             ownership_er: validate_confirmation(form_data.ownership),
             ownershipConfirmed_er: form_data.ownershipConfirmed ? "" : "Please confirm ownership",
             termsAccepted_er: form_data.termsAccepted ? "" : "Please accept terms and conditions"
@@ -288,6 +300,9 @@ function Add_device() {
         }
 
         try {
+            setIsSubmitting(true);
+            setSubmissionError("");
+            setSuccessMessage("");
             const formData = new FormData();
             Object.keys(form_data).forEach(key => {
                 if (form_data[key] !== null && form_data[key] !== "") {
@@ -297,7 +312,7 @@ function Add_device() {
 
             const token = localStorage.getItem("token");
 
-            await axios.post(
+            const response = await axios.post(
                 "https://localhost:7102/api/Device/Register",
                 formData,
                 {
@@ -306,8 +321,15 @@ function Add_device() {
                     }
                 }
             );
+
+            const msg = response.data?.message || "Device added successfully!";
+            setSuccessMessage(msg);
+            navigate("/view-device");
         } catch (error) {
             console.error("Submission error:", error.response?.data || error);
+            setSubmissionError(error.response?.data?.message || "Failed to add device. Please try again.");
+        } finally {
+            setIsSubmitting(false);
         }
     }
 
@@ -378,6 +400,20 @@ function Add_device() {
                     </div>
 
                     <form onSubmit={validate_devicesignup} className="post-device-form">
+                        {successMessage && (
+                            <div style={{ background: "#ecfdf5", color: "#047857", padding: "0.85rem 1.15rem", borderRadius: "12px", border: "1px solid #a7f3d0", fontWeight: 700, fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                <FiCheckCircle style={{ fontSize: "1.1rem" }} />
+                                <span>{successMessage}</span>
+                            </div>
+                        )}
+
+                        {submissionError && (
+                            <div style={{ background: "#fff1f2", color: "#e11d48", padding: "0.85rem 1.15rem", borderRadius: "12px", border: "1px solid #fecdd3", fontWeight: 700, fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                <FiAlertCircle style={{ fontSize: "1.1rem" }} />
+                                <span>{submissionError}</span>
+                            </div>
+                        )}
+
                         {/* STEP 1: Device Information */}
                         {currentStep === 0 && (
                             <div className="form-step-card">
@@ -453,6 +489,17 @@ function Add_device() {
                                     className={error.quantity_er ? "input-error" : ""}
                                 />
                                 {error.quantity_er && <span className="error">{error.quantity_er}</span>}
+                                <label>Weight (in kg) *</label>
+                                <input
+                                    type="number"
+                                    name="weight"
+                                    value={form_data.weight}
+                                    onChange={handleInputChange}
+                                    placeholder="e.g. 2"
+                                    min="1"
+                                    className={error.weight_er ? "input-error" : ""}
+                                />
+                                {error.weight_er && <span className="error">{error.weight_er}</span>}
                             </div>
                         )}
 
@@ -807,8 +854,8 @@ function Add_device() {
                                     Next <FiArrowRight />
                                 </button>
                             ) : (
-                                <button type="submit" className="btn-submit">
-                                    Submit Request <FiCheck />
+                                <button type="submit" className="btn-submit-device" disabled={isSubmitting}>
+                                    {isSubmitting ? "Submitting..." : <>Submit Request <FiCheck /></>}
                                 </button>
                             )}
                         </div>

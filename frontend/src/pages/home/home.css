@@ -102,15 +102,15 @@
 }
 
 .btn-primary {
-    background: var(--primary);
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: #ffffff;
-    box-shadow: 0 4px 14px rgba(30, 138, 85, 0.25);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    background: var(--primary-hover);
-    box-shadow: 0 6px 18px rgba(30, 138, 85, 0.35);
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
 }
 
 .btn-ghost {
@@ -694,11 +694,25 @@
     margin-top: 0.35rem;
 }
 
-.btn-submit {
+.home-contact-section .btn-submit {
     width: 100%;
-    padding: 0.95rem;
+    padding: 0.95rem 1.5rem;
     font-size: 1rem;
+    font-weight: 700;
     margin-top: 0.5rem;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35) !important;
+    transition: all 0.25s ease !important;
+    cursor: pointer;
+}
+
+.home-contact-section .btn-submit:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45) !important;
+    transform: translateY(-2px);
 }
 
 .contact-success-alert {

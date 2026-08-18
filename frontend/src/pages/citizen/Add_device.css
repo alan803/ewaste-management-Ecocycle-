@@ -290,25 +290,41 @@
 }
 
 .btn-next,
-.btn-submit {
+.btn-submit-device {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
   padding: 0.65rem 1.35rem;
   border-radius: 10px;
   border: none;
-  background: #635bff;
   color: #ffffff;
   font-weight: 700;
   font-size: 0.875rem;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(99, 91, 255, 0.3);
   transition: all 0.2s ease;
   margin-left: auto;
+  width: auto;
+  max-width: max-content;
 }
 
-.btn-next:hover,
-.btn-submit:hover {
+.btn-next {
+  background: #635bff;
+  box-shadow: 0 4px 12px rgba(99, 91, 255, 0.3);
+}
+
+.btn-next:hover {
   background: #4f46e5;
+  transform: translateY(-1px);
+}
+
+.btn-submit-device {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-submit-device:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 6px 15px rgba(16, 185, 129, 0.4);
   transform: translateY(-1px);
 }

@@ -40,6 +40,7 @@ function Inspectiontechnician_dashboard() {
 
     // Diagnostic form inside modal
     const [diagnosticNotes, setDiagnosticNotes] = useState("");
+    const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
     const navigate = useNavigate();
 
@@ -57,10 +58,33 @@ function Inspectiontechnician_dashboard() {
             return;
         }
         fetchInspectionRequests();
+        fetchUnreadNotificationsCount();
     }, []);
+
+    const fetchUnreadNotificationsCount = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            const response = await axios.get(
+                "https://localhost:7102/api/Notificationcon/my_notifications",
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+            if (Array.isArray(response.data)) {
+                const unread = response.data.filter((n) => !n.isRead).length;
+                setUnreadNotifCount(unread);
+            }
+        } catch (err) {
+            console.error("Error fetching unread notification count:", err);
+        }
+    };
 
     const fetchInspectionRequests = async () => {
         setLoading(true);
+        fetchUnreadNotificationsCount();
         try {
             const token = localStorage.getItem("token");
             const techId = localStorage.getItem("technicianId") ||
@@ -227,9 +251,19 @@ response.data.forEach((req) => {
                             <FiRefreshCw className={loading ? "spin-icon" : ""} />
                         </button>
 
-                        <button className="clean-icon-btn" title="Notifications">
+                        <button
+                            className="clean-icon-btn"
+                            title={`Notifications ${unreadNotifCount > 0 ? `(${unreadNotifCount} unread)` : ""}`}
+                            onClick={() => navigate("/technician-notification")}
+                        >
                             <FiBell />
-                            {pendingActionCount > 0 && <span className="dot-badge"></span>}
+                            {unreadNotifCount > 0 ? (
+                                <span className="notif-badge-count">
+                                    {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                                </span>
+                            ) : pendingActionCount > 0 ? (
+                                <span className="dot-badge"></span>
+                            ) : null}
                         </button>
 
                         <div className="vd-user-profile-pill" style={{ display: "flex", alignItems: "center", gap: "0.6rem", background: "#ffffff", border: "1px solid #e2e8f0", padding: "0.3rem 0.8rem 0.3rem 0.3rem", borderRadius: "9999px" }}>
@@ -386,69 +420,71 @@ response.data.forEach((req) => {
                                                     <td>{getStatusBadge(req.status)}</td>
                                                     <td>
                                                         <div
-    className="action-row"
-    style={{
-        display: "flex",
-        gap: "10px",
-        alignItems: "center"
-    }}
->
-    <button
-        type="button"
-        className="btn btn-secondary"
-        onClick={() => {
-            setSelectedRequest(req);
-            setActiveModalTab("overview");
-        }}
-    >
-        <FiEye /> View
-    </button>
+                                                            className="action-row"
+                                                            style={{
+                                                                display: "flex",
+                                                                gap: "10px",
+                                                                alignItems: "center"
+                                                            }}
+                                                        >
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-secondary"
+                                                                onClick={() => {
+                                                                    setSelectedRequest(req);
+                                                                    setActiveModalTab("overview");
+                                                                }}
+                                                            >
+                                                                <FiEye /> View
+                                                            </button>
 
-    {req.status?.toLowerCase() === "assigned" && (
-        <>
-            <button
-                type="button"
-                onClick={() => handleAccept(req.inspectionRequestId)}
-                disabled={processingId === req.inspectionRequestId}
-                style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    backgroundColor: "green",
-                    color: "white",
-                    border: "none",
-                    padding: "8px 12px",
-                    borderRadius: "5px",
-                    cursor: "pointer"
-                }}
-            >
-                <FiCheck /> Accept
-            </button>
+                                                            {req.status?.toLowerCase() === "assigned" && 
+                                                            (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleAccept(req.inspectionRequestId)}
+                                                                        disabled={processingId === req.inspectionRequestId}
+                                                                        style={{
+                                                                            display: "inline-flex",
+                                                                            alignItems: "center",
+                                                                            gap: "5px",
+                                                                            backgroundColor: "green",
+                                                                            color: "white",
+                                                                            border: "none",
+                                                                            padding: "8px 12px",
+                                                                            borderRadius: "5px",
+                                                                            cursor: "pointer"
+                                                                        }}
+                                                                    >
+                                                                        <FiCheck /> Accept
+                                                                    </button>
 
-            <button
-                type="button"
-                onClick={() => {
-                    console.log("DECLINE BUTTON CLICKED", req);
-                    setRejectionTarget(req);
-                }}
-                disabled={processingId === req.inspectionRequestId}
-                style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    backgroundColor: "red",
-                    color: "white",
-                    border: "none",
-                    padding: "8px 12px",
-                    borderRadius: "5px",
-                    cursor: "pointer"
-                }}
-            >
-                <FiX /> Decline
-            </button>
-        </>
-    )}
-</div>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            console.log("DECLINE BUTTON CLICKED", req);
+                                                                            setRejectionTarget(req);
+                                                                        }}
+                                                                        disabled={processingId === req.inspectionRequestId}
+                                                                        style={{
+                                                                            display: "inline-flex",
+                                                                            alignItems: "center",
+                                                                            gap: "5px",
+                                                                            backgroundColor: "red",
+                                                                            color: "white",
+                                                                            border: "none",
+                                                                            padding: "8px 12px",
+                                                                            borderRadius: "5px",
+                                                                            cursor: "pointer"
+                                                                        }}
+                                                                    >
+                                                                        <FiX /> Decline
+                                                                    </button>
+                                                                </>
+                                                            )
+                                                        }
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             );

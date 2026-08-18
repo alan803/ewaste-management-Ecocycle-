@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import Navbar from "./Navbar";
 import {
     FiTruck,
     FiCheckCircle,
@@ -10,24 +11,39 @@ import {
     FiPhoneCall,
     FiPackage,
     FiNavigation,
-    FiAward,
     FiInfo,
     FiX,
     FiBox,
     FiCheck,
     FiRefreshCw,
-    FiUser
+    FiSearch,
+    FiAlertCircle,
+    FiBell,
+    FiList,
+    FiGrid,
+    FiUser,
+    FiCalendar,
+    FiTag,
+    FiLayers
 } from "react-icons/fi";
 import "./Collectionagent_dashboard.css";
 
 function CollectionAgentDashboard() {
     const navigate = useNavigate();
-    const [profile, setProfile] = useState(null);
     const [isOnDuty, setIsOnDuty] = useState(true);
     const [activeTab, setActiveTab] = useState("All");
+    const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
     const [pickups, setPickups] = useState([]);
     const [selectedPickup, setSelectedPickup] = useState(null);
+    const [viewMode, setViewMode] = useState("table"); // "table" or "grid"
+
+    // Accept / Reject Modal State
+    const [rejectionTarget, setRejectionTarget] = useState(null);
+    const [rejectionReason, setRejectionReason] = useState("");
+    const [processingId, setProcessingId] = useState(null);
+    const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -36,138 +52,182 @@ function CollectionAgentDashboard() {
             navigate("/");
             return;
         }
-        fetchAgentProfile(token);
         fetchAssignedPickups(token);
+        fetchUnreadNotificationsCount();
     }, [navigate]);
 
-    const fetchAgentProfile = async (token) => {
+    const fetchUnreadNotificationsCount = async () => {
         try {
-            const response = await axios.get("https://localhost:7102/api/User/profile", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setProfile(response.data || {});
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            const response = await axios.get(
+                "https://localhost:7102/api/Notificationcon/my_notifications",
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+            if (Array.isArray(response.data)) {
+                const unread = response.data.filter((n) => !n.isRead).length;
+                setUnreadNotifCount(unread);
+            }
         } catch (err) {
-            console.error("Error fetching agent profile:", err);
+            console.error("Error fetching unread notification count:", err);
         }
     };
 
     const fetchAssignedPickups = async (token) => {
+        const authToken = token || localStorage.getItem("token");
+        fetchUnreadNotificationsCount();
         try {
             setLoading(true);
-            const response = await axios.get("https://localhost:7102/api/Inspection/admin/assignments", {
-                headers: { Authorization: `Bearer ${token}` }
+            setError("");
+            const response = await axios.get("https://localhost:7102/api/CollectionAssignment/my-assignments", {
+                headers: { Authorization: `Bearer ${authToken}` }
             });
-            if (response.data && response.data.length > 0) {
-                const mapped = response.data.map((item, idx) => ({
-                    id: item.inspectionRequestId || (idx + 101),
-                    citizenName: item.userName || "Resident Citizen",
-                    phone: "+91 98765 43210",
-                    items: `${item.brand || "E-Waste"} ${item.model || "Device"}`,
-                    address: "Block B, Green Valley Apartments, MG Road",
-                    timeSlot: item.timeSlot || "10:00 AM - 01:00 PM",
-                    scheduledDate: "Today",
-                    status: item.status || (idx % 2 === 0 ? "Pending" : "En Route"),
-                    quantity: "2 Units",
-                    weight: "12 kg"
-                }));
-                setPickups(mapped);
-            } else {
-                setPickups(defaultPickups);
-            }
+            console.log("Collection Agent Assignments:", response.data);
+            setPickups(response.data || []);
         } catch (err) {
-            setPickups(defaultPickups);
+            console.error("Error fetching collection assignments:", err);
+            if (err.response?.status === 401) {
+                setError("Session expired. Please log in again.");
+                localStorage.clear();
+                navigate("/");
+            } else {
+                setError(err.response?.data?.message || "Failed to load assigned pickup requests.");
+                setPickups([]);
+            }
         } finally {
             setLoading(false);
         }
     };
 
-    const defaultPickups = [
-        {
-            id: 201,
-            citizenName: "Ananya Sharma",
-            phone: "+91 98450 12345",
-            items: "Dell Laptop & 24\" LED Monitor",
-            address: "#402, Lotus Towers, Indiranagar",
-            landmark: "Behind Metro Station Gate 2",
-            timeSlot: "10:00 AM - 12:30 PM",
-            scheduledDate: "Today",
-            status: "En Route",
-            quantity: "2 Units",
-            weight: "8.5 kg"
-        },
-        {
-            id: 202,
-            citizenName: "Rajesh Kumar",
-            phone: "+91 97312 88900",
-            items: "Samsung Galaxy Smartphones (x3)",
-            address: "#12, Green Park Avenue, HSR Layout",
-            landmark: "Near BDA Complex",
-            timeSlot: "01:00 PM - 03:00 PM",
-            scheduledDate: "Today",
-            status: "Pending",
-            quantity: "3 Units",
-            weight: "1.8 kg"
-        },
-        {
-            id: 203,
-            citizenName: "Vikram Mehta",
-            phone: "+91 91088 55432",
-            items: "APC UPS Battery Unit & Adapters",
-            address: "#88, Rosewood Residency, Koramangala",
-            landmark: "Opposite Forum Mall",
-            timeSlot: "03:30 PM - 05:30 PM",
-            scheduledDate: "Today",
-            status: "Pending",
-            quantity: "1 Heavy Unit",
-            weight: "14 kg"
-        },
-        {
-            id: 204,
-            citizenName: "Priya Nair",
-            phone: "+91 99001 77654",
-            items: "LG Smart TV (42-inch)",
-            address: "#55, Sunrise Enclave, Whitefield",
-            landmark: "Next to ITPL Back Gate",
-            timeSlot: "09:30 AM - 11:00 AM",
-            scheduledDate: "Yesterday",
-            status: "Completed",
-            quantity: "1 Unit",
-            weight: "11 kg"
-        }
-    ];
-
-    const agentName = profile?.firstName 
-        ? `${profile.firstName} ${profile.lastName || ""}`.trim()
-        : localStorage.getItem("firstName") || "Ramesh Kumar";
-
-    const updatePickupStatus = (pickupId, newStatus) => {
-        setPickups(prev =>
-            prev.map(p => (p.id === pickupId ? { ...p, status: newStatus } : p))
-        );
-        if (selectedPickup && selectedPickup.id === pickupId) {
-            setSelectedPickup(prev => ({ ...prev, status: newStatus }));
+    const handleAccept = async (assignmentId) => {
+        try {
+            setProcessingId(assignmentId);
+            const token = localStorage.getItem("token");
+            await axios.post(
+                `https://localhost:7102/api/CollectionAssignment/accept/${assignmentId}`,
+                {},
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+            setPickups(prev =>
+                prev.map(p => (p.collectionAssignmentId === assignmentId ? { ...p, status: "Accepted" } : p))
+            );
+            if (selectedPickup?.collectionAssignmentId === assignmentId) {
+                setSelectedPickup(prev => prev ? { ...prev, status: "Accepted" } : null);
+            }
+        } catch (err) {
+            console.error("Error accepting assignment:", err);
+            alert("Failed to accept collection request.");
+        } finally {
+            setProcessingId(null);
         }
     };
 
-    const filteredPickups = pickups.filter(p => {
-        if (activeTab === "All") return true;
-        if (activeTab === "Pending") return p.status === "Pending";
-        if (activeTab === "En Route") return p.status === "En Route";
-        if (activeTab === "Completed") return p.status === "Completed";
-        return true;
+    const handleRejectSubmit = async (e) => {
+        e.preventDefault();
+        if (!rejectionTarget) return;
+
+        try {
+            setProcessingId(rejectionTarget.collectionAssignmentId);
+            const token = localStorage.getItem("token");
+
+            await axios.post(
+                `https://localhost:7102/api/CollectionAssignment/reject/${rejectionTarget.collectionAssignmentId}`,
+                JSON.stringify(rejectionReason || "Unable to collect at this time."),
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                }
+            );
+
+            setPickups(prev => prev.filter(p => p.collectionAssignmentId !== rejectionTarget.collectionAssignmentId));
+            if (selectedPickup?.collectionAssignmentId === rejectionTarget.collectionAssignmentId) {
+                setSelectedPickup(null);
+            }
+            setRejectionTarget(null);
+            setRejectionReason("");
+        } catch (err) {
+            console.error("Error rejecting assignment:", err);
+            const msg = err.response?.data?.message || err.response?.data?.error || "Error rejecting collection assignment.";
+            alert(msg);
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const agentName = localStorage.getItem("firstName") ||
+                      localStorage.getItem("userName") ||
+                      localStorage.getItem("username") ||
+                      localStorage.getItem("name") ||
+                      "Collection Agent";
+
+    const filteredPickups = pickups.filter((item) => {
+        const matchesSearch =
+            (item.brand || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (item.model || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (item.customerName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (item.customerPhone || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (item.address || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (item.city || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (item.categoryName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (item.condition || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (item.rejectionReason || "").toLowerCase().includes(searchQuery.toLowerCase());
+
+        const statusLower = (item.status || "").toLowerCase();
+        const activeTabLower = activeTab.toLowerCase();
+
+        let matchesTab = true;
+        if (activeTabLower === "assigned") {
+            matchesTab = statusLower === "assigned" || statusLower === "pending";
+        } else if (activeTabLower === "accepted") {
+            matchesTab = statusLower === "accepted";
+        } else if (activeTabLower === "pickupstarted" || activeTabLower === "en route") {
+            matchesTab = statusLower === "pickupstarted" || statusLower === "en route";
+        } else if (activeTabLower === "completed") {
+            matchesTab = statusLower === "completed";
+        } else if (activeTabLower === "rejected" || activeTabLower === "declined") {
+            matchesTab = statusLower === "rejected" || statusLower === "declined";
+        }
+
+        return matchesSearch && matchesTab;
     });
 
     const getStatusBadge = (status) => {
-        switch (status) {
-            case "Completed":
+        switch ((status || "").toLowerCase()) {
+            case "completed":
                 return <span className="agent-status-badge collected"><FiCheckCircle /> Completed</span>;
-            case "En Route":
+            case "pickupstarted":
+            case "en route":
                 return <span className="agent-status-badge en-route"><FiTruck /> En Route</span>;
-            case "Pending":
+            case "accepted":
+                return <span className="agent-status-badge accepted"><FiCheck /> Accepted</span>;
+            case "rejected":
+            case "declined":
+                return <span className="agent-status-badge rejected"><FiX /> Declined</span>;
+            case "assigned":
+            case "pending":
             default:
-                return <span className="agent-status-badge pending"><FiClock /> Pending</span>;
+                return <span className="agent-status-badge pending"><FiClock /> Assigned</span>;
         }
     };
+
+    const totalCount = pickups.length;
+    const totalUnits = pickups.reduce((acc, p) => acc + (p.quantity || 1), 0);
+    const assignedCount = pickups.filter(p => {
+        const s = (p.status || "").toLowerCase();
+        return s === "assigned" || s === "pending";
+    }).length;
+    const activeCount = pickups.filter(p => {
+        const s = (p.status || "").toLowerCase();
+        return s === "accepted" || s === "pickupstarted" || s === "en route";
+    }).length;
 
     return (
         <div className="agent-dashboard-layout">
@@ -176,333 +236,501 @@ function CollectionAgentDashboard() {
 
             {/* Main Content Dashboard */}
             <main className="agent-main-content">
-                {/* Header Ribbon */}
-                <div className="agent-header-ribbon">
-                    <div>
-                        <h1 className="agent-welcome-title">Welcome back, {agentName}!</h1>
-                        <p className="agent-welcome-sub">Vehicle Unit: <strong>E-Truck #KA-05-EV-4092</strong> • Zone South</p>
-                    </div>
-
-                    <div className="agent-header-actions">
-                        {/* On Duty Status Toggle Button */}
-                        <div 
-                            className="duty-status-card"
-                            onClick={() => setIsOnDuty(!isOnDuty)}
-                            title="Click to toggle On Duty status"
-                        >
-                            <div className={`duty-beacon ${!isOnDuty ? "offline" : ""}`}></div>
-                            <span className="duty-text">{isOnDuty ? "ON DUTY" : "OFFLINE"}</span>
-                        </div>
-
-                        <Link to="/manage-userprofile" className="agent-profile-pill">
-                            <div className="agent-avatar">
-                                {agentName.charAt(0).toUpperCase()}
-                            </div>
-                            <div style={{ display: "flex", flexDirection: "column" }}>
-                                <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#0f172a" }}>{agentName}</span>
-                                <span style={{ fontSize: "0.725rem", color: "#059669", fontWeight: 600 }}>Field Officer</span>
-                            </div>
-                        </Link>
-                    </div>
-                </div>
+                {/* Embedded Dashboard Topbar */}
+                <Navbar 
+                    hasSidebar={true}
+                    isOnDuty={isOnDuty} 
+                    setIsOnDuty={setIsOnDuty}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    onRefresh={() => fetchAssignedPickups()}
+                    loading={loading}
+                    unreadNotifCount={unreadNotifCount}
+                    assignedCount={assignedCount}
+                />
 
                 {/* Metric Summary Cards Grid */}
                 <div className="agent-kpi-grid">
-                    <div className="agent-kpi-card">
+                    <div className="agent-kpi-card emerald-accent">
                         <div className="agent-kpi-top">
                             <div className="agent-kpi-icon emerald">
                                 <FiTruck />
                             </div>
-                            <span className="agent-kpi-badge">+2 Today</span>
+                            <span className="agent-kpi-badge">Active</span>
                         </div>
                         <div>
-                            <h3 className="agent-kpi-val">{pickups.length} Tasks</h3>
-                            <div className="agent-kpi-lbl">Assigned Pickups Today</div>
+                            <h3 className="agent-kpi-val">{totalCount} Tasks</h3>
+                            <div className="agent-kpi-lbl">Assigned Devices</div>
                         </div>
                     </div>
 
-                    <div className="agent-kpi-card">
+                    <div className="agent-kpi-card blue-accent">
                         <div className="agent-kpi-top">
                             <div className="agent-kpi-icon blue">
                                 <FiPackage />
                             </div>
-                            <span className="agent-kpi-badge">Estimated</span>
+                            <span className="agent-kpi-badge blue-pill">Total Units</span>
                         </div>
                         <div>
-                            <h3 className="agent-kpi-val">35.3 kg</h3>
-                            <div className="agent-kpi-lbl">E-Waste Weight Collected</div>
+                            <h3 className="agent-kpi-val">{totalUnits} Units</h3>
+                            <div className="agent-kpi-lbl">E-Waste Quantity</div>
                         </div>
                     </div>
 
-                    <div className="agent-kpi-card">
+                    <div className="agent-kpi-card amber-accent">
+                        <div className="agent-kpi-top">
+                            <div className="agent-kpi-icon amber">
+                                <FiClock />
+                            </div>
+                            <span className="agent-kpi-badge amber-pill">Action Required</span>
+                        </div>
+                        <div>
+                            <h3 className="agent-kpi-val">{assignedCount} Pending</h3>
+                            <div className="agent-kpi-lbl">Newly Assigned</div>
+                        </div>
+                    </div>
+
+                    <div className="agent-kpi-card purple-accent">
                         <div className="agent-kpi-top">
                             <div className="agent-kpi-icon purple">
                                 <FiNavigation />
                             </div>
-                            <span className="agent-kpi-badge">4 Hubs</span>
+                            <span className="agent-kpi-badge purple-pill">In Route</span>
                         </div>
                         <div>
-                            <h3 className="agent-kpi-val">18.4 km</h3>
-                            <div className="agent-kpi-lbl">Today's Route Distance</div>
-                        </div>
-                    </div>
-
-                    <div className="agent-kpi-card">
-                        <div className="agent-kpi-top">
-                            <div className="agent-kpi-icon amber">
-                                <FiAward />
-                            </div>
-                            <span className="agent-kpi-badge" style={{ background: "#fef3c7", color: "#b45309" }}>High Rating</span>
-                        </div>
-                        <div>
-                            <h3 className="agent-kpi-val">4.95 ★</h3>
-                            <div className="agent-kpi-lbl">Performance Score</div>
+                            <h3 className="agent-kpi-val">{activeCount} Active</h3>
+                            <div className="agent-kpi-lbl">Accepted / En Route</div>
                         </div>
                     </div>
                 </div>
 
-                {/* 2-Column Dashboard Grid */}
-                <div className="agent-grid-layout">
-                    {/* Left Column (Pickup Task Table) */}
-                    <div>
-                        <div className="agent-panel-card">
-                            <div className="agent-panel-header">
-                                <div>
-                                    <h2 className="agent-panel-title">Assigned Pickups</h2>
-                                    <p className="agent-panel-subtitle">Manage citizen collection requests and update live pickup status</p>
-                                </div>
+                {/* Full-Width Assigned Pickups Panel */}
+                <div className="agent-panel-card">
+                    <div className="agent-panel-header">
+                        <div>
+                            <h2 className="agent-panel-title">My Assigned Pickups</h2>
+                            <p className="agent-panel-subtitle">Manage allocated citizen e-waste collection requests</p>
+                        </div>
 
-                                <div className="agent-tab-pills">
-                                    {["All", "Pending", "En Route", "Completed"].map((tab) => (
-                                        <button
-                                            key={tab}
-                                            className={`agent-tab-btn ${activeTab === tab ? "active" : ""}`}
-                                            onClick={() => setActiveTab(tab)}
-                                        >
-                                            {tab} ({tab === "All" ? pickups.length : pickups.filter(p => p.status === tab).length})
-                                        </button>
-                                    ))}
-                                </div>
+                        <div className="panel-controls-row">
+                            <div className="agent-tab-pills">
+                                {["All", "Assigned", "Accepted", "PickupStarted"].map((tab) => (
+                                    <button
+                                        key={tab}
+                                        className={`agent-tab-btn ${activeTab === tab ? "active" : ""}`}
+                                        onClick={() => setActiveTab(tab)}
+                                    >
+                                        {tab === "PickupStarted" ? "En Route" : tab} ({
+                                            tab === "All"
+                                                ? pickups.length
+                                                : pickups.filter(p => {
+                                                    const s = (p.status || "").toLowerCase();
+                                                    if (tab === "Assigned") return s === "assigned" || s === "pending";
+                                                    return s === tab.toLowerCase();
+                                                }).length
+                                        })
+                                    </button>
+                                ))}
                             </div>
 
-                            <div className="agent-table-wrapper">
-                                {loading ? (
-                                    <div style={{ padding: "2rem", textAlign: "center", color: "#64748b" }}>
-                                        Loading assigned pickup tasks...
-                                    </div>
-                                ) : filteredPickups.length === 0 ? (
-                                    <div style={{ padding: "2.5rem 1.5rem", textAlign: "center", color: "#64748b" }}>
-                                        <FiBox style={{ fontSize: "2rem", color: "#94a3b8", marginBottom: "0.5rem" }} />
-                                        <p style={{ margin: 0, fontWeight: 600 }}>No pickup tasks matching "{activeTab}".</p>
-                                    </div>
-                                ) : (
-                                    <table className="agent-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Task ID</th>
-                                                <th>Citizen & Contact</th>
-                                                <th>Items & Weight</th>
-                                                <th>Time Slot</th>
-                                                <th>Status</th>
-                                                <th>Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {filteredPickups.map((task) => (
-                                                <tr key={task.id}>
-                                                    <td>
-                                                        <span style={{ fontFamily: "monospace", fontWeight: 700, background: "#f1f5f9", padding: "0.25rem 0.6rem", borderRadius: "6px", color: "#0f172a" }}>
-                                                            #TASK-{task.id}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ fontWeight: 700, color: "#0f172a" }}>{task.citizenName}</div>
-                                                        <div style={{ fontSize: "0.775rem", color: "#64748b" }}>{task.phone}</div>
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ fontWeight: 600, color: "#334155" }}>{task.items}</div>
-                                                        <div style={{ fontSize: "0.75rem", color: "#059669", fontWeight: 600 }}>{task.weight} ({task.quantity})</div>
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ fontWeight: 600, fontSize: "0.8rem", color: "#0f172a" }}>{task.timeSlot}</div>
-                                                    </td>
-                                                    <td>{getStatusBadge(task.status)}</td>
-                                                    <td>
-                                                        <div style={{ display: "flex", gap: "0.4rem" }}>
-                                                            {task.status === "Pending" && (
-                                                                <button
-                                                                    className="agent-action-btn primary"
-                                                                    onClick={() => updatePickupStatus(task.id, "En Route")}
-                                                                    title="Start Route to Citizen"
-                                                                >
-                                                                    <FiTruck /> Start Route
-                                                                </button>
-                                                            )}
-                                                            {task.status === "En Route" && (
-                                                                <button
-                                                                    className="agent-action-btn success"
-                                                                    onClick={() => updatePickupStatus(task.id, "Completed")}
-                                                                    title="Mark E-Waste Collected"
-                                                                >
-                                                                    <FiCheck /> Collected
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                className="agent-action-btn"
-                                                                onClick={() => setSelectedPickup(task)}
-                                                                title="View Details"
-                                                            >
-                                                                <FiInfo /> Details
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                )}
+                            {/* Table / Grid View Toggle */}
+                            <div className="view-toggle-wrap">
+                                <button
+                                    className={`toggle-btn ${viewMode === "table" ? "active" : ""}`}
+                                    onClick={() => setViewMode("table")}
+                                    title="Table View"
+                                >
+                                    <FiList />
+                                </button>
+                                <button
+                                    className={`toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+                                    onClick={() => setViewMode("grid")}
+                                    title="Grid Card View"
+                                >
+                                    <FiGrid />
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    {/* Right Side Panel: Route Timeline */}
-                    <div>
-                        <div className="agent-panel-card">
-                            <h3 className="agent-panel-title">Today's Route Schedule</h3>
-                            <p className="agent-panel-subtitle">Sequential pickup dispatches & hub stops</p>
-
-                            <div className="agent-timeline">
-                                <div className="agent-timeline-item">
-                                    <div className="agent-timeline-icon done">
-                                        <FiCheckCircle />
-                                    </div>
-                                    <div>
-                                        <div className="agent-timeline-title">Depot Departure</div>
-                                        <div className="agent-timeline-sub">09:00 AM • Vehicle Ready</div>
-                                    </div>
-                                </div>
-
-                                <div className="agent-timeline-item">
-                                    <div className="agent-timeline-icon done">
-                                        <FiCheckCircle />
-                                    </div>
-                                    <div>
-                                        <div className="agent-timeline-title">Priya Nair (Completed)</div>
-                                        <div className="agent-timeline-sub">09:45 AM • LG Smart TV Collected</div>
-                                    </div>
-                                </div>
-
-                                <div className="agent-timeline-item">
-                                    <div className="agent-timeline-icon active">
-                                        <FiTruck />
-                                    </div>
-                                    <div>
-                                        <div className="agent-timeline-title">Ananya Sharma (Current)</div>
-                                        <div className="agent-timeline-sub">10:15 AM • Indiranagar • Laptop & Monitor</div>
-                                    </div>
-                                </div>
-
-                                <div className="agent-timeline-item">
-                                    <div className="agent-timeline-icon">
-                                        <FiMapPin />
-                                    </div>
-                                    <div>
-                                        <div className="agent-timeline-title">Rajesh Kumar (Upcoming)</div>
-                                        <div className="agent-timeline-sub">01:00 PM • HSR Layout</div>
-                                    </div>
-                                </div>
-
-                                <div className="agent-timeline-item">
-                                    <div className="agent-timeline-icon">
-                                        <FiRefreshCw />
-                                    </div>
-                                    <div>
-                                        <div className="agent-timeline-title">Recycling Hub Drop-Off</div>
-                                        <div className="agent-timeline-sub">05:30 PM • EcoCycle Central Depot</div>
-                                    </div>
-                                </div>
+                    <div className="agent-content-body">
+                        {loading ? (
+                            <div className="state-box">
+                                <div className="spinner"></div>
+                                <p>Loading assigned pickup tasks...</p>
                             </div>
-                        </div>
+                        ) : error ? (
+                            <div className="state-box error-box">
+                                <FiAlertCircle className="state-icon-red" />
+                                <p>{error}</p>
+                                <button
+                                    onClick={() => fetchAssignedPickups()}
+                                    className="btn btn-secondary"
+                                    style={{ marginTop: "0.75rem" }}
+                                >
+                                    Retry
+                                </button>
+                            </div>
+                        ) : filteredPickups.length === 0 ? (
+                            <div className="state-box empty-box">
+                                <FiBox className="state-icon-gray" />
+                                <p className="empty-title">
+                                    No assigned devices match "{activeTab}".
+                                </p>
+                                <p className="empty-sub">
+                                    {searchQuery ? "Try altering your search query." : "When new pickups are assigned, they will appear here."}
+                                </p>
+                            </div>
+                        ) : viewMode === "grid" ? (
+                            <div className="pickup-cards-grid">
+                                {filteredPickups.map((task) => {
+                                    const statusLower = (task.status || "").toLowerCase();
+                                    const canAccept = statusLower === "assigned" || statusLower === "pending";
+                                    const canDecline = statusLower === "assigned" || statusLower === "pending" || statusLower === "accepted";
+                                    const nameInitial = (task.customerName || "C").charAt(0).toUpperCase();
+
+                                    return (
+                                        <div key={task.collectionAssignmentId} className={`pickup-card-item card-status-${statusLower}`}>
+                                            <div className="card-status-bar"></div>
+                                            <div>
+                                                <div className="card-item-top">
+                                                    <div>
+                                                        <span className="card-id-tag">
+                                                            #{task.collectionAssignmentId}
+                                                        </span>
+                                                        <h3 className="card-device-title">{task.brand} {task.model}</h3>
+                                                    </div>
+                                                    {getStatusBadge(task.status)}
+                                                </div>
+
+                                                <div className="card-citizen-box">
+                                                    <div className="citizen-avatar">{nameInitial}</div>
+                                                    <div>
+                                                        <div className="info-text-bold">{task.customerName || "Citizen"}</div>
+                                                        <a href={`tel:${task.customerPhone}`} className="info-text-phone">
+                                                            <FiPhoneCall /> {task.customerPhone || "N/A"}
+                                                        </a>
+                                                    </div>
+                                                </div>
+
+                                                <div className="card-device-tags">
+                                                    <span className="category-chip">
+                                                        <FiTag /> {task.categoryName || "E-Waste"}
+                                                    </span>
+                                                    <span className="condition-chip">
+                                                        {task.condition || "Standard"}
+                                                    </span>
+                                                    <span className="qty-chip">
+                                                        <FiLayers /> Qty: {task.quantity || 1}
+                                                    </span>
+                                                </div>
+
+                                                <div className="card-location-box">
+                                                    <FiMapPin className="info-icon-green" />
+                                                    <div>
+                                                        <div className="loc-address">{task.address}</div>
+                                                        {(task.city || task.district) && (
+                                                            <div className="loc-sub">{[task.city, task.district, task.state].filter(Boolean).join(", ")}</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <div className="card-slot-chip">
+                                                    <FiClock />
+                                                    <span>{task.pickupDate ? new Date(task.pickupDate).toLocaleDateString() : "Scheduled"} • ({task.timeSlot || "Standard Slot"})</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="card-actions-row">
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary"
+                                                    onClick={() => setSelectedPickup(task)}
+                                                    style={{ flex: 1, justifyContent: "center" }}
+                                                >
+                                                    <FiInfo /> Details
+                                                </button>
+
+                                                {canAccept && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleAccept(task.collectionAssignmentId)}
+                                                        disabled={processingId === task.collectionAssignmentId}
+                                                        className="btn btn-success"
+                                                        style={{ flex: 1, justifyContent: "center" }}
+                                                    >
+                                                        <FiCheck /> Accept
+                                                    </button>
+                                                )}
+
+                                                {canDecline && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setRejectionTarget(task)}
+                                                        disabled={processingId === task.collectionAssignmentId}
+                                                        className="btn btn-danger"
+                                                        style={{ flex: 1, justifyContent: "center" }}
+                                                    >
+                                                        <FiX /> Decline
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="agent-table-wrapper">
+                                <table className="agent-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Citizen & Contact</th>
+                                            <th>Device Details</th>
+                                            <th>Pickup Location</th>
+                                            <th>Scheduled Slot</th>
+                                            <th style={{ minWidth: "230px" }}>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredPickups.map((task) => {
+                                            const statusLower = (task.status || "").toLowerCase();
+                                            const canAccept = statusLower === "assigned" || statusLower === "pending";
+                                            const canDecline = statusLower === "assigned" || statusLower === "pending" || statusLower === "accepted";
+                                            const nameInitial = (task.customerName || "C").charAt(0).toUpperCase();
+
+                                            return (
+                                                <tr key={task.collectionAssignmentId} className={`table-row-status-${statusLower}`}>
+                                                    <td>
+                                                        <div className="citizen-cell-wrap">
+                                                            <div className="citizen-avatar-sm">{nameInitial}</div>
+                                                            <div>
+                                                                <div className="cell-title">{task.customerName || "Citizen"}</div>
+                                                                <a href={`tel:${task.customerPhone}`} className="cell-phone-pill">
+                                                                    <FiPhoneCall /> {task.customerPhone || "N/A"}
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="cell-title-lg">{task.brand} {task.model}</div>
+                                                        <div className="cell-device-meta">
+                                                            <span className="category-chip">
+                                                                <FiTag /> {task.categoryName || "E-Waste"}
+                                                            </span>
+                                                            <span className="condition-chip">
+                                                                {task.condition || "Standard"}
+                                                            </span>
+                                                            <span className="qty-chip">
+                                                                Qty: {task.quantity || 1}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="cell-address">
+                                                            <FiMapPin className="pin-icon" />
+                                                            <span className="address-bold">{task.address}</span>
+                                                        </div>
+                                                        {(task.city || task.district) && (
+                                                            <div className="cell-sub-loc">
+                                                                {[task.city, task.district, task.state].filter(Boolean).join(", ")}
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td>
+                                                        <div className="cell-date-pill">
+                                                            <FiCalendar className="calendar-icon" />
+                                                            <span>{task.pickupDate ? new Date(task.pickupDate).toLocaleDateString() : "Scheduled"}</span>
+                                                        </div>
+                                                        <div className="cell-slot-badge-wrap">
+                                                            <span className="slot-chip">
+                                                                <FiClock /> {task.timeSlot || "Standard Slot"}
+                                                            </span>
+                                                            {getStatusBadge(task.status)}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div className="cell-actions-flex">
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-secondary"
+                                                                onClick={() => setSelectedPickup(task)}
+                                                                title="View Pickup Details"
+                                                            >
+                                                                <FiInfo /> Details
+                                                            </button>
+
+                                                            {canAccept && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleAccept(task.collectionAssignmentId)}
+                                                                    disabled={processingId === task.collectionAssignmentId}
+                                                                    className="btn btn-success"
+                                                                >
+                                                                    <FiCheck /> Accept
+                                                                </button>
+                                                            )}
+
+                                                            {canDecline && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setRejectionTarget(task)}
+                                                                    disabled={processingId === task.collectionAssignmentId}
+                                                                    className="btn btn-danger"
+                                                                >
+                                                                    <FiX /> Decline
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
             </main>
 
             {/* Task Details Modal */}
             {selectedPickup && (
-                <div className="agent-modal-overlay">
-                    <div className="agent-modal-card">
-                        <div className="agent-modal-header">
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                                <FiTruck style={{ fontSize: "1.3rem" }} />
-                                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>Pickup Task #TASK-{selectedPickup.id}</h3>
+                <div className="modal-overlay" onClick={() => setSelectedPickup(null)}>
+                    <div className="clean-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div>
+                                <h2>Pickup Assignment </h2>
+                                <p className="modal-sub">{selectedPickup.brand} {selectedPickup.model}</p>
                             </div>
-                            <button
-                                onClick={() => setSelectedPickup(null)}
-                                style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#ffffff", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                            >
+                            <button className="close-btn" onClick={() => setSelectedPickup(null)}>
                                 <FiX />
                             </button>
                         </div>
 
-                        <div className="agent-modal-body">
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.25rem", paddingBottom: "0.75rem", borderBottom: "1px solid #e2e8f0" }}>
+                        <div className="modal-content">
+                            <div className="modal-top-meta">
                                 <div>
-                                    <span style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 600 }}>Scheduled Slot</span>
-                                    <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a" }}>{selectedPickup.scheduledDate} ({selectedPickup.timeSlot})</div>
+                                    <span className="modal-meta-lbl">Scheduled Slot</span>
+                                    <div className="modal-meta-val">
+                                        {selectedPickup.pickupDate ? new Date(selectedPickup.pickupDate).toLocaleDateString() : "Scheduled"} ({selectedPickup.timeSlot || "Slot N/A"})
+                                    </div>
                                 </div>
                                 {getStatusBadge(selectedPickup.status)}
                             </div>
 
-                            <div style={{ display: "grid", gap: "1rem" }}>
-                                <div style={{ background: "#f8fafc", padding: "1rem", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                                    <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>Citizen Contact</div>
-                                    <div style={{ fontSize: "1.05rem", fontWeight: 800, color: "#0f172a", marginTop: "0.2rem" }}>{selectedPickup.citizenName}</div>
-                                    <div style={{ fontSize: "0.875rem", color: "#0284c7", fontWeight: 600, marginTop: "0.2rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                                        <FiPhoneCall /> {selectedPickup.phone}
+                            <div className="modal-grid-box">
+                                <div className="modal-info-card">
+                                    <div className="info-card-lbl">Citizen Contact</div>
+                                    <div className="info-card-val">
+                                        {selectedPickup.customerName || "N/A"}
+                                    </div>
+                                    <div className="info-card-phone">
+                                        <FiPhoneCall /> {selectedPickup.customerPhone || "N/A"}
                                     </div>
                                 </div>
 
-                                <div style={{ background: "#f8fafc", padding: "1rem", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                                    <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                                <div className="modal-info-card">
+                                    <div className="info-card-lbl flex-lbl">
                                         <FiMapPin /> Pickup Location
                                     </div>
-                                    <div style={{ fontSize: "0.9rem", fontWeight: 600, color: "#1e293b", marginTop: "0.25rem" }}>{selectedPickup.address}</div>
+                                    <div className="info-card-address">
+                                        {selectedPickup.address}
+                                    </div>
                                     {selectedPickup.landmark && (
-                                        <div style={{ fontSize: "0.8rem", color: "#475569", marginTop: "0.2rem" }}>📍 Landmark: {selectedPickup.landmark}</div>
+                                        <div className="info-card-sub">
+                                            Landmark: {selectedPickup.landmark}
+                                        </div>
+                                    )}
+                                    {(selectedPickup.city || selectedPickup.district || selectedPickup.state || selectedPickup.pincode) && (
+                                        <div className="info-card-sub">
+                                            {[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).join(", ")}
+                                        </div>
                                     )}
                                 </div>
 
-                                <div style={{ background: "#f8fafc", padding: "1rem", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-                                    <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>E-Waste Items</div>
-                                    <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "#0f172a", marginTop: "0.2rem" }}>{selectedPickup.items}</div>
-                                    <div style={{ fontSize: "0.8rem", color: "#059669", fontWeight: 600, marginTop: "0.2rem" }}>Quantity: {selectedPickup.quantity} • Weight: {selectedPickup.weight}</div>
+                                <div className="modal-info-card">
+                                    <div className="info-card-lbl">Device Details</div>
+                                    <div className="info-card-val">
+                                        {selectedPickup.brand} {selectedPickup.model}
+                                    </div>
+                                    <div className="info-card-green">
+                                        Category: {selectedPickup.categoryName} • Quantity: {selectedPickup.quantity} • Condition: {selectedPickup.condition || "Standard"}
+                                    </div>
+                                    {selectedPickup.working && (
+                                        <div className="info-card-sub">
+                                            Working State: {selectedPickup.working}
+                                        </div>
+                                    )}
                                 </div>
+
+                                {selectedPickup.pickupInstructions && (
+                                    <div className="modal-info-card">
+                                        <div className="info-card-lbl">Pickup Instructions</div>
+                                        <div className="info-card-notes">
+                                            {selectedPickup.pickupInstructions}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(selectedPickup.status?.toLowerCase() === "rejected" || selectedPickup.status?.toLowerCase() === "declined" || selectedPickup.rejectionReason) && (
+                                    <div className="modal-danger-card">
+                                        <div className="danger-lbl">
+                                            <FiAlertCircle /> Reason for Rejection
+                                        </div>
+                                        <div className="danger-val">
+                                            {selectedPickup.rejectionReason || "No specific reason provided."}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        <div style={{ padding: "1rem 1.5rem", background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
-                            {selectedPickup.status === "Pending" ? (
-                                <button
-                                    className="agent-action-btn primary"
-                                    onClick={() => updatePickupStatus(selectedPickup.id, "En Route")}
-                                    style={{ padding: "0.6rem 1.25rem", width: "100%", justifyContent: "center" }}
-                                >
-                                    <FiTruck /> Start Route To Citizen
-                                </button>
-                            ) : selectedPickup.status === "En Route" ? (
-                                <button
-                                    className="agent-action-btn success"
-                                    onClick={() => updatePickupStatus(selectedPickup.id, "Completed")}
-                                    style={{ padding: "0.6rem 1.25rem", width: "100%", justifyContent: "center" }}
-                                >
-                                    <FiCheck /> Mark E-Waste Item Collected
-                                </button>
-                            ) : (
-                                <div style={{ textAlign: "center", fontSize: "0.85rem", color: "#047857", fontWeight: 700 }}>
-                                    ✓ Task Completed
-                                </div>
-                            )}
+                    </div>
+                </div>
+            )}
+
+            {/* Decline Modal */}
+            {rejectionTarget && (
+                <div className="modal-overlay" onClick={() => setRejectionTarget(null)}>
+                    <div className="clean-modal" style={{ maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div>
+                                <h2>Decline Request</h2>
+                                <p className="modal-sub">Assignment #{rejectionTarget.collectionAssignmentId}</p>
+                            </div>
+                            <button className="close-btn" onClick={() => setRejectionTarget(null)}>
+                                <FiX />
+                            </button>
                         </div>
+
+                        <form onSubmit={handleRejectSubmit}>
+                            <div style={{ margin: "1rem 0" }}>
+                                <label style={{ fontSize: "0.85rem", fontWeight: 700, color: "#475569", display: "block", marginBottom: "0.5rem" }}>
+                                    Reason for declining request:
+                                </label>
+                                <textarea
+                                    className="clean-textarea"
+                                    placeholder="Enter reason for declining..."
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                    required
+                                    rows={4}
+                                ></textarea>
+                            </div>
+
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setRejectionTarget(null)}>
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="btn btn-danger"
+                                    disabled={processingId === rejectionTarget.collectionAssignmentId}
+                                >
+                                    Decline Request
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

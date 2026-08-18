@@ -38,6 +38,14 @@ import Managetechnician from "./pages/Administrator/Managetechnican";
 import View_device from "./pages/citizen/View_device";
 import Manage_assignmentandpickups from "./pages/Administrator/Manage_assignmentandpickups";
 import Manage_userprofile from "./pages/citizen/Manage_userprofile";
+import Technician_notification from "./pages/Inspection Technician/Technician_notification";
+import Profile from "./pages/Collection Agent/Profile";
+import Insp_profile from "./pages/Inspection Technician/Insp_profile";
+import RefurbishmentProfile from "./pages/refurbishment center/refurbishment_profile";
+import RecycleProfile from "./pages/Recycling Center/recycle_profile";
+import Pickup_collectionagent from "./pages/Administrator/Pickup_collectionagent";
+import Pickupdetails from "./pages/citizen/Pickupdetails";
+
 function App() {
     return (
         <Routes>
@@ -86,6 +94,20 @@ function App() {
             <Route path="/view-device" element={<View_device/>}/>
             <Route path="/manage-assignmentandpickups" element={<Manage_assignmentandpickups/>}/>
             <Route path="/manage-userprofile" element={<Manage_userprofile/>}/>
+            <Route path="/technician-notification" element={<Technician_notification/>}/>
+            <Route path="/agent-profile" element={<Profile/>}/>
+            <Route path="/collectionagent/profile" element={<Profile/>}/>
+            <Route path="/technician/profile" element={<Insp_profile/>}/>
+            <Route path="/insp_profile" element={<Insp_profile/>}/>
+            <Route path="/refurbishment/profile" element={<RefurbishmentProfile/>}/>
+            <Route path="/refurbishment_profile" element={<RefurbishmentProfile/>}/>
+            <Route path="/refurbishmentcenter_profile" element={<RefurbishmentProfile/>}/>
+            <Route path="/recycling/profile" element={<RecycleProfile/>}/>
+            <Route path="/recycle_profile" element={<RecycleProfile/>}/>
+            <Route path="/recyclingcenter_profile" element={<RecycleProfile/>}/>
+            <Route path="/recyclingcenter/profile" element={<RecycleProfile/>}/>
+            <Route path="/collectionagent-pickup" element={<Pickup_collectionagent/>}/>
+            <Route path="/pickupuser" element={<Pickupdetails/>}/>
         </Routes>
     );
 }

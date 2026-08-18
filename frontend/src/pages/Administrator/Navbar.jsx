@@ -20,7 +20,8 @@ import {
     FiUser,
     FiCpu,
     FiTool,
-    FiRefreshCw
+    FiRefreshCw,
+    FiClipboard 
 } from "react-icons/fi";
 import "./Navbar.css";
 
@@ -281,7 +282,7 @@ function Navbar() {
                         <ul className="admin-sb-menu">
                             <li className="admin-sb-item">
                                 <Link
-                                    to="/admin/pickups"
+                                    to="/collectionagent-pickup"
                                     className={`admin-sb-link ${isActive("/admin/pickups") ? "active" : ""}`}
                                     onClick={closeMobileMenu}
                                 >
@@ -295,14 +296,22 @@ function Navbar() {
                             <li className="admin-sb-item">
                                 <Link
                                     to="/manage-assignmentandpickups"
-                                    className={`admin-sb-link ${isActive("/manage-assignmentandpickups") ? "active" : ""}`}
+                                    className={`admin-sb-link ${
+                                        isActive("/manage-assignmentandpickups") ? "active" : ""
+                                    }`}
                                     onClick={closeMobileMenu}
                                 >
                                     <div className="admin-sb-icon-box icon-box--cyan">
-                                        <FiTruck />
+                                        <FiClipboard />
                                     </div>
-                                    <span className="admin-sb-link-text">Manage Pickups</span>
-                                    {isActive("/manage-assignmentandpickups") && <FiChevronRight className="admin-sb-chevron" />}
+
+                                    <span className="admin-sb-link-text">
+                                        Manage Assignments
+                                    </span>
+
+                                    {isActive("/manage-assignmentandpickups") && (
+                                        <FiChevronRight className="admin-sb-chevron" />
+                                    )}
                                 </Link>
                             </li>
                             <li className="admin-sb-item">

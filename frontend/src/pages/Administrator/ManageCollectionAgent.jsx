@@ -30,6 +30,10 @@ function ManageCollectionAgent() {
     const [rejectReason, setRejectReason] = useState("");
     const [rejectReasonError, setRejectReasonError] = useState("");
     const [rejectReasonTouched, setRejectReasonTouched] = useState(false);
+    const [deactivateModalAgent, setDeactivateModalAgent] = useState(null);
+    const [deactivateReason, setDeactivateReason] = useState("");
+    const [deactivateReasonError, setDeactivateReasonError] = useState("");
+    const [deactivateReasonTouched, setDeactivateReasonTouched] = useState(false);
     const [actionLoadingId, setActionLoadingId] = useState(null);
     const navigate = useNavigate();
 
@@ -80,6 +84,34 @@ function ManageCollectionAgent() {
         setRejectReasonTouched(false);
     };
 
+    const validateDeactivationReason = (value) => {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return "Reason for deactivation is required.";
+        }
+        if (trimmed.length < 10) {
+            return "Reason for deactivation must be at least 10 characters long.";
+        }
+        if (!/^[a-zA-Z0-9\s]+$/.test(trimmed)) {
+            return "Special characters are not allowed in the deactivation reason.";
+        }
+        return "";
+    };
+
+    const handleDeactivateReasonChange = (e) => {
+        const val = e.target.value;
+        setDeactivateReason(val);
+        setDeactivateReasonTouched(true);
+        setDeactivateReasonError(validateDeactivationReason(val));
+    };
+
+    const openDeactivateModal = (agent) => {
+        setDeactivateModalAgent(agent);
+        setDeactivateReason("");
+        setDeactivateReasonError("");
+        setDeactivateReasonTouched(false);
+    };
+
     const handleViewDetails = async (agent) => {
         const agentId = agent.collectionAgentId || agent.id;
         setSelectedAgent(agent);
@@ -120,10 +152,25 @@ function ManageCollectionAgent() {
         }
     };
 
-    const deactivateAgent = async (agentId) => {
+    const confirmDeactivateAgent = async () => {
+        if (!deactivateModalAgent) return;
+
+        const err = validateDeactivationReason(deactivateReason);
+        setDeactivateReasonTouched(true);
+        setDeactivateReasonError(err);
+        if (err) return;
+
+        const agentId = deactivateModalAgent.collectionAgentId || deactivateModalAgent.id;
         setActionLoadingId(agentId);
+
         try {
-            await axios.post(`https://localhost:7102/api/CollectionAgent/deactivate/${agentId}`);
+            await axios.post(
+                `https://localhost:7102/api/CollectionAgent/deactivate/${agentId}`,
+                null,
+                {
+                    params: { reason: deactivateReason.trim() }
+                }
+            );
             setAgents(prevAgents =>
                 prevAgents.map(agent =>
                     (agent.collectionAgentId || agent.id) === agentId
@@ -134,6 +181,10 @@ function ManageCollectionAgent() {
             if (selectedAgent && (selectedAgent.collectionAgentId || selectedAgent.id) === agentId) {
                 setSelectedAgent(prev => ({ ...prev, status: "Inactive" }));
             }
+            setDeactivateModalAgent(null);
+            setDeactivateReason("");
+            setDeactivateReasonError("");
+            setDeactivateReasonTouched(false);
         } catch (error) {
             console.error("Error deactivating collection agent:", error);
             alert(error.response?.data?.message || "Failed to deactivate collection agent.");
@@ -246,6 +297,18 @@ function ManageCollectionAgent() {
         if (!agent?.vehiclePollution) return null;
         if (agent.vehiclePollution.startsWith("http")) return agent.vehiclePollution;
         return `https://localhost:7102/uploads/pollution/${agent.vehiclePollution}`;
+    };
+
+    const getVehiclePhotoPath = (agent) => {
+        if (!agent?.vehiclePhoto) return null;
+        if (agent.vehiclePhoto.startsWith("http")) return agent.vehiclePhoto;
+        return `https://localhost:7102/uploads/vehicle/${agent.vehiclePhoto}`;
+    };
+
+    const isImageFile = (filename) => {
+        if (!filename) return false;
+        const ext = filename.split('.').pop().toLowerCase();
+        return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
     };
 
     const formatDate = (dateString) => {
@@ -467,22 +530,20 @@ function ManageCollectionAgent() {
                                                             )}
                                                             {(st === "active" || st === "approved") && (
                                                                 <button
-                                                                    className="action-btn action-btn--reject"
-                                                                    onClick={() => deactivateAgent(agentId)}
+                                                                    className="action-btn-text action-btn-text--deactivate"
+                                                                    onClick={() => openDeactivateModal(agent)}
                                                                     disabled={isActionLoading}
                                                                     title="Deactivate Account"
-                                                                    style={{ padding: "0.35rem 0.65rem", fontSize: "0.75rem", width: "auto" }}
                                                                 >
                                                                     Deactivate
                                                                 </button>
                                                             )}
                                                             {st === "inactive" && (
                                                                 <button
-                                                                    className="action-btn action-btn--approve"
+                                                                    className="action-btn-text action-btn-text--activate"
                                                                     onClick={() => reactivateAgent(agentId)}
                                                                     disabled={isActionLoading}
                                                                     title="Activate Account"
-                                                                    style={{ padding: "0.35rem 0.65rem", fontSize: "0.75rem", width: "auto" }}
                                                                 >
                                                                     Activate
                                                                 </button>
@@ -618,7 +679,7 @@ function ManageCollectionAgent() {
                                 </div>
                             </div>
 
-                            {(getAadhaarProofPath(selectedAgent) || getInsurancePath(selectedAgent) || getPollutionPath(selectedAgent) || getPhotoSrc(selectedAgent)) && (
+                            {(getAadhaarProofPath(selectedAgent) || getInsurancePath(selectedAgent) || getPollutionPath(selectedAgent) || getVehiclePhotoPath(selectedAgent) || getPhotoSrc(selectedAgent)) && (
                                 <div className="device-photos-section">
                                     <h4>Uploaded Verification Documents</h4>
                                     <div className="photos-grid">
@@ -655,6 +716,18 @@ function ManageCollectionAgent() {
                                                     className="document-link-btn"
                                                 >
                                                     Vehicle Pollution Cert ↗
+                                                </a>
+                                            </div>
+                                        )}
+                                        {getVehiclePhotoPath(selectedAgent) && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={getVehiclePhotoPath(selectedAgent)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                >
+                                                    Vehicle Photo ↗
                                                 </a>
                                             </div>
                                         )}
@@ -707,20 +780,24 @@ function ManageCollectionAgent() {
                                 )}
                                 {(selectedAgent.status?.toLowerCase() === "active" || selectedAgent.status?.toLowerCase() === "approved") && (
                                     <button
-                                        className="action-btn action-btn--reject"
-                                        onClick={() => deactivateAgent(selectedAgent.collectionAgentId || selectedAgent.id)}
+                                        className="action-btn-text action-btn-text--deactivate"
+                                        onClick={() => {
+                                            const agent = selectedAgent;
+                                            setSelectedAgent(null);
+                                            openDeactivateModal(agent);
+                                        }}
                                         disabled={actionLoadingId === (selectedAgent.collectionAgentId || selectedAgent.id)}
-                                        style={{ width: "auto", padding: "0.6rem 1.25rem", borderRadius: "8px", fontWeight: 600 }}
+                                        style={{ padding: "0.6rem 1.25rem", borderRadius: "8px" }}
                                     >
                                         Deactivate Account
                                     </button>
                                 )}
                                 {selectedAgent.status?.toLowerCase() === "inactive" && (
                                     <button
-                                        className="action-btn action-btn--approve"
+                                        className="action-btn-text action-btn-text--activate"
                                         onClick={() => reactivateAgent(selectedAgent.collectionAgentId || selectedAgent.id)}
                                         disabled={actionLoadingId === (selectedAgent.collectionAgentId || selectedAgent.id)}
-                                        style={{ width: "auto", padding: "0.6rem 1.25rem", borderRadius: "8px", fontWeight: 600 }}
+                                        style={{ padding: "0.6rem 1.25rem", borderRadius: "8px" }}
                                     >
                                         Activate Account
                                     </button>
@@ -793,6 +870,66 @@ function ManageCollectionAgent() {
                                     }}
                                 >
                                     Confirm Rejection
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Deactivation Reason Modal */}
+                {deactivateModalAgent && (
+                    <div className="modal-overlay" onClick={() => setDeactivateModalAgent(null)}>
+                        <div className="device-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "500px", width: "90%" }}>
+                            <div className="modal-header">
+                                <h2>Deactivate Account</h2>
+                                <button className="modal-close-btn" onClick={() => setDeactivateModalAgent(null)}>
+                                    <FiX />
+                                </button>
+                            </div>
+                            <div style={{ padding: "1.5rem 0" }}>
+                                <p style={{ marginBottom: "1rem", color: "#64748b", fontSize: "0.95rem" }}>
+                                    Please provide a reason for deactivating <strong>{deactivateModalAgent.firstName} {deactivateModalAgent.lastName}</strong>. This reason will be emailed to the agent.
+                                </p>
+                                <textarea
+                                    rows={4}
+                                    placeholder="Enter reason for deactivation (at least 10 characters, no special characters)..."
+                                    value={deactivateReason}
+                                    onChange={handleDeactivateReasonChange}
+                                    style={{
+                                        width: "100%",
+                                        padding: "0.75rem",
+                                        borderRadius: "8px",
+                                        border: deactivateReasonTouched && deactivateReasonError ? "1px solid #ef4444" : "1px solid #cbd5e1",
+                                        fontSize: "0.95rem",
+                                        fontFamily: "inherit",
+                                        resize: "vertical"
+                                    }}
+                                />
+                                {deactivateReasonTouched && deactivateReasonError && (
+                                    <span style={{ color: "#ef4444", fontSize: "0.825rem", marginTop: "0.4rem", display: "block" }}>
+                                        {deactivateReasonError}
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
+                                <button
+                                    className="pill-btn"
+                                    onClick={() => setDeactivateModalAgent(null)}
+                                    style={{ padding: "0.6rem 1.25rem", borderRadius: "8px", cursor: "pointer", fontWeight: 600 }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="action-btn-text action-btn-text--deactivate"
+                                    onClick={confirmDeactivateAgent}
+                                    disabled={actionLoadingId === (deactivateModalAgent.collectionAgentId || deactivateModalAgent.id)}
+                                    style={{
+                                        padding: "0.6rem 1.25rem",
+                                        borderRadius: "8px",
+                                        cursor: "pointer"
+                                    }}
+                                >
+                                    Confirm Deactivation
                                 </button>
                             </div>
                         </div>

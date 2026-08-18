@@ -36,7 +36,7 @@ function Sidebar() {
 
     const navItems = [
         { path: "/refurbishmentcenter_dashboard", label: "Refurbish Dashboard", icon: <FiCpu /> },
-        { path: "/manage-userprofile", label: "Center Profile", icon: <FiUser /> }
+        { path: "/refurbishment_profile", label: "Center Profile", icon: <FiUser /> }
     ];
 
     return (

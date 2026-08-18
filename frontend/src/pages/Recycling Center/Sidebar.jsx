@@ -23,6 +23,10 @@ function Sidebar() {
             (p === "/recyclingcenter_dashboard" || p === "/recycling_dashboard" || p === "/recyclingenter_dashboard")) {
             return true;
         }
+        if ((path === "/recycle_profile" || path === "/recyclingcenter_profile") && 
+            (p === "/recycle_profile" || p === "/recyclingcenter_profile" || p === "/recycling/profile")) {
+            return true;
+        }
         if (path !== "/recyclingcenter_dashboard" && p.startsWith(path)) return true;
         return false;
     };
@@ -34,7 +38,7 @@ function Sidebar() {
 
     const navItems = [
         { path: "/recyclingcenter_dashboard", label: "Recycling Dashboard", icon: <FiRefreshCw /> },
-        { path: "/manage-userprofile", label: "Facility Profile", icon: <FiUser /> }
+        { path: "/recycle_profile", label: "Facility Profile", icon: <FiUser /> }
     ];
 
     return (
