@@ -1,0 +1,17 @@
+# Visual Studio
+.vs/
+**/.vs/
+
+# .NET build output
+bin/
+**/bin/
+obj/
+**/obj/
+
+# Visual Studio user files
+*.user
+*.suo
+
+# Node
+node_modules/
+frontend/node_modules/
