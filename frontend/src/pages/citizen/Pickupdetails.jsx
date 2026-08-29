@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import { QRCodeCanvas } from "qrcode.react";
+import { FaQrcode } from "react-icons/fa";
 import {
     FiTruck,
     FiAward,
@@ -33,6 +35,11 @@ import {
     FiNavigation,
     FiXCircle
 } from "react-icons/fi";
+import {
+    validate_pickupdate,
+    validate_timeslot,
+    validate_custom_address
+} from "../../utils/validation";
 import "./Citizendashboard.css";
 import "./Pickupdetails.css";
 
@@ -46,6 +53,75 @@ function Pickupdetails() {
     const [activeTab, setActiveTab] = useState("All");
     const [viewMode, setViewMode] = useState("grid"); // 'grid' | 'table'
     const [selectedPickup, setSelectedPickup] = useState(null);
+    const [qrModalTarget, setQrModalTarget] = useState(null);
+    const [cancelPickupDevice, setCancelPickupDevice] = useState(null);
+    const [requestAgainDevice, setRequestAgainDevice] = useState(null);
+    const [newPickupDate, setNewPickupDate] = useState("");
+    const [newTimeSlot, setNewTimeSlot] = useState("Morning (09:00 AM - 12:00 PM)");
+    const [newPickupAddress, setNewPickupAddress] = useState("");
+    const [requestAgainErrors, setRequestAgainErrors] = useState({
+        pickupDate: "",
+        timeSlot: "",
+        address: ""
+    });
+    const [isSubmittingRequestAgain, setIsSubmittingRequestAgain] = useState(false);
+    const [actionSuccessMessage, setActionSuccessMessage] = useState("");
+    const [notifications, setNotifications] = useState([]);
+    const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+
+    const triggerToastMessage = (msg, duration = 4500) => {
+        setActionSuccessMessage(msg);
+        setTimeout(() => setActionSuccessMessage(""), duration);
+    };
+
+    const fetchNotifications = async (token) => {
+        const authToken = token || localStorage.getItem("token");
+        if (!authToken) return;
+        try {
+            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+                headers: { Authorization: `Bearer ${authToken}` }
+            });
+            setNotifications(response.data || []);
+        } catch (err) {
+            console.error("Error fetching notifications:", err);
+        }
+    };
+
+    const markAllNotificationsAsRead = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            await axios.get("https://localhost:7102/api/Notificationcon/mark_asread", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setNotifications(prev => prev.map(n => ({ ...n, isRead: true, isread: true })));
+        } catch (err) {
+            console.error("Error marking notifications as read:", err);
+        }
+    };
+
+    const isPickupOverdue = (req) => {
+        if (!req || !req.pickupDate) return false;
+        try {
+            const pDate = new Date(req.pickupDate);
+            if (isNaN(pDate.getTime())) return false;
+            pDate.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
+            const reqStatus = String(req.requestStatus || "").toLowerCase();
+            const isDone = cas === "completed" || cas === "delivered" || reqStatus === "completed" || reqStatus === "rejected";
+            return pDate < today && !isDone;
+        } catch {
+            return false;
+        }
+    };
+
+    const isPickupCancelled = (req) => {
+        if (!req) return false;
+        const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
+        const lcs = String(req.lifecycleStatus || "").toLowerCase();
+        return cas === "cancelled" || lcs === "pickupcancelled";
+    };
 
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -56,8 +132,156 @@ function Pickupdetails() {
         }
         fetchProfile(token);
         fetchPickupRequests(token);
+        fetchNotifications(token);
     }, [navigate]);
 
+    const cancelPickup = async () => 
+    {
+        if (!cancelPickupDevice?.deviceId) {
+            triggerToastMessage("Device ID is missing.");
+            return;
+        }
+
+        try 
+        {
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+                navigate("/");
+                return;
+            }
+
+            const response = await axios.post(
+                `https://localhost:7102/api/Pickup/cancelpickup/${cancelPickupDevice.deviceId}`,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            // Close modal
+            setCancelPickupDevice(null);
+
+            // Close details modal also if it is open
+            setSelectedPickup(null);
+
+            // Reload pickup data and notifications
+            await fetchPickupRequests(token);
+            await fetchNotifications(token);
+
+        } 
+        catch (err) 
+        {
+            console.error("Cancel pickup error:", err);
+
+            const message =
+                err.response?.data?.message ||
+                "Failed to cancel pickup request.";
+
+            triggerToastMessage(message);
+        }
+    };
+
+    const handleOpenRequestAgain = (device) => {
+        if (!device) return;
+        setRequestAgainDevice(device);
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const defaultDate = tomorrow.toISOString().split("T")[0];
+        const defaultSlot = device.timeSlot || "Morning (09:00 AM - 12:00 PM)";
+        const defaultAddress = device.address || profile?.address || "";
+
+        setNewPickupDate(defaultDate);
+        setNewTimeSlot(defaultSlot);
+        setNewPickupAddress(defaultAddress);
+        setRequestAgainErrors({
+            pickupDate: validate_pickupdate(defaultDate),
+            timeSlot: validate_timeslot(defaultSlot),
+            address: validate_custom_address(defaultAddress)
+        });
+    };
+
+    const handleDateChange = (val) => {
+        setNewPickupDate(val);
+        setRequestAgainErrors(prev => ({
+            ...prev,
+            pickupDate: validate_pickupdate(val)
+        }));
+    };
+
+    const handleTimeSlotChange = (val) => {
+        setNewTimeSlot(val);
+        setRequestAgainErrors(prev => ({
+            ...prev,
+            timeSlot: validate_timeslot(val)
+        }));
+    };
+
+    const handleAddressChange = (val) => {
+        setNewPickupAddress(val);
+        setRequestAgainErrors(prev => ({
+            ...prev,
+            address: validate_custom_address(val)
+        }));
+    };
+
+    const requestPickupAgain = async () => {
+        if (!requestAgainDevice?.deviceId) {
+            triggerToastMessage("Device ID is missing.");
+            return;
+        }
+
+        const dateErr = validate_pickupdate(newPickupDate);
+        const slotErr = validate_timeslot(newTimeSlot);
+        const addressErr = validate_custom_address(newPickupAddress);
+
+        if (dateErr || slotErr || addressErr) {
+            setRequestAgainErrors({
+                pickupDate: dateErr,
+                timeSlot: slotErr,
+                address: addressErr
+            });
+            triggerToastMessage("Please fix validation errors before submitting.");
+            return;
+        }
+
+        try {
+            setIsSubmittingRequestAgain(true);
+            const token = localStorage.getItem("token");
+
+            if (!token) {
+                navigate("/");
+                return;
+            }
+
+            await axios.post(
+                `https://localhost:7102/api/Pickup/request-again/${requestAgainDevice.deviceId}`,
+                {
+                    pickupDate: newPickupDate,
+                    timeSlot: newTimeSlot,
+                    address: newPickupAddress
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            setRequestAgainDevice(null);
+            setSelectedPickup(null);
+            triggerToastMessage("Pickup request submitted again successfully.");
+            await fetchPickupRequests(token);
+        } catch (err) {
+            console.error("Request pickup again error:", err);
+            const message = err.response?.data?.message || "Failed to request pickup again.";
+            triggerToastMessage(message);
+        } finally {
+            setIsSubmittingRequestAgain(false);
+        }
+    };
     const fetchProfile = async (token) => {
         try {
             const response = await axios.get("https://localhost:7102/api/User/profile", {
@@ -104,20 +328,24 @@ function Pickupdetails() {
           localStorage.getItem("name") ||
           "Citizen Champion";
 
-    // Filter to strictly devices accepted by Collection Agent for delivery
+    // Filter to devices strictly accepted by Collection Agent for delivery or cancelled requests
     const acceptedRequests = pickupRequests.filter(req => {
-        if (req.collectionAgentAccepted === true) return true;
         const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
-        if (["accepted", "completed", "intransit", "pickedup", "delivered"].includes(cas)) return true;
-        const reqStatus = String(req.requestStatus || "").toLowerCase();
-        if (["accepted", "completed", "in inspection"].includes(reqStatus)) return true;
+        const lcs = String(req.lifecycleStatus || "").toLowerCase();
+
+        // Keep cancelled pickup requests visible on the card feed
+        if (cas === "cancelled" || lcs === "pickupcancelled") return true;
+
+        if (req.collectionAgentAccepted === true) return true;
+        if (["accepted", "pickupstarted", "completed", "intransit", "pickedup", "delivered"].includes(cas)) return true;
         return false;
     });
 
     // KPI Metrics calculation
     const inTransitCount = acceptedRequests.filter(r => {
         const cas = String(r.collectionAssignmentStatus || "").toLowerCase();
-        return cas === "intransit" || cas === "pickedup";
+        const lcs = String(r.lifecycleStatus || "").toLowerCase();
+        return cas === "intransit" || cas === "pickedup" || cas === "pickupstarted" || lcs === "enroute";
     }).length;
 
     const completedCount = acceptedRequests.filter(r => {
@@ -125,15 +353,20 @@ function Pickupdetails() {
         return cas === "completed" || cas === "delivered";
     }).length;
 
+    const cancelledCount = acceptedRequests.filter(r => isPickupCancelled(r)).length;
+
     const totalWeight = acceptedRequests.reduce((sum, r) => sum + ((Number(r.weight) || 0) * (Number(r.quantity) || 1)), 0);
 
     // Tab Filtered & Search Filtered requests
     const filteredRequests = acceptedRequests.filter(req => {
         // Tab filter
         const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
-        if (activeTab === "InTransit" && cas !== "intransit" && cas !== "pickedup") return false;
+        const lcs = String(req.lifecycleStatus || "").toLowerCase();
+
+        if (activeTab === "InTransit" && cas !== "intransit" && cas !== "pickedup" && cas !== "pickupstarted" && lcs !== "enroute") return false;
         if (activeTab === "Delivered" && cas !== "completed" && cas !== "delivered") return false;
-        if (activeTab === "Accepted" && cas !== "accepted" && cas !== "assigned") return false;
+        if (activeTab === "Accepted" && cas !== "accepted" && req.collectionAgentAccepted !== true) return false;
+        if (activeTab === "Cancelled" && !isPickupCancelled(req)) return false;
 
         // Search query filter
         if (!searchQuery.trim()) return true;
@@ -153,6 +386,7 @@ function Pickupdetails() {
         );
     });
 
+
     const capitalizeWords = (str) => {
         if (!str) return "";
         return str
@@ -169,7 +403,7 @@ function Pickupdetails() {
     };
 
     const getCategoryIcon = (categoryName) => {
-        const cat = String(categoryName || "").toLowerCase();
+        const cat = (categoryName || "").toLowerCase();
         if (cat.includes("computer") || cat.includes("laptop")) return <FiCpu />;
         if (cat.includes("mobile") || cat.includes("phone")) return <FiSmartphone />;
         if (cat.includes("battery") || cat.includes("power")) return <FiBatteryCharging />;
@@ -178,15 +412,32 @@ function Pickupdetails() {
     };
 
     const getDeliveryStatusBadge = (req) => {
-        const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
+        const badgeStyle = {
+            padding: "0.25rem 0.55rem",
+            fontSize: "0.725rem",
+            fontWeight: 600,
+            borderRadius: "9999px",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "0.25rem",
+            whiteSpace: "nowrap"
+        };
+
+        if (isPickupCancelled(req)) {
+            return <span className="status-pill status-cancelled" style={{ ...badgeStyle, background: "#fee2e2", color: "#dc2626", borderColor: "#fca5a5" }}>Cancelled</span>;
+        }
+        if (isPickupOverdue(req)) {
+            return <span className="status-pill status-overdue" style={{ ...badgeStyle, background: "#fff7ed", color: "#c2410c", borderColor: "#ffedd5" }}><FiAlertCircle style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Overdue</span>;
+        }
+        const cas = String(req.collectionAssignmentStatus || req.status || "").toLowerCase();
         if (cas === "completed" || cas === "delivered") {
-            return <span className="status-pill status-completed">Delivered</span>;
-        } else if (cas === "intransit" || cas === "pickedup") {
-            return <span className="status-pill status-progress">In Transit</span>;
+            return <span className="status-pill status-completed" style={{ ...badgeStyle, background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0" }}><FiCheckCircle style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Completed</span>;
+        } else if (cas === "pickupstarted" || cas === "en route" || cas === "intransit" || cas === "pickedup") {
+            return <span className="status-pill status-progress" style={{ ...badgeStyle, background: "#eff6ff", color: "#1d4ed8", borderColor: "#bfdbfe" }}><FiTruck style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Pickup Started</span>;
         } else if (cas === "accepted") {
-            return <span className="status-pill status-assigned">Agent Accepted</span>;
+            return <span className="status-pill status-assigned" style={{ ...badgeStyle, background: "#f0fdf4", color: "#15803d", borderColor: "#bbf7d0" }}><FiUserCheck style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Agent Accepted</span>;
         } else {
-            return <span className="status-pill status-scheduled">Scheduled</span>;
+            return <span className="status-pill status-scheduled" style={{ ...badgeStyle, background: "#f8fafc", color: "#475569", borderColor: "#e2e8f0" }}>Scheduled</span>;
         }
     };
 
@@ -224,10 +475,58 @@ function Pickupdetails() {
                             <FiRefreshCw className={loading ? "spin-animation" : ""} />
                         </button>
 
-                        <button className="vd-circle-btn" title="Notifications" style={{ position: "relative" }}>
-                            <FiBell />
-                            <span style={{ position: "absolute", top: "10px", right: "10px", width: "7px", height: "7px", borderRadius: "50%", background: "#ef4444" }}></span>
-                        </button>
+                        <div style={{ position: "relative" }}>
+                            <button 
+                                type="button"
+                                className="vd-circle-btn" 
+                                title={`Notifications ${notifications.filter(n => !n.isRead && !n.isread).length > 0 ? `(${notifications.filter(n => !n.isRead && !n.isread).length} unread)` : ""}`} 
+                                onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                                style={{ position: "relative" }}
+                            >
+                                <FiBell />
+                                {notifications.filter(n => !n.isRead && !n.isread).length > 0 && (
+                                    <span className="vd-notif-badge-pill">
+                                        {notifications.filter(n => !n.isRead && !n.isread).length > 9 ? "9+" : notifications.filter(n => !n.isRead && !n.isread).length}
+                                    </span>
+                                )}
+                            </button>
+
+                            {showNotifDropdown && (
+                                <div className="notif-dropdown-popover">
+                                    <div className="notif-dropdown-header">
+                                        <h4 className="notif-dropdown-title">Notifications</h4>
+                                        {notifications.filter(n => !n.isRead && !n.isread).length > 0 && (
+                                            <button type="button" className="notif-mark-read-btn" onClick={markAllNotificationsAsRead}>
+                                                Mark all as read
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="notif-dropdown-body">
+                                        {notifications.length === 0 ? (
+                                            <div style={{ padding: "1.5rem", textAlign: "center", color: "#94a3b8", fontSize: "0.825rem" }}>
+                                                No notifications yet
+                                            </div>
+                                        ) : (
+                                            notifications.map((notif, idx) => {
+                                                const isUnread = !notif.isRead && !notif.isread;
+                                                return (
+                                                    <div key={notif.notificationId || notif.id || idx} className={`notif-item-card ${isUnread ? "unread" : ""}`}>
+                                                        <div className="notif-item-icon">
+                                                            <FiBell />
+                                                        </div>
+                                                        <div className="notif-item-content">
+                                                            <h5 className="notif-item-heading">{notif.title || notif.Title || "Notification"}</h5>
+                                                            <p className="notif-item-text">{notif.message || notif.Message || ""}</p>
+                                                            <span className="notif-item-time">{formatDate(notif.createdAt || notif.CreatedAt)}</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         <Link 
                             to="/manage-userprofile" 
@@ -356,6 +655,12 @@ function Pickupdetails() {
                         >
                             Delivered ({completedCount})
                         </button>
+                        <button 
+                            className={`pk-tab-btn ${activeTab === "Cancelled" ? "active" : ""}`}
+                            onClick={() => setActiveTab("Cancelled")}
+                        >
+                            Cancelled ({cancelledCount})
+                        </button>
                     </div>
 
                     <div className="pk-view-toggle">
@@ -390,6 +695,7 @@ function Pickupdetails() {
                         </Link>
                     </div>
 
+
                     {loading ? (
                         <div style={{ padding: "3rem 1.5rem", textAlign: "center", color: "#64748b" }}>
                             <FiRefreshCw className="spin-animation" style={{ fontSize: "2rem", color: "#059669", marginBottom: "0.5rem" }} />
@@ -409,12 +715,14 @@ function Pickupdetails() {
                             </Link>
                         </div>
                     ) : viewMode === "grid" ? (
+
                         /* GRID VIEW */
                         <div className="pk-grid">
                             {filteredRequests.map((req) => {
                                 const agentPhoto = getAgentPhoto(req.collectionAgentPhoto);
+                                const overdue = isPickupOverdue(req);
                                 return (
-                                    <div key={req.deviceId} className="pk-card">
+                                    <div key={req.deviceId} className={`pk-card ${overdue ? "is-overdue" : ""}`}>
                                         <div>
                                             <div className="pk-card-header">
                                                 <div className="pk-card-title-group">
@@ -425,9 +733,6 @@ function Pickupdetails() {
                                                         <h3 className="pk-device-name">
                                                             {capitalizeWords(`${req.brand || ""} ${req.model || ""}`.trim()) || "E-Waste Item"}
                                                         </h3>
-                                                        <div className="pk-device-meta">
-                                                            {req.categoryName || "Device"} • {req.quantity || 1} Unit(s) ({req.weight || 0} kg)
-                                                        </div>
                                                     </div>
                                                 </div>
                                                 {getDeliveryStatusBadge(req)}
@@ -465,13 +770,11 @@ function Pickupdetails() {
                                             <div className="pk-card-details-grid">
                                                 <div className="pk-detail-item">
                                                     <span className="pk-detail-label">Request Tag</span>
-                                                    <span className="pk-detail-val" style={{ color: "#635bff", fontFamily: "monospace" }}>
-                                                        #DEV-{req.deviceId}
-                                                    </span>
+                                                    
                                                 </div>
                                                 <div className="pk-detail-item">
                                                     <span className="pk-detail-label">Scheduled Date</span>
-                                                    <span className="pk-detail-val">
+                                                    <span className="pk-detail-val" style={{ color: overdue ? "#dc2626" : "inherit" }}>
                                                         {formatDate(req.pickupDate)}
                                                     </span>
                                                 </div>
@@ -490,28 +793,51 @@ function Pickupdetails() {
                                             </div>
                                         </div>
 
+                                        {/* Card Footer */}
                                         <div className="pk-card-footer">
-                                            <span style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 500 }}>
-                                                {req.acceptedAt ? `Accepted: ${formatDate(req.acceptedAt)}` : `Created: ${formatDate(req.createdAt)}`}
-                                            </span>
-                                            <div style={{ display: "flex", gap: "0.4rem" }}>
-                                                <button 
-                                                    className="table-view-btn"
-                                                    style={{ background: "#fee2e2", color: "#dc2626", borderColor: "#fca5a5" }}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                    }}
-                                                >
-                                                    Cancel Pickup
-                                                </button>
-                                                <button 
-                                                    className="table-view-btn"
-                                                    onClick={() => setSelectedPickup(req)}
-                                                    style={{ background: "#059669", color: "#ffffff", borderColor: "#059669" }}
-                                                >
-                                                    Track & Details
-                                                </button>
+                                            <div className="pk-footer-meta">
+                                                <span>{req.acceptedAt ? `Accepted: ${formatDate(req.acceptedAt)}` : `Created: ${formatDate(req.createdAt)}`}</span>
                                             </div>
+                                            {(() => {
+                                                const isCancelled = isPickupCancelled(req);
+                                                const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
+                                                const isPickedUpOrDelivered = ["pickupstarted", "pickedup", "intransit", "delivered", "completed"].includes(cas);
+                                                const canCancel = !isCancelled && !isPickedUpOrDelivered;
+
+                                                return (
+                                                    <div className="pk-footer-actions">
+                                                        {canCancel && (
+                                                            <button 
+                                                                className="pk-action-btn pk-btn-cancel"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setCancelPickupDevice(req);
+                                                                }}
+                                                                title="Cancel Pickup"
+                                                            >
+                                                                <FiXCircle /> Cancel
+                                                            </button>
+                                                        )}
+                                                        <button 
+                                                            className="pk-action-btn pk-btn-qr"
+                                                            style={{ background: "#eff6ff", color: "#2563eb", borderColor: "#bfdbfe" }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setQrModalTarget(req);
+                                                            }}
+                                                            title="Device Barcode / QR Code"
+                                                        >
+                                                            <FaQrcode /> Device QR
+                                                        </button>
+                                                        <button 
+                                                            className="pk-action-btn pk-btn-track"
+                                                            onClick={() => setSelectedPickup(req)}
+                                                        >
+                                                            Track & Details
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 );
@@ -534,12 +860,11 @@ function Pickupdetails() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredRequests.map((req) => (
-                                        <tr key={req.deviceId} style={{ cursor: "pointer" }} onClick={() => setSelectedPickup(req)}>
+                                    {filteredRequests.map((req) => {
+                                        const overdue = isPickupOverdue(req);
+                                        return (
+                                            <tr key={req.deviceId} className={overdue ? "pk-table-row-overdue" : ""} style={{ cursor: "pointer" }} onClick={() => setSelectedPickup(req)}>
                                             <td>
-                                                <div style={{ fontWeight: 700, fontSize: "0.85rem", color: "#635bff", fontFamily: "monospace" }}>
-                                                    #DEV-{req.deviceId}
-                                                </div>
                                                 {req.inspectionRequestId && (
                                                     <div style={{ fontSize: "0.725rem", color: "#64748b", fontWeight: 500 }}>
                                                         #INSP-{req.inspectionRequestId}
@@ -549,9 +874,6 @@ function Pickupdetails() {
                                             <td>
                                                 <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>
                                                     {capitalizeWords(`${req.brand || ""} ${req.model || ""}`.trim()) || "E-Waste Item"}
-                                                </div>
-                                                <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem" }}>
-                                                    {req.categoryName || "Device"} • {req.quantity || 1} unit(s) ({req.weight || 0} kg)
                                                 </div>
                                             </td>
                                             <td>
@@ -599,23 +921,47 @@ function Pickupdetails() {
                                             </td>
                                             <td>{getDeliveryStatusBadge(req)}</td>
                                             <td onClick={(e) => e.stopPropagation()}>
-                                                <div style={{ display: "flex", gap: "0.35rem" }}>
-                                                    <button 
-                                                        className="table-view-btn"
-                                                        onClick={() => setSelectedPickup(req)}
-                                                    >
-                                                        View Details
-                                                    </button>
-                                                    <button 
-                                                        className="table-view-btn"
-                                                        style={{ background: "#fee2e2", color: "#dc2626", borderColor: "#fca5a5" }}
-                                                    >
-                                                        Cancel
-                                                    </button>
-                                                </div>
+                                                {(() => {
+                                                    const isCancelled = isPickupCancelled(req);
+                                                    const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
+                                                    const isPickedUpOrDelivered = ["pickupstarted", "pickedup", "intransit", "delivered", "completed"].includes(cas);
+                                                    const canCancel = !isCancelled && !isPickedUpOrDelivered;
+
+                                                    return (
+                                                        <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                                                            <button 
+                                                                className="table-view-btn"
+                                                                onClick={() => setSelectedPickup(req)}
+                                                            >
+                                                                View Details
+                                                            </button>
+                                                            <button 
+                                                                className="table-view-btn"
+                                                                style={{ background: "#eff6ff", color: "#2563eb", borderColor: "#bfdbfe", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setQrModalTarget(req);
+                                                                }}
+                                                                title="Device Barcode / QR Code"
+                                                            >
+                                                                <FaQrcode /> Barcode / QR
+                                                            </button>
+                                                            {canCancel && (
+                                                                <button 
+                                                                    className="table-view-btn"
+                                                                    style={{ background: "#fee2e2", color: "#dc2626", borderColor: "#fca5a5", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
+                                                                    onClick={() => setCancelPickupDevice(req)}
+                                                                >
+                                                                    <FiXCircle /> Cancel
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </td>
+
                                         </tr>
-                                    ))}
+                                    ); })}
                                 </tbody>
                             </table>
                         </div>
@@ -662,7 +1008,7 @@ function Pickupdetails() {
                                 </div>
                                 <div>
                                     <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>Collection Delivery Details</h3>
-                                    <span style={{ fontSize: "0.75rem", opacity: 0.9 }}>#DEV-{selectedPickup.deviceId} • {selectedPickup.brand} {selectedPickup.model}</span>
+                                    <span style={{ fontSize: "0.75rem", opacity: 0.9 }}>  {selectedPickup.brand} {selectedPickup.model}</span>
                                 </div>
                             </div>
                             <button 
@@ -733,80 +1079,109 @@ function Pickupdetails() {
                                 )}
                             </div>
 
+
                             {/* Delivery Progress Timeline */}
+
+
                             <div style={{ marginBottom: "1.25rem" }}>
                                 <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.875rem", fontWeight: 700, color: "#1e293b" }}>
                                     Delivery Progress Timeline
                                 </h4>
                                 <div className="pk-timeline">
-                                    {/* Step 1: Created */}
-                                    <div className="pk-timeline-step completed">
-                                        <div className="pk-timeline-dot">
-                                            <FiCheck style={{ fontSize: "0.7rem" }} />
-                                        </div>
-                                        <div className="pk-step-title">Pickup Request Created</div>
-                                        <div className="pk-step-desc">Item registered in EcoCycle portal</div>
-                                        <div className="pk-step-time">{formatDate(selectedPickup.createdAt)}</div>
-                                    </div>
-
-                                    {/* Step 2: Inspection */}
-                                    <div className="pk-timeline-step completed">
-                                        <div className="pk-timeline-dot">
-                                            <FiCheck style={{ fontSize: "0.7rem" }} />
-                                        </div>
-                                        <div className="pk-step-title">Technician Inspection Approved</div>
-                                        <div className="pk-step-desc">Inspector: {selectedPickup.technicianName || "Approved"}</div>
-                                    </div>
-
-                                    {/* Step 3: Collection Agent Accepted */}
-                                    <div className="pk-timeline-step completed">
-                                        <div className="pk-timeline-dot">
-                                            <FiCheck style={{ fontSize: "0.7rem" }} />
-                                        </div>
-                                        <div className="pk-step-title">Collection Agent Accepted Delivery</div>
-                                        <div className="pk-step-desc">Assigned Agent: {capitalizeWords(selectedPickup.collectionAgentName)}</div>
-                                        {selectedPickup.acceptedAt && (
-                                            <div className="pk-step-time">{formatDate(selectedPickup.acceptedAt)}</div>
-                                        )}
-                                    </div>
-
-                                    {/* Step 4: Picked Up / In Transit */}
                                     {(() => {
-                                        const cas = String(selectedPickup.collectionAssignmentStatus || "").toLowerCase();
-                                        const isPickedUp = cas === "intransit" || cas === "pickedup" || cas === "completed" || cas === "delivered";
-                                        return (
-                                            <div className={`pk-timeline-step ${isPickedUp ? "completed" : "active"}`}>
-                                                <div className="pk-timeline-dot">
-                                                    {isPickedUp ? <FiCheck style={{ fontSize: "0.7rem" }} /> : null}
-                                                </div>
-                                                <div className="pk-step-title">Picked Up / En Route</div>
-                                                <div className="pk-step-desc">
-                                                    {isPickedUp ? "Item collected by agent and in transit" : "Awaiting agent pickup at scheduled slot"}
-                                                </div>
-                                                {selectedPickup.pickedUpAt && (
-                                                    <div className="pk-step-time">{formatDate(selectedPickup.pickedUpAt)}</div>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
+                                        const cas = String(selectedPickup.collectionAssignmentStatus || selectedPickup.status || "").toLowerCase();
+                                        const lcs = String(selectedPickup.lifecycleStatus || "").toLowerCase();
+                                        const isCancelled = isPickupCancelled(selectedPickup);
 
-                                    {/* Step 5: Delivered */}
-                                    {(() => {
-                                        const cas = String(selectedPickup.collectionAssignmentStatus || "").toLowerCase();
-                                        const isDelivered = cas === "completed" || cas === "delivered";
+                                        const isAccepted = cas === "accepted" || cas === "pickupstarted" || cas === "en route" || cas === "pickedup" || cas === "intransit" || cas === "delivered" || cas === "completed";
+                                        const isPickupStarted = cas === "pickupstarted" || cas === "en route" || cas === "pickedup" || cas === "intransit" || cas === "delivered" || cas === "completed";
+                                        const isCompleted = cas === "completed" || cas === "delivered";
+
+                                        if (isCancelled) {
+                                            return (
+                                                <>
+                                                    {/* Step 1: Created */}
+                                                    <div className="pk-timeline-step completed">
+                                                        <div className="pk-timeline-dot">
+                                                            <FiCheck style={{ fontSize: "0.7rem" }} />
+                                                        </div>
+                                                        <div className="pk-step-title">Pickup Request Created</div>
+                                                        <div className="pk-step-desc">Item registered in EcoCycle portal</div>
+                                                        <div className="pk-step-time">{formatDate(selectedPickup.createdAt)}</div>
+                                                    </div>
+
+                                                    {/* Step 2: Cancelled */}
+                                                    <div className="pk-timeline-step cancelled">
+                                                        <div className="pk-timeline-dot pk-dot-cancelled" style={{ background: "#ef4444", borderColor: "#fca5a5", color: "#ffffff" }}>
+                                                            <FiX style={{ fontSize: "0.75rem" }} />
+                                                        </div>
+                                                        <div className="pk-step-title" style={{ color: "#dc2626" }}>Pickup Request Cancelled</div>
+                                                        <div className="pk-step-desc">The pickup allocation cycle was cancelled.</div>
+                                                    </div>
+                                                </>
+                                            );
+                                        }
+
                                         return (
-                                            <div className={`pk-timeline-step ${isDelivered ? "completed" : ""}`}>
-                                                <div className="pk-timeline-dot">
-                                                    {isDelivered ? <FiCheck style={{ fontSize: "0.7rem" }} /> : null}
+                                            <>
+                                                {/* Step 1: Created */}
+                                                <div className="pk-timeline-step completed">
+                                                    <div className="pk-timeline-dot">
+                                                        <FiCheck style={{ fontSize: "0.7rem" }} />
+                                                    </div>
+                                                    <div className="pk-step-title">Pickup Request Created</div>
+                                                    <div className="pk-step-desc">Item registered in EcoCycle portal</div>
+                                                    <div className="pk-step-time">{formatDate(selectedPickup.createdAt)}</div>
                                                 </div>
-                                                <div className="pk-step-title">Delivered to Processing Center</div>
-                                                <div className="pk-step-desc">
-                                                    {isDelivered ? "Item safely handed over to facility" : "Final delivery step upon arrival"}
+
+                                                {/* Step 2: Agent Accepted */}
+                                                <div className={`pk-timeline-step ${isAccepted ? "completed" : "active"}`}>
+                                                    <div className="pk-timeline-dot">
+                                                        {isAccepted ? <FiCheck style={{ fontSize: "0.7rem" }} /> : null}
+                                                    </div>
+                                                    <div className="pk-step-title">Collection Agent Assigned & Accepted</div>
+                                                    <div className="pk-step-desc">
+                                                        {selectedPickup.collectionAgentName 
+                                                            ? `Agent: ${capitalizeWords(selectedPickup.collectionAgentName)} (${selectedPickup.collectionAgentPhone || "Phone available"})`
+                                                            : "Collection agent accepted task"}
+                                                    </div>
+                                                    {selectedPickup.acceptedAt && (
+                                                        <div className="pk-step-time">{formatDate(selectedPickup.acceptedAt)}</div>
+                                                    )}
                                                 </div>
-                                                {selectedPickup.deliveredAt && (
-                                                    <div className="pk-step-time">{formatDate(selectedPickup.deliveredAt)}</div>
-                                                )}
-                                            </div>
+
+                                                {/* Step 3: Pickup Started / En Route */}
+                                                <div className={`pk-timeline-step ${isCompleted ? "completed" : isPickupStarted ? "active" : ""}`}>
+                                                    <div className="pk-timeline-dot">
+                                                        {isCompleted ? <FiCheck style={{ fontSize: "0.7rem" }} /> : isPickupStarted ? <FiTruck style={{ fontSize: "0.7rem" }} /> : null}
+                                                    </div>
+                                                    <div className="pk-step-title">Pickup Started & Agent En Route</div>
+                                                    <div className="pk-step-desc">
+                                                        {isPickupStarted 
+                                                            ? "Collection agent has started pickup and is on the way to your pickup address" 
+                                                            : `Scheduled for pickup on ${formatDate(selectedPickup.pickupDate)} (${selectedPickup.timeSlot || "Scheduled slot"})`}
+                                                    </div>
+                                                    {(selectedPickup.pickupStartedAt || selectedPickup.startedAt) && (
+                                                        <div className="pk-step-time">{formatDate(selectedPickup.pickupStartedAt || selectedPickup.startedAt)}</div>
+                                                    )}
+                                                </div>
+
+                                                {/* Step 4: Pickup Finished & Delivered */}
+                                                <div className={`pk-timeline-step ${isCompleted ? "completed" : ""}`}>
+                                                    <div className="pk-timeline-dot">
+                                                        {isCompleted ? <FiCheck style={{ fontSize: "0.7rem" }} /> : null}
+                                                    </div>
+                                                    <div className="pk-step-title">Pickup Completed & Delivered</div>
+                                                    <div className="pk-step-desc">
+                                                        {isCompleted 
+                                                            ? "E-waste device collected successfully and delivered to inspection facility" 
+                                                            : "Final handover completion upon agent arrival at facility"}
+                                                    </div>
+                                                    {(selectedPickup.deliveredAt || selectedPickup.pickedUpAt) && (
+                                                        <div className="pk-step-time">{formatDate(selectedPickup.deliveredAt || selectedPickup.pickedUpAt)}</div>
+                                                    )}
+                                                </div>
+                                            </>
                                         );
                                     })()}
                                 </div>
@@ -814,20 +1189,236 @@ function Pickupdetails() {
                         </div>
 
                         {/* Modal Footer */}
-                        <div style={{ padding: "1rem 1.5rem", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <button 
-                                className="table-view-btn"
-                                style={{ background: "#fee2e2", color: "#dc2626", borderColor: "#fca5a5", padding: "0.55rem 1.25rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
-                                onClick={(e) => e.preventDefault()}
-                            >
-                                <FiXCircle /> Cancel Pickup
-                            </button>
+                        <div style={{ padding: "1rem 1.5rem", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                            <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                                {(() => {
+                                    const isCancelled = isPickupCancelled(selectedPickup);
+                                    const cas = String(selectedPickup.collectionAssignmentStatus || "").toLowerCase();
+                                    const isPickedUpOrDelivered = ["pickupstarted", "pickedup", "intransit", "delivered", "completed"].includes(cas);
+                                    const canCancel = !isCancelled && !isPickedUpOrDelivered;
+
+                                    return (
+                                        <>
+                                            {canCancel && (
+                                                <button 
+                                                    className="table-view-btn"
+                                                    style={{ background: "#fee2e2", color: "#dc2626", borderColor: "#fca5a5", padding: "0.55rem 1.1rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
+                                                    onClick={() => setCancelPickupDevice(selectedPickup)}
+                                                >
+                                                    <FiXCircle /> Cancel Pickup
+                                                </button>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
                             <button 
                                 onClick={() => setSelectedPickup(null)}
                                 className="profile-btn save"
                                 style={{ padding: "0.55rem 1.35rem" }}
                             >
                                 Close Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Cancel Pickup Design Modal */}
+            {cancelPickupDevice && (
+                <div className="vd-modal-overlay" onClick={() => setCancelPickupDevice(null)}>
+                    <div className="vd-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "480px" }}>
+                        <div className="vd-confirm-icon-wrapper" style={{ background: "#fff7ed", borderColor: "#fed7aa" }}>
+                            <FiXCircle style={{ fontSize: "1.8rem", color: "#ea580c" }} />
+                        </div>
+                        <h3 className="vd-confirm-title">Cancel Pickup Schedule</h3>
+                        <p className="vd-confirm-text">
+                            Are you sure you want to cancel the scheduled pickup for <strong>{cancelPickupDevice.brand} {cancelPickupDevice.model}</strong>?
+                        </p>
+
+                        <div style={{ textAlign: "left", marginBottom: "1.25rem" }}>
+                            <label style={{ fontSize: "0.775rem", fontWeight: 700, color: "#4a5568" }}>Reason for Cancellation (Optional)</label>
+                            <select className="vd-design-input">
+                                <option>Schedule conflict</option>
+                                <option>Device no longer available</option>
+                                <option>Want to change pickup location</option>
+                                <option>Other reason</option>
+                            </select>
+                        </div>
+
+                        <div className="vd-confirm-actions">
+                            <button
+                                onClick={() => setCancelPickupDevice(null)}
+                                className="vd-confirm-cancel-btn"
+                            >
+                                Keep Pickup
+                            </button>
+                            <button
+                                onClick={cancelPickup}
+                                className="vd-btn-cancel-pickup"
+                                style={{ padding: "0.65rem 1.25rem" }}
+                            >
+                                <FiXCircle /> Confirm Cancellation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Request Pickup Again Design Modal */}
+            {requestAgainDevice && (
+                <div className="vd-modal-overlay" onClick={() => !isSubmittingRequestAgain && setRequestAgainDevice(null)}>
+                    <div className="vd-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "500px", textAlign: "left" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+                            <div className="vd-confirm-icon-wrapper" style={{ margin: 0, width: "48px", height: "48px", background: "#eef2ff", borderColor: "#e0e7ff" }}>
+                                <FiRefreshCw style={{ fontSize: "1.4rem", color: "#4f46e5" }} />
+                            </div>
+                            <div>
+                                <h3 className="vd-confirm-title" style={{ margin: 0 }}>Request Pickup Again</h3>
+                                <span style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                                    {requestAgainDevice.brand} {requestAgainDevice.model}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div style={{ display: "grid", gap: "0.85rem", marginBottom: "1.5rem" }}>
+                            <div>
+                                <label style={{ fontSize: "0.775rem", fontWeight: 700, color: "#4a5568" }}>Select New Pickup Date *</label>
+                                <input 
+                                    type="date" 
+                                    className={`vd-design-input ${requestAgainErrors.pickupDate ? "input-error" : ""}`}
+                                    value={newPickupDate}
+                                    min={new Date().toISOString().split("T")[0]}
+                                    onChange={(e) => handleDateChange(e.target.value)}
+                                    style={requestAgainErrors.pickupDate ? { borderColor: "#e53e3e" } : {}}
+                                />
+                                {requestAgainErrors.pickupDate && (
+                                    <span style={{ color: "#e53e3e", fontSize: "0.75rem", marginTop: "0.25rem", display: "block" }}>
+                                        {requestAgainErrors.pickupDate}
+                                    </span>
+                                )}
+                            </div>
+                            <div>
+                                <label style={{ fontSize: "0.775rem", fontWeight: 700, color: "#4a5568" }}>Preferred Time Slot *</label>
+                                <select 
+                                    className={`vd-design-input ${requestAgainErrors.timeSlot ? "input-error" : ""}`}
+                                    value={newTimeSlot}
+                                    onChange={(e) => handleTimeSlotChange(e.target.value)}
+                                    style={requestAgainErrors.timeSlot ? { borderColor: "#e53e3e" } : {}}
+                                >
+                                    <option value="">Select Time Slot</option>
+                                    <option value="Morning (09:00 AM - 12:00 PM)">Morning (09:00 AM - 12:00 PM)</option>
+                                    <option value="Afternoon (01:00 PM - 04:00 PM)">Afternoon (01:00 PM - 04:00 PM)</option>
+                                    <option value="Evening (04:00 PM - 07:00 PM)">Evening (04:00 PM - 07:00 PM)</option>
+                                </select>
+                                {requestAgainErrors.timeSlot && (
+                                    <span style={{ color: "#e53e3e", fontSize: "0.75rem", marginTop: "0.25rem", display: "block" }}>
+                                        {requestAgainErrors.timeSlot}
+                                    </span>
+                                )}
+                            </div>
+                            <div>
+                                <label style={{ fontSize: "0.775rem", fontWeight: 700, color: "#4a5568" }}>Pickup Address *</label>
+                                <input 
+                                    type="text" 
+                                    className={`vd-design-input ${requestAgainErrors.address ? "input-error" : ""}`}
+                                    value={newPickupAddress} 
+                                    onChange={(e) => handleAddressChange(e.target.value)}
+                                    style={requestAgainErrors.address ? { borderColor: "#e53e3e" } : {}}
+                                    placeholder="Enter pickup address (letters, spaces, commas)"
+                                />
+                                {requestAgainErrors.address && (
+                                    <span style={{ color: "#e53e3e", fontSize: "0.75rem", marginTop: "0.25rem", display: "block" }}>
+                                        {requestAgainErrors.address}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="vd-confirm-actions" style={{ justifyContent: "flex-end" }}>
+                            <button
+                                disabled={isSubmittingRequestAgain}
+                                onClick={() => setRequestAgainDevice(null)}
+                                className="vd-confirm-cancel-btn"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                disabled={isSubmittingRequestAgain}
+                                onClick={requestPickupAgain}
+                                className="vd-btn-request-again"
+                                style={{ padding: "0.65rem 1.25rem" }}
+                            >
+                                <FiRefreshCw /> {isSubmittingRequestAgain ? "Submitting..." : "Submit Request"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+
+            {/* Design Toast Notification */}
+            {actionSuccessMessage && (
+                <div className="pk-toast-notification">
+                    <div className="pk-toast-notification-icon">
+                        <FiCheckCircle />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: "0.7rem", color: "#34d399", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>SUCCESS</div>
+                        <span style={{ fontSize: "0.85rem", fontWeight: 500, color: "#f8fafc" }}>{actionSuccessMessage}</span>
+                    </div>
+                    <button 
+                        type="button" 
+                        className="pk-toast-notification-close" 
+                        onClick={() => setActionSuccessMessage("")}
+                    >
+                        <FiX />
+                    </button>
+                </div>
+            )}
+
+            {/* Device Barcode & QR Code Modal Dialog */}
+            {qrModalTarget && (
+                <div className="pro-modal-overlay" onClick={() => setQrModalTarget(null)} style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.65)", backdropFilter: "blur(6px)", zIndex: 1100, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+                    <div className="pro-modal-dialog" onClick={(e) => e.stopPropagation()} style={{ background: "#ffffff", borderRadius: "16px", maxWidth: "440px", width: "100%", boxShadow: "0 20px 40px rgba(0,0,0,0.2)", overflow: "hidden", border: "1px solid #e2e8f0" }}>
+                        <div style={{ padding: "1.25rem 1.5rem", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)", color: "#ffffff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, fontFamily: "'Space Grotesk', sans-serif" }}>Device Barcode & QR Code</h3>
+                                <p style={{ margin: "0.2rem 0 0", fontSize: "0.775rem", color: "#94a3b8" }}>
+                                    #{qrModalTarget.deviceId} &bull; {qrModalTarget.brand} {qrModalTarget.model}
+                                </p>
+                            </div>
+                            <button onClick={() => setQrModalTarget(null)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#ffffff", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <FiX />
+                            </button>
+                        </div>
+
+                        <div style={{ padding: "1.5rem", textAlign: "center" }}>
+                            <div style={{ background: "#f8fafc", padding: "1.25rem", borderRadius: "14px", border: "1px solid #e2e8f0", display: "inline-block", marginBottom: "1.25rem" }}>
+                                <QRCodeCanvas
+                                    value={qrModalTarget.deviceQrToken || `ECOQR-DEV-${qrModalTarget.deviceId}`}
+                                    size={180}
+                                    bgColor={"#ffffff"}
+                                    fgColor={"#0f172a"}
+                                    level={"H"}
+                                />
+                            </div>
+
+                            <div style={{ fontFamily: "monospace", fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", background: "#f1f5f9", padding: "0.5rem 1rem", borderRadius: "8px", border: "1px solid #cbd5e1", letterSpacing: "0.08em", display: "inline-block", marginBottom: "1rem" }}>
+                                {qrModalTarget.deviceQrToken || `ECOQR-DEV-${qrModalTarget.deviceId}`}
+                            </div>
+
+                            <div style={{ fontSize: "0.825rem", color: "#475569", background: "#eff6ff", padding: "0.75rem 1rem", borderRadius: "10px", border: "1px solid #bfdbfe", textAlign: "left", display: "flex", gap: "0.6rem", alignItems: "flex-start" }}>
+                                <FiInfo style={{ color: "#2563eb", fontSize: "1rem", flexShrink: 0, marginTop: "0.1rem" }} />
+                                <div>
+                                    <strong>Pickup Verification:</strong> Present this Barcode / QR Code to the EcoCycle Collection Agent when they arrive at your address to verify e-waste device handover.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ padding: "1rem 1.5rem", background: "#f8fafc", borderTop: "1px solid #e2e8f0", textAlign: "right" }}>
+                            <button className="profile-btn cancel" onClick={() => setQrModalTarget(null)}>
+                                Close
                             </button>
                         </div>
                     </div>

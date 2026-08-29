@@ -34,8 +34,10 @@ function Sidebar() {
 
     const navItems = [
         { path: "/collectionagent/dashboard", label: "My Pickup Tasks", icon: <FiTruck /> },
+        { path: "/collectionagent/pickups", label: "All Pickups", icon: <FiPackage /> },
         { path: "/agent-profile", label: "Profile", icon: <FiUser /> }
     ];
+
 
     return (
         <>

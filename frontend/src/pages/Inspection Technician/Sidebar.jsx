@@ -10,7 +10,8 @@ import {
     FiCpu,
     FiMenu,
     FiX,
-    FiCheckCircle
+    FiCheckCircle,
+    FiTruck
 } from "react-icons/fi";
 import "./Sidebar.css";
 
@@ -50,6 +51,7 @@ function Sidebar() {
 
     const menuItems = [
         { path: "/technician_dashboard", label: "Dashboard", icon: <FiHome /> },
+        { path: "/technician/deliveries", label: "Track Deliveries", icon: <FiTruck /> },
         { path: "/technician/reports", label: "Inspection Reports", icon: <FiFileText /> }
     ];
 

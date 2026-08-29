@@ -660,15 +660,16 @@ export function validate_reason(value)
 }
 export function validate_modelname(value)
 {
-    if(value==="")
+    if (!value || value.trim() === "")
     {
         return "Model name is required";
     }
-    if(!/^[A-Za-z][a-zA-Z0-9-\s]+$/.test(value)||value.length<=4 || value.lenght>=20)
+    const val = value.trim();
+    if (!/^[A-Za-z0-9][a-zA-Z0-9-\s".()]+$/.test(val) || val.length < 2 || val.length > 50)
     {
-        return "Model name must start with a letter and can contain letters, numbers,space and hyphens (3-20 characters)";
+        return "Model name must be 2-50 characters and contain valid characters";
     }
-    if (/^(.)\1+$/.test(value)) 
+    if (/^(.)\1+$/.test(val)) 
     {
         return "Model name cannot contain the same character repeatedly";
     }
@@ -676,14 +677,21 @@ export function validate_modelname(value)
 }
 export function validate_modelnumber(value) 
 {
-    if (value.trim() === "") 
+    if (value === undefined || value === null || String(value).trim() === "") 
     {
         return "";
     }
 
-    if (!/^[A-Za-z0-9-\s]+$/.test(value)) 
+    const val = String(value).trim();
+
+    if (!/^[A-Za-z0-9-\s/.()]+$/.test(val)) 
     {
-        return "Model number can contain letters, numbers,space and hyphens";
+        return "Model number can only contain letters, numbers, hyphens, slashes, dots and spaces";
+    }
+
+    if (/^(.)\1+$/.test(val)) 
+    {
+        return "Model number cannot contain the same character repeatedly";
     }
 
     return "";
@@ -741,12 +749,20 @@ export function validate_physicaldamage(value)
 }
 export function validate_pickupdate(value)
 {
-    if(value==="")
+    if (!value || String(value).trim() === "")
     {
-        return "Pickup date is required"
+        return "Pickup date is required";
     }
-    const selectedDate=new Date(value);
-    const today=new Date();
+    const parts = String(value).split("-");
+    let selectedDate;
+    if (parts.length === 3) {
+        selectedDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else {
+        selectedDate = new Date(value);
+    }
+    selectedDate.setHours(0, 0, 0, 0);
+
+    const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const maxDate = new Date(today);

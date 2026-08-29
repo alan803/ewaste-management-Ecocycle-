@@ -120,6 +120,29 @@
   max-width: 240px;
 }
 
+.action-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap !important;
+}
+
+.action-btn {
+  width: auto !important;
+  height: auto !important;
+  min-height: 34px;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center;
+  gap: 0.35rem !important;
+}
+
+.action-btn span {
+  white-space: nowrap !important;
+}
+
 .action-btn--allocate-manual {
   background: #eff6ff;
   color: #0284c7;
@@ -127,7 +150,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 0.85rem;
+  padding: 0.45rem 0.85rem !important;
   border-radius: 10px;
   font-weight: 700;
   font-size: 0.8rem;
@@ -147,7 +170,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.45rem 0.75rem;
+  padding: 0.45rem 0.85rem !important;
   border-radius: 10px;
   font-weight: 700;
   font-size: 0.8rem;
@@ -158,6 +181,53 @@
 .action-btn--auto:hover {
   background: #16a34a;
   color: #ffffff;
+}
+
+.action-btn--view {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.action-btn--view:hover {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.action-btn--cancel {
+  width: auto !important;
+  min-width: 120px !important;
+  height: 42px !important;
+  padding: 0 1.5rem !important;
+  border-radius: 10px !important;
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  font-size: 0.9rem !important;
+  font-weight: 700 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.4rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.action-btn--cancel:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
 }
 
 .badge-tag {

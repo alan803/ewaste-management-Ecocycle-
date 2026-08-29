@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-
+using System.Security.Cryptography;
 namespace EcoCycle.API.Controllers
 {
     [Route("api/[controller]")]
@@ -142,10 +142,10 @@ namespace EcoCycle.API.Controllers
                         message = "Pickup address is required."
                     });
                 }
-                Device device = new Device
+
+                var device = new Device
                 {
                     UserId = user.UserId,
-
                     CategoryId = dev.CategoryId,
 
                     Brand = dev.Brand,
@@ -213,14 +213,9 @@ namespace EcoCycle.API.Controllers
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    message =
-                        "Device registered successfully.",
-
-                    deviceId =
-                        device.DeviceId,
-
-                    status =
-                        device.Status
+                    message ="Device registered successfully.",
+                    deviceId = device.DeviceId,
+                    status = device.Status
                 });
             }
             catch (Exception ex)
@@ -255,6 +250,27 @@ namespace EcoCycle.API.Controllers
         [HttpGet("All")]
         public async Task<IActionResult> GetAllDevices()
         {
+            var today = DateTime.Today;
+            var overdueList = await db.Device
+                .Where(d => d.PickupDate < today 
+                    && d.LifecycleStatus != "DueDatePassed" 
+                    && d.LifecycleStatus != "PickupCancelled" 
+                    && d.LifecycleStatus != "Completed" 
+                    && d.LifecycleStatus != "Delivered" 
+                    && d.LifecycleStatus != "Recycled" 
+                    && d.Status != "Inactive" 
+                    && d.Status != "Deleted")
+                .ToListAsync();
+
+            if (overdueList.Any())
+            {
+                foreach (var d in overdueList)
+                {
+                    d.LifecycleStatus = "DueDatePassed";
+                }
+                await db.SaveChangesAsync();
+            }
+
             var devices = await db.Device
                 .Include(d => d.Category)
                 .Include(d => d.User)
@@ -294,8 +310,17 @@ namespace EcoCycle.API.Controllers
                     d.TermsAccepted,
                     d.Status,
                     d.LifecycleStatus,
+                    d.AllocationRequested,
                     d.CreatedAt,
                     userName = d.User != null ? (d.User.FirstName + " " + d.User.LastName) : null,
+                    userAddress = d.User != null ? d.User.Address : null,
+                    userCity = d.User != null ? d.User.City : null,
+                    userDistrict = d.User != null ? d.User.District : null,
+                    userState = d.User != null ? d.User.State : null,
+                    userPincode = d.User != null ? d.User.Pincode : null,
+                    userLocation = d.User != null 
+                        ? (d.User.Address + ", " + d.User.City + ", " + d.User.District + ", " + d.User.State + (string.IsNullOrWhiteSpace(d.User.Pincode) ? "" : " - " + d.User.Pincode)) 
+                        : null,
                     inspectionRequestId = d.InspectionRequests
                         .Where(x => x.Status != "Rejected")
                         .OrderByDescending(x => x.InspectionRequestId)
@@ -332,6 +357,7 @@ namespace EcoCycle.API.Controllers
                 });
             }
             device.Status = "Accepted";
+            device.AllocationRequested = true;
             await db.SaveChangesAsync();
             return Ok();
         }
@@ -366,6 +392,28 @@ namespace EcoCycle.API.Controllers
 
             if (user == null)
                 return NotFound(new { message = "User not found." });
+
+            var today = DateTime.Today;
+            var overdueList = await db.Device
+                .Where(d => d.UserId == user.UserId
+                    && d.PickupDate < today 
+                    && d.LifecycleStatus != "DueDatePassed" 
+                    && d.LifecycleStatus != "PickupCancelled" 
+                    && d.LifecycleStatus != "Completed" 
+                    && d.LifecycleStatus != "Delivered" 
+                    && d.LifecycleStatus != "Recycled" 
+                    && d.Status != "Inactive" 
+                    && d.Status != "Deleted")
+                .ToListAsync();
+
+            if (overdueList.Any())
+            {
+                foreach (var d in overdueList)
+                {
+                    d.LifecycleStatus = "DueDatePassed";
+                }
+                await db.SaveChangesAsync();
+            }
 
             var devices = await db.Device
                 .Where(x => x.UserId == user.UserId)
@@ -422,6 +470,28 @@ namespace EcoCycle.API.Controllers
                 message = "Device restored successfully.",
                 deviceId = device.DeviceId,
                 status = device.Status
+            });
+        }
+
+        [HttpPost("request-allocation/{id}")]
+        public async Task<IActionResult> RequestAllocation(int id)
+        {
+            var device = await db.Device.FirstOrDefaultAsync(x => x.DeviceId == id);
+
+            if (device == null)
+            {
+                return NotFound(new { message = "Device not found." });
+            }
+
+            device.AllocationRequested = true;
+
+            await db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Allocation request submitted successfully.",
+                deviceId = device.DeviceId,
+                allocationRequested = device.AllocationRequested
             });
         }
 

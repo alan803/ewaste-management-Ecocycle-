@@ -38,7 +38,21 @@ function Manage_device() {
     const [manualAllocatingLoading, setManualAllocatingLoading] = useState(false);
     const [manualAllocatingMessage, setManualAllocatingMessage] = useState("");
     const [techSearchQuery, setTechSearchQuery] = useState("");
-    const navigate = useNavigate();
+    const formatDate = (dateString) => {
+        if (!dateString) return "N/A";
+        try {
+            let cleanStr = typeof dateString === "string" ? dateString.split("T")[0] : dateString;
+            const date = new Date(cleanStr);
+            if (isNaN(date.getTime())) return dateString;
+            return date.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric"
+            });
+        } catch {
+            return dateString;
+        }
+    };
 
     useEffect(() => {
     fetchAllDevices();
@@ -234,21 +248,30 @@ function Manage_device() {
 
     const getLifecycleInfo = (device) => {
         if (!device) return { label: "Pending", isAllocated: false, icon: <FiClock />, className: "status-btn--pending" };
-        if (device.inspectionRequestStatus?.toLowerCase() === "waiting") {
-            return {
-                statusKey: "InspectionWaiting",
-                label: "Inspection Waiting",
-                isAllocated: false,
-                icon: <FiClock />,
-                className: "status-btn--pending"
-            };
-        }
+
         const rawStatus = device.lifecycleStatus || device.LifecycleStatus || "Pending";
         const status = rawStatus.trim();
         const lower = status.toLowerCase();
+        const mainStatus = (device.status || device.Status || "").toLowerCase();
 
         switch (lower) {
             case "pending":
+                if (mainStatus === "pending") {
+                    return {
+                        statusKey: "ApprovalPending",
+                        label: "Approval Pending",
+                        isAllocated: false,
+                        icon: <FiClock />,
+                        className: "status-btn--pending"
+                    };
+                }
+                return {
+                    statusKey: "AllocationPending",
+                    label: "Allocation Pending",
+                    isAllocated: false,
+                    icon: <FiClock />,
+                    className: "status-btn--pending"
+                };
             case "inspectionpending":
                 return {
                     statusKey: "InspectionPending",
@@ -256,6 +279,86 @@ function Manage_device() {
                     isAllocated: false,
                     icon: <FiClock />,
                     className: "status-btn--pending"
+                };
+            case "collectionpending":
+            case "waiting":
+                return {
+                    statusKey: "CollectionPending",
+                    label: "Collection Pending",
+                    isAllocated: false,
+                    icon: <FiClock />,
+                    className: "status-btn--pending"
+                };
+            case "pickupexpired":
+            case "inspectionexpired":
+            case "duedatepassed":
+            case "expired":
+                return {
+                    statusKey: "Expired",
+                    label: "Expired",
+                    isAllocated: false,
+                    icon: <FiClock />,
+                    className: "status-btn--cancelled"
+                };
+            case "pickupcancelled":
+            case "cancelled":
+                return {
+                    statusKey: "PickupCancelled",
+                    label: "Pickup Cancelled",
+                    isAllocated: false,
+                    icon: <FiClock />,
+                    className: "status-btn--cancelled"
+                };
+            case "collectionassigned":
+                return {
+                    statusKey: "CollectionAssigned",
+                    label: "Collection Assigned",
+                    isAllocated: true,
+                    icon: <FiCpu />,
+                    className: "status-btn--scheduled"
+                };
+            case "collectionaccepted":
+                return {
+                    statusKey: "CollectionAccepted",
+                    label: "Collection Accepted",
+                    isAllocated: true,
+                    icon: <FiCheckCircle />,
+                    className: "status-btn--scheduled"
+                };
+            case "pickupscheduled":
+                return {
+                    statusKey: "PickupScheduled",
+                    label: "Pickup Scheduled",
+                    isAllocated: true,
+                    icon: <FiCalendar />,
+                    className: "status-btn--scheduled"
+                };
+            case "pickupstarted":
+            case "pickedup":
+                return {
+                    statusKey: "PickedUp",
+                    label: "Picked Up",
+                    isAllocated: true,
+                    icon: <FiPackage />,
+                    className: "status-btn--pickedup"
+                };
+            case "intransit":
+                return {
+                    statusKey: "InTransit",
+                    label: "In Transit",
+                    isAllocated: true,
+                    icon: <FiTruck />,
+                    className: "status-btn--in-progress"
+                };
+            case "delivered":
+            case "infacility":
+            case "atinspectioncenter":
+                return {
+                    statusKey: "AtInspectionCenter",
+                    label: "At Inspection Center",
+                    isAllocated: true,
+                    icon: <FiMapPin />,
+                    className: "status-btn--atcenter"
                 };
             case "inspectionassigned":
                 return {
@@ -272,30 +375,6 @@ function Manage_device() {
                     isAllocated: true,
                     icon: <FiCheckCircle />,
                     className: "status-btn--scheduled"
-                };
-            case "pickupscheduled":
-                return {
-                    statusKey: "PickupScheduled",
-                    label: "Pickup Scheduled",
-                    isAllocated: true,
-                    icon: <FiCalendar />,
-                    className: "status-btn--scheduled"
-                };
-            case "pickedup":
-                return {
-                    statusKey: "PickedUp",
-                    label: "Picked Up",
-                    isAllocated: true,
-                    icon: <FiPackage />,
-                    className: "status-btn--pickedup"
-                };
-            case "atinspectioncenter":
-                return {
-                    statusKey: "AtInspectionCenter",
-                    label: "At Inspection Center",
-                    isAllocated: true,
-                    icon: <FiMapPin />,
-                    className: "status-btn--atcenter"
                 };
             case "inspectioninprogress":
                 return {
@@ -378,13 +457,15 @@ function Manage_device() {
                     className: "status-btn--completed"
                 };
             default:
-                const isAllocated = lower !== "pending" && lower !== "inspectionpending" && lower !== "none" && lower !== "";
+                const unallocatedList = ["pending", "inspectionpending", "collectionpending", "waiting", "none", "", "pickupcancelled", "cancelled"];
+                const isAllocated = !unallocatedList.includes(lower);
+                const formattedLabel = status.replace(/([A-Z])/g, ' $1').trim();
                 return {
                     statusKey: status,
-                    label: status.replace(/([A-Z])/g, ' $1').trim(),
+                    label: formattedLabel,
                     isAllocated: isAllocated,
-                    icon: <FiCheckCircle />,
-                    className: "status-btn--default"
+                    icon: isAllocated ? <FiCheckCircle /> : <FiClock />,
+                    className: isAllocated ? "status-btn--default" : "status-btn--pending"
                 };
         }
     };
@@ -392,8 +473,9 @@ function Manage_device() {
     const renderLifecycleAction = (device, isModal = false) => {
         const info = getLifecycleInfo(device);
         const hasTechnicianAllocated = info.isAllocated || device.technicianId || device.isAllocated;
+        const isAllocationRequested = !!(device.allocationRequested || device.AllocationRequested);
 
-        if (!hasTechnicianAllocated) {
+        if (!hasTechnicianAllocated && isAllocationRequested) {
             return (
                 <button
                     className={`action-btn action-btn--allocate ${isModal ? "modal-allocate-btn" : ""}`}
@@ -622,10 +704,16 @@ function Manage_device() {
                                                                 </button>
                                                             </>
                                                         )}
-                                                        {/* Active / Accepted Device -> Allocate vs Allocate Manually vs Lifecycle Status */}
+                                                        {/* Active / Accepted / Requested Device -> Allocate vs Allocate Manually vs Lifecycle Status */}
                                                         {(d.status?.toLowerCase() === "active" ||
-                                                        d.status?.toLowerCase() === "accepted" ||
-                                                        d.status?.toLowerCase() === "approved") && (
+                                                          d.status?.toLowerCase() === "accepted" ||
+                                                          d.status?.toLowerCase() === "approved" ||
+                                                          d.status?.toLowerCase() === "requested" ||
+                                                          d.status?.toLowerCase() === "devicerequested" ||
+                                                          d.status?.toLowerCase() === "pickupcancelled" ||
+                                                          d.status?.toLowerCase() === "cancelled" ||
+                                                          (d.lifecycleStatus || "").toLowerCase() === "pickupcancelled") && 
+                                                          (d.allocationRequested || d.AllocationRequested || d.status?.toLowerCase() === "accepted" || d.status?.toLowerCase() === "active" || d.status?.toLowerCase() === "requested" || d.status?.toLowerCase() === "approved") && (
                                                             <>
                                                                 {d.inspectionRequestStatus?.toLowerCase() === "waiting" ? (
                                                                     <button
@@ -720,15 +808,24 @@ function Manage_device() {
                                 </div>
                                 <div className="detail-item">
                                     <label>Pickup Date</label>
-                                    <span>{selectedDevice.pickupDate || "N/A"}</span>
+                                    <span>{formatDate(selectedDevice.pickupDate)}</span>
                                 </div>
                                 <div className="detail-item">
                                     <label>Time Slot</label>
                                     <span>{selectedDevice.timeSlot || "N/A"}</span>
                                 </div>
                                 <div className="detail-item">
-                                    <label>Landmark / Address</label>
-                                    <span>{selectedDevice.landmark || selectedDevice.address || "N/A"}</span>
+                                    <label>Device Location</label>
+                                    <span>
+                                        {selectedDevice.userLocation || 
+                                         [selectedDevice.userCity, selectedDevice.userDistrict, selectedDevice.userState, selectedDevice.userPincode].filter(Boolean).join(", ") || 
+                                         selectedDevice.address || 
+                                         "N/A"}
+                                    </span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Landmark / Pickup Address</label>
+                                    <span>{selectedDevice.address ? (selectedDevice.landmark ? `${selectedDevice.address} (Near: ${selectedDevice.landmark})` : selectedDevice.address) : "N/A"}</span>
                                 </div>
                                 <div className="detail-item">
                                     <label>Ownership</label>
@@ -971,11 +1068,11 @@ function Manage_device() {
 
                             <div className="modal-footer-actions" style={{ marginTop: "1rem" }}>
                                 <button
-                                    className="action-btn action-btn--view"
+                                    type="button"
+                                    className="action-btn--cancel"
                                     onClick={() => setManualAllocatingDevice(null)}
-                                    style={{ width: "auto", padding: "0 1.5rem", height: "42px", borderRadius: "10px", fontWeight: 700 }}
                                 >
-                                    Cancel
+                                    <FiX /> Cancel
                                 </button>
                             </div>
                         </div>

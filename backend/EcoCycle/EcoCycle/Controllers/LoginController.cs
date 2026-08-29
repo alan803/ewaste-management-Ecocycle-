@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Google.Apis.Auth;
 
 namespace EcoCycle.Controllers
 {
@@ -18,13 +19,15 @@ namespace EcoCycle.Controllers
     {
         private readonly ApplicationDbContext db;
         private readonly EmailService emailService;
-
+        private readonly IConfiguration configuration;
         public LoginController(
             ApplicationDbContext db,
-            EmailService emailService)
+            EmailService emailService,
+            IConfiguration configuration)
         {
             this.db = db;
             this.emailService = emailService;
+            this.configuration = configuration;
         }
 
         // =========================================================
@@ -436,6 +439,327 @@ namespace EcoCycle.Controllers
         {
             var users = await db.Login.ToListAsync();
             return Ok(users);
+        }
+        [HttpPost("GoogleLogin")]
+        public async Task<IActionResult> GoogleLogin(
+    [FromBody] GoogleLoginRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Credential))
+            {
+                return BadRequest(new
+                {
+                    message = "Google credential is required."
+                });
+            }
+
+            try
+            {
+                // Get Google Client ID from appsettings.json
+                var clientId = configuration["Google:ClientId"];
+
+                if (string.IsNullOrWhiteSpace(clientId))
+                {
+                    return StatusCode(500, new
+                    {
+                        message = "Google Client ID is not configured."
+                    });
+                }
+
+                // Verify Google ID token
+                var payload = await GoogleJsonWebSignature.ValidateAsync(
+                    request.Credential,
+                    new GoogleJsonWebSignature.ValidationSettings
+                    {
+                        Audience = new[] { clientId }
+                    }
+                );
+
+                // Get email from Google
+                var googleEmail = payload.Email;
+
+                if (string.IsNullOrWhiteSpace(googleEmail))
+                {
+                    return Unauthorized(new
+                    {
+                        message = "Google account email could not be obtained."
+                    });
+                }
+
+                // Find existing EcoCycle account
+                var login = await db.Login
+                    .Include(x => x.Role)
+                    .FirstOrDefaultAsync(
+                        x => x.Email == googleEmail
+                    );
+
+                // Do NOT create a new account
+                if (login == null)
+                {
+                    return Unauthorized(new
+                    {
+                        field = "google",
+                        message = "This Google account is not registered with EcoCycle. Please register first."
+                    });
+                }
+
+                // Link Google account if not already linked
+                if (string.IsNullOrWhiteSpace(login.GoogleId))
+                {
+                    login.GoogleId = payload.Subject;
+                }
+                else if (login.GoogleId != payload.Subject)
+                {
+                    return Unauthorized(new
+                    {
+                        field = "google",
+                        message = "This Google account is not linked to this EcoCycle account."
+                    });
+                }
+
+                login.LastLogin = DateTime.Now;
+
+                string firstName = "";
+                string roleName = login.Role.Name;
+                string status = "";
+
+                // Get role-specific information
+                switch (login.RoleId)
+                {
+                    case 1:
+
+                        var user = await db.Users
+                            .FirstOrDefaultAsync(
+                                x => x.LoginId == login.LoginId
+                            );
+
+                        if (user == null)
+                        {
+                            return BadRequest(new
+                            {
+                                message = "User not found."
+                            });
+                        }
+
+                        firstName = user.FirstName;
+                        status = user.Status;
+
+                        break;
+
+
+                    case 2:
+
+                        var agent = await db.CollectionAgents
+                            .FirstOrDefaultAsync(
+                                x => x.LoginId == login.LoginId
+                            );
+
+                        if (agent == null)
+                        {
+                            return BadRequest(new
+                            {
+                                message = "Collection Agent not found."
+                            });
+                        }
+
+                        firstName = agent.FirstName;
+                        status = agent.Status;
+
+                        break;
+
+
+                    case 3:
+
+                        var technician = await db.Technician
+                            .FirstOrDefaultAsync(
+                                x => x.LoginId == login.LoginId
+                            );
+
+                        if (technician == null)
+                        {
+                            return BadRequest(new
+                            {
+                                message = "Technician not found."
+                            });
+                        }
+
+                        firstName = technician.FirstName;
+                        status = technician.Status;
+
+                        break;
+
+
+                    case 4:
+
+                        var refurbishmentcenter = await db.RefurbishmentCenter
+                            .FirstOrDefaultAsync(
+                                x => x.LoginId == login.LoginId
+                            );
+
+                        if (refurbishmentcenter == null)
+                        {
+                            return BadRequest(new
+                            {
+                                message = "Refurbishment center not found."
+                            });
+                        }
+
+                        firstName = refurbishmentcenter.CenterName;
+                        status = refurbishmentcenter.Status;
+
+                        break;
+
+
+                    case 5:
+
+                        var recyclingcenter = await db.RecyclingCenter
+                            .FirstOrDefaultAsync(
+                                x => x.LoginId == login.LoginId
+                            );
+
+                        if (recyclingcenter == null)
+                        {
+                            return BadRequest(new
+                            {
+                                message = "Recycling center not found."
+                            });
+                        }
+
+                        firstName = recyclingcenter.CenterName;
+                        status = recyclingcenter.Status;
+
+                        break;
+
+
+                    case 6:
+
+                        firstName = "ecocycle admin";
+
+                        break;
+
+
+                    default:
+
+                        return BadRequest(new
+                        {
+                            message = "Invalid Role."
+                        });
+                }
+
+                // Check account status
+                if (login.RoleId != 6)
+                {
+                    if (string.IsNullOrWhiteSpace(status))
+                    {
+                        return BadRequest(new
+                        {
+                            field = "status_er",
+                            message = "Account status is not available."
+                        });
+                    }
+
+                    if (!status.Trim().Equals(
+                        "Active",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        return BadRequest(new
+                        {
+                            field = "status_er",
+                            message =
+                                $"Your account is currently {status}. Please contact the administrator.",
+                            status = status,
+                            loginId = login.LoginId,
+                            roleId = login.RoleId
+                        });
+                    }
+                }
+
+                // Generate the same JWT used by normal login
+                var claims = new[]
+                {
+            new Claim(
+                JwtRegisteredClaimNames.Sub,
+                login.LoginId.ToString()
+            ),
+
+            new Claim(
+                JwtRegisteredClaimNames.Email,
+                login.Email
+            ),
+
+            new Claim(
+                ClaimTypes.Name,
+                firstName
+            ),
+
+            new Claim(
+                ClaimTypes.Role,
+                roleName
+            )
+        };
+
+                var key = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(
+                        "ThisIsMySuperSecretJWTKeyForEcoCycle2026!"
+                    )
+                );
+
+                var credentials = new SigningCredentials(
+                    key,
+                    SecurityAlgorithms.HmacSha256
+                );
+
+                var token = new JwtSecurityToken(
+                    claims: claims,
+                    expires: DateTime.Now.AddHours(2),
+                    signingCredentials: credentials
+                );
+
+                string jwt =
+                    new JwtSecurityTokenHandler().WriteToken(token);
+
+                int? resolvedTechId = null;
+
+                if (login.RoleId == 3)
+                {
+                    var techObj = await db.Technician
+                        .FirstOrDefaultAsync(
+                            x => x.LoginId == login.LoginId
+                        );
+
+                    if (techObj != null)
+                    {
+                        resolvedTechId = techObj.TechnicianId;
+                    }
+                }
+
+                await db.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "Google Login Successful",
+                    token = jwt,
+                    loginId = login.LoginId,
+                    technicianId = resolvedTechId,
+                    roleId = login.RoleId,
+                    role = roleName,
+                    firstName = firstName
+                });
+            }
+            catch (InvalidJwtException)
+            {
+                return Unauthorized(new
+                {
+                    field = "google",
+                    message = "Invalid Google login."
+                });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new
+                {
+                    message = "An error occurred during Google login."
+                });
+            }
         }
     }
 }

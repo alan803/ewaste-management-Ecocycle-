@@ -16,7 +16,8 @@ import {
     FiCheckCircle,
     FiAlertTriangle,
     FiCheckSquare,
-    FiUserCheck
+    FiUserCheck,
+    FiCpu
 } from "react-icons/fi";
 import "./Manage_assignmentandpickups.css";
 
@@ -28,11 +29,118 @@ function Manage_assignmentandpickups() {
     const [activeFilter, setActiveFilter] = useState("All");
     const [selectedAssignment, setSelectedAssignment] = useState(null);
 
+    // Allocation States
+    const [allocatingId, setAllocatingId] = useState(null);
+    const [manualAllocatingDevice, setManualAllocatingDevice] = useState(null);
+    const [activeTechnicians, setActiveTechnicians] = useState([]);
+    const [selectedTechId, setSelectedTechId] = useState("");
+    const [manualAllocatingLoading, setManualAllocatingLoading] = useState(false);
+    const [manualAllocatingMessage, setManualAllocatingMessage] = useState("");
+    const [techSearchQuery, setTechSearchQuery] = useState("");
+
     const navigate = useNavigate();
 
     useEffect(() => {
         fetchAllData();
     }, []);
+
+    const allocateTechnician = async (deviceId) => {
+        try {
+            setAllocatingId(deviceId);
+            const token = localStorage.getItem("token");
+            const response = await axios.post(
+                `https://localhost:7102/api/Inspection/create/${deviceId}`,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+            console.log("Allocation response:", response.data);
+
+            const isWaiting = response.data?.status === "Waiting" || (response.data?.message && response.data.message.includes("no suitable technician"));
+            if (isWaiting) {
+                const targetAssignment = technicianAssignments.find(a => (a.deviceId || a.DeviceId) === deviceId);
+                if (targetAssignment) {
+                    setManualAllocatingDevice(targetAssignment);
+                    fetchActiveTechnicians();
+                }
+            }
+
+            await fetchAllData();
+        } catch (err) {
+            console.error("Error allocating technician:", err);
+            alert(err.response?.data?.message || "Failed to allocate technician.");
+        } finally {
+            setAllocatingId(null);
+        }
+    };
+
+    const fetchActiveTechnicians = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const response = await axios.get("https://localhost:7102/api/Technician/All", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const activeOnly = (response.data || []).filter(t => (t.status || t.Status) === "Active");
+            setActiveTechnicians(activeOnly.length > 0 ? activeOnly : response.data || []);
+        } catch (err) {
+            console.error("Error fetching active technicians:", err);
+        }
+    };
+
+    const allocateTechnicianManually = async (deviceId, techId = null) => {
+        try {
+            setAllocatingId(deviceId);
+            setManualAllocatingLoading(true);
+            setManualAllocatingMessage("");
+            const token = localStorage.getItem("token");
+
+            const url = techId 
+                ? `https://localhost:7102/api/Inspection/manual-allocate/${deviceId}/${techId}`
+                : `https://localhost:7102/api/Inspection/manual-allocate/${deviceId}`;
+
+            const response = await axios.post(
+                url,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+
+            console.log("Manual allocation response:", response.data);
+            setManualAllocatingMessage(response.data?.message || "Technician allocated successfully.");
+
+            setTimeout(() => {
+                setManualAllocatingDevice(null);
+                setSelectedTechId("");
+                setManualAllocatingMessage("");
+                fetchAllData();
+            }, 1200);
+
+        } catch (err) {
+            console.error("Error manually allocating technician:", err);
+            setManualAllocatingMessage(err.response?.data?.message || "Failed to manually allocate technician.");
+        } finally {
+            setAllocatingId(null);
+            setManualAllocatingLoading(false);
+        }
+    };
+
+    const filteredTechniciansForModal = activeTechnicians.filter(tech => {
+        if (!techSearchQuery) return true;
+        const q = techSearchQuery.toLowerCase();
+        const name = `${tech.firstName || tech.FirstName || ""} ${tech.lastName || tech.LastName || ""}`.toLowerCase();
+        const city = (tech.city || tech.City || "").toLowerCase();
+        const district = (tech.district || tech.District || "").toLowerCase();
+        const state = (tech.state || tech.State || "").toLowerCase();
+        const spec = (tech.specialization || tech.Specialization || "").toLowerCase();
+        const email = (tech.email || tech.Email || tech.login?.email || "").toLowerCase();
+        return name.includes(q) || city.includes(q) || district.includes(q) || state.includes(q) || spec.includes(q) || email.includes(q);
+    });
 
     const fetchAllData = async () => {
         try {
@@ -127,6 +235,13 @@ function Manage_assignmentandpickups() {
                     <span className="status-pill" style={{ background: "#fee2e2", color: "#dc2626", border: "1px solid #fca5a5" }}>
                         <span className="status-beacon" style={{ background: "#dc2626" }}></span>
                         Rejected
+                    </span>
+                );
+            case "expired":
+                return (
+                    <span className="status-pill" style={{ background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5" }}>
+                        <span className="status-beacon" style={{ background: "#b91c1c" }}></span>
+                        Expired
                     </span>
                 );
             default:
@@ -265,7 +380,7 @@ function Manage_assignmentandpickups() {
                             </div>
                             <div className="panel-actions">
                                 <div className="filter-pill-group">
-                                    {["All", "Waiting", "Assigned", "Accepted", "Rejected", "Completed"].map((tab) => {
+                                    {["All", "Waiting", "Assigned", "Accepted", "Expired", "Rejected", "Completed"].map((tab) => {
                                         const count = tab === "All"
                                             ? technicianAssignments.length
                                             : technicianAssignments.filter(t => {
@@ -325,6 +440,20 @@ function Manage_assignmentandpickups() {
                                             const rejection = item.rejectionReason || item.RejectionReason;
                                             const isRejected = (item.status || item.Status || "").toLowerCase() === "rejected" || (item.status || item.Status || "").toLowerCase() === "declined";
                                             const reassignCount = item.reassignmentCount ?? item.ReassignmentCount ?? 0;
+
+                                            const devId = item.deviceId || item.DeviceId;
+                                            const reqId = item.inspectionRequestId || item.InspectionRequestId;
+
+                                            // Check if another assignment for the same device exists that is active or newer
+                                            const hasActiveOrNewerAssignment = technicianAssignments.some((other) => {
+                                                const sameDevice = (other.deviceId || other.DeviceId) === devId;
+                                                const notSelf = (other.inspectionRequestId || other.InspectionRequestId) !== reqId;
+                                                const otherReqId = other.inspectionRequestId || other.InspectionRequestId;
+                                                const otherStatus = (other.status || other.Status || "").toLowerCase();
+                                                const isActive = ["assigned", "accepted", "inprogress", "completed"].includes(otherStatus);
+                                                const isNewer = Boolean(otherReqId && reqId && otherReqId > reqId);
+                                                return sameDevice && notSelf && (isActive || isNewer);
+                                            });
 
                                             return (
                                                 <tr
@@ -399,7 +528,7 @@ function Manage_assignmentandpickups() {
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <div className="action-buttons">
+                                                        <div className="action-buttons" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                                                             <button
                                                                 className="action-btn action-btn--view"
                                                                 onClick={() => setSelectedAssignment(item)}
@@ -407,6 +536,33 @@ function Manage_assignmentandpickups() {
                                                             >
                                                                 <FiEye />
                                                             </button>
+
+                                                            {!hasActiveOrNewerAssignment && (item.status || item.Status || "").toLowerCase() === "waiting" ? (
+                                                                <button
+                                                                    className="action-btn action-btn--allocate"
+                                                                    style={{ background: "#fffbebf0", color: "#b45309", border: "1px solid #fde68a", padding: "0.4rem 0.75rem", borderRadius: "8px", fontWeight: 700, fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "0.35rem", cursor: "pointer" }}
+                                                                    onClick={() => {
+                                                                        setManualAllocatingDevice(item);
+                                                                        fetchActiveTechnicians();
+                                                                    }}
+                                                                    disabled={allocatingId === (item.deviceId || item.DeviceId)}
+                                                                    title="Manually Allocate Technician"
+                                                                >
+                                                                    <FiCpu className={allocatingId === (item.deviceId || item.DeviceId) ? "spin-icon" : ""} />
+                                                                    <span>{allocatingId === (item.deviceId || item.DeviceId) ? "Allocating..." : "Allocate Manually"}</span>
+                                                                </button>
+                                                            ) : !hasActiveOrNewerAssignment && (item.status || item.Status || "").toLowerCase() === "expired" ? (
+                                                                <button
+                                                                    className="action-btn action-btn--allocate"
+                                                                    onClick={() => allocateTechnician(item.deviceId || item.DeviceId)}
+                                                                    disabled={allocatingId === (item.deviceId || item.DeviceId)}
+                                                                    title="Auto Allocate Technician"
+                                                                    style={{ background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0", padding: "0.4rem 0.75rem", borderRadius: "8px", fontWeight: 700, fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "0.35rem", cursor: "pointer" }}
+                                                                >
+                                                                    <FiCpu className={allocatingId === (item.deviceId || item.DeviceId) ? "spin-icon" : ""} />
+                                                                    <span>{allocatingId === (item.deviceId || item.DeviceId) ? "Allocating..." : "Allocate"}</span>
+                                                                </button>
+                                                            ) : null}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -521,6 +677,180 @@ function Manage_assignmentandpickups() {
                                     onClick={() => setSelectedAssignment(null)}
                                 >
                                     Close Details
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Manual Technician Allocation Modal */}
+                {manualAllocatingDevice && (
+                    <div className="modal-overlay" onClick={() => setManualAllocatingDevice(null)}>
+                        <div className="device-modal-card" style={{ maxWidth: "640px", width: "92%" }} onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <div>
+                                    <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#0f172a", margin: 0 }}>
+                                        Manually Allocate Technician
+                                    </h2>
+                                    <p className="panel-subtitle" style={{ fontSize: "0.85rem", color: "#64748b", margin: "0.25rem 0 0 0" }}>
+                                        Re-allocate an active technician for expired device inspection #{manualAllocatingDevice.inspectionRequestId || manualAllocatingDevice.InspectionRequestId} (Device #{manualAllocatingDevice.deviceId || manualAllocatingDevice.DeviceId}: {manualAllocatingDevice.brand || manualAllocatingDevice.Brand} {manualAllocatingDevice.model || manualAllocatingDevice.Model})
+                                    </p>
+                                </div>
+                                <button className="modal-close-btn" onClick={() => setManualAllocatingDevice(null)}>
+                                    <FiX />
+                                </button>
+                            </div>
+
+                            <div style={{ marginTop: "1rem" }}>
+                                {manualAllocatingMessage && (
+                                    <div style={{ padding: "0.85rem 1.15rem", borderRadius: "10px", background: manualAllocatingMessage.includes("Failed") ? "#fff1f2" : "#f0fdf4", color: manualAllocatingMessage.includes("Failed") ? "#e11d48" : "#15803d", fontWeight: 600, fontSize: "0.875rem", marginBottom: "1.25rem" }}>
+                                        {manualAllocatingMessage}
+                                    </div>
+                                )}
+
+                                <form
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        if (selectedTechId) {
+                                            allocateTechnicianManually(manualAllocatingDevice.deviceId || manualAllocatingDevice.DeviceId, selectedTechId);
+                                        }
+                                    }}
+                                    style={{ background: "#f8fafc", padding: "1.15rem", borderRadius: "14px", border: "1px solid #e2e8f0" }}
+                                >
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem" }}>
+                                        <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#0284c7", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                                            Select Active Technician
+                                        </div>
+                                        <span style={{ fontSize: "0.75rem", background: "#e0f2fe", color: "#0369a1", padding: "0.2rem 0.6rem", borderRadius: "9999px", fontWeight: 700 }}>
+                                            {filteredTechniciansForModal.length} Available
+                                        </span>
+                                    </div>
+
+                                    {/* Technician Search Bar */}
+                                    <div style={{ position: "relative", marginBottom: "1rem", width: "100%", boxSizing: "border-box" }}>
+                                        <FiSearch style={{ position: "absolute", left: "0.9rem", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "1rem", zIndex: 1 }} />
+                                        <input
+                                            type="text"
+                                            placeholder="Search by technician name, city, district, state, specialization..."
+                                            value={techSearchQuery}
+                                            onChange={(e) => setTechSearchQuery(e.target.value)}
+                                            style={{
+                                                width: "100%",
+                                                boxSizing: "border-box",
+                                                padding: "0.7rem 0.9rem 0.7rem 2.5rem",
+                                                borderRadius: "10px",
+                                                border: "1px solid #cbd5e1",
+                                                fontSize: "0.875rem",
+                                                outline: "none",
+                                                background: "#ffffff",
+                                                boxShadow: "inset 0 1px 2px rgba(0,0,0,0.02)"
+                                            }}
+                                        />
+                                    </div>
+
+                                    {/* Interactive Custom Card List */}
+                                    <div style={{ maxHeight: "280px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.6rem", marginBottom: "1rem", paddingRight: "0.3rem" }}>
+                                        {filteredTechniciansForModal.length === 0 ? (
+                                            <div style={{ textAlign: "center", padding: "2rem 1rem", background: "#ffffff", borderRadius: "10px", border: "1px dashed #cbd5e1", color: "#64748b", fontSize: "0.875rem" }}>
+                                                No technicians match "{techSearchQuery}".
+                                            </div>
+                                        ) : (
+                                            filteredTechniciansForModal.map(tech => {
+                                                const id = String(tech.technicianId || tech.TechnicianId);
+                                                const name = `${tech.firstName || tech.FirstName || ""} ${tech.lastName || tech.LastName || ""}`.trim();
+                                                const city = tech.city || tech.City || "";
+                                                const district = tech.district || tech.District || "";
+                                                const state = tech.state || tech.State || "";
+                                                const pin = tech.pinCode || tech.PinCode || "";
+                                                const locParts = [city, district, state].filter(Boolean);
+                                                const locString = locParts.length > 0 ? (pin ? `${locParts.join(", ")} - ${pin}` : locParts.join(", ")) : "Location N/A";
+                                                const spec = tech.specialization || tech.Specialization || tech.inspectionCenterName || tech.InspectionCenterName || "";
+                                                const isSelected = String(selectedTechId) === id;
+
+                                                return (
+                                                    <div
+                                                        key={id}
+                                                        onClick={() => setSelectedTechId(id)}
+                                                        style={{
+                                                            padding: "0.85rem 1rem",
+                                                            borderRadius: "12px",
+                                                            border: isSelected ? "2px solid #0284c7" : "1px solid #e2e8f0",
+                                                            background: isSelected ? "#f0f9ff" : "#ffffff",
+                                                            cursor: "pointer",
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "space-between",
+                                                            gap: "1rem",
+                                                            transition: "all 0.15s ease",
+                                                            boxShadow: isSelected ? "0 4px 12px rgba(2,132,199,0.12)" : "0 1px 3px rgba(0,0,0,0.02)"
+                                                        }}
+                                                    >
+                                                        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+                                                            <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: isSelected ? "#0284c7" : "#e2e8f0", color: isSelected ? "#ffffff" : "#475569", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "1rem", flexShrink: 0 }}>
+                                                                {name.charAt(0).toUpperCase() || "T"}
+                                                            </div>
+                                                            <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                                                                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                                                                    <span style={{ fontWeight: 700, color: "#0f172a", fontSize: "0.925rem" }}>{name}</span>
+                                                                    {spec && (
+                                                                        <span style={{ background: "#e0f2fe", color: "#0369a1", padding: "0.15rem 0.55rem", borderRadius: "6px", fontSize: "0.725rem", fontWeight: 700 }}>
+                                                                            {spec}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "#64748b", fontSize: "0.8rem" }}>
+                                                                    <FiMapPin style={{ color: "#0284c7", flexShrink: 0 }} />
+                                                                    <span>{locString}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div style={{ display: "flex", alignItems: "center" }}>
+                                                            {isSelected ? (
+                                                                <FiCheckCircle style={{ color: "#0284c7", fontSize: "1.3rem" }} />
+                                                            ) : (
+                                                                <div style={{ width: "20px", height: "20px", borderRadius: "50%", border: "2px solid #cbd5e1" }}></div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={manualAllocatingLoading || !selectedTechId}
+                                        style={{
+                                            width: "100%",
+                                            padding: "0.75rem",
+                                            borderRadius: "10px",
+                                            background: selectedTechId ? "#0284c7" : "#cbd5e1",
+                                            color: "#ffffff",
+                                            border: "none",
+                                            fontWeight: 700,
+                                            fontSize: "0.9rem",
+                                            cursor: selectedTechId ? "pointer" : "not-allowed",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            gap: "0.5rem",
+                                            boxShadow: selectedTechId ? "0 4px 12px rgba(2,132,199,0.2)" : "none",
+                                            transition: "all 0.2s ease"
+                                        }}
+                                    >
+                                        <FiCpu /> Assign Selected Technician
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div className="modal-footer-actions" style={{ marginTop: "1rem" }}>
+                                <button
+                                    type="button"
+                                    className="action-btn--cancel"
+                                    onClick={() => setManualAllocatingDevice(null)}
+                                >
+                                    <FiX /> Cancel
                                 </button>
                             </div>
                         </div>

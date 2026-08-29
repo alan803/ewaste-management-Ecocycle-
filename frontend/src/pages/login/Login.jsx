@@ -3,6 +3,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useState } from "react";
+import { GoogleLogin } from "@react-oauth/google";
 
 function LoginIllustration() {
   return (
@@ -152,7 +153,6 @@ function Login() {
         "https://localhost:7102/api/Login/Login",
         form_dta
       );
-      console.log(response.data);
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("loginId", response.data.loginId);
       if (response.data.technicianId) {
@@ -172,6 +172,7 @@ function Login() {
           break;
 
         case "Collection Agent":
+          sessionStorage.setItem("justLoggedInCollectionAgent", "true");
           navigate("/collectionagent/dashboard");
           break;
         case "Inspection Officer":
@@ -298,10 +299,101 @@ function Login() {
             <span>or</span>
           </div>
 
-          <button className="google-btn">
-            <img src="https://www.google.com/favicon.ico" alt="Google" width="20" height="20" />
-            Sign in with Google
-          </button>
+          <GoogleLogin
+            onSuccess={async (credentialResponse) => {
+                try {
+                    const response = await axios.post(
+                        "https://localhost:7102/api/Login/GoogleLogin",
+                        {
+                            credential: credentialResponse.credential
+                        }
+                    );
+
+                    console.log("Google login successful:", response.data);
+
+                    localStorage.setItem("token", response.data.token);
+                    localStorage.setItem("loginId", response.data.loginId);
+
+                    if (response.data.technicianId) {
+                        localStorage.setItem(
+                            "technicianId",
+                            response.data.technicianId
+                        );
+                    }
+
+                    localStorage.setItem(
+                        "firstName",
+                        response.data.firstName
+                    );
+
+                    localStorage.setItem(
+                        "roleId",
+                        response.data.roleId
+                    );
+
+                    localStorage.setItem(
+                        "role",
+                        response.data.role
+                    );
+
+                    switch (response.data.role) {
+                        case "Citizen":
+                            navigate("/citizen");
+                            break;
+
+                        case "Administrator":
+                            navigate("/admin");
+                            break;
+
+                        case "Collection Agent":
+                            sessionStorage.setItem("justLoggedInCollectionAgent", "true");
+                            navigate("/collectionagent/dashboard");
+                            break;
+
+                        case "Inspection Officer":
+                            navigate("/technician_dashboard");
+                            break;
+
+                        case "Refurbishment Center":
+                            navigate("/refurbishmententer_dashboard");
+                            break;
+
+                        case "Recycling Center":
+                            navigate("/recyclingenter_dashboard");
+                            break;
+
+                        default:
+                            console.log(
+                                "Invalid role:",
+                                response.data.role
+                            );
+                            navigate("/");
+                            break;
+                    }
+
+                } catch (error) {
+                    console.error("Google login error:", error);
+
+                    const message =
+                        error.response?.data?.message ||
+                        "Google login failed.";
+
+                    setErrors(prev => ({
+                        ...prev,
+                        status_er: message
+                    }));
+                }
+            }}
+
+            onError={() => {
+                console.error("Google login failed.");
+
+                setErrors(prev => ({
+                    ...prev,
+                    status_er: "Google login failed. Please try again."
+                }));
+            }}
+        />
 
           <div className="login-links">
             <p>

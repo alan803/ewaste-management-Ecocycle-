@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { FaEye, FaEyeSlash, FaClock } from "react-icons/fa";
+import { FiMapPin } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "./Technician_signup.css";
@@ -48,7 +49,7 @@ function Technician_signup()
 
     const sections = [
         "Personal Details",
-        "Address Details",
+        "Shop Address Details",
         "Employment Details",
         "Certification Details",
         "Identity Verification",
@@ -831,14 +832,27 @@ function Technician_signup()
 
                         {currentStep === 1 && (
                         <div className="form-section">
-                            <h3>Address Details</h3>
+                            <h3>Shop / Inspection Center Address Details</h3>
+                            <div className="shop-location-banner">
+                                <div className="shop-location-icon-wrapper">
+                                    <FiMapPin />
+                                </div>
+                                <div className="shop-location-content">
+                                    <div className="shop-location-header">
+                                        <span className="shop-location-title">Inspection Center Location</span>
+                                    </div>
+                                    <div className="shop-location-text">
+                                        Please enter the physical address of your <strong>Shop / Inspection Facility</strong>. Collection agents will deliver assigned e-waste items to this location for testing.
+                                    </div>
+                                </div>
+                            </div>
                             <div className="technician-form-grid">
                                 <div className="technician-form-column">
                                     <div className="technician-field">
-                                        <label>Address</label>
+                                        <label>Shop / Facility Address</label>
                                         <input
                                             type="text"
-                                            placeholder="Enter your full address"
+                                            placeholder="Enter your full shop / inspection facility address"
                                             name="address"
                                             value={form_dta.address}
                                             onChange={handleInputChange}
@@ -847,24 +861,24 @@ function Technician_signup()
                                         {error.address_er && <div className="error-message">{error.address_er}</div>}
                                     </div>
                                     <div className="technician-field">
-                                        <label>PIN Code</label>
+                                        <label>Shop PIN Code</label>
                                         <input
                                             type="text"
-                                            placeholder="Enter 6-digit PIN code"
+                                            placeholder="Enter 6-digit shop PIN code"
                                             name="pinCode"
                                             value={form_dta.pinCode}
                                             onChange={handleInputChange}
                                             maxLength={6}
                                             className={error.pinCode_er || pincodeError ? "input-error" : ""}
                                         />
-                                        {pincodeLoading && <div className="loading-text">Fetching location...</div>}
+                                        {pincodeLoading && <div className="loading-text">Fetching shop location...</div>}
                                         {pincodeError && <div className="error-message">{pincodeError}</div>}
                                         {error.pinCode_er && <div className="error-message">{error.pinCode_er}</div>}
                                     </div>
                                 </div>
                                 <div className="technician-form-column">
                                     <div className="technician-field">
-                                        <label>State</label>
+                                        <label>Shop State</label>
                                         <input
                                             type="text"
                                             name="state"
@@ -875,7 +889,7 @@ function Technician_signup()
                                         />
                                     </div>
                                     <div className="technician-field">
-                                        <label>District</label>
+                                        <label>Shop District</label>
                                         <input
                                             type="text"
                                             name="district"
@@ -886,7 +900,7 @@ function Technician_signup()
                                         />
                                     </div>
                                     <div className="technician-field">
-                                        <label>City</label>
+                                        <label>Shop City / Town</label>
                                         <input
                                             type="text"
                                             name="city"
@@ -907,10 +921,10 @@ function Technician_signup()
                             <div className="technician-form-grid">
                                 <div className="technician-form-column">
                                     <div className="technician-field">
-                                        <label>Inspection Center Name</label>
+                                        <label>Shop / Inspection Center Name</label>
                                         <input
                                             type="text"
-                                            placeholder="Enter inspection center name"
+                                            placeholder="Enter shop / inspection center name"
                                             name="inspectionCenterName"
                                             value={form_dta.inspectionCenterName}
                                             onChange={handleInputChange}

@@ -22,6 +22,65 @@ namespace EcoCycle.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("CollectionAssignment", b =>
+                {
+                    b.Property<int>("CollectionAssignmentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CollectionAssignmentId"));
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("AssignedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("CollectionAgentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DeviceId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("PickedUpAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("PickupStartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ResponseDeadline")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("CollectionAssignmentId");
+
+                    b.HasIndex("CollectionAgentId");
+
+                    b.HasIndex("DeviceId");
+
+                    b.ToTable("CollectionAssignments");
+                });
+
             modelBuilder.Entity("EcoCycle.API.Models.AllocationRejection", b =>
                 {
                     b.Property<int>("RejectionId")
@@ -168,21 +227,19 @@ namespace EcoCycle.Migrations
                     b.ToTable("CollectionAgents");
                 });
 
-            modelBuilder.Entity("EcoCycle.API.Models.CollectionAssignment", b =>
+            modelBuilder.Entity("EcoCycle.API.Models.Delivery", b =>
                 {
-                    b.Property<int>("CollectionAssignmentId")
+                    b.Property<int>("DeliveryId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("CollectionAssignmentId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("DeliveryId"));
 
-                    b.Property<DateTime?>("AcceptedAt")
-                        .HasColumnType("datetime2");
+                    b.Property<string>("AgentNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
-                    b.Property<DateTime?>("AssignedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("CollectionAgentId")
+                    b.Property<int>("CollectionAssignmentId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
@@ -191,34 +248,30 @@ namespace EcoCycle.Migrations
                     b.Property<DateTime?>("DeliveredAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("DeviceId")
-                        .HasColumnType("int");
+                    b.Property<bool>("DeviceVerified")
+                        .HasColumnType("bit");
 
-                    b.Property<DateTime?>("PickedUpAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("PickupStartedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("RejectionReason")
+                    b.Property<string>("FailureReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ProofPhotoPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                    b.HasKey("DeliveryId");
 
-                    b.HasKey("CollectionAssignmentId");
+                    b.HasIndex("CollectionAssignmentId");
 
-                    b.HasIndex("CollectionAgentId");
-
-                    b.HasIndex("DeviceId");
-
-                    b.ToTable("CollectionAssignments");
+                    b.ToTable("Deliveries");
                 });
 
             modelBuilder.Entity("EcoCycle.API.Models.Device", b =>
@@ -237,6 +290,9 @@ namespace EcoCycle.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("AllocationRequested")
+                        .HasColumnType("bit");
 
                     b.Property<string>("BackPhoto")
                         .HasMaxLength(255)
@@ -269,6 +325,10 @@ namespace EcoCycle.Migrations
                     b.Property<string>("DamagePhoto")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("DeviceQrToken")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("DisplayCondition")
                         .HasMaxLength(50)
@@ -357,6 +417,10 @@ namespace EcoCycle.Migrations
 
                     b.HasIndex("CategoryId");
 
+                    b.HasIndex("DeviceQrToken")
+                        .IsUnique()
+                        .HasFilter("[DeviceQrToken] IS NOT NULL");
+
                     b.HasIndex("UserId");
 
                     b.ToTable("Device");
@@ -388,6 +452,47 @@ namespace EcoCycle.Migrations
                     b.HasKey("CategoryId");
 
                     b.ToTable("DeviceCategory");
+                });
+
+            modelBuilder.Entity("EcoCycle.API.Models.DeviceModel", b =>
+                {
+                    b.Property<int>("DeviceModelId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("DeviceModelId"));
+
+                    b.Property<string>("Brand")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("ModelNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal?>("Weight")
+                        .HasColumnType("decimal(8,3)");
+
+                    b.HasKey("DeviceModelId");
+
+                    b.HasIndex("CategoryId");
+
+                    b.ToTable("DeviceModel");
                 });
 
             modelBuilder.Entity("EcoCycle.API.Models.InspectionRequest", b =>
@@ -462,6 +567,9 @@ namespace EcoCycle.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("GoogleId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("LastLogin")
                         .HasColumnType("datetime2");
 
@@ -519,6 +627,53 @@ namespace EcoCycle.Migrations
                     b.HasKey("NotificationId");
 
                     b.ToTable("Notification");
+                });
+
+            modelBuilder.Entity("EcoCycle.API.Models.Pickup", b =>
+                {
+                    b.Property<int>("PickupId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PickupId"));
+
+                    b.Property<string>("AgentNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("CollectionAssignmentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("DeviceVerified")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("PickedUpAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ProofPhotoPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("PickupId");
+
+                    b.HasIndex("CollectionAssignmentId");
+
+                    b.ToTable("Pickups");
                 });
 
             modelBuilder.Entity("EcoCycle.API.Models.RecyclingCenter", b =>
@@ -1002,6 +1157,23 @@ namespace EcoCycle.Migrations
                     b.ToTable("UserPushTokens");
                 });
 
+            modelBuilder.Entity("CollectionAssignment", b =>
+                {
+                    b.HasOne("EcoCycle.API.Models.CollectionAgent", "CollectionAgent")
+                        .WithMany()
+                        .HasForeignKey("CollectionAgentId");
+
+                    b.HasOne("EcoCycle.API.Models.Device", "Device")
+                        .WithMany("CollectionAssignments")
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CollectionAgent");
+
+                    b.Navigation("Device");
+                });
+
             modelBuilder.Entity("EcoCycle.API.Models.CollectionAgent", b =>
                 {
                     b.HasOne("EcoCycle.API.Models.Login", "Login")
@@ -1013,21 +1185,15 @@ namespace EcoCycle.Migrations
                     b.Navigation("Login");
                 });
 
-            modelBuilder.Entity("EcoCycle.API.Models.CollectionAssignment", b =>
+            modelBuilder.Entity("EcoCycle.API.Models.Delivery", b =>
                 {
-                    b.HasOne("EcoCycle.API.Models.CollectionAgent", "CollectionAgent")
+                    b.HasOne("CollectionAssignment", "CollectionAssignment")
                         .WithMany()
-                        .HasForeignKey("CollectionAgentId");
-
-                    b.HasOne("EcoCycle.API.Models.Device", "Device")
-                        .WithMany()
-                        .HasForeignKey("DeviceId")
+                        .HasForeignKey("CollectionAssignmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("CollectionAgent");
-
-                    b.Navigation("Device");
+                    b.Navigation("CollectionAssignment");
                 });
 
             modelBuilder.Entity("EcoCycle.API.Models.Device", b =>
@@ -1047,6 +1213,17 @@ namespace EcoCycle.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("EcoCycle.API.Models.DeviceModel", b =>
+                {
+                    b.HasOne("EcoCycle.API.Models.DeviceCategory", "Category")
+                        .WithMany("DeviceModels")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("EcoCycle.API.Models.InspectionRequest", b =>
@@ -1075,6 +1252,17 @@ namespace EcoCycle.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
+                });
+
+            modelBuilder.Entity("EcoCycle.API.Models.Pickup", b =>
+                {
+                    b.HasOne("CollectionAssignment", "CollectionAssignment")
+                        .WithMany()
+                        .HasForeignKey("CollectionAssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CollectionAssignment");
                 });
 
             modelBuilder.Entity("EcoCycle.API.Models.RecyclingCenter", b =>
@@ -1134,7 +1322,14 @@ namespace EcoCycle.Migrations
 
             modelBuilder.Entity("EcoCycle.API.Models.Device", b =>
                 {
+                    b.Navigation("CollectionAssignments");
+
                     b.Navigation("InspectionRequests");
+                });
+
+            modelBuilder.Entity("EcoCycle.API.Models.DeviceCategory", b =>
+                {
+                    b.Navigation("DeviceModels");
                 });
 #pragma warning restore 612, 618
         }

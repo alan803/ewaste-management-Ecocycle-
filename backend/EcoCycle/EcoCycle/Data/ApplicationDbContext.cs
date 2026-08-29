@@ -1,4 +1,4 @@
-﻿using EcoCycle.API.Models;
+using EcoCycle.API.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace EcoCycle.API.Data
@@ -24,5 +24,8 @@ namespace EcoCycle.API.Data
         public DbSet<UserPushToken> UserPushTokens { get; set; }
         public DbSet<AllocationRejection> AllocationRejections { get; set; }
         public DbSet<Notification> Notification {  get; set; }
+        public DbSet<DeviceModel> DeviceModel { get; set; }
+        public DbSet<Pickup> Pickups { get; set; }
+        public DbSet<Delivery> Deliveries { get; set; }
     }
 }

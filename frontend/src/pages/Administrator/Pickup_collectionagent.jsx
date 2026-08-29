@@ -30,6 +30,7 @@ function Pickup_collectionagent() {
     const [searchQuery, setSearchQuery] = useState("");
     const [activeFilter, setActiveFilter] = useState("All");
     const [selectedAssignment, setSelectedAssignment] = useState(null);
+    const [locationModalTarget, setLocationModalTarget] = useState(null);
 
     // Manual Allocation Modal State
     const [reassigningAssignment, setReassigningAssignment] = useState(null);
@@ -153,13 +154,13 @@ function Pickup_collectionagent() {
     const formatShortDate = (dateString) => {
         if (!dateString) return "N/A";
         try {
-            const date = new Date(dateString);
+            let cleanStr = typeof dateString === "string" ? dateString.split("T")[0] : dateString;
+            const date = new Date(cleanStr);
             if (isNaN(date.getTime())) return "N/A";
             return date.toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit"
+                year: "numeric"
             });
         } catch {
             return "N/A";
@@ -256,9 +257,6 @@ function Pickup_collectionagent() {
                 <header className="admin-topbar">
                     <div className="topbar-left">
                         <div className="command-brand">
-                            <span className="command-badge">
-                                <span className="live-dot"></span> SYSTEM ONLINE
-                            </span>
                             <h1>Collection Agent Pickups</h1>
                         </div>
                         <p className="command-subtitle">
@@ -350,26 +348,38 @@ function Pickup_collectionagent() {
                             </div>
                         ) : (
                             <div className="glass-table-wrapper">
-                                <table className="glass-table">
+                                 <table className="glass-table">
                                     <thead>
                                         <tr>
-                                            <th>#</th>
-                                            <th>Device Details</th>
-                                            <th>Citizen / Owner</th>
-                                            <th>Collection Agent & Details</th>
-                                            <th>Pickup Schedule</th>
-                                            <th>Status & Rejection</th>
-                                            <th>Actions</th>
+                                            <th style={{ width: "40px" }}>#</th>
+                                            <th style={{ minWidth: "160px" }}>Device Details</th>
+                                            <th style={{ minWidth: "160px" }}>Citizen / Owner</th>
+                                            <th style={{ minWidth: "170px" }}>Collection Agent</th>
+                                            <th style={{ minWidth: "145px" }}>Pickup Schedule</th>
+                                            <th style={{ minWidth: "160px" }}>Status & Rejection</th>
+                                            <th style={{ minWidth: "150px", whiteSpace: "nowrap" }}>Actions</th>
+                                            <th style={{ width: "80px", textAlign: "center", whiteSpace: "nowrap" }}>Details</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredCollection.map((item, index) => {
-                                            const isRejected = (item.status || "").toLowerCase() === "rejected" || (item.status || "").toLowerCase() === "declined";
+                                            // Find highest collection assignment ID for this device to check if this item is the latest assignment
+                                            const deviceAssignments = collectionAssignments.filter(ca => ca.deviceId === item.deviceId);
+                                            const latestAssignmentId = deviceAssignments.length > 0 
+                                                ? Math.max(...deviceAssignments.map(ca => ca.collectionAssignmentId || 0))
+                                                : item.collectionAssignmentId;
+                                            
+                                            const isLatestAssignment = (item.collectionAssignmentId || 0) === latestAssignmentId;
+
                                             const statusLower = (item.status || "").toLowerCase();
-                                            const lifecycleLower = (item.lifecycleStatus || "").toLowerCase();
-                                            const isAccepted = statusLower === "accepted";
-                                            const isTechnicianAllocated = lifecycleLower.includes("inspection") || lifecycleLower.includes("refurbish") || lifecycleLower.includes("recycle") || Boolean(item.technicianId);
-                                            const showAllocateManually = statusLower === "waiting" && !isAccepted && !isTechnicianAllocated;
+                                            const isRejected = statusLower === "rejected" || statusLower === "declined";
+                                            const isCancelled = statusLower === "cancelled";
+                                            const isWaiting = statusLower === "waiting" || !item.collectionAgentId || item.collectionAgentName === "Unassigned";
+                                            const isCompletedOrDelivered = statusLower === "completed" || statusLower === "delivered";
+
+                                            // Can allocate if this is the LATEST assignment for the device and is unassigned/rejected/cancelled
+                                            const canAllocate = isLatestAssignment && (isWaiting || isRejected || isCancelled) && !isCompletedOrDelivered;
+                                            const canReassign = isLatestAssignment && !canAllocate && !isCompletedOrDelivered;
 
                                             return (
                                                 <tr
@@ -408,11 +418,12 @@ function Pickup_collectionagent() {
                                                             </div>
                                                         ) : (
                                                             <div className="user-info">
-                                                                <span className="user-name">Unassigned</span>
+                                                                <span className="user-name" style={{ color: "#d97706", fontWeight: 700 }}>Waiting for Agent</span>
                                                                 <span className="user-email">Ph: N/A</span>
                                                             </div>
                                                         )}
                                                     </td>
+
                                                     <td className="contact-cell">
                                                         <div className="deadline-cell-group">
                                                             <div className="deadline-item">
@@ -439,33 +450,60 @@ function Pickup_collectionagent() {
                                                             ) : null}
                                                         </div>
                                                     </td>
-                                                    <td>
-                                                        <div className="action-buttons" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                                                            {showAllocateManually ? (
+                                                    <td style={{ whiteSpace: "nowrap" }}>
+                                                        <div className="action-buttons" style={{ display: "flex", flexDirection: "column", gap: "0.35rem", alignItems: "stretch", whiteSpace: "nowrap" }}>
+                                                            {canAllocate ? (
+                                                                <>
+                                                                    <button
+                                                                        className="action-btn action-btn--auto"
+                                                                        onClick={() => handleAutoReassign(item.collectionAssignmentId)}
+                                                                        disabled={reassigningLoading}
+                                                                        title="Automatically Allocate Best Available Agent"
+                                                                        style={{ background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", whiteSpace: "nowrap", width: "100%", justifyContent: "center" }}
+                                                                    >
+                                                                        <FiCpu className={reassigningLoading ? "spin-icon" : ""} />
+                                                                        <span>Auto Allocate</span>
+                                                                    </button>
+
+                                                                    <button
+                                                                        className="action-btn action-btn--allocate-manual"
+                                                                        onClick={() => {
+                                                                            setReassigningAssignment(item);
+                                                                            fetchActiveAgents();
+                                                                        }}
+                                                                        title="Manually Select Collection Agent"
+                                                                        style={{ whiteSpace: "nowrap", width: "100%", justifyContent: "center" }}
+                                                                    >
+                                                                        <FiUserCheck />
+                                                                        <span>Allocate Manually</span>
+                                                                    </button>
+                                                                </>
+                                                            ) : canReassign ? (
                                                                 <button
                                                                     className="action-btn action-btn--allocate-manual"
                                                                     onClick={() => {
                                                                         setReassigningAssignment(item);
                                                                         fetchActiveAgents();
                                                                     }}
-                                                                    title="Manually Allocate Collection Agent"
+                                                                    title="Reassign Collection Agent"
+                                                                    style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", whiteSpace: "nowrap", width: "100%", justifyContent: "center" }}
                                                                 >
-                                                                    <FiCpu />
-                                                                    <span>Allocate Manually</span>
+                                                                    <FiRotateCcw />
+                                                                    <span>Reassign</span>
                                                                 </button>
                                                             ) : (
-                                                                <>
-                                                                    <button
-                                                                        className="action-btn action-btn--view"
-                                                                        onClick={() => setSelectedAssignment(item)}
-                                                                        title="View Assignment Details"
-                                                                    >
-                                                                        <FiEye />
-                                                                    </button>
-                                                                    
-                                                                </>
+                                                                <span style={{ fontSize: "0.8rem", color: "#94a3b8", fontWeight: 500 }}>-</span>
                                                             )}
                                                         </div>
+                                                    </td>
+                                                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
+                                                        <button
+                                                            className="action-btn action-btn--view"
+                                                            onClick={() => setSelectedAssignment(item)}
+                                                            title="View Assignment Details"
+                                                        >
+                                                            <FiEye />
+                                                        </button>
                                                     </td>
                                                 </tr>
                                             );
@@ -480,7 +518,7 @@ function Pickup_collectionagent() {
                 {/* Details View Modal */}
                 {selectedAssignment && (
                     <div className="modal-overlay" onClick={() => setSelectedAssignment(null)}>
-                        <div className="device-modal-card" style={{ maxWidth: "680px", width: "90%" }} onClick={(e) => e.stopPropagation()}>
+                        <div className="device-modal-card" style={{ maxWidth: "700px", width: "92%" }} onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <div>
                                     <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#0f172a", margin: 0 }}>
@@ -532,25 +570,55 @@ function Pickup_collectionagent() {
                                     <label>ASSIGNED AT</label>
                                     <span>{formatDate(selectedAssignment.assignedAt)}</span>
                                 </div>
-                                <div className="detail-item">
-                                    <label>SCHEDULED PICKUP DATE</label>
-                                    <span>{formatDate(selectedAssignment.pickupDate)}</span>
+
+                                {/* COLLECT FROM & DELIVER TO ROUTING FLOW */}
+                                <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.5rem" }}>
+                                    {/* COLLECT FROM */}
+                                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "1.1rem 1.25rem", borderRadius: "14px" }}>
+                                        <div style={{ fontSize: "0.75rem", fontWeight: 800, color: "#047857", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.4rem" }}>
+                                            <FiMapPin style={{ fontSize: "0.95rem" }} /> COLLECT FROM
+                                        </div>
+                                        <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#065f46" }}>
+                                            Customer: {selectedAssignment.customerName || "Citizen"} {selectedAssignment.customerPhone ? `(Ph: ${selectedAssignment.customerPhone})` : ""}
+                                        </div>
+                                        <div style={{ fontSize: "0.875rem", color: "#047857", marginTop: "0.25rem", lineHeight: 1.45, fontWeight: 500 }}>
+                                            <strong>Customer pickup address:</strong> {selectedAssignment.address}
+                                            {selectedAssignment.landmark ? ` (Landmark: ${selectedAssignment.landmark})` : ""}
+                                            {[selectedAssignment.city, selectedAssignment.district, selectedAssignment.state, selectedAssignment.pincode].filter(Boolean).length > 0 ? `, ${[selectedAssignment.city, selectedAssignment.district, selectedAssignment.state, selectedAssignment.pincode].filter(Boolean).join(", ")}` : ""}
+                                        </div>
+                                        <div style={{ fontSize: "0.825rem", color: "#059669", marginTop: "0.35rem", fontWeight: 600 }}>
+                                            <strong>Pickup date / time slot:</strong> {formatDate(selectedAssignment.pickupDate)} • {selectedAssignment.timeSlot || "Standard Slot"}
+                                        </div>
+                                    </div>
+
+                                    {/* ROUTING ARROW */}
+                                    <div style={{ textAlign: "center", color: "#059669", fontSize: "1.5rem", fontWeight: 800, margin: "-0.3rem 0" }}>
+                                        ↓
+                                    </div>
+
+                                    {/* DELIVER TO */}
+                                    <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "1.1rem 1.25rem", borderRadius: "14px" }}>
+                                        <div style={{ fontSize: "0.75rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.4rem" }}>
+                                            <FiTruck style={{ fontSize: "0.95rem" }} /> DELIVER TO
+                                        </div>
+                                        <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e40af" }}>
+                                            Technician / Inspection Center: {selectedAssignment.technicianName ? selectedAssignment.technicianName : "EcoCycle Inspection Team"} {selectedAssignment.inspectionCenterName ? `(${selectedAssignment.inspectionCenterName})` : "(Central Processing Hub)"} {selectedAssignment.technicianPhone ? `• Ph: ${selectedAssignment.technicianPhone}` : ""}
+                                        </div>
+                                        <div style={{ fontSize: "0.875rem", color: "#1e3a8a", marginTop: "0.25rem", lineHeight: 1.45, fontWeight: 500 }}>
+                                            <strong>Technician/center address:</strong> {selectedAssignment.deliveredAddress || (selectedAssignment.technicianAddress ? `${selectedAssignment.technicianAddress}, ${selectedAssignment.technicianCity || ""} ${selectedAssignment.technicianDistrict || ""} ${selectedAssignment.technicianState || ""} ${selectedAssignment.technicianPincode || ""}` : "EcoCycle Central E-Waste Processing Facility & Inspection Center")}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="detail-item" style={{ gridColumn: "1 / -1" }}>
-                                    <label>PICKUP LOCATION</label>
-                                    <span>
-                                        {selectedAssignment.address}
-                                        {selectedAssignment.landmark ? ` (Landmark: ${selectedAssignment.landmark})` : ""}
-                                        {[selectedAssignment.city, selectedAssignment.district, selectedAssignment.state, selectedAssignment.pincode].filter(Boolean).length > 0 ? `, ${[selectedAssignment.city, selectedAssignment.district, selectedAssignment.state, selectedAssignment.pincode].filter(Boolean).join(", ")}` : ""}
-                                    </span>
-                                </div>
+
                                 {selectedAssignment.pickupInstructions && (
-                                    <div className="detail-item" style={{ gridColumn: "1 / -1" }}>
+                                    <div className="detail-item" style={{ gridColumn: "1 / -1", marginTop: "0.5rem" }}>
                                         <label>PICKUP INSTRUCTIONS</label>
                                         <span>{selectedAssignment.pickupInstructions}</span>
                                     </div>
                                 )}
                             </div>
+
+
 
                             {selectedAssignment.rejectionReason && (
                                 <div className="assignment-rejection-box" style={{ background: "#fff1f2", border: "1px solid #fecdd3", padding: "1rem", borderRadius: "12px", marginTop: "1rem", display: "flex", gap: "0.75rem", alignItems: "flex-start" }}>
@@ -789,16 +857,17 @@ function Pickup_collectionagent() {
 
                             <div className="modal-footer-actions" style={{ marginTop: "1rem" }}>
                                 <button
-                                    className="action-btn action-btn--view"
+                                    type="button"
+                                    className="action-btn--cancel"
                                     onClick={() => setReassigningAssignment(null)}
-                                    style={{ width: "auto", padding: "0 1.5rem", height: "42px", borderRadius: "10px", fontWeight: 700 }}
                                 >
-                                    Cancel
+                                    <FiX /> Cancel
                                 </button>
                             </div>
                         </div>
                     </div>
                 )}
+
             </div>
         </div>
     );

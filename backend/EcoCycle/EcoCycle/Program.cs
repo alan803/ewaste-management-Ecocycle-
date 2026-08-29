@@ -85,6 +85,24 @@ using (var scope = app.Services.CreateScope())
             BEGIN
                 ALTER TABLE [dbo].[CollectionAssignments] ALTER COLUMN [CollectionAgentId] INT NULL;
             END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[CollectionAssignments]') 
+                AND name = N'ResponseDeadline'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[CollectionAssignments] ADD [ResponseDeadline] DATETIME2 NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[CollectionAssignments]') 
+                AND name = N'RespondedAt'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[CollectionAssignments] ADD [RespondedAt] DATETIME2 NULL;
+            END
         ");
     }
     catch (Exception ex)

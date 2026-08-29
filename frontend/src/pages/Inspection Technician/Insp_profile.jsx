@@ -50,6 +50,9 @@ function Insp_profile() {
     const [selectedFile, setSelectedFile] = useState(null);
     const [profileImagePreview, setProfileImagePreview] = useState(null);
 
+    // Tab Navigation State (Overview, Credentials, Security)
+    const [activeTab, setActiveTab] = useState("overview");
+
     // Edit Mode State
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState({
@@ -613,9 +616,6 @@ function Insp_profile() {
 
                 {/* Technician Profile Hero Card */}
                 <div className="tech-hero-card">
-                    <div className="tech-hero-banner">
-                        <div className="tech-hero-banner-pattern"></div>
-                    </div>
                     <div className="tech-hero-body">
                         <div className="tech-hero-profile-wrap">
                             <div className="tech-avatar-frame">
@@ -698,19 +698,6 @@ function Insp_profile() {
                                 </div>
                             )}
 
-                            {!showPasswordSection && (
-                                <button
-                                    type="button"
-                                    className="tech-change-pwd-btn"
-                                    onClick={() => {
-                                        handleResetPasswordForm();
-                                        setShowPasswordSection(true);
-                                    }}
-                                >
-                                    <FiKey /> Change Password
-                                </button>
-                            )}
-
                             <div className="tech-id-badge-btn">
                                 <FiAward />
                                 <span>Employee ID: {employeeId}</span>
@@ -719,8 +706,33 @@ function Insp_profile() {
                     </div>
                 </div>
 
-                {/* Change Password Simple Card UI */}
-                {showPasswordSection && (
+                {/* Segmented Navigation Tab Bar */}
+                <div className="tech-nav-tabs">
+                    <button
+                        type="button"
+                        className={`tech-tab-item ${activeTab === "overview" ? "active" : ""}`}
+                        onClick={() => setActiveTab("overview")}
+                    >
+                        <FiUser /> Personal Overview
+                    </button>
+                    <button
+                        type="button"
+                        className={`tech-tab-item ${activeTab === "credentials" ? "active" : ""}`}
+                        onClick={() => setActiveTab("credentials")}
+                    >
+                        <FiShield /> Credentials & Docs
+                    </button>
+                    <button
+                        type="button"
+                        className={`tech-tab-item ${activeTab === "security" ? "active" : ""}`}
+                        onClick={() => setActiveTab("security")}
+                    >
+                        <FiLock /> Security & Password
+                    </button>
+                </div>
+
+                {/* TAB 3: Security & Change Password Card */}
+                {activeTab === "security" && (
                     <div className="password-change-card">
                         <div className="password-card-header">
                             <div className="password-card-title-group">
@@ -918,55 +930,54 @@ function Insp_profile() {
                     </div>
                 )}
 
-                {/* Hide lower sections when password is updating */}
-                {!showPasswordSection && (
+                {/* TAB 1: Personal Overview */}
+                {activeTab === "overview" && (
                     <>
+                        {/* Diagnostic Metrics Ribbon */}
+                        <div className="tech-metrics-grid">
+                            <div className="tech-metric-card">
+                                <div className="tech-metric-icon emerald">
+                                    <FiCpu />
+                                </div>
+                                <div className="tech-metric-text">
+                                    <div className="tech-metric-label">Diagnostic Hub</div>
+                                    <div className="tech-metric-val">{centerName}</div>
+                                </div>
+                            </div>
 
-                {/* Diagnostic Metrics Ribbon */}
-                <div className="tech-metrics-grid">
-                    <div className="tech-metric-card">
-                        <div className="tech-metric-icon emerald">
-                            <FiCpu />
-                        </div>
-                        <div className="tech-metric-text">
-                            <div className="tech-metric-label">Diagnostic Hub</div>
-                            <div className="tech-metric-val">{centerName}</div>
-                        </div>
-                    </div>
+                            <div className="tech-metric-card">
+                                <div className="tech-metric-icon blue">
+                                    <FiAward />
+                                </div>
+                                <div className="tech-metric-text">
+                                    <div className="tech-metric-label">Experience</div>
+                                    <div className="tech-metric-val">{expYears} Years</div>
+                                </div>
+                            </div>
 
-                    <div className="tech-metric-card">
-                        <div className="tech-metric-icon blue">
-                            <FiAward />
-                        </div>
-                        <div className="tech-metric-text">
-                            <div className="tech-metric-label">Experience</div>
-                            <div className="tech-metric-val">{expYears} Years</div>
-                        </div>
-                    </div>
+                            <div className="tech-metric-card">
+                                <div className="tech-metric-icon purple">
+                                    <FiBriefcase />
+                                </div>
+                                <div className="tech-metric-text">
+                                    <div className="tech-metric-label">Specialization</div>
+                                    <div className="tech-metric-val">{specialization}</div>
+                                </div>
+                            </div>
 
-                    <div className="tech-metric-card">
-                        <div className="tech-metric-icon purple">
-                            <FiBriefcase />
+                            <div className="tech-metric-card">
+                                <div className="tech-metric-icon amber">
+                                    <FiShield />
+                                </div>
+                                <div className="tech-metric-text">
+                                    <div className="tech-metric-label">Certification</div>
+                                    <div className="tech-metric-val">{certNo}</div>
+                                </div>
+                            </div>
                         </div>
-                        <div className="tech-metric-text">
-                            <div className="tech-metric-label">Specialization</div>
-                            <div className="tech-metric-val">{specialization}</div>
-                        </div>
-                    </div>
 
-                    <div className="tech-metric-card">
-                        <div className="tech-metric-icon amber">
-                            <FiShield />
-                        </div>
-                        <div className="tech-metric-text">
-                            <div className="tech-metric-label">Certification</div>
-                            <div className="tech-metric-val">{certNo}</div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Details Section Grid */}
-                <div className="tech-details-grid">
+                        {/* Details Section Grid */}
+                        <div className="tech-details-grid">
                     {/* Personal Information (Editable) */}
                     <div className="tech-card">
                         <div className="tech-card-header">
@@ -1162,9 +1173,16 @@ function Insp_profile() {
                             </div>
                         </div>
                     </div>
+                </div>
+                </>
+            )}
 
-                    {/* Diagnostic Station & Role (Locked Admin Verified) */}
-                    <div className="tech-card" style={{ background: "#fafafa" }}>
+                {/* TAB 2: Credentials & Docs */}
+                {activeTab === "credentials" && (
+                    <>
+                        <div className="tech-details-grid">
+                            {/* Diagnostic Station & Role (Locked Admin Verified) */}
+                            <div className="tech-card">
                         <div className="tech-card-header">
                             <div className="tech-card-title-group">
                                 <div className="tech-card-icon purple">
@@ -1367,19 +1385,14 @@ function Insp_profile() {
                                     </div>
 
                                     {hasFile && (
-                                        <button
-                                            type="button"
+                                        <a
+                                            href={url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
                                             className="tech-doc-view-btn"
-                                            onClick={() =>
-                                                setActiveDoc({
-                                                    title: doc.title,
-                                                    url: url,
-                                                    filename: doc.filename
-                                                })
-                                            }
                                         >
-                                            <FiEye /> View
-                                        </button>
+                                            <FiExternalLink /> View ↗
+                                        </a>
                                     )}
                                 </div>
                             );
@@ -1389,65 +1402,6 @@ function Insp_profile() {
                     </>
                 )}
             </div>
-
-            {/* Document Preview Lightbox Modal */}
-            {activeDoc && (
-                <div className="tech-modal-overlay" onClick={() => setActiveDoc(null)}>
-                    <div
-                        className="tech-modal-content"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <div className="tech-modal-header">
-                            <h3 className="tech-modal-title">{activeDoc.title}</h3>
-                            <button
-                                type="button"
-                                className="tech-modal-close"
-                                onClick={() => setActiveDoc(null)}
-                            >
-                                <FiX />
-                            </button>
-                        </div>
-                        <div className="tech-modal-body">
-                            {activeDoc.url.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i) ? (
-                                <img
-                                    src={activeDoc.url}
-                                    alt={activeDoc.title}
-                                    className="tech-modal-img"
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.alt = "Failed to load document preview.";
-                                    }}
-                                />
-                            ) : (
-                                <div style={{ textAlign: "center", padding: "2rem" }}>
-                                    <FiFileText style={{ fontSize: "3rem", color: "#059669" }} />
-                                    <p style={{ marginTop: "1rem", color: "#475569" }}>
-                                        Document File: <strong>{activeDoc.filename}</strong>
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                        <div className="tech-modal-footer">
-                            <a
-                                href={activeDoc.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="tech-save-btn"
-                                style={{ background: "#059669", color: "#ffffff", textDecoration: "none" }}
-                            >
-                                <FiExternalLink /> Open Original Document
-                            </a>
-                            <button
-                                type="button"
-                                className="tech-cancel-btn"
-                                onClick={() => setActiveDoc(null)}
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

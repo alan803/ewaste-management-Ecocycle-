@@ -48,6 +48,9 @@ function CitizenDashboard() {
     const [inspectionRequests, setInspectionRequests] = useState([]);
     const [loadingRequests, setLoadingRequests] = useState(true);
     const [selectedPickupDetails, setSelectedPickupDetails] = useState(null);
+    const [notifications, setNotifications] = useState([]);
+    const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+    const [showOverdueBanner, setShowOverdueBanner] = useState(true);
 
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -58,7 +61,34 @@ function CitizenDashboard() {
         }
         fetchProfile(token);
         fetchMyPickupRequests(token);
+        fetchNotifications(token);
     }, [navigate]);
+
+    const fetchNotifications = async (token) => {
+        const authToken = token || localStorage.getItem("token");
+        if (!authToken) return;
+        try {
+            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+                headers: { Authorization: `Bearer ${authToken}` }
+            });
+            console.log("Citizen Notifications:", response.data);
+            setNotifications(response.data || []);
+        } catch (err) {
+            console.error("Error fetching citizen notifications:", err);
+        }
+    };
+
+    const markAllNotificationsAsRead = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            await axios.get("https://localhost:7102/api/Notificationcon/mark_asread", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        } catch (err) {
+            console.error("Error marking notifications as read:", err);
+        }
+    };
 
     const fetchProfile = async (token) => {
         try {
@@ -106,15 +136,8 @@ function CitizenDashboard() {
           localStorage.getItem("name") ||
           "Citizen Champion";
 
-    // Filter to only show devices where Collection Agent has accepted for delivery
-    const acceptedDeliveryRequests = inspectionRequests.filter(req => {
-        if (req.collectionAgentAccepted === true) return true;
-        const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
-        if (cas === "accepted" || cas === "completed" || cas === "intransit" || cas === "pickedup" || cas === "delivered") return true;
-        const reqStatus = String(req.requestStatus || "").toLowerCase();
-        if (reqStatus === "accepted" || reqStatus === "completed" || reqStatus === "in inspection") return true;
-        return false;
-    });
+    // Display all pickup requests without filtering by assignment status
+    const acceptedDeliveryRequests = inspectionRequests;
 
     const activeCount = acceptedDeliveryRequests.filter(r => r.requestStatus !== "Completed" && r.requestStatus !== "Rejected").length;
 
@@ -140,6 +163,8 @@ function CitizenDashboard() {
             return <span className="status-pill status-progress">In Inspection</span>;
         } else if (s === "rejected" || s === "cancelled") {
             return <span className="status-pill status-cancelled">Rejected</span>;
+        } else if (s === "expired" || s === "inspectionexpired") {
+            return <span className="status-pill status-cancelled">Expired</span>;
         } else {
             return <span className="status-pill status-scheduled">Scheduled</span>;
         }
@@ -150,6 +175,59 @@ function CitizenDashboard() {
         const d = new Date(dateStr);
         return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
     };
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const overdueRequests = inspectionRequests.filter(req => {
+        if (!req.pickupDate) return false;
+        const pDate = new Date(req.pickupDate);
+        pDate.setHours(0, 0, 0, 0);
+        const isPast = pDate < todayStart;
+        const statusLower = String(req.requestStatus || req.status || "").toLowerCase();
+        const colStatusLower = String(req.collectionAssignmentStatus || "").toLowerCase();
+        const isDone = 
+            statusLower === "completed" || 
+            statusLower === "rejected" || 
+            statusLower === "cancelled" ||
+            colStatusLower === "completed" ||
+            colStatusLower === "delivered";
+        
+        if (!isPast || isDone) return false;
+
+        // Find matching overdue notification for this request
+        const matchingNotif = notifications.find(n => {
+            const titleLower = (n.title || "").toLowerCase();
+            const msgLower = (n.message || "").toLowerCase();
+            const isOverdue = titleLower.includes("overdue") || msgLower.includes("overdue");
+            if (!isOverdue) return false;
+
+            const brandMatch = req.brand ? msgLower.includes(req.brand.toLowerCase()) : false;
+            const modelMatch = req.model ? msgLower.includes(req.model.toLowerCase()) : false;
+            
+            return brandMatch || modelMatch || true;
+        });
+
+        // If notification exists and is marked as read, hide banner item
+        if (matchingNotif && matchingNotif.isRead) {
+            return false;
+        }
+
+        // If all overdue notifications in the inbox are marked as read, hide banner item
+        const overdueNotifs = notifications.filter(n => {
+            const titleLower = (n.title || "").toLowerCase();
+            const msgLower = (n.message || "").toLowerCase();
+            return titleLower.includes("overdue") || msgLower.includes("overdue");
+        });
+        if (overdueNotifs.length > 0 && overdueNotifs.every(n => n.isRead)) {
+            return false;
+        }
+
+        return true;
+    });
+
+    const unreadNotificationsCount = notifications.filter(n => !n.isRead).length;
+    const totalNotifCount = unreadNotificationsCount;
 
     return (
         <div className="citizen-dashboard-layout">
@@ -163,9 +241,19 @@ function CitizenDashboard() {
                     <h1 className="vd-page-heading">Citizen Eco Dashboard</h1>
 
                     <div className="vd-top-actions">
-                        <button className="vd-circle-btn" title="Notifications" style={{ position: "relative" }}>
+                        <button 
+                            type="button" 
+                            className="vd-circle-btn" 
+                            title={`Notifications ${totalNotifCount > 0 ? `(${totalNotifCount} unread)` : ""}`} 
+                            onClick={() => navigate("/technician-notification")}
+                            style={{ position: "relative" }}
+                        >
                             <FiBell />
-                            <span style={{ position: "absolute", top: "10px", right: "10px", width: "7px", height: "7px", borderRadius: "50%", background: "#ef4444" }}></span>
+                            {totalNotifCount > 0 && (
+                                <span className="vd-notif-badge-pill">
+                                    {totalNotifCount > 9 ? "9+" : totalNotifCount}
+                                </span>
+                            )}
                         </button>
 
                         <Link 
@@ -186,6 +274,39 @@ function CitizenDashboard() {
                         </Link>
                     </div>
                 </div>
+
+                {/* Overdue Pickup Warning Banner */}
+                {showOverdueBanner && overdueRequests.length > 0 && (
+                    <div className="citizen-overdue-alert-banner">
+                        <div className="overdue-banner-left">
+                            <div className="overdue-alert-icon">
+                                <FiAlertCircle />
+                            </div>
+                            <div>
+                                <h4>Overdue Pickup Alert ({overdueRequests.length})</h4>
+                                <p>
+                                    The scheduled pickup date has passed for:{" "}
+                                    <strong>
+                                        {overdueRequests.map(r => `${r.brand} ${r.model} (Due: ${formatDate(r.pickupDate)})`).join(", ")}
+                                    </strong>
+                                    . Please check your my pickup details section.
+                                </p>
+                            </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+                            <button 
+                                type="button" 
+                                className="overdue-view-btn"
+                                onClick={() => navigate("/technician-notification")}
+                            >
+                                View Notifications
+                            </button>
+                            <button type="button" className="overdue-alert-close" onClick={() => setShowOverdueBanner(false)}>
+                                <FiX />
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* KPI Summary Cards Grid */}
                 <div className="vd-kpi-grid">

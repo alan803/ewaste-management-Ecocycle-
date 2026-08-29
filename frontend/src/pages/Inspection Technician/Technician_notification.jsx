@@ -3,6 +3,7 @@ import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import TechSidebar from "./Sidebar";
 import AgentSidebar from "../Collection Agent/Sidebar";
+import CitizenSidebar from "../citizen/Sidebar";
 import {
   FiInbox,
   FiMail,
@@ -35,8 +36,18 @@ function Technician_notification() {
 
   const userRole = localStorage.getItem("role");
   const isAgent = userRole === "Collection Agent";
-  const SidebarComponent = isAgent ? AgentSidebar : TechSidebar;
-  const dashboardPath = isAgent ? "/collectionagent/dashboard" : "/technician_dashboard";
+  const isCitizen = userRole === "Citizen";
+
+  let SidebarComponent = TechSidebar;
+  let dashboardPath = "/technician_dashboard";
+
+  if (isAgent) {
+    SidebarComponent = AgentSidebar;
+    dashboardPath = "/collectionagent/dashboard";
+  } else if (isCitizen) {
+    SidebarComponent = CitizenSidebar;
+    dashboardPath = "/citizen";
+  }
 
   useEffect(() => {
     fetchNotifications();
@@ -241,7 +252,7 @@ function Technician_notification() {
   const activeNotification = notifications.find((n) => n.notificationId === selectedId) || filteredNotifications[0];
 
   return (
-    <div className="technician-notif-app">
+    <div className={`technician-notif-app ${isAgent ? "agent-theme" : isCitizen ? "citizen-theme" : "tech-theme"}`}>
       <SidebarComponent />
 
       <main className="inbox-main-container">
@@ -312,15 +323,17 @@ function Technician_notification() {
               <span className="tab-badge">{unreadCount}</span>
             </button>
 
-            <button
-              className={`tab-item ${activeTab === "assignments" ? "active" : ""}`}
-              onClick={() => setActiveTab("assignments")}
-            >
-              Assignments
-              <span className="tab-badge">
-                {notifications.filter((n) => getCategory(n.title, n.message).key === "assignments").length}
-              </span>
-            </button>
+            {!isCitizen && (
+              <button
+                className={`tab-item ${activeTab === "assignments" ? "active" : ""}`}
+                onClick={() => setActiveTab("assignments")}
+              >
+                Assignments
+                <span className="tab-badge">
+                  {notifications.filter((n) => getCategory(n.title, n.message).key === "assignments").length}
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="inbox-search-wrap">

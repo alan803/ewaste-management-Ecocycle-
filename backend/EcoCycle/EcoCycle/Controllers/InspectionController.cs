@@ -71,6 +71,8 @@ namespace EcoCycle.API.Controllers
         public async Task<IActionResult> CreateInspectionRequest(
             int deviceId)
         {
+            await CheckAndUpdateExpiredInspectionRequests();
+
             var device = await db.Device
                 .Include(d => d.Category)
                 .Include(d => d.User)
@@ -85,15 +87,81 @@ namespace EcoCycle.API.Controllers
                 });
             }
             var existingRequest = await db.InspectionRequest
-                .FirstOrDefaultAsync(
-                    x => x.DeviceId == deviceId && x.Status != "Rejected");
+                .Where(x => x.DeviceId == deviceId && x.Status != "Rejected" && x.Status != "Cancelled")
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync();
 
             Technician? technician = null;
             InspectionRequest request;
 
             if (existingRequest != null)
             {
-                if (existingRequest.Status == "Waiting")
+                bool isExpired = string.Equals(existingRequest.Status, "Expired", StringComparison.OrdinalIgnoreCase) ||
+                                 (existingRequest.ResponseDeadline.HasValue && existingRequest.ResponseDeadline.Value < DateTime.Now);
+                bool isWaiting = string.Equals(existingRequest.Status, "Waiting", StringComparison.OrdinalIgnoreCase);
+
+                if (isExpired)
+                {
+                    existingRequest.Status = "Expired";
+                    existingRequest.UpdatedAt = DateTime.Now;
+
+                    technician = await FindBestTechnician(device);
+                    if (technician == null)
+                    {
+                        var waitingReq = new InspectionRequest
+                        {
+                            DeviceId = device.DeviceId,
+                            TechnicianId = null,
+                            Status = "Waiting",
+                            ReassignmentCount = existingRequest.ReassignmentCount + 1,
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now
+                        };
+                        db.InspectionRequest.Add(waitingReq);
+                        await db.SaveChangesAsync();
+
+                        return Ok(new
+                        {
+                            message = "Inspection request is currently waiting, but no suitable technician is available.",
+                            inspectionRequestId = waitingReq.InspectionRequestId,
+                            status = "Waiting"
+                        });
+                    }
+
+                    request = new InspectionRequest
+                    {
+                        DeviceId = device.DeviceId,
+                        TechnicianId = technician.TechnicianId,
+                        Status = "Assigned",
+                        AssignedAt = DateTime.Now,
+                        ResponseDeadline = DateTime.Now.AddHours(24),
+                        InspectionDeadline = DateTime.Now.AddDays(3),
+                        ReassignmentCount = existingRequest.ReassignmentCount + 1,
+                        CreatedAt = DateTime.Now,
+                        UpdatedAt = DateTime.Now
+                    };
+                    db.InspectionRequest.Add(request);
+                    device.LifecycleStatus = "InspectionAssigned";
+
+                    await db.SaveChangesAsync();
+
+                    if (technician.LoginId > 0)
+                    {
+                        var notification = new Notification
+                        {
+                            LoginId = technician.LoginId,
+                            Title = "New Inspection Request",
+                            Message = $"A new inspection request for {device.Brand} {device.Model} has been assigned to you.",
+                            Isread = false,
+                            Status = true,
+                            CreatedAt = DateTime.Now
+                        };
+
+                        db.Notification.Add(notification);
+                        await db.SaveChangesAsync();
+                    }
+                }
+                else if (isWaiting)
                 {
                     technician = await FindBestTechnician(device);
                     if (technician == null)
@@ -372,10 +440,37 @@ namespace EcoCycle.API.Controllers
                 .Select(x => x.Technician)
                 .FirstOrDefault();
         }
+        private async Task CheckAndUpdateExpiredInspectionRequests()
+        {
+            var now = DateTime.Now;
+            var expiredRequests = await db.InspectionRequest
+                .Include(x => x.Device)
+                .Where(x => x.Status == "Assigned" &&
+                            x.ResponseDeadline.HasValue &&
+                            x.ResponseDeadline.Value < now)
+                .ToListAsync();
+
+            if (expiredRequests.Any())
+            {
+                foreach (var req in expiredRequests)
+                {
+                    req.Status = "Expired";
+                    req.UpdatedAt = now;
+                    if (req.Device != null)
+                    {
+                        req.Device.LifecycleStatus = "InspectionExpired";
+                    }
+                }
+                await db.SaveChangesAsync();
+            }
+        }
+
         [HttpGet("technicain/{technicianId}")]
         public async Task<IActionResult> GetTechnicianRequests(
             int technicianId)
         {
+            await CheckAndUpdateExpiredInspectionRequests();
+
             var tech = await db.Technician
                 .FirstOrDefaultAsync(
                     t => t.TechnicianId == technicianId ||
@@ -414,9 +509,134 @@ namespace EcoCycle.API.Controllers
 
             return Ok(requests);
         }
+
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        [HttpGet("my-deliveries")]
+        public async Task<IActionResult> GetMyDeliveries()
+        {
+            await CheckAndUpdateExpiredInspectionRequests();
+            await CollectionAssignmentController.CheckAndUpdateExpiredCollectionAssignments(db);
+
+            try
+            {
+                var loginIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
+                if (loginIdClaim == null)
+                {
+                    return Unauthorized(new { message = "User identity not found." });
+                }
+
+                if (!int.TryParse(loginIdClaim.Value, out int loginId))
+                {
+                    return Unauthorized(new { message = "Invalid user identity." });
+                }
+
+                var tech = await db.Technician
+                    .Include(t => t.Login)
+                    .FirstOrDefaultAsync(t => t.LoginId == loginId || t.TechnicianId == loginId);
+
+                if (tech == null)
+                {
+                    return NotFound(new { message = "Technician account not found." });
+                }
+
+                int targetTechId = tech.TechnicianId;
+
+                // Find inspection requests assigned to this technician
+                var inspRequests = await db.InspectionRequest
+                    .Include(x => x.Device)
+                        .ThenInclude(d => d.Category)
+                    .Include(x => x.Device)
+                        .ThenInclude(d => d.User)
+                    .Include(x => x.Device)
+                        .ThenInclude(d => d.CollectionAssignments)
+                            .ThenInclude(ca => ca.CollectionAgent)
+                    .Where(x => x.TechnicianId == targetTechId && x.Device.Status != "Inactive" && x.Device.Status != "Deleted")
+                    .OrderByDescending(x => x.CreatedAt)
+                    .ToListAsync();
+
+                var result = new List<object>();
+                foreach (var x in inspRequests)
+                {
+                    var dev = x.Device;
+                    if (dev == null) continue;
+
+                    var latestCa = dev.CollectionAssignments.OrderByDescending(ca => ca.CreatedAt).FirstOrDefault();
+
+                    Delivery? delObj = null;
+                    if (latestCa != null)
+                    {
+                        try
+                        {
+                            delObj = await db.Deliveries.FirstOrDefaultAsync(d => d.CollectionAssignmentId == latestCa.CollectionAssignmentId);
+                        }
+                        catch { }
+                    }
+
+                    string caStatus = latestCa?.Status ?? "Scheduled";
+                    string delStatus = delObj != null ? delObj.Status : (caStatus == "Completed" ? "Pending" : caStatus == "OutForDelivery" ? "InTransit" : caStatus == "DeliveredToCenter" ? "Delivered" : "Pending");
+
+                    result.Add(new
+                    {
+                        deviceId = dev.DeviceId,
+                        inspectionRequestId = x.InspectionRequestId,
+                        collectionAssignmentId = latestCa?.CollectionAssignmentId,
+
+                        brand = dev.Brand,
+                        model = dev.Model,
+                        categoryName = dev.Category?.CategoryName ?? "E-Waste",
+                        quantity = dev.Quantity,
+                        weight = dev.Weight,
+                        condition = dev.Condition,
+                        working = dev.Working,
+                        processingPreference = dev.ProcessingPreference,
+
+                        customerName = dev.User != null ? $"{dev.User.FirstName} {dev.User.LastName}".Trim() : "Citizen",
+                        customerPhone = dev.User?.PhoneNumber ?? "",
+                        address = dev.Address,
+                        landmark = dev.Landmark,
+                        city = dev.User?.City ?? "",
+                        district = dev.User?.District ?? "",
+                        state = dev.User?.State ?? "",
+                        pincode = dev.User?.Pincode ?? "",
+
+                        pickupDate = dev.PickupDate,
+                        timeSlot = dev.TimeSlot,
+                        pickupInstructions = dev.PickupInstructions,
+
+                        status = caStatus,
+                        deliveryStatus = delStatus,
+                        lifecycleStatus = dev.LifecycleStatus,
+                        requestStatus = x.Status,
+
+                        collectionAgentId = latestCa?.CollectionAgentId,
+                        collectionAgentName = latestCa?.CollectionAgent != null ? $"{latestCa.CollectionAgent.FirstName} {latestCa.CollectionAgent.LastName}".Trim() : "Assigned Agent",
+                        collectionAgentPhone = latestCa?.CollectionAgent?.Phone ?? latestCa?.CollectionAgent?.AlternatePhone ?? "",
+                        collectionAgentAltPhone = latestCa?.CollectionAgent?.AlternatePhone,
+                        collectionAgentPhoto = latestCa?.CollectionAgent?.ProfilePicture,
+
+                        inspectionCenterName = tech.InspectionCenterName ?? "EcoCycle Inspection Hub",
+                        technicianAddress = tech.Address,
+                        technicianPhone = tech.PhoneNumber,
+
+                        assignedAt = latestCa?.AssignedAt ?? x.CreatedAt,
+                        startedAt = latestCa?.AssignedAt,
+                        deliveredAt = delObj?.DeliveredAt,
+                        createdAt = dev.CreatedAt
+                    });
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error retrieving technician deliveries.", error = ex.Message });
+            }
+        }
         [HttpPost("accept/{requestId}")]
         public async Task<IActionResult> AcceptRequest(int requestId)
         {
+            await CheckAndUpdateExpiredInspectionRequests();
+
             using var transaction =
                 await db.Database.BeginTransactionAsync();
 
@@ -439,22 +659,40 @@ namespace EcoCycle.API.Controllers
                     });
                 }
 
-                if (request.Status != "Assigned")
+                if (string.Equals(request.Status, "Expired", StringComparison.OrdinalIgnoreCase) ||
+                    (request.ResponseDeadline.HasValue && request.ResponseDeadline.Value < DateTime.Now))
                 {
+                    if (request.Status == "Assigned")
+                    {
+                        request.Status = "Expired";
+                        request.UpdatedAt = DateTime.Now;
+                        if (request.Device != null)
+                        {
+                            request.Device.LifecycleStatus = "InspectionExpired";
+                        }
+                        await db.SaveChangesAsync();
+                    }
+
                     return BadRequest(new
                     {
-                        message =
-                            "This request cannot be accepted."
+                        message = "Response deadline has expired for this inspection request."
                     });
                 }
 
-                if (request.ResponseDeadline.HasValue &&
-                    request.ResponseDeadline.Value < DateTime.Now)
+                if (!string.Equals(request.Status, "Assigned", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (string.Equals(request.Status, "Accepted", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return Ok(new
+                        {
+                            message = "Inspection request is already accepted.",
+                            inspectionStatus = request.Status
+                        });
+                    }
+
                     return BadRequest(new
                     {
-                        message =
-                            "Response deadline has expired."
+                        message = $"This request cannot be accepted because its status is '{request.Status}'."
                     });
                 }
 
@@ -469,7 +707,7 @@ namespace EcoCycle.API.Controllers
                 var existingAssignment =
                     await db.CollectionAssignments
                     .FirstOrDefaultAsync(
-                        x => x.DeviceId == request.DeviceId
+                        x => x.DeviceId == request.DeviceId && x.Status != "Rejected" && x.Status != "Cancelled"
                     );
 
                 if (existingAssignment != null)
@@ -504,6 +742,7 @@ namespace EcoCycle.API.Controllers
                         CollectionAgentId = null,
                         Status = "Waiting",
                         AssignedAt = null,
+                        ResponseDeadline = DateTime.Now.AddHours(24),
                         CreatedAt = DateTime.Now
                     };
 
@@ -542,6 +781,9 @@ namespace EcoCycle.API.Controllers
                     AssignedAt =
                         DateTime.Now,
 
+                    ResponseDeadline =
+                        DateTime.Now.AddHours(24),
+
                     CreatedAt =
                         DateTime.Now
                 };
@@ -577,10 +819,15 @@ namespace EcoCycle.API.Controllers
                 Console.WriteLine($"Login is null: {agent.Login == null}");
                 Console.WriteLine($"Agent Email: {agent.Login?.Email}");
                 Console.WriteLine("====================================");
-                if (agent.Login != null && !string.IsNullOrWhiteSpace(agent.Login.Email))
+                string agentEmail = agent.Login?.Email;
+                if (string.IsNullOrWhiteSpace(agentEmail) && agent != null && agent.LoginId > 0)
                 {
-                    string agentEmail = agent.Login.Email;
-                    Console.WriteLine($"Sending email to: {agentEmail}");
+                    var loginObj = await db.Login.FirstOrDefaultAsync(l => l.LoginId == agent.LoginId);
+                    agentEmail = loginObj?.Email;
+                }
+
+                if (!string.IsNullOrWhiteSpace(agentEmail))
+                {
                     string subject = "EcoCycle - New Collection Pickup Request Assigned";
 
                     var dev = request.Device;
@@ -590,109 +837,65 @@ namespace EcoCycle.API.Controllers
                         (string.IsNullOrWhiteSpace(dev.User?.State) ? "" : $", {dev.User?.State}") +
                         (string.IsNullOrWhiteSpace(dev.User?.Pincode) ? "" : $" - {dev.User?.Pincode}");
 
+                    var tech = request.Technician;
+                    if (tech == null && request.TechnicianId > 0)
+                    {
+                        tech = await db.Technician.FirstOrDefaultAsync(t => t.TechnicianId == request.TechnicianId);
+                    }
+                    if (tech == null)
+                    {
+                        tech = await db.Technician.Where(t => t.Status == "Approved" || t.Status == "Active").OrderBy(t => t.TechnicianId).FirstOrDefaultAsync() ?? await db.Technician.OrderBy(t => t.TechnicianId).FirstOrDefaultAsync();
+                    }
+
+                    string tName = tech != null ? $"{tech.FirstName} {tech.LastName}".Trim() : "Inspection Technician";
+                    string tPhone = tech?.PhoneNumber ?? "";
+                    string cName = tech?.InspectionCenterName ?? "EcoCycle Central Inspection Center";
+                    var tParts = new List<string>();
+                    if (tech != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(tech.InspectionCenterName)) tParts.Add(tech.InspectionCenterName);
+                        if (!string.IsNullOrWhiteSpace(tech.Address)) tParts.Add(tech.Address);
+                        if (!string.IsNullOrWhiteSpace(tech.City)) tParts.Add(tech.City);
+                        if (!string.IsNullOrWhiteSpace(tech.District)) tParts.Add(tech.District);
+                        if (!string.IsNullOrWhiteSpace(tech.State)) tParts.Add(tech.State);
+                        if (!string.IsNullOrWhiteSpace(tech.PinCode)) tParts.Add(tech.PinCode);
+                    }
+                    string delAddress = tParts.Any() ? string.Join(", ", tParts) : "EcoCycle Central E-Waste Facility & Inspection Hub";
+
                     string body = $@"
-                    <html>
-                    <body>
+<!DOCTYPE html>
+<html>
+<body style=""font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #0f172a;"">
+    <div style=""max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;"">
+        <h2 style=""color: #059669; margin-top: 0;"">EcoCycle Pickup Assignment</h2>
+        <p>Dear <strong>{agent.FirstName} {agent.LastName}</strong>,</p>
+        <p>A new e-waste collection pickup request for <strong>{dev.Brand} {dev.Model}</strong> (Assignment #{assignment.CollectionAssignmentId}) has been assigned to you.</p>
 
-                        <h2>New Collection Pickup Request Assigned</h2>
+        <div style=""background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 10px; margin-top: 16px;"">
+            <div style=""font-size: 11px; font-weight: 800; color: #047857; text-transform: uppercase; letter-spacing: 0.05em;"">COLLECT FROM</div>
+            <div style=""font-weight: 700; color: #065f46; font-size: 15px; margin-top: 4px;"">Customer: {dev.User?.FirstName} {dev.User?.LastName} (Ph: {dev.User?.PhoneNumber})</div>
+            <div style=""color: #047857; font-size: 14px; margin-top: 4px;""><strong>Customer pickup address:</strong> {fullAddress}</div>
+            <div style=""color: #059669; font-size: 13px; margin-top: 4px;""><strong>Pickup date / time slot:</strong> {dev.PickupDate:dd-MM-yyyy} • {dev.TimeSlot}</div>
+        </div>
 
-                        <p>
-                            Dear {agent.FirstName} {agent.LastName},
-                        </p>
+        <div style=""text-align: center; font-size: 24px; font-weight: bold; color: #059669; margin: 10px 0;"">↓</div>
 
-                        <p>
-                            A new e-waste device collection pickup request has been
-                            assigned to you through the EcoCycle platform.
-                        </p>
+        <div style=""background: #eff6ff; border: 1px solid #bfdbfe; padding: 16px; border-radius: 10px;"">
+            <div style=""font-size: 11px; font-weight: 800; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.05em;"">DELIVER TO</div>
+            <div style=""font-weight: 700; color: #1e40af; font-size: 15px; margin-top: 4px;"">Technician / Inspection Center: {tName} ({cName}) {(string.IsNullOrEmpty(tPhone) ? "" : $"• Ph: {tPhone}")}</div>
+            <div style=""color: #1e3a8a; font-size: 14px; margin-top: 4px;""><strong>Technician/center address:</strong> {delAddress}</div>
+        </div>
 
-                        <h3>Pickup & Device Details</h3>
+        <div style=""margin-top: 24px; text-align: center;"">
+            <a href=""https://localhost:7102"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ Start Pickup ]</a>
+        </div>
 
-                        <p>
-                            <strong>Assignment ID:</strong>
-                            {assignment.CollectionAssignmentId}
-                        </p>
-
-                        <p>
-                            <strong>Device ID:</strong>
-                            {dev.DeviceId}
-                        </p>
-
-                        <p>
-                            <strong>Category:</strong>
-                            {dev.Category?.CategoryName ?? "E-Waste"}
-                        </p>
-
-                        <p>
-                            <strong>Brand:</strong>
-                            {dev.Brand}
-                        </p>
-
-                        <p>
-                            <strong>Model:</strong>
-                            {dev.Model}
-                        </p>
-
-                        <p>
-                            <strong>Quantity:</strong>
-                            {dev.Quantity}
-                        </p>
-
-                        <p>
-                            <strong>Condition:</strong>
-                            {dev.Condition}
-                        </p>
-
-                        <h3>Customer & Location Information</h3>
-
-                        <p>
-                            <strong>Customer Name:</strong>
-                            {dev.User?.FirstName} {dev.User?.LastName}
-                        </p>
-
-                        <p>
-                            <strong>Customer Phone:</strong>
-                            {dev.User?.PhoneNumber}
-                        </p>
-
-                        <p>
-                            <strong>Pickup Address:</strong>
-                            {fullAddress}
-                        </p>
-
-                        <p>
-                            <strong>Landmark:</strong>
-                            {dev.Landmark ?? "N/A"}
-                        </p>
-
-                        <p>
-                            <strong>Scheduled Pickup Date:</strong>
-                            {dev.PickupDate:dd-MM-yyyy}
-                        </p>
-
-                        <p>
-                            <strong>Time Slot:</strong>
-                            {dev.TimeSlot}
-                        </p>
-
-                        <p>
-                            <strong>Pickup Instructions:</strong>
-                            {dev.PickupInstructions ?? "None"}
-                        </p>
-
-                        <p>
-                            Please log in to your EcoCycle collection agent account
-                            and access your assigned pickups to accept and process this request.
-                        </p>
-
-                        <br />
-
-                        <p>
-                            Regards,<br />
-                            <strong>EcoCycle Admin Team</strong>
-                        </p>
-
-                    </body>
-                    </html>";
+        <p style=""margin-top: 24px; font-size: 12px; color: #64748b;"">
+            Regards,<br/><strong>EcoCycle Admin Team</strong>
+        </p>
+    </div>
+</body>
+</html>";
 
                     await SendEmailAsync(agentEmail, subject, body);
                 }
@@ -823,11 +1026,11 @@ namespace EcoCycle.API.Controllers
                     });
                 }
 
-                if (request.Status != "Assigned")
+                if (!string.Equals(request.Status, "Assigned", StringComparison.OrdinalIgnoreCase))
                 {
                     return BadRequest(new
                     {
-                        message = "This request cannot be rejected."
+                        message = $"This request cannot be rejected because its status is '{request.Status}'."
                     });
                 }
 
@@ -1194,179 +1397,94 @@ namespace EcoCycle.API.Controllers
             // 2. EVERY TECHNICIAN WHO ALREADY REJECTED
             // =========================================================
 
-            var technicians =
-                await db.Technician
-                    .Include(t => t.Login)
-                    .Where(t =>
-                        t.Status == "Active" &&
-
-                        t.TechnicianId !=
-                            excludedTechnicianId &&
-
-                        !rejectedTechIds.Contains(
-                            t.TechnicianId
-                        ) &&
-
-                        !rejectedLoginIds.Contains(
-                            t.LoginId
-                        )
-                    )
-                    .ToListAsync();
-
-            Console.WriteLine(
-                $"Available technicians after rejection filtering: {technicians.Count}"
-            );
+            var technicians = await db.Technician
+                .Include(t => t.Login)
+                .Where(t => (t.Status == "Active" || t.Status == "Approved") &&
+                            t.TechnicianId != excludedTechnicianId &&
+                            !rejectedTechIds.Contains(t.TechnicianId) &&
+                            !rejectedLoginIds.Contains(t.LoginId))
+                .ToListAsync();
 
             if (!technicians.Any())
             {
-                Console.WriteLine(
-                    "NO TECHNICIANS AVAILABLE"
-                );
+                // Fallback: any active/approved technician if all non-rejected ones are excluded
+                technicians = await db.Technician
+                    .Include(t => t.Login)
+                    .Where(t => t.Status == "Active" || t.Status == "Approved")
+                    .ToListAsync();
+            }
 
+            if (!technicians.Any())
+            {
+                // Ultimate fallback: any technician in system
+                technicians = await db.Technician
+                    .Include(t => t.Login)
+                    .ToListAsync();
+            }
+
+            if (!technicians.Any())
+            {
+                Console.WriteLine("NO TECHNICIANS IN DATABASE");
                 return null;
             }
 
-            var candidates =
-                new List<(
-                    Technician Technician,
-                    int Workload
-                )>();
-
-            // =========================================================
-            // CHECK EACH TECHNICIAN
-            // =========================================================
+            var scoredCandidates = new List<(Technician Technician, int Score, int Workload)>();
 
             foreach (var technician in technicians)
             {
-                Console.WriteLine(
-                    $"Checking Technician: " +
-                    $"{technician.TechnicianId} - " +
-                    $"{technician.FirstName} {technician.LastName}"
-                );
+                int score = 100; // Base Score
 
-                // =====================================================
-                // SPECIALIZATION MATCH
-                // =====================================================
-
-                bool specializationMatch = true;
-
-                if (!string.IsNullOrWhiteSpace(
-                        device.Category?.CategoryName) &&
-
-                    !string.IsNullOrWhiteSpace(
-                        technician.Specialization))
+                // 1. Specialization Match (+50 Points)
+                if (!string.IsNullOrWhiteSpace(device.Category?.CategoryName) &&
+                    !string.IsNullOrWhiteSpace(technician.Specialization))
                 {
-                    specializationMatch =
-                        technician.Specialization.Contains(
-                            device.Category.CategoryName,
-                            StringComparison.OrdinalIgnoreCase
-                        );
-                }
-
-                if (!specializationMatch)
-                {
-                    Console.WriteLine(
-                        $"Technician {technician.TechnicianId} skipped: specialization mismatch"
-                    );
-
-                    continue;
-                }
-
-                // Strict State match
-                if (device.User != null &&
-                    !string.IsNullOrWhiteSpace(device.User.State) &&
-                    !string.IsNullOrWhiteSpace(technician.State))
-                {
-                    if (!device.User.State.Trim().Equals(technician.State.Trim(), StringComparison.OrdinalIgnoreCase))
+                    if (technician.Specialization.Contains(device.Category.CategoryName, StringComparison.OrdinalIgnoreCase))
                     {
-                        continue;
+                        score += 50;
                     }
                 }
 
-                // Strict District match
+                // 2. District Match (+40 Points)
                 if (device.User != null &&
                     !string.IsNullOrWhiteSpace(device.User.District) &&
                     !string.IsNullOrWhiteSpace(technician.District))
                 {
-                    if (!device.User.District.Trim().Equals(technician.District.Trim(), StringComparison.OrdinalIgnoreCase))
+                    if (device.User.District.Trim().Equals(technician.District.Trim(), StringComparison.OrdinalIgnoreCase))
                     {
-                        continue;
+                        score += 40;
                     }
                 }
 
-                // =====================================================
-                // CURRENT WORKLOAD
-                // =====================================================
-
-                int workload =
-                    await db.InspectionRequest
-                        .CountAsync(x =>
-                            x.TechnicianId ==
-                                technician.TechnicianId &&
-
-                            (
-                                x.Status == "Assigned" ||
-                                x.Status == "Accepted" ||
-                                x.Status == "InProgress"
-                            )
-                        );
-
-                Console.WriteLine(
-                    $"Technician {technician.TechnicianId} workload: {workload}"
-                );
-
-                // =====================================================
-                // MAXIMUM 5 ACTIVE REQUESTS
-                // =====================================================
-
-                if (workload >= 5)
+                // 3. State Match (+30 Points)
+                if (device.User != null &&
+                    !string.IsNullOrWhiteSpace(device.User.State) &&
+                    !string.IsNullOrWhiteSpace(technician.State))
                 {
-                    Console.WriteLine(
-                        $"Technician {technician.TechnicianId} skipped: workload >= 5"
-                    );
-
-                    continue;
+                    if (device.User.State.Trim().Equals(technician.State.Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        score += 30;
+                    }
                 }
 
-                // =====================================================
-                // ADD TO CANDIDATES
-                // =====================================================
+                // 4. Current Workload Penalty (-10 Points per active task)
+                int workload = await db.InspectionRequest
+                    .CountAsync(x => x.TechnicianId == technician.TechnicianId &&
+                                     (x.Status == "Assigned" || x.Status == "Accepted" || x.Status == "InProgress"));
 
-                candidates.Add(
-                    (
-                        technician,
-                        workload
-                    )
-                );
+                score -= (workload * 10);
+
+                scoredCandidates.Add((technician, score, workload));
             }
 
-            // =========================================================
-            // SELECT BEST TECHNICIAN
-            // =========================================================
-
-            var selected =
-                candidates
-                    .OrderBy(
-                        x => x.Workload
-                    )
-                    .Select(
-                        x => x.Technician
-                    )
-                    .FirstOrDefault();
+            var selected = scoredCandidates
+                .OrderByDescending(x => x.Score)
+                .ThenBy(x => x.Workload)
+                .Select(x => x.Technician)
+                .FirstOrDefault();
 
             if (selected != null)
             {
-                Console.WriteLine(
-                    $"Selected Technician: " +
-                    $"{selected.TechnicianId} - " +
-                    $"{selected.FirstName} {selected.LastName}"
-                );
-            }
-            else
-            {
-                Console.WriteLine(
-                    "NO SUITABLE TECHNICIAN FOUND"
-                );
+                Console.WriteLine($"Selected Technician: {selected.TechnicianId} - {selected.FirstName} {selected.LastName}");
             }
 
             return selected;
@@ -1374,6 +1492,9 @@ namespace EcoCycle.API.Controllers
         [HttpGet("admin/assignments")]
         public async Task<IActionResult> GetAllAssignments()
         {
+            await CheckAndUpdateExpiredInspectionRequests();
+            await CollectionAssignmentController.CheckAndUpdateExpiredCollectionAssignments(db);
+
             var assignments = await db.InspectionRequest
                 .Include(x => x.Device)
                     .ThenInclude(d => d.Category)
@@ -1422,6 +1543,9 @@ namespace EcoCycle.API.Controllers
         [HttpGet("my-pickup-requests")]
         public async Task<IActionResult> GetMyPickupRequests()
         {
+            await CheckAndUpdateExpiredInspectionRequests();
+            await CollectionAssignmentController.CheckAndUpdateExpiredCollectionAssignments(db);
+
             try
             {
                 var loginIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
@@ -1447,6 +1571,29 @@ namespace EcoCycle.API.Controllers
                     .OrderByDescending(d => d.CreatedAt)
                     .ToListAsync();
 
+                // Update LifecycleStatus in DB for devices whose scheduled pickup date has passed
+                bool hasUpdates = false;
+                var today = DateTime.Today;
+                foreach (var d in devices)
+                {
+                    var latestCa = d.CollectionAssignments.OrderByDescending(ca => ca.CreatedAt).FirstOrDefault();
+                    string caStatus = latestCa?.Status?.ToLower() ?? "";
+                    bool isDone = caStatus == "completed" || caStatus == "delivered" || caStatus == "pickedup";
+
+                    if (!isDone && d.LifecycleStatus != "PickupCancelled" && d.LifecycleStatus != "DueDatePassed")
+                    {
+                        if (d.PickupDate.Date < today)
+                        {
+                            d.LifecycleStatus = "DueDatePassed";
+                            hasUpdates = true;
+                        }
+                    }
+                }
+                if (hasUpdates)
+                {
+                    await db.SaveChangesAsync();
+                }
+
                 var result = devices.Select(d => {
                     var latestInsp = d.InspectionRequests.OrderByDescending(ir => ir.CreatedAt).FirstOrDefault();
                     var latestAssignment = d.CollectionAssignments.OrderByDescending(ca => ca.CreatedAt).FirstOrDefault();
@@ -1463,6 +1610,7 @@ namespace EcoCycle.API.Controllers
                     {
                         deviceId = d.DeviceId,
                         inspectionRequestId = latestInsp != null ? (int?)latestInsp.InspectionRequestId : null,
+
                         brand = d.Brand,
                         model = d.Model,
                         categoryName = d.Category != null ? d.Category.CategoryName : "E-Waste",
@@ -1490,6 +1638,7 @@ namespace EcoCycle.API.Controllers
                         collectionAgentPhoto = latestAssignment?.CollectionAgent?.ProfilePicture,
                         vehicleNumber = latestAssignment?.CollectionAgent?.VehicleNumber,
                         vehicleType = latestAssignment?.CollectionAgent?.VehicleType,
+                        deviceQrToken = !string.IsNullOrEmpty(d.DeviceQrToken) ? d.DeviceQrToken : $"ECOQR-DEV-{d.DeviceId}",
                         acceptedAt = latestAssignment?.AcceptedAt,
                         pickedUpAt = latestAssignment?.PickedUpAt,
                         deliveredAt = latestAssignment?.DeliveredAt
@@ -1507,6 +1656,8 @@ namespace EcoCycle.API.Controllers
         [HttpPost("manual-allocate/{deviceId}")]
         public async Task<IActionResult> ManualAllocateAuto(int deviceId)
         {
+            await CheckAndUpdateExpiredInspectionRequests();
+
             var device = await db.Device
                 .Include(d => d.Category)
                 .Include(d => d.User)
@@ -1538,6 +1689,8 @@ namespace EcoCycle.API.Controllers
         [HttpPost("manual-allocate/{deviceId}/{technicianId}")]
         public async Task<IActionResult> ManualAllocateSpecific(int deviceId, int technicianId)
         {
+            await CheckAndUpdateExpiredInspectionRequests();
+
             var device = await db.Device
                 .Include(d => d.Category)
                 .Include(d => d.User)
@@ -1563,18 +1716,45 @@ namespace EcoCycle.API.Controllers
         private async Task<IActionResult> AssignTechnicianToDevice(Device device, Technician technician)
         {
             var existingRequest = await db.InspectionRequest
-                .FirstOrDefaultAsync(x => x.DeviceId == device.DeviceId && x.Status != "Rejected");
+                .Where(x => x.DeviceId == device.DeviceId && x.Status != "Rejected" && x.Status != "Cancelled")
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync();
 
             InspectionRequest request;
             if (existingRequest != null)
             {
-                request = existingRequest;
-                request.TechnicianId = technician.TechnicianId;
-                request.Status = "Assigned";
-                request.AssignedAt = DateTime.Now;
-                request.ResponseDeadline = DateTime.Now.AddHours(24);
-                request.InspectionDeadline = DateTime.Now.AddDays(3);
-                request.UpdatedAt = DateTime.Now;
+                bool isExpired = string.Equals(existingRequest.Status, "Expired", StringComparison.OrdinalIgnoreCase) ||
+                                 (existingRequest.ResponseDeadline.HasValue && existingRequest.ResponseDeadline.Value < DateTime.Now);
+
+                if (isExpired)
+                {
+                    existingRequest.Status = "Expired";
+                    existingRequest.UpdatedAt = DateTime.Now;
+
+                    request = new InspectionRequest
+                    {
+                        DeviceId = device.DeviceId,
+                        TechnicianId = technician.TechnicianId,
+                        Status = "Assigned",
+                        AssignedAt = DateTime.Now,
+                        ResponseDeadline = DateTime.Now.AddHours(24),
+                        InspectionDeadline = DateTime.Now.AddDays(3),
+                        ReassignmentCount = existingRequest.ReassignmentCount + 1,
+                        CreatedAt = DateTime.Now,
+                        UpdatedAt = DateTime.Now
+                    };
+                    db.InspectionRequest.Add(request);
+                }
+                else
+                {
+                    request = existingRequest;
+                    request.TechnicianId = technician.TechnicianId;
+                    request.Status = "Assigned";
+                    request.AssignedAt = DateTime.Now;
+                    request.ResponseDeadline = DateTime.Now.AddHours(24);
+                    request.InspectionDeadline = DateTime.Now.AddDays(3);
+                    request.UpdatedAt = DateTime.Now;
+                }
             }
             else
             {

@@ -24,7 +24,8 @@ import {
     FiChevronDown,
     FiShield,
     FiTrash2,
-    FiRotateCcw
+    FiRotateCcw,
+    FiXCircle
 } from "react-icons/fi";
 import "./View_device.css";
 
@@ -38,8 +39,52 @@ function View_device() {
     const [selectedDevice, setSelectedDevice] = useState(null);
     const [activePhotoModal, setActivePhotoModal] = useState(null);
     const [confirmDeleteDevice, setConfirmDeleteDevice] = useState(null);
+    const [cancelPickupDevice, setCancelPickupDevice] = useState(null);
+    const [requestAgainDevice, setRequestAgainDevice] = useState(null);
+    const [actionSuccessMessage, setActionSuccessMessage] = useState("");
+    const [isDeleting, setIsDeleting] = useState(false);
     const [userProfile, setUserProfile] = useState(null);
     const [profileImage, setProfileImage] = useState(null);
+    const [allocationModalDevice, setAllocationModalDevice] = useState(null);
+    const [submittingAllocationId, setSubmittingAllocationId] = useState(null);
+
+    const triggerToastMessage = (msg) => {
+        setActionSuccessMessage(msg);
+        setTimeout(() => setActionSuccessMessage(""), 3500);
+    };
+
+    const handleRequestAllocation = (device) => {
+        setAllocationModalDevice(device);
+    };
+
+    const executeAllocationRequest = async () => {
+        if (!allocationModalDevice) return;
+        const deviceId = allocationModalDevice.deviceId || allocationModalDevice.id;
+        const token = localStorage.getItem("token");
+        try {
+            setSubmittingAllocationId(deviceId);
+            await axios.post(
+                `https://localhost:7102/api/Device/request-allocation/${deviceId}`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            setDevices(prev =>
+                prev.map(d =>
+                    (d.deviceId || d.id) === deviceId ? { ...d, allocationRequested: true, AllocationRequested: true } : d
+                )
+            );
+
+            triggerToastMessage("Allocation request submitted successfully!");
+            setAllocationModalDevice(null);
+        } catch (err) {
+            console.error("Error requesting allocation:", err);
+            const msg = err.response?.data?.message || "Failed to submit allocation request.";
+            triggerToastMessage(msg);
+        } finally {
+            setSubmittingAllocationId(null);
+        }
+    };
 
     useEffect(() => {
         loadMyDevices();
@@ -125,7 +170,6 @@ function View_device() {
             setConfirmDeleteDevice(null);
         } catch (err) {
             console.error("Error deleting device:", err);
-            alert(err.response?.data?.message || "Failed to delete device.");
         } finally {
             setIsDeleting(false);
         }
@@ -154,11 +198,8 @@ function View_device() {
             if (selectedDevice && (selectedDevice.deviceId || selectedDevice.id) === deviceId) {
                 setSelectedDevice(prev => ({ ...prev, status: newStatus }));
             }
-
-            alert(response.data?.message || "Device restored successfully.");
         } catch (err) {
             console.error("Error restoring device:", err);
-            alert(err.response?.data?.message || "Failed to restore device.");
         }
     };
 
@@ -170,56 +211,107 @@ function View_device() {
           localStorage.getItem("name") ||
           "Citizen Champion";
 
-    const getStatusStyle = (status) => {
+    const getStatusStyle = (status, item = null) => {
         const statusLower = (status || "pending").toLowerCase();
-        switch (statusLower) {
-            case "pending":
-                return {
-                    bg: "#fffbeb",
-                    color: "#b45309",
-                    dot: "#f59e0b",
-                    label: "Pending Review"
-                };
-            case "accepted":
-            case "approved":
-            case "active":
-                return {
-                    bg: "#ecfdf5",
-                    color: "#047857",
-                    dot: "#10b981",
-                    label: "Accepted"
-                };
-            case "rejected":
-                return {
-                    bg: "#fef2f2",
-                    color: "#b91c1c",
-                    dot: "#ef4444",
-                    label: "Rejected"
-                };
-            case "completed":
-            case "recycled":
-                return {
-                    bg: "#eff6ff",
-                    color: "#1d4ed8",
-                    dot: "#3b82f6",
-                    label: "Recycled"
-                };
-            case "inactive":
-            case "deleted":
+        
+        if (statusLower === "inactive" || statusLower === "deleted") {
+            return {
+                bg: "#fef2f2",
+                color: "#dc2626",
+                dot: "#ef4444",
+                label: "Deleted"
+            };
+        }
+        if (statusLower === "rejected") {
+            return {
+                bg: "#fef2f2",
+                color: "#b91c1c",
+                dot: "#ef4444",
+                label: "Rejected"
+            };
+        }
+        if (statusLower === "pending") {
+            return {
+                bg: "#fffbeb",
+                color: "#b45309",
+                dot: "#f59e0b",
+                label: "Pending Review"
+            };
+        }
+
+        // Check detailed lifecycle status and due date if item object is available
+        if (item) {
+            const lcs = (item.lifecycleStatus || "").toLowerCase();
+            
+            if (lcs === "pickupcancelled") {
                 return {
                     bg: "#fef2f2",
                     color: "#dc2626",
                     dot: "#ef4444",
-                    label: "Deleted"
+                    label: "Pickup Cancelled"
                 };
-            default:
+            }
+
+            // Check if pickup date has passed and request is not completed
+            if (item.pickupDate && lcs !== "completed" && lcs !== "delivered" && lcs !== "recycled") {
+                try {
+                    const pDate = new Date(item.pickupDate);
+                    pDate.setHours(0, 0, 0, 0);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (pDate < today) {
+                        return {
+                            bg: "#fff1f2",
+                            color: "#dc2626",
+                            dot: "#e11d48",
+                            label: "Due Date Passed"
+                        };
+                    }
+                } catch (e) {
+                    console.error("Date check error:", e);
+                }
+            }
+
+            if (lcs === "collectionassigned") {
                 return {
-                    bg: "#edf2f7",
-                    color: "#4a5568",
-                    dot: "#718096",
-                    label: status
+                    bg: "#e0f2fe",
+                    color: "#0369a1",
+                    dot: "#0284c7",
+                    label: "Agent Assigned"
                 };
+            }
+            if (lcs === "pickupstarted") {
+                return {
+                    bg: "#f5f3ff",
+                    color: "#6d28d9",
+                    dot: "#8b5cf6",
+                    label: "Pickup Started"
+                };
+            }
+            if (lcs === "collectionpending") {
+                return {
+                    bg: "#fffbeb",
+                    color: "#b45309",
+                    dot: "#f59e0b",
+                    label: "Collection Pending"
+                };
+            }
+            if (lcs === "completed" || lcs === "recycled" || lcs === "delivered") {
+                return {
+                    bg: "#eff6ff",
+                    color: "#1d4ed8",
+                    dot: "#3b82f6",
+                    label: "Completed"
+                };
+            }
         }
+
+        return {
+            bg: "#ecfdf5",
+            color: "#047857",
+            dot: "#10b981",
+            label: "Accepted"
+        };
     };
 
     const getCategoryConfig = (brand, model) => {
@@ -266,6 +358,22 @@ function View_device() {
             });
         } catch {
             return dateString;
+        }
+    };
+
+    const isPickupOverdue = (item) => {
+        if (!item || !item.pickupDate) return false;
+        try {
+            const pDate = new Date(item.pickupDate);
+            if (isNaN(pDate.getTime())) return false;
+            pDate.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const statusLower = (item.status || "").toLowerCase();
+            const isDone = statusLower === "completed" || statusLower === "rejected" || statusLower === "inactive" || statusLower === "deleted";
+            return pDate < today && !isDone;
+        } catch {
+            return false;
         }
     };
 
@@ -426,7 +534,7 @@ function View_device() {
                         {filteredDevices.map((item, index) => {
                             const frontPhotoUrl = getPhotoUrl(item.frontPhoto, "FrontPhotos");
                             const deviceId = item.deviceId || item.id || index;
-                            const status = getStatusStyle(item.status);
+                            const status = getStatusStyle(item.status, item);
                             const category = getCategoryConfig(item.brand, item.model);
 
                             return (
@@ -463,7 +571,7 @@ function View_device() {
                                             </div>
 
                                             {/* Tag ID Badge */}
-                                            <div className="vd-card-tag-id">#DEV-{deviceId}</div>
+                                            <div className="vd-card-tag-id"></div>
                                         </div>
 
                                         {/* Card Body */}
@@ -486,14 +594,55 @@ function View_device() {
                                                     <span>Scheduled Pickup: <strong>{formatDate(item.pickupDate)}</strong></span>
                                                 </div>
                                             )}
+
+                                            {(item.allocationRequested || item.AllocationRequested) && (
+                                                <div style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "0.45rem",
+                                                    background: "#f0fdf4",
+                                                    color: "#15803d",
+                                                    border: "1px solid #bbf7d0",
+                                                    padding: "0.45rem 0.75rem",
+                                                    borderRadius: "8px",
+                                                    fontSize: "0.8rem",
+                                                    fontWeight: 700,
+                                                    marginTop: "0.65rem"
+                                                }}>
+                                                    <FiCheckCircle style={{ color: "#16a34a", fontSize: "0.95rem" }} />
+                                                    <span>Allocation Requested</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
                                     {/* Action Footer */}
                                     <div className="vd-card-footer">
                                         <button onClick={() => setSelectedDevice(item)} className="vd-btn-inspect">
-                                            <FiEye style={{ color: "#635bff" }} /> Inspect
+                                            <FiEye className="vd-btn-inspect-icon" /> Inspect
                                         </button>
+                                        {!item.allocationRequested && !item.AllocationRequested && (item.status || "").toLowerCase() !== "inactive" && (item.status || "").toLowerCase() !== "deleted" && (
+                                            <button
+                                                onClick={() => handleRequestAllocation(item)}
+                                                style={{
+                                                    background: "#635bff",
+                                                    color: "#ffffff",
+                                                    border: "none",
+                                                    padding: "0.45rem 0.85rem",
+                                                    borderRadius: "8px",
+                                                    fontWeight: 700,
+                                                    fontSize: "0.8rem",
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    gap: "0.35rem",
+                                                    cursor: "pointer",
+                                                    boxShadow: "0 2px 4px rgba(99, 91, 255, 0.25)"
+                                                }}
+                                                title="Request Allocation"
+                                            >
+                                                <FiCpu /> Request Allocation
+                                            </button>
+                                        )}
                                         {(item.status || "").toLowerCase() === "inactive" || (item.status || "").toLowerCase() === "deleted" ? (
                                             <button
                                                 onClick={() => restoreDevice(item)}
@@ -534,7 +683,7 @@ function View_device() {
                             <tbody>
                                 {filteredDevices.map((item, index) => {
                                     const deviceId = item.deviceId || item.id || index;
-                                    const status = getStatusStyle(item.status);
+                                    const status = getStatusStyle(item.status, item);
                                     return (
                                         <tr key={deviceId}>
                                             <td>
@@ -564,37 +713,65 @@ function View_device() {
                                                 )}
                                             </td>
                                             <td>
-                                                <span className="vd-card-status-badge" style={{ position: "static", display: "inline-flex", background: status.bg, color: status.color }}>
-                                                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: status.dot }}></span>
-                                                    {status.label}
-                                                </span>
+                                                 <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", alignItems: "flex-start" }}>
+                                                     <span className="vd-card-status-badge" style={{ position: "static", display: "inline-flex", background: status.bg, color: status.color }}>
+                                                         <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: status.dot }}></span>
+                                                         {status.label}
+                                                     </span>
+                                                     {(item.allocationRequested || item.AllocationRequested) && (
+                                                         <span style={{ fontSize: "0.725rem", color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.2rem 0.5rem", borderRadius: "6px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
+                                                             <FiCheckCircle /> Allocation Requested
+                                                         </span>
+                                                     )}
+                                                 </div>
                                             </td>
                                             <td>
-                                                <div style={{ display: "flex", gap: "0.4rem" }}>
-                                                    <button
-                                                        onClick={() => setSelectedDevice(item)}
-                                                        className="vd-btn-table-inspect"
-                                                    >
-                                                        <FiEye /> Inspect
-                                                    </button>
-                                                    {(item.status || "").toLowerCase() === "inactive" || (item.status || "").toLowerCase() === "deleted" ? (
-                                                        <button
-                                                            onClick={() => restoreDevice(item)}
-                                                            className="vd-btn-table-restore"
-                                                            title="Restore Device"
-                                                        >
-                                                            <FiRotateCcw /> Restore
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            onClick={() => setConfirmDeleteDevice(item)}
-                                                            className="vd-btn-table-delete"
-                                                            title="Delete Device"
-                                                        >
-                                                            <FiTrash2 /> Delete
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                 <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                                                     <button
+                                                         onClick={() => setSelectedDevice(item)}
+                                                         className="vd-btn-table-inspect"
+                                                     >
+                                                         <FiEye /> Inspect
+                                                     </button>
+                                                     {!item.allocationRequested && !item.AllocationRequested && (item.status || "").toLowerCase() !== "inactive" && (item.status || "").toLowerCase() !== "deleted" && (
+                                                         <button
+                                                             onClick={() => handleRequestAllocation(item)}
+                                                             style={{
+                                                                 background: "#635bff",
+                                                                 color: "#ffffff",
+                                                                 border: "none",
+                                                                 padding: "0.35rem 0.65rem",
+                                                                 borderRadius: "6px",
+                                                                 fontWeight: 700,
+                                                                 fontSize: "0.75rem",
+                                                                 display: "inline-flex",
+                                                                 alignItems: "center",
+                                                                 gap: "0.3rem",
+                                                                 cursor: "pointer"
+                                                             }}
+                                                             title="Request Allocation"
+                                                         >
+                                                             <FiCpu /> Request Allocation
+                                                         </button>
+                                                     )}
+                                                     {(item.status || "").toLowerCase() === "inactive" || (item.status || "").toLowerCase() === "deleted" ? (
+                                                         <button
+                                                             onClick={() => restoreDevice(item)}
+                                                             className="vd-btn-table-restore"
+                                                             title="Restore Device"
+                                                         >
+                                                             <FiRotateCcw /> Restore
+                                                         </button>
+                                                     ) : (
+                                                         <button
+                                                             onClick={() => setConfirmDeleteDevice(item)}
+                                                             className="vd-btn-table-delete"
+                                                             title="Delete Device"
+                                                         >
+                                                             <FiTrash2 /> Delete
+                                                         </button>
+                                                     )}
+                                                 </div>
                                             </td>
                                         </tr>
                                     );
@@ -611,9 +788,6 @@ function View_device() {
                     <div className="vd-modal-content" onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "1rem" }}>
                             <div>
-                                <span style={{ background: "#f3e8ff", color: "#9333ea", fontSize: "0.75rem", fontWeight: 700, padding: "0.2rem 0.6rem", borderRadius: "6px" }}>
-                                    DEVICE ID #{selectedDevice.deviceId || selectedDevice.id}
-                                </span>
                                 <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "#1a202c", margin: "0.3rem 0 0 0" }}>
                                     {selectedDevice.brand} {selectedDevice.model}
                                 </h2>
@@ -627,7 +801,7 @@ function View_device() {
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f7fafc", padding: "0.75rem 1rem", borderRadius: "10px", marginBottom: "1.25rem" }}>
                             <span style={{ fontWeight: 700, color: "#4a5568", fontSize: "0.85rem" }}>Current Status</span>
                             {(() => {
-                                const st = getStatusStyle(selectedDevice.status);
+                                const st = getStatusStyle(selectedDevice.status, selectedDevice);
                                 return (
                                     <span className="vd-card-status-badge" style={{ position: "static", display: "inline-flex", background: st.bg, color: st.color }}>
                                         <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: st.dot }}></span>
@@ -739,7 +913,7 @@ function View_device() {
                 }}>
                     <div style={{ position: "relative", maxWidth: "90vw", maxHeight: "90vh" }}>
                         <img src={activePhotoModal} alt="Expanded Inspection" style={{ maxWidth: "100%", maxHeight: "85vh", borderRadius: "12px", objectFit: "contain" }} />
-                        <button onClick={() => setActivePhotoModal(null)} style={{ position: "absolute", top: "-15px", right: "-15px", background: "#ffffff", border: "none", borderRadius: "50%", width: "36px", height: "36px", cursor: "pointer", fontWeight: 800 }}>✕</button>
+                        <button onClick={() => setActivePhotoModal(null)} style={{ position: "absolute", top:"-15px", right: "-15px", background: "#ffffff", border: "none", borderRadius: "50%", width: "36px", height: "36px", cursor: "pointer", fontWeight: 800 }}>✕</button>
                     </div>
                 </div>
             )}
@@ -769,6 +943,90 @@ function View_device() {
                                 className="vd-confirm-delete-btn"
                             >
                                 {isDeleting ? "Deleting..." : <><FiTrash2 /> Confirm Delete</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Allocation Request Information Modal */}
+            {allocationModalDevice && (
+                <div className="vd-modal-overlay" onClick={() => setAllocationModalDevice(null)}>
+                    <div className="vd-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "560px", width: "90%", padding: "1.75rem", textAlign: "left" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.75rem" }}>
+                            <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#1a202c", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                <span>📦</span> How Allocation Works
+                            </h3>
+                            <button
+                                onClick={() => setAllocationModalDevice(null)}
+                                style={{ background: "none", border: "none", fontSize: "1.25rem", color: "#a0aec0", cursor: "pointer" }}
+                            >
+                                <FiX />
+                            </button>
+                        </div>
+
+                        <p style={{ color: "#4a5568", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "1.1rem", fontWeight: 500, textAlign: "left" }}>
+                            When you request allocation, your device will go through these simple steps:
+                        </p>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.25rem", textAlign: "left" }}>
+                            <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                                <div style={{ background: "#635bff", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>1</div>
+                                <div>
+                                    <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Allocation Request</div>
+                                    <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>You submit your pickup request with your preferred date and time.</div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                                <div style={{ background: "#635bff", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>2</div>
+                                <div>
+                                    <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Admin Review &amp; Allocation</div>
+                                    <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>Our admin team reviews your request and assigns a suitable Collection Agent and Technician.</div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                                <div style={{ background: "#635bff", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>3</div>
+                                <div>
+                                    <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Device Pickup</div>
+                                    <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>The assigned collection agent collects your device from your selected address.</div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                                <div style={{ background: "#635bff", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>4</div>
+                                <div>
+                                    <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Inspection</div>
+                                    <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>The device is delivered to our facility, where the assigned technician inspects its condition.</div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                                <div style={{ background: "#635bff", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>5</div>
+                                <div>
+                                    <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Next Processing</div>
+                                    <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>Based on the inspection, your device is sent for refurbishment or recycling.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p style={{ color: "#4a5568", fontSize: "0.875rem", marginBottom: "1.25rem", textAlign: "center", fontWeight: 600 }}>
+                            Click "Request Allocation" to start the process.
+                        </p>
+
+                        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+                            <button
+                                onClick={() => setAllocationModalDevice(null)}
+                                style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "0.6rem 1.25rem", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={executeAllocationRequest}
+                                disabled={submittingAllocationId === (allocationModalDevice.deviceId || allocationModalDevice.id)}
+                                style={{ background: "#635bff", color: "#ffffff", border: "none", padding: "0.6rem 1.5rem", borderRadius: "8px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+                            >
+                                {submittingAllocationId === (allocationModalDevice.deviceId || allocationModalDevice.id) ? "Submitting..." : "Request Allocation"}
                             </button>
                         </div>
                     </div>

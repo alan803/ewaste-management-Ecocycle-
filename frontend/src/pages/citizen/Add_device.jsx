@@ -28,6 +28,20 @@ function Add_device() {
     const [currentStep, setCurrentStep] = useState(0);
     const stepTitles = ["Device Info", "Condition", "Photos", "Pickup Details", "Confirmation"];
 
+    const getLocalDateString = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const todayObj = new Date();
+    const minDateStr = getLocalDateString(todayObj);
+
+    const maxDateObj = new Date();
+    maxDateObj.setDate(todayObj.getDate() + 10);
+    const maxDateStr = getLocalDateString(maxDateObj);
+
     const [userProfile, setUserProfile] = useState(null);
     const [profileImage, setProfileImage] = useState(null);
 
@@ -132,6 +146,9 @@ function Add_device() {
 
     const [touched, setTouched] = useState({});
     const [categories, setCategories] = useState([]);
+    const [deviceModels, setDeviceModels] = useState([]);
+    const [selectedBrandOption, setSelectedBrandOption] = useState("");
+    const [selectedModelOption, setSelectedModelOption] = useState("");
 
     useEffect(() => {
         axios.get("https://localhost:7102/api/DeviceCategory/GetAll")
@@ -141,7 +158,123 @@ function Add_device() {
             .catch((error) => {
                 console.error("Error fetching categories", error);
             });
+
+        axios.get("https://localhost:7102/api/DeviceModel/GetAll")
+            .then((response) => {
+                setDeviceModels(response.data || []);
+            })
+            .catch((error) => {
+                console.error("Error fetching device models", error);
+            });
     }, []);
+
+    // Filter models by selected Category
+    const categoryFilteredModels = form_data.categoryId
+        ? deviceModels.filter(m => String(m.categoryId) === String(form_data.categoryId))
+        : deviceModels;
+
+    // Filter distinct Brand list
+    const availableBrands = Array.from(
+        new Set(categoryFilteredModels.map(m => m.brand))
+    ).filter(Boolean).sort();
+
+    // Filter Models for selected Brand
+    const availableModels = selectedBrandOption && selectedBrandOption !== "Other"
+        ? categoryFilteredModels.filter(m => m.brand.toLowerCase() === selectedBrandOption.toLowerCase())
+        : [];
+
+    function handleBrandSelectChange(e) {
+        const val = e.target.value;
+        setSelectedBrandOption(val);
+        setSelectedModelOption("");
+
+        if (val === "Other") {
+            set_formdata(prev => ({
+                ...prev,
+                brand: "",
+                model: "",
+                modelNumber: "",
+                weight: ""
+            }));
+            seterror(prev => ({
+                ...prev,
+                brand_er: "Brand is required",
+                model_er: "",
+                modelNumber_er: "",
+                weight_er: ""
+            }));
+        } else if (val) {
+            set_formdata(prev => ({
+                ...prev,
+                brand: val,
+                model: "",
+                modelNumber: "",
+                weight: ""
+            }));
+            seterror(prev => ({
+                ...prev,
+                brand_er: validate_brand(val),
+                model_er: "",
+                modelNumber_er: "",
+                weight_er: ""
+            }));
+        } else {
+            set_formdata(prev => ({
+                ...prev,
+                brand: "",
+                model: "",
+                modelNumber: "",
+                weight: ""
+            }));
+            seterror(prev => ({ ...prev, brand_er: "" }));
+        }
+    }
+
+    function handleModelSelectChange(e) {
+        const val = e.target.value;
+        setSelectedModelOption(val);
+
+        if (val === "Other") {
+            set_formdata(prev => ({
+                ...prev,
+                model: "",
+                modelNumber: "",
+                weight: ""
+            }));
+            seterror(prev => ({
+                ...prev,
+                model_er: "Model name is required",
+                modelNumber_er: "",
+                weight_er: ""
+            }));
+        } else if (val) {
+            const matched = availableModels.find(m => m.model === val);
+            const autoModelNum = matched?.modelNumber || "";
+            const autoWeight = matched?.weight !== null && matched?.weight !== undefined ? String(matched.weight) : "";
+
+            set_formdata(prev => ({
+                ...prev,
+                model: val,
+                modelNumber: autoModelNum,
+                weight: autoWeight
+            }));
+
+            seterror(prev => ({
+                ...prev,
+                model_er: validate_modelname(val),
+                modelNumber_er: validate_modelnumber(autoModelNum),
+                weight_er: validate_weight(autoWeight)
+            }));
+        } else {
+            set_formdata(prev => ({
+                ...prev,
+                model: "",
+                modelNumber: "",
+                weight: ""
+            }));
+            seterror(prev => ({ ...prev, model_er: "" }));
+        }
+    }
 
     function handleInputChange(e) {
         const { name, value, type, checked, files } = e.target;
@@ -150,6 +283,28 @@ function Add_device() {
             ...prev,
             [name]: true
         }));
+
+        if (name === "categoryId") {
+            setSelectedBrandOption("");
+            setSelectedModelOption("");
+            set_formdata(prev => ({
+                ...prev,
+                categoryId: value,
+                brand: "",
+                model: "",
+                modelNumber: "",
+                weight: ""
+            }));
+            seterror(prev => ({
+                ...prev,
+                categoryId_er: validate_condition(value),
+                brand_er: "",
+                model_er: "",
+                modelNumber_er: "",
+                weight_er: ""
+            }));
+            return;
+        }
 
         if (name === "useRegisteredAddress") {
             const isRegistered = value === "true";
@@ -306,7 +461,13 @@ function Add_device() {
             const formData = new FormData();
             Object.keys(form_data).forEach(key => {
                 if (form_data[key] !== null && form_data[key] !== "") {
-                    formData.append(key, form_data[key]);
+                    if (key === "weight") {
+                        const numWeight = parseFloat(form_data[key]);
+                        const intWeight = !isNaN(numWeight) ? Math.max(1, Math.round(numWeight)) : 1;
+                        formData.append(key, intWeight.toString());
+                    } else {
+                        formData.append(key, form_data[key]);
+                    }
                 }
             });
 
@@ -327,7 +488,29 @@ function Add_device() {
             navigate("/view-device");
         } catch (error) {
             console.error("Submission error:", error.response?.data || error);
-            setSubmissionError(error.response?.data?.message || "Failed to add device. Please try again.");
+            let errorMsg = "Failed to add device. Please try again.";
+            const resData = error.response?.data;
+            if (resData) {
+                if (typeof resData === "string") {
+                    errorMsg = resData;
+                } else if (resData.message) {
+                    errorMsg = resData.message;
+                } else if (resData.title) {
+                    errorMsg = resData.title;
+                    if (resData.errors) {
+                        const firstErrKey = Object.keys(resData.errors)[0];
+                        if (firstErrKey) {
+                            errorMsg += `: ${firstErrKey} - ${resData.errors[firstErrKey].join(", ")}`;
+                        }
+                    }
+                } else if (resData.errors) {
+                    const firstErrKey = Object.keys(resData.errors)[0];
+                    if (firstErrKey) {
+                        errorMsg = `${firstErrKey}: ${resData.errors[firstErrKey].join(", ")}`;
+                    }
+                }
+            }
+            setSubmissionError(errorMsg);
         } finally {
             setIsSubmitting(false);
         }
@@ -436,25 +619,64 @@ function Add_device() {
                                 {error.categoryId_er && <span className="error">{error.categoryId_er}</span>}
 
                                 <label>Brand *</label>
-                                <input
-                                    type="text"
-                                    name="brand"
-                                    value={form_data.brand}
-                                    onChange={handleInputChange}
-                                    placeholder="Enter brand"
-                                    className={error.brand_er ? "input-error" : ""}
-                                />
+                                <select
+                                    name="brandSelect"
+                                    value={selectedBrandOption}
+                                    onChange={handleBrandSelectChange}
+                                    className={error.brand_er && !selectedBrandOption ? "input-error" : ""}
+                                >
+                                    <option value="">Select Brand</option>
+                                    {availableBrands.map((b) => (
+                                        <option key={b} value={b}>{b}</option>
+                                    ))}
+                                    <option value="Other">Other / Custom Brand...</option>
+                                </select>
+
+                                {(selectedBrandOption === "Other" || (!selectedBrandOption && form_data.brand)) && (
+                                    <div style={{ marginTop: "0.5rem" }}>
+                                        <input
+                                            type="text"
+                                            name="brand"
+                                            value={form_data.brand}
+                                            onChange={handleInputChange}
+                                            placeholder="Type custom brand name"
+                                            className={error.brand_er ? "input-error" : ""}
+                                        />
+                                    </div>
+                                )}
                                 {error.brand_er && <span className="error">{error.brand_er}</span>}
 
                                 <label>Model *</label>
-                                <input
-                                    type="text"
-                                    name="model"
-                                    value={form_data.model}
-                                    onChange={handleInputChange}
-                                    placeholder="Enter model"
-                                    className={error.model_er ? "input-error" : ""}
-                                />
+                                <select
+                                    name="modelSelect"
+                                    value={selectedModelOption}
+                                    onChange={handleModelSelectChange}
+                                    disabled={!selectedBrandOption}
+                                    className={error.model_er && !selectedModelOption ? "input-error" : ""}
+                                >
+                                    <option value="">
+                                        {!selectedBrandOption ? "Select Brand First" : "Select Model"}
+                                    </option>
+                                    {availableModels.map((m) => (
+                                        <option key={m.deviceModelId || m.model} value={m.model}>
+                                            {m.model} {m.modelNumber ? `(${m.modelNumber})` : ""} {m.weight ? `- ${m.weight} kg` : ""}
+                                        </option>
+                                    ))}
+                                    {selectedBrandOption && <option value="Other">Other / Custom Model...</option>}
+                                </select>
+
+                                {(selectedModelOption === "Other" || (!selectedModelOption && form_data.model && selectedBrandOption === "Other")) && (
+                                    <div style={{ marginTop: "0.5rem" }}>
+                                        <input
+                                            type="text"
+                                            name="model"
+                                            value={form_data.model}
+                                            onChange={handleInputChange}
+                                            placeholder="Type custom model name"
+                                            className={error.model_er ? "input-error" : ""}
+                                        />
+                                    </div>
+                                )}
                                 {error.model_er && <span className="error">{error.model_er}</span>}
 
                                 <label>Model Number</label>
@@ -463,7 +685,7 @@ function Add_device() {
                                     name="modelNumber"
                                     value={form_data.modelNumber}
                                     onChange={handleInputChange}
-                                    placeholder="Optional"
+                                    placeholder="Optional (Auto-filled or Custom)"
                                     className={error.modelNumber_er ? "input-error" : ""}
                                 />
                                 {error.modelNumber_er && <span className="error">{error.modelNumber_er}</span>}
@@ -489,14 +711,16 @@ function Add_device() {
                                     className={error.quantity_er ? "input-error" : ""}
                                 />
                                 {error.quantity_er && <span className="error">{error.quantity_er}</span>}
+
                                 <label>Weight (in kg) *</label>
                                 <input
                                     type="number"
+                                    step="0.01"
                                     name="weight"
                                     value={form_data.weight}
                                     onChange={handleInputChange}
-                                    placeholder="e.g. 2"
-                                    min="1"
+                                    placeholder="e.g. 0.25 (Auto-filled or Custom)"
+                                    min="0.01"
                                     className={error.weight_er ? "input-error" : ""}
                                 />
                                 {error.weight_er && <span className="error">{error.weight_er}</span>}
@@ -753,6 +977,8 @@ function Add_device() {
                                 <input
                                     type="date"
                                     name="pickupDate"
+                                    min={minDateStr}
+                                    max={maxDateStr}
                                     value={form_data.pickupDate}
                                     onChange={handleInputChange}
                                     className={error.pickupDate_er ? "input-error" : ""}

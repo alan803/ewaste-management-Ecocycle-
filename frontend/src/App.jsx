@@ -45,6 +45,10 @@ import RefurbishmentProfile from "./pages/refurbishment center/refurbishment_pro
 import RecycleProfile from "./pages/Recycling Center/recycle_profile";
 import Pickup_collectionagent from "./pages/Administrator/Pickup_collectionagent";
 import Pickupdetails from "./pages/citizen/Pickupdetails";
+import Pickups from "./pages/Collection Agent/Pickups";
+import TechnicianDelivery from "./pages/Inspection Technician/technician_delivery";
+import ManagePickup from "./pages/Administrator/Manage_pickup";
+import ManageDelivery from "./pages/Administrator/Manage_delivery";
 
 function App() {
     return (
@@ -107,7 +111,20 @@ function App() {
             <Route path="/recyclingcenter_profile" element={<RecycleProfile/>}/>
             <Route path="/recyclingcenter/profile" element={<RecycleProfile/>}/>
             <Route path="/collectionagent-pickup" element={<Pickup_collectionagent/>}/>
+            <Route path="/collectionagent/pickups" element={<Pickups/>}/>
+            <Route path="/agent-pickups" element={<Pickups/>}/>
             <Route path="/pickupuser" element={<Pickupdetails/>}/>
+            <Route path="/technician/deliveries" element={<TechnicianDelivery/>}/>
+            <Route path="/technician-deliveries" element={<TechnicianDelivery/>}/>
+            <Route path="/technician_delivery" element={<TechnicianDelivery/>}/>
+
+            <Route path="/manage-pickup" element={<ManagePickup/>}/>
+            <Route path="/manage-pickups" element={<ManagePickup/>}/>
+            <Route path="/manage_pickup" element={<ManagePickup/>}/>
+            <Route path="/manage-delivery" element={<ManageDelivery/>}/>
+            <Route path="/manage-deliveries" element={<ManageDelivery/>}/>
+            <Route path="/manage_delivery" element={<ManageDelivery/>}/>
+
         </Routes>
     );
 }

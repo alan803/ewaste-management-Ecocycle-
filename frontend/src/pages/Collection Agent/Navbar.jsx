@@ -9,8 +9,10 @@ import {
     FiRefreshCw,
     FiBell,
     FiCheckCircle,
+    FiPackage,
     FiX
 } from "react-icons/fi";
+
 import "./Navbar.css";
 
 function Navbar({
@@ -61,6 +63,7 @@ function Navbar({
 
     const handleLogout = () => {
         localStorage.clear();
+        sessionStorage.clear();
         navigate("/login");
     };
 
@@ -201,6 +204,16 @@ function Navbar({
                                 <span>My Pickups</span>
                             </Link>
                         </li>
+                        <li>
+                            <Link
+                                to="/collectionagent/pickups"
+                                className={`agent-nav-item ${isActive("/collectionagent/pickups") ? "active" : ""}`}
+                            >
+                                <FiPackage />
+                                <span>All Agent Pickups</span>
+                            </Link>
+                        </li>
+
                         <li>
                             <Link
                                 to="/technician-notification"

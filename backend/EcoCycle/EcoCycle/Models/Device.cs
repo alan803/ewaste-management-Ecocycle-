@@ -1,8 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
+using Microsoft.EntityFrameworkCore;
 namespace EcoCycle.API.Models
 {
+    [Index(nameof(DeviceQrToken), IsUnique = true)]
     public class Device
     {
         [Key]
@@ -127,7 +128,13 @@ namespace EcoCycle.API.Models
 
         //device lifecycle status
         public string LifecycleStatus { get; set; } = "Pending";
+
+        public bool AllocationRequested { get; set; } = false;
         // Inspection assignments
+
+        [MaxLength(100)]
+        public string? DeviceQrToken { get; set; }
+
         public ICollection<InspectionRequest> InspectionRequests { get; set; }
             = new List<InspectionRequest>();
 

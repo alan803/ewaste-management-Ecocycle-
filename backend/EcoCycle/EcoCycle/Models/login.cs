@@ -29,5 +29,7 @@ namespace EcoCycle.API.Models
         public string? PasswordResetToken { get; set; }
 
         public DateTime? PasswordResetTokenExpiry { get; set; }
+
+        public string? GoogleId { get; set; }
     }
 }

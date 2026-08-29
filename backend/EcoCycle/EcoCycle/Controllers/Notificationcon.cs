@@ -1,4 +1,5 @@
-﻿using EcoCycle.API.Data;
+using EcoCycle.API.Data;
+using EcoCycle.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -29,6 +30,60 @@ namespace EcoCycle.API.Controllers
             }
 
             int loginId = int.Parse(loginIdClaim.Value);
+
+            // Auto-check and persist Overdue Pickup notifications for Citizens
+            var user = await db.Users.FirstOrDefaultAsync(u => u.LoginId == loginId);
+            if (user != null)
+            {
+                var today = DateTime.Today;
+                var overdueDevices = await db.Device
+                    .Include(d => d.CollectionAssignments)
+                    .Where(d => d.UserId == user.UserId &&
+                                d.PickupDate.Date < today &&
+                                d.Status != "Completed" &&
+                                d.Status != "Inactive" &&
+                                d.Status != "Deleted")
+                    .ToListAsync();
+
+                bool hasNewOverdueNotif = false;
+                foreach (var device in overdueDevices)
+                {
+                    bool isCompleted = device.CollectionAssignments != null &&
+                                      device.CollectionAssignments.Any(ca =>
+                                          string.Equals(ca.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                                          string.Equals(ca.Status, "Delivered", StringComparison.OrdinalIgnoreCase));
+                    if (isCompleted) continue;
+
+                    string notifTitle = "Overdue Pickup Alert";
+                    string notifMsg = $"The scheduled pickup date ({device.PickupDate:dd MMM yyyy}) for your device {device.Brand} {device.Model} has passed. Please check your pickup details or contact support.";
+
+                    bool alreadyNotified = await db.Notification.AnyAsync(n =>
+                        n.LoginId == loginId &&
+                        n.Title == notifTitle &&
+                        n.Message.Contains(device.Brand) &&
+                        n.Message.Contains(device.Model) &&
+                        n.Status);
+
+                    if (!alreadyNotified)
+                    {
+                        db.Notification.Add(new Notification
+                        {
+                            LoginId = loginId,
+                            Title = notifTitle,
+                            Message = notifMsg,
+                            Isread = false,
+                            Status = true,
+                            CreatedAt = DateTime.Now
+                        });
+                        hasNewOverdueNotif = true;
+                    }
+                }
+
+                if (hasNewOverdueNotif)
+                {
+                    await db.SaveChangesAsync();
+                }
+            }
 
             var notifications = await db.Notification
                 .Where(n => n.LoginId == loginId && n.Status)

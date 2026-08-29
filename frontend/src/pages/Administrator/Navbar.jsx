@@ -278,19 +278,45 @@ function Navbar() {
                     </div>
 
                     <div className="admin-sb-section">
-                        <span className="admin-sb-section-title">Pickup Operations</span>
+                        <span className="admin-sb-section-title">Pickup & Delivery Ops</span>
                         <ul className="admin-sb-menu">
                             <li className="admin-sb-item">
                                 <Link
+                                    to="/manage-pickup"
+                                    className={`admin-sb-link ${isActive("/manage-pickup") || isActive("/manage-pickups") || isActive("/manage_pickup") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--purple">
+                                        <FiMapPin />
+                                    </div>
+                                    <span className="admin-sb-link-text">Manage Pickup</span>
+                                    {isActive("/manage-pickup") || isActive("/manage-pickups") || isActive("/manage_pickup") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/manage-delivery"
+                                    className={`admin-sb-link ${isActive("/manage-delivery") || isActive("/manage-deliveries") || isActive("/manage_delivery") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--emerald">
+                                        <FiTruck />
+                                    </div>
+                                    <span className="admin-sb-link-text">Manage Deliveries</span>
+                                    {(isActive("/manage-delivery") || isActive("/manage-deliveries")) && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
                                     to="/collectionagent-pickup"
-                                    className={`admin-sb-link ${isActive("/admin/pickups") ? "active" : ""}`}
+                                    className={`admin-sb-link ${isActive("/collectionagent-pickup") || isActive("/admin/pickups") ? "active" : ""}`}
                                     onClick={closeMobileMenu}
                                 >
                                     <div className="admin-sb-icon-box icon-box--amber">
                                         <FiPackage />
                                     </div>
                                     <span className="admin-sb-link-text">Pickup Requests</span>
-                                    {isActive("/admin/pickups") && <FiChevronRight className="admin-sb-chevron" />}
+                                    {(isActive("/collectionagent-pickup") || isActive("/admin/pickups")) && <FiChevronRight className="admin-sb-chevron" />}
                                 </Link>
                             </li>
                             <li className="admin-sb-item">
@@ -312,19 +338,6 @@ function Navbar() {
                                     {isActive("/manage-assignmentandpickups") && (
                                         <FiChevronRight className="admin-sb-chevron" />
                                     )}
-                                </Link>
-                            </li>
-                            <li className="admin-sb-item">
-                                <Link
-                                    to="/admin/tracking"
-                                    className={`admin-sb-link ${isActive("/admin/tracking") ? "active" : ""}`}
-                                    onClick={closeMobileMenu}
-                                >
-                                    <div className="admin-sb-icon-box icon-box--purple">
-                                        <FiMapPin />
-                                    </div>
-                                    <span className="admin-sb-link-text">Pickup Tracking</span>
-                                    {isActive("/admin/tracking") && <FiChevronRight className="admin-sb-chevron" />}
                                 </Link>
                             </li>
                         </ul>

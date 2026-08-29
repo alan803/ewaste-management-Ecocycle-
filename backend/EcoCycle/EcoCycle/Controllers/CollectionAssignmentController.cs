@@ -20,6 +20,44 @@ namespace EcoCycle.API.Controllers
             this.db = db;
         }
 
+        private async Task<(int? techId, string centerName, string delAddress, string techName, string techPhone)> GetTechnicianLocationForDeviceAsync(int deviceId)
+        {
+            var inspReq = await db.InspectionRequest
+                .Include(ir => ir.Technician)
+                .Where(ir => ir.DeviceId == deviceId && ir.Technician != null)
+                .OrderByDescending(ir => ir.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            var tech = inspReq?.Technician;
+            if (tech == null)
+            {
+                tech = await db.Technician
+                    .Where(t => t.Status == "Approved" || t.Status == "Active")
+                    .OrderBy(t => t.TechnicianId)
+                    .FirstOrDefaultAsync() ?? await db.Technician.OrderBy(t => t.TechnicianId).FirstOrDefaultAsync();
+            }
+
+            if (tech != null)
+            {
+                string tName = $"{tech.FirstName} {tech.LastName}".Trim();
+                string tPhone = tech.PhoneNumber;
+                string cName = tech.InspectionCenterName;
+
+                var parts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(tech.InspectionCenterName)) parts.Add(tech.InspectionCenterName);
+                if (!string.IsNullOrWhiteSpace(tech.Address)) parts.Add(tech.Address);
+                if (!string.IsNullOrWhiteSpace(tech.City)) parts.Add(tech.City);
+                if (!string.IsNullOrWhiteSpace(tech.District)) parts.Add(tech.District);
+                if (!string.IsNullOrWhiteSpace(tech.State)) parts.Add(tech.State);
+                if (!string.IsNullOrWhiteSpace(tech.PinCode)) parts.Add(tech.PinCode);
+
+                string fullDelAddress = string.Join(", ", parts);
+                return (tech.TechnicianId, cName, fullDelAddress, tName, tPhone);
+            }
+
+            return (null, "EcoCycle Central Inspection Center", "EcoCycle Central E-Waste Facility & Inspection Hub", "Inspection Technician", "");
+        }
+
         private async Task SendEmailAsync(
             string recipientEmail,
             string subject,
@@ -62,9 +100,38 @@ namespace EcoCycle.API.Controllers
             }
         }
 
+        public static async Task CheckAndUpdateExpiredCollectionAssignments(ApplicationDbContext db)
+        {
+            var now = DateTime.Now;
+            var expiredAssignments = await db.CollectionAssignments
+                .Include(x => x.Device)
+                .Where(x => (x.Status == "Assigned" || x.Status == "Waiting" || x.Status == "Pending" ||
+                             x.Status == "assigned" || x.Status == "waiting" || x.Status == "pending") &&
+                            ((x.ResponseDeadline.HasValue && x.ResponseDeadline.Value < now) ||
+                             (!x.ResponseDeadline.HasValue && x.AssignedAt.HasValue && x.AssignedAt.Value.AddHours(24) < now) ||
+                             (!x.ResponseDeadline.HasValue && !x.AssignedAt.HasValue && x.CreatedAt.AddHours(24) < now)))
+                .ToListAsync();
+
+            if (expiredAssignments.Any())
+            {
+                foreach (var assignment in expiredAssignments)
+                {
+                    assignment.Status = "Expired";
+                    assignment.UpdatedAt = now;
+                    if (assignment.Device != null)
+                    {
+                        assignment.Device.LifecycleStatus = "PickupExpired";
+                    }
+                }
+                await db.SaveChangesAsync();
+            }
+        }
+
         [HttpPost("auto-allocate/{deviceId}")]
         public async Task<IActionResult> AutoAllocate(int deviceId)
         {
+            await CheckAndUpdateExpiredCollectionAssignments(db);
+
             using var transaction =
                 await db.Database.BeginTransactionAsync();
 
@@ -89,10 +156,9 @@ namespace EcoCycle.API.Controllers
 
                 var existingAssignment =
                     await db.CollectionAssignments
-                        .FirstOrDefaultAsync(x =>
-                            x.DeviceId == deviceId &&
-                            x.Status != "Rejected"
-                        );
+                        .Where(x => x.DeviceId == deviceId && x.Status != "Rejected" && x.Status != "Cancelled")
+                        .OrderByDescending(x => x.CreatedAt)
+                        .FirstOrDefaultAsync();
 
                 CollectionAgent? agent = null;
                 CollectionAssignment assignment;
@@ -103,11 +169,41 @@ namespace EcoCycle.API.Controllers
 
                 if (existingAssignment != null)
                 {
-                    // -----------------------------------------------------
-                    // EXISTING WAITING ASSIGNMENT
-                    // -----------------------------------------------------
+                    bool isExpired = string.Equals(existingAssignment.Status, "Expired", StringComparison.OrdinalIgnoreCase) ||
+                                     (existingAssignment.ResponseDeadline.HasValue && existingAssignment.ResponseDeadline.Value < DateTime.Now) ||
+                                     (!existingAssignment.ResponseDeadline.HasValue && existingAssignment.AssignedAt.HasValue && existingAssignment.AssignedAt.Value.AddHours(24) < DateTime.Now) ||
+                                     (!existingAssignment.ResponseDeadline.HasValue && !existingAssignment.AssignedAt.HasValue && existingAssignment.CreatedAt.AddHours(24) < DateTime.Now);
 
-                    if (existingAssignment.Status == "Waiting")
+                    if (isExpired)
+                    {
+                        existingAssignment.Status = "Expired";
+                        existingAssignment.UpdatedAt = DateTime.Now;
+
+                        agent = await FindBestCollectionAgent(device);
+
+                        assignment = new CollectionAssignment
+                        {
+                            DeviceId = deviceId,
+                            CollectionAgentId = agent?.CollectionAgentId,
+                            Status = agent != null ? "Assigned" : "Waiting",
+                            AssignedAt = agent != null ? DateTime.Now : null,
+                            ResponseDeadline = DateTime.Now.AddHours(24),
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now
+                        };
+
+                        if (agent != null)
+                        {
+                            device.LifecycleStatus = "CollectionAssigned";
+                        }
+                        else
+                        {
+                            device.LifecycleStatus = "CollectionPending";
+                        }
+
+                        db.CollectionAssignments.Add(assignment);
+                    }
+                    else if (existingAssignment.Status == "Waiting")
                     {
                         agent = await FindBestCollectionAgent(device);
 
@@ -135,6 +231,11 @@ namespace EcoCycle.API.Controllers
 
                         assignment.AssignedAt =
                             DateTime.Now;
+
+                        if (!assignment.ResponseDeadline.HasValue)
+                        {
+                            assignment.ResponseDeadline = DateTime.Now.AddHours(24);
+                        }
 
                         assignment.UpdatedAt =
                             DateTime.Now;
@@ -169,29 +270,19 @@ namespace EcoCycle.API.Controllers
                 {
                     agent = await FindBestCollectionAgent(device);
 
+                    var techInfo = await GetTechnicianLocationForDeviceAsync(deviceId);
                     assignment = new CollectionAssignment
                     {
-                        DeviceId =
-                            deviceId,
-
-                        CollectionAgentId =
-                            agent?.CollectionAgentId,
-
-                        Status =
-                            agent != null
-                                ? "Assigned"
-                                : "Waiting",
-
-                        AssignedAt =
-                            agent != null
-                                ? DateTime.Now
-                                : null,
-
-                        CreatedAt =
-                            DateTime.Now,
-
-                        UpdatedAt =
-                            DateTime.Now
+                        DeviceId = deviceId,
+                        CollectionAgentId = agent?.CollectionAgentId,
+                        Status = agent != null ? "Assigned" : "Waiting",
+                        AssignedAt = agent != null ? DateTime.Now : null,
+                        ResponseDeadline = DateTime.Now.AddHours(24),
+                        TechnicianId = techInfo.techId,
+                        TechnicianCenterName = techInfo.centerName,
+                        DeliveredAddress = techInfo.delAddress,
+                        CreatedAt = DateTime.Now,
+                        UpdatedAt = DateTime.Now
                     };
 
                     if (agent != null)
@@ -214,6 +305,15 @@ namespace EcoCycle.API.Controllers
 
                 await db.SaveChangesAsync();
 
+                string fullAddress =
+                    device.Address +
+                    (string.IsNullOrWhiteSpace(device.User?.City) ? "" : $", {device.User.City}") +
+                    (string.IsNullOrWhiteSpace(device.User?.District) ? "" : $", {device.User.District}") +
+                    (string.IsNullOrWhiteSpace(device.User?.State) ? "" : $", {device.User.State}") +
+                    (string.IsNullOrWhiteSpace(device.User?.Pincode) ? "" : $" - {device.User.Pincode}");
+
+                var routeTech = await GetTechnicianLocationForDeviceAsync(deviceId);
+
                 // =========================================================
                 // INSERT NOTIFICATION WHEN AGENT IS ACTUALLY ASSIGNED
                 // =========================================================
@@ -224,24 +324,15 @@ namespace EcoCycle.API.Controllers
                     {
                         var notification = new Notification
                         {
-                            LoginId =agent.LoginId,
-
-                            Title ="New Pickup Request Assigned",
-
-                            Message =$"A new pickup request for {device.Brand} {device.Model} has been assigned to you.",
-
-                            Isread =
-                                false,
-
-                            Status =
-                                true,
-
-                            CreatedAt =
-                                DateTime.Now
+                            LoginId = agent.LoginId,
+                            Title = "New Pickup Request Assigned",
+                            Message = $"COLLECT FROM Customer {device.User?.FirstName} {device.User?.LastName} ({fullAddress}) [Slot: {device.PickupDate:dd-MM-yyyy} {device.TimeSlot}] ↓ DELIVER TO {routeTech.techName} ({routeTech.centerName} - {routeTech.delAddress})",
+                            Isread = false,
+                            Status = true,
+                            CreatedAt = DateTime.Now
                         };
 
                         db.Notification.Add(notification);
-
                         await db.SaveChangesAsync();
                     }
                 }
@@ -256,128 +347,54 @@ namespace EcoCycle.API.Controllers
                 // SEND EMAIL IF AGENT ASSIGNED
                 // =========================================================
 
-                if (agent != null &&
-                    agent.Login != null &&
-                    !string.IsNullOrWhiteSpace(agent.Login.Email))
+                string recipientEmail = agent?.Login?.Email;
+                if (string.IsNullOrWhiteSpace(recipientEmail) && agent != null && agent.LoginId > 0)
                 {
-                    string fullAddress =
-                        device.Address +
-                        (string.IsNullOrWhiteSpace(device.User?.City)
-                            ? ""
-                            : $", {device.User.City}") +
-                        (string.IsNullOrWhiteSpace(device.User?.District)
-                            ? ""
-                            : $", {device.User.District}") +
-                        (string.IsNullOrWhiteSpace(device.User?.State)
-                            ? ""
-                            : $", {device.User.State}") +
-                        (string.IsNullOrWhiteSpace(device.User?.Pincode)
-                            ? ""
-                            : $" - {device.User.Pincode}");
+                    var loginObj = await db.Login.FirstOrDefaultAsync(l => l.LoginId == agent.LoginId);
+                    recipientEmail = loginObj?.Email;
+                }
 
-                    string subject =
-                        "EcoCycle - New Collection Pickup Request Assigned";
+                if (agent != null && !string.IsNullOrWhiteSpace(recipientEmail))
+                {
+                    string subject = "EcoCycle - New Collection Pickup Request Assigned";
 
                     string body = $@"
+<!DOCTYPE html>
 <html>
-<body>
+<body style=""font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #0f172a;"">
+    <div style=""max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;"">
+        <h2 style=""color: #059669; margin-top: 0;"">EcoCycle Pickup Assignment</h2>
+        <p>Dear <strong>{agent.FirstName} {agent.LastName}</strong>,</p>
+        <p>A new e-waste collection pickup request for <strong>{device.Brand} {device.Model}</strong> (Assignment #{assignment.CollectionAssignmentId}) has been assigned to you.</p>
 
-<h2>New Collection Pickup Request Assigned</h2>
+        <div style=""background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 10px; margin-top: 16px;"">
+            <div style=""font-size: 11px; font-weight: 800; color: #047857; text-transform: uppercase; letter-spacing: 0.05em;"">COLLECT FROM</div>
+            <div style=""font-weight: 700; color: #065f46; font-size: 15px; margin-top: 4px;"">Customer: {device.User?.FirstName} {device.User?.LastName} (Ph: {device.User?.PhoneNumber})</div>
+            <div style=""color: #047857; font-size: 14px; margin-top: 4px;""><strong>Customer pickup address:</strong> {fullAddress}</div>
+            <div style=""color: #059669; font-size: 13px; margin-top: 4px;""><strong>Pickup date / time slot:</strong> {device.PickupDate:dd-MM-yyyy} • {device.TimeSlot}</div>
+        </div>
 
-<p>
-Dear {agent.FirstName} {agent.LastName},
-</p>
+        <div style=""text-align: center; font-size: 24px; font-weight: bold; color: #059669; margin: 10px 0;"">↓</div>
 
-<p>
-A new e-waste collection pickup request has been assigned to you.
-</p>
+        <div style=""background: #eff6ff; border: 1px solid #bfdbfe; padding: 16px; border-radius: 10px;"">
+            <div style=""font-size: 11px; font-weight: 800; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.05em;"">DELIVER TO</div>
+            <div style=""font-weight: 700; color: #1e40af; font-size: 15px; margin-top: 4px;"">Technician / Inspection Center: {routeTech.techName} ({routeTech.centerName}) {(string.IsNullOrEmpty(routeTech.techPhone) ? "" : $"• Ph: {routeTech.techPhone}")}</div>
+            <div style=""color: #1e3a8a; font-size: 14px; margin-top: 4px;""><strong>Technician/center address:</strong> {routeTech.delAddress}</div>
+        </div>
 
-<h3>Pickup & Device Details</h3>
+        <div style=""margin-top: 24px; text-align: center;"">
+            <a href=""https://localhost:7102"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ Start Pickup ]</a>
+        </div>
 
-<p>
-<strong>Assignment ID:</strong>
-{assignment.CollectionAssignmentId}
-</p>
-
-<p>
-<strong>Device ID:</strong>
-{device.DeviceId}
-</p>
-
-<p>
-<strong>Category:</strong>
-{device.Category?.CategoryName ?? "E-Waste"}
-</p>
-
-<p>
-<strong>Brand:</strong>
-{device.Brand}
-</p>
-
-<p>
-<strong>Model:</strong>
-{device.Model}
-</p>
-
-<p>
-<strong>Quantity:</strong>
-{device.Quantity}
-</p>
-
-<p>
-<strong>Condition:</strong>
-{device.Condition}
-</p>
-
-<h3>Customer & Location Information</h3>
-
-<p>
-<strong>Customer:</strong>
-{device.User?.FirstName} {device.User?.LastName}
-</p>
-
-<p>
-<strong>Phone:</strong>
-{device.User?.PhoneNumber}
-</p>
-
-<p>
-<strong>Pickup Address:</strong>
-{fullAddress}
-</p>
-
-<p>
-<strong>Landmark:</strong>
-{device.Landmark ?? "N/A"}
-</p>
-
-<p>
-<strong>Pickup Date:</strong>
-{device.PickupDate:dd-MM-yyyy}
-</p>
-
-<p>
-<strong>Time Slot:</strong>
-{device.TimeSlot}
-</p>
-
-<p>
-Please log in to your EcoCycle collection agent account
-and respond to this pickup request.
-</p>
-
-<br />
-
-<p>
-Regards,<br />
-<strong>EcoCycle Admin Team</strong>
-</p>
-
+        <p style=""margin-top: 24px; font-size: 12px; color: #64748b;"">
+            Regards,<br/><strong>EcoCycle Admin Team</strong>
+        </p>
+    </div>
 </body>
 </html>";
 
                     await SendEmailAsync(
-                        agent.Login.Email,
+                        recipientEmail,
                         subject,
                         body
                     );
@@ -498,6 +515,8 @@ Regards,<br />
         [HttpGet("my-assignments")]
         public async Task<IActionResult> GetMyAssignments()
         {
+            await CheckAndUpdateExpiredCollectionAssignments(db);
+
             try
             {
                 var loginIdClaim = User.FindFirst(
@@ -533,30 +552,58 @@ Regards,<br />
                 }
 
                 // Get assignments belonging to this collection agent
-                var assignments = await db.CollectionAssignments
+                var rawAssignments = await db.CollectionAssignments
                     .Include(x => x.Device)
                         .ThenInclude(d => d.Category)
                     .Include(x => x.Device)
                         .ThenInclude(d => d.User)
+                            .ThenInclude(u => u.Login)
                     .Where(x =>
                         x.CollectionAgentId == agent.CollectionAgentId &&
-                        x.Device.Status != "Inactive" &&
-                        x.Device.Status != "Deleted" &&
+                        (x.Device == null || (x.Device.Status != "Inactive" && x.Device.Status != "Deleted")) &&
                         (
                             x.Status == "Assigned" ||
                             x.Status == "Accepted" ||
-                            x.Status == "PickupStarted"
+                            x.Status == "PickupStarted" ||
+                            x.Status == "Completed" ||
+                            x.Status == "completed" ||
+                            x.Status == "OutForDelivery" ||
+                            x.Status == "DeliveredToCenter"
                         )
                     )
-                    .OrderBy(x => x.Device.PickupDate)
-                    .Select(x => new
+                    .OrderByDescending(x => x.CollectionAssignmentId)
+                    .ToListAsync();
+
+                var resultList = new List<object>();
+                foreach (var x in rawAssignments)
+                {
+                    var (techId, centerName, delAddress, techName, techPhone) = await GetTechnicianLocationForDeviceAsync(x.DeviceId);
+
+                    string delStatus = (x.Status == "Completed" ? "Pending" : x.Status == "OutForDelivery" ? "InTransit" : x.Status == "DeliveredToCenter" ? "Delivered" : "Pending");
+                    try
+                    {
+                        var delObj = await db.Deliveries.FirstOrDefaultAsync(d => d.CollectionAssignmentId == x.CollectionAssignmentId);
+                        if (delObj != null && !string.IsNullOrEmpty(delObj.Status))
+                        {
+                            delStatus = delObj.Status;
+                        }
+                    }
+                    catch
+                    {
+                        // Fallback if Deliveries table is not created in DB yet
+                    }
+
+                    resultList.Add(new
                     {
                         collectionAssignmentId = x.CollectionAssignmentId,
                         deviceId = x.DeviceId,
                         collectionAgentId = x.CollectionAgentId,
                         status = x.Status,
+                        deliveryStatus = delStatus,
                         rejectionReason = x.RejectionReason,
                         assignedAt = x.AssignedAt,
+                        responseDeadline = x.ResponseDeadline ?? (x.AssignedAt.HasValue ? x.AssignedAt.Value.AddHours(24) : x.CreatedAt.AddHours(24)),
+                        respondedAt = x.RespondedAt,
                         createdAt = x.CreatedAt,
                         categoryName = x.Device.Category != null
                             ? x.Device.Category.CategoryName
@@ -568,6 +615,9 @@ Regards,<br />
                         working = x.Device.Working,
                         customerName = x.Device.User != null
                             ? x.Device.User.FirstName + " " + x.Device.User.LastName
+                            : "",
+                        customerEmail = x.Device.User != null && x.Device.User.Login != null
+                            ? x.Device.User.Login.Email
                             : "",
                         customerPhone = x.Device.User != null
                             ? x.Device.User.PhoneNumber
@@ -589,11 +639,19 @@ Regards,<br />
                         pickupDate = x.Device.PickupDate,
                         timeSlot = x.Device.TimeSlot,
                         pickupInstructions = x.Device.PickupInstructions,
-                        lifecycleStatus = x.Device.LifecycleStatus
-                    })
-                    .ToListAsync();
+                        lifecycleStatus = x.Device.LifecycleStatus,
+                        technicianId = techId,
+                        technicianName = techName,
+                        technicianPhone = techPhone,
+                        inspectionCenterName = centerName,
+                        technicianCenterName = centerName,
+                        deliveredAddress = delAddress,
+                        technicianAddress = delAddress,
+                        deviceQrToken = !string.IsNullOrEmpty(x.Device.DeviceQrToken) ? x.Device.DeviceQrToken : $"ECOQR-DEV-{x.DeviceId}"
+                    });
+                }
 
-                return Ok(assignments);
+                return Ok(resultList);
             }
             catch (Exception ex)
             {
@@ -608,9 +666,12 @@ Regards,<br />
         [HttpPost("accept/{assignmentId}")]
         public async Task<IActionResult> AcceptAssignment(int assignmentId)
         {
+            await CheckAndUpdateExpiredCollectionAssignments(db);
+
             try
             {
                 var assignment = await db.CollectionAssignments
+                    .Include(x => x.Device)
                     .FirstOrDefaultAsync(x => x.CollectionAssignmentId == assignmentId);
 
                 if (assignment == null)
@@ -618,6 +679,24 @@ Regards,<br />
                     return NotFound(new
                     {
                         message = "Collection assignment not found."
+                    });
+                }
+
+                if (string.Equals(assignment.Status, "Expired", StringComparison.OrdinalIgnoreCase) ||
+                    (assignment.AssignedAt.HasValue && assignment.AssignedAt.Value.AddHours(24) < DateTime.Now) ||
+                    (!assignment.AssignedAt.HasValue && assignment.CreatedAt.AddHours(24) < DateTime.Now))
+                {
+                    assignment.Status = "Expired";
+                    assignment.UpdatedAt = DateTime.Now;
+                    if (assignment.Device != null)
+                    {
+                        assignment.Device.LifecycleStatus = "PickupExpired";
+                    }
+                    await db.SaveChangesAsync();
+
+                    return BadRequest(new
+                    {
+                        message = "Response deadline has expired."
                     });
                 }
 
@@ -630,6 +709,7 @@ Regards,<br />
                 }
 
                 assignment.Status = "Accepted";
+                assignment.RespondedAt = DateTime.Now;
                 assignment.AcceptedAt = DateTime.Now;
                 assignment.UpdatedAt = DateTime.Now;
                 await db.SaveChangesAsync();
@@ -650,7 +730,43 @@ Regards,<br />
             }
         }
 
+        [HttpPost("start-pickup/{assignmentId}")]
+        public async Task<IActionResult> StartPickup(int assignmentId)
+        {
+            try
+            {
+                var assignment = await db.CollectionAssignments
+                    .Include(x => x.Device)
+                    .FirstOrDefaultAsync(x => x.CollectionAssignmentId == assignmentId);
+
+                if (assignment == null)
+                {
+                    return NotFound(new { message = "Collection assignment not found." });
+                }
+
+                assignment.Status = "PickupStarted";
+                assignment.PickupStartedAt = DateTime.Now;
+                assignment.UpdatedAt = DateTime.Now;
+                if (assignment.Device != null)
+                {
+                    assignment.Device.LifecycleStatus = "EnRoute";
+                }
+                await db.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "Pickup started successfully.",
+                    status = assignment.Status
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error starting pickup.", error = ex.Message });
+            }
+        }
+
         [HttpPost("reject/{assignmentId}")]
+
         public async Task<IActionResult> RejectAssignment(int assignmentId,[FromBody] string reason)
         {
             using var transaction = await db.Database.BeginTransactionAsync();
@@ -719,6 +835,7 @@ Regards,<br />
                 int oldAgentId = assignment.CollectionAgentId ?? 0;
 
                 assignment.Status = "Rejected";
+                assignment.RespondedAt = DateTime.Now;
                 assignment.RejectionReason = reason.Trim();
                 assignment.UpdatedAt = DateTime.Now;
 
@@ -747,6 +864,8 @@ Regards,<br />
                         Status = "Waiting",
 
                         AssignedAt = null,
+
+                        ResponseDeadline = DateTime.Now.AddHours(24),
 
                         CreatedAt = DateTime.Now,
 
@@ -788,19 +907,18 @@ Regards,<br />
                 // 4. CREATE NEW ASSIGNMENT FOR NEW AGENT
                 // =========================================================
 
+                var techInfoReassign = await GetTechnicianLocationForDeviceAsync(assignment.DeviceId);
                 var newAssignment = new CollectionAssignment
                 {
                     DeviceId = assignment.DeviceId,
-
-                    CollectionAgentId =
-                        newAgent.CollectionAgentId,
-
+                    CollectionAgentId = newAgent.CollectionAgentId,
                     Status = "Assigned",
-
                     AssignedAt = DateTime.Now,
-
+                    ResponseDeadline = DateTime.Now.AddHours(24),
+                    TechnicianId = techInfoReassign.techId,
+                    TechnicianCenterName = techInfoReassign.centerName,
+                    DeliveredAddress = techInfoReassign.delAddress,
                     CreatedAt = DateTime.Now,
-
                     UpdatedAt = DateTime.Now
                 };
 
@@ -815,13 +933,20 @@ Regards,<br />
 
                 await db.SaveChangesAsync();
 
+                string fullAddress =
+                    assignment.Device.Address +
+                    (string.IsNullOrWhiteSpace(assignment.Device.User?.City) ? "" : $", {assignment.Device.User.City}") +
+                    (string.IsNullOrWhiteSpace(assignment.Device.User?.District) ? "" : $", {assignment.Device.User.District}") +
+                    (string.IsNullOrWhiteSpace(assignment.Device.User?.State) ? "" : $", {assignment.Device.User.State}") +
+                    (string.IsNullOrWhiteSpace(assignment.Device.User?.Pincode) ? "" : $" - {assignment.Device.User.Pincode}");
+
                 if (newAgent != null && newAgent.LoginId > 0)
                 {
                     var notification = new Notification
                     {
                         LoginId = newAgent.LoginId,
                         Title = "New Pickup Request Assigned",
-                        Message = $"A new pickup request for {assignment.Device.Brand} {assignment.Device.Model} has been reassigned to you.",
+                        Message = $"COLLECT FROM Customer {assignment.Device.User?.FirstName} {assignment.Device.User?.LastName} ({fullAddress}) [Slot: {assignment.Device.PickupDate:dd-MM-yyyy} {assignment.Device.TimeSlot}] ↓ DELIVER TO {techInfoReassign.techName} ({techInfoReassign.centerName} - {techInfoReassign.delAddress})",
                         Isread = false,
                         Status = true,
                         CreatedAt = DateTime.Now
@@ -837,129 +962,54 @@ Regards,<br />
                 // 6. SEND EMAIL TO NEW AGENT
                 // =========================================================
 
-                if (newAgent.Login != null &&
-                    !string.IsNullOrWhiteSpace(newAgent.Login.Email))
+                string newAgentEmail = newAgent?.Login?.Email;
+                if (string.IsNullOrWhiteSpace(newAgentEmail) && newAgent != null && newAgent.LoginId > 0)
                 {
-                    string fullAddress =
-                        assignment.Device.Address +
-                        (string.IsNullOrWhiteSpace(assignment.Device.User?.City)
-                            ? ""
-                            : $", {assignment.Device.User.City}") +
-                        (string.IsNullOrWhiteSpace(assignment.Device.User?.District)
-                            ? ""
-                            : $", {assignment.Device.User.District}") +
-                        (string.IsNullOrWhiteSpace(assignment.Device.User?.State)
-                            ? ""
-                            : $", {assignment.Device.User.State}") +
-                        (string.IsNullOrWhiteSpace(assignment.Device.User?.Pincode)
-                            ? ""
-                            : $" - {assignment.Device.User.Pincode}");
+                    var loginObj = await db.Login.FirstOrDefaultAsync(l => l.LoginId == newAgent.LoginId);
+                    newAgentEmail = loginObj?.Email;
+                }
 
-                    string subject =
-                        "EcoCycle - Collection Pickup Request Reassigned";
+                if (newAgent != null && !string.IsNullOrWhiteSpace(newAgentEmail))
+                {
+                    string subject = "EcoCycle - Collection Pickup Request Reassigned";
 
                     string body = $@"
+<!DOCTYPE html>
 <html>
-<body>
+<body style=""font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #0f172a;"">
+    <div style=""max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;"">
+        <h2 style=""color: #059669; margin-top: 0;"">EcoCycle Pickup Assignment Reassigned</h2>
+        <p>Dear <strong>{newAgent.FirstName} {newAgent.LastName}</strong>,</p>
+        <p>A collection pickup request for <strong>{assignment.Device.Brand} {assignment.Device.Model}</strong> (Assignment #{newAssignment.CollectionAssignmentId}) has been reassigned to you.</p>
 
-<h2>Collection Pickup Request Reassigned</h2>
+        <div style=""background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 10px; margin-top: 16px;"">
+            <div style=""font-size: 11px; font-weight: 800; color: #047857; text-transform: uppercase; letter-spacing: 0.05em;"">COLLECT FROM</div>
+            <div style=""font-weight: 700; color: #065f46; font-size: 15px; margin-top: 4px;"">Customer: {assignment.Device.User?.FirstName} {assignment.Device.User?.LastName} (Ph: {assignment.Device.User?.PhoneNumber})</div>
+            <div style=""color: #047857; font-size: 14px; margin-top: 4px;""><strong>Customer pickup address:</strong> {fullAddress}</div>
+            <div style=""color: #059669; font-size: 13px; margin-top: 4px;""><strong>Pickup date / time slot:</strong> {assignment.Device.PickupDate:dd-MM-yyyy} • {assignment.Device.TimeSlot}</div>
+        </div>
 
-<p>
-Dear {newAgent.FirstName} {newAgent.LastName},
-</p>
+        <div style=""text-align: center; font-size: 24px; font-weight: bold; color: #059669; margin: 10px 0;"">↓</div>
 
-<p>
-A collection pickup request has been automatically reassigned to you
-because the previous collection agent rejected the request.
-</p>
+        <div style=""background: #eff6ff; border: 1px solid #bfdbfe; padding: 16px; border-radius: 10px;"">
+            <div style=""font-size: 11px; font-weight: 800; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.05em;"">DELIVER TO</div>
+            <div style=""font-weight: 700; color: #1e40af; font-size: 15px; margin-top: 4px;"">Technician / Inspection Center: {techInfoReassign.techName} ({techInfoReassign.centerName}) {(string.IsNullOrEmpty(techInfoReassign.techPhone) ? "" : $"• Ph: {techInfoReassign.techPhone}")}</div>
+            <div style=""color: #1e3a8a; font-size: 14px; margin-top: 4px;""><strong>Technician/center address:</strong> {techInfoReassign.delAddress}</div>
+        </div>
 
-<h3>Pickup & Device Details</h3>
+        <div style=""margin-top: 24px; text-align: center;"">
+            <a href=""https://localhost:7102"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ Start Pickup ]</a>
+        </div>
 
-<p>
-<strong>Assignment ID:</strong>
-{newAssignment.CollectionAssignmentId}
-</p>
-
-<p>
-<strong>Device ID:</strong>
-{assignment.DeviceId}
-</p>
-
-<p>
-<strong>Category:</strong>
-{assignment.Device.Category?.CategoryName ?? "E-Waste"}
-</p>
-
-<p>
-<strong>Brand:</strong>
-{assignment.Device.Brand}
-</p>
-
-<p>
-<strong>Model:</strong>
-{assignment.Device.Model}
-</p>
-
-<p>
-<strong>Quantity:</strong>
-{assignment.Device.Quantity}
-</p>
-
-<p>
-<strong>Condition:</strong>
-{assignment.Device.Condition}
-</p>
-
-<h3>Customer & Location</h3>
-
-<p>
-<strong>Customer:</strong>
-{assignment.Device.User?.FirstName}
-{assignment.Device.User?.LastName}
-</p>
-
-<p>
-<strong>Phone:</strong>
-{assignment.Device.User?.PhoneNumber}
-</p>
-
-<p>
-<strong>Pickup Address:</strong>
-{fullAddress}
-</p>
-
-<p>
-<strong>Landmark:</strong>
-{assignment.Device.Landmark ?? "N/A"}
-</p>
-
-<p>
-<strong>Pickup Date:</strong>
-{assignment.Device.PickupDate:dd-MM-yyyy}
-</p>
-
-<p>
-<strong>Time Slot:</strong>
-{assignment.Device.TimeSlot}
-</p>
-
-<p>
-Please log in to your EcoCycle collection agent account
-and respond to this pickup request.
-</p>
-
-<br />
-
-<p>
-Regards,<br />
-<strong>EcoCycle Admin Team</strong>
-</p>
-
+        <p style=""margin-top: 24px; font-size: 12px; color: #64748b;"">
+            Regards,<br/><strong>EcoCycle Admin Team</strong>
+        </p>
+    </div>
 </body>
 </html>";
 
                     await SendEmailAsync(
-                        newAgent.Login.Email,
+                        newAgentEmail,
                         subject,
                         body
                     );
@@ -1028,17 +1078,76 @@ Regards,<br />
         [HttpGet("admin/all-assignments")]
         public async Task<IActionResult> GetAllCollectionAssignments()
         {
+            await CheckAndUpdateExpiredCollectionAssignments(db);
+
             try
             {
-                var assignments = await db.CollectionAssignments
+                // Default fallback technician from Technician table if device does not have an allocated technician yet
+                var defaultTechnician = await db.Technician
+                    .Where(t => t.Status == "Approved" || t.Status == "Active")
+                    .OrderBy(t => t.TechnicianId)
+                    .FirstOrDefaultAsync() ?? await db.Technician.OrderBy(t => t.TechnicianId).FirstOrDefaultAsync();
+
+                var allPickupsList = await db.Pickups.ToListAsync();
+                var pickupDict = allPickupsList
+                    .GroupBy(p => p.CollectionAssignmentId)
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.CreatedAt).FirstOrDefault());
+
+                var allDeliveriesList = await db.Deliveries.ToListAsync();
+                var deliveryDict = allDeliveriesList
+                    .GroupBy(d => d.CollectionAssignmentId)
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(d => d.CreatedAt).FirstOrDefault());
+
+                var rawAssignments = await db.CollectionAssignments
                     .Include(x => x.Device)
                         .ThenInclude(d => d.Category)
                     .Include(x => x.Device)
                         .ThenInclude(d => d.User)
+                    .Include(x => x.Device)
+                        .ThenInclude(d => d.InspectionRequests)
+                            .ThenInclude(ir => ir.Technician)
                     .Include(x => x.CollectionAgent)
                         .ThenInclude(a => a.Login)
                     .OrderByDescending(x => x.CreatedAt)
-                    .Select(x => new
+                    .ToListAsync();
+
+                var assignments = rawAssignments.Select(x =>
+                {
+                    var pickupObj = x.CollectionAssignmentId.HasValue && pickupDict.TryGetValue(x.CollectionAssignmentId.Value, out var foundPickup)
+                        ? foundPickup
+                        : null;
+                    var delObj = x.CollectionAssignmentId.HasValue && deliveryDict.TryGetValue(x.CollectionAssignmentId.Value, out var foundDel)
+                        ? foundDel
+                        : null;
+                    string proofPath = pickupObj?.ProofPhotoPath ?? delObj?.ProofPhotoPath;
+                    var latestInspTech = x.Device?.InspectionRequests?
+                        .OrderByDescending(ir => ir.CreatedAt)
+                        .Select(ir => ir.Technician)
+                        .FirstOrDefault(t => t != null) ?? defaultTechnician;
+
+                    string techName = latestInspTech != null ? $"{latestInspTech.FirstName} {latestInspTech.LastName}".Trim() : null;
+                    string techPhone = latestInspTech?.PhoneNumber;
+                    string centerName = latestInspTech?.InspectionCenterName;
+                    string techAddress = latestInspTech?.Address;
+                    string techCity = latestInspTech?.City;
+                    string techDistrict = latestInspTech?.District;
+                    string techState = latestInspTech?.State;
+                    string techPincode = latestInspTech?.PinCode;
+
+                    string delAddr = null;
+                    if (latestInspTech != null)
+                    {
+                        var parts = new List<string>();
+                        if (!string.IsNullOrWhiteSpace(centerName)) parts.Add(centerName);
+                        if (!string.IsNullOrWhiteSpace(techAddress)) parts.Add(techAddress);
+                        if (!string.IsNullOrWhiteSpace(techCity)) parts.Add(techCity);
+                        if (!string.IsNullOrWhiteSpace(techDistrict)) parts.Add(techDistrict);
+                        if (!string.IsNullOrWhiteSpace(techState)) parts.Add(techState);
+                        if (!string.IsNullOrWhiteSpace(techPincode)) parts.Add(techPincode);
+                        delAddr = string.Join(", ", parts);
+                    }
+
+                    return new
                     {
                         collectionAssignmentId = x.CollectionAssignmentId,
                         deviceId = x.DeviceId,
@@ -1060,20 +1169,54 @@ Regards,<br />
                         collectionAgentName = x.CollectionAgent != null ? x.CollectionAgent.FirstName + " " + x.CollectionAgent.LastName : "Unassigned",
                         collectionAgentPhone = x.CollectionAgent != null ? x.CollectionAgent.Phone : "",
                         collectionAgentEmail = x.CollectionAgent != null && x.CollectionAgent.Login != null ? x.CollectionAgent.Login.Email : "",
+                        collectionAgentPhoto = x.CollectionAgent != null ? x.CollectionAgent.ProfilePicture : null,
+                        vehicleNumber = x.CollectionAgent != null ? x.CollectionAgent.VehicleNumber : null,
+                        vehicleType = x.CollectionAgent != null ? x.CollectionAgent.VehicleType : null,
                         status = x.Status,
                         assignedAt = x.AssignedAt,
+                        responseDeadline = x.ResponseDeadline ?? (x.AssignedAt.HasValue ? x.AssignedAt.Value.AddHours(24) : x.CreatedAt.AddHours(24)),
+                        respondedAt = x.RespondedAt,
                         acceptedAt = x.AcceptedAt,
                         pickupStartedAt = x.PickupStartedAt,
+                        startedAt = x.PickupStartedAt,
                         pickedUpAt = x.PickedUpAt,
                         deliveredAt = x.DeliveredAt,
+                        completedAt = x.DeliveredAt,
                         rejectionReason = x.RejectionReason,
                         createdAt = x.CreatedAt,
                         pickupDate = x.Device.PickupDate,
                         timeSlot = x.Device.TimeSlot,
                         pickupInstructions = x.Device.PickupInstructions,
-                        lifecycleStatus = x.Device.LifecycleStatus
-                    })
-                    .ToListAsync();
+                        lifecycleStatus = x.Device.LifecycleStatus,
+
+                        // Pickup Model Table Fields:
+                        pickupId = pickupObj?.PickupId,
+                        pickupStatus = pickupObj?.Status,
+                        deviceVerified = pickupObj?.DeviceVerified ?? false,
+                        proofPhotoPath = proofPath,
+                        agentNotes = pickupObj?.AgentNotes,
+                        failureReason = pickupObj?.FailureReason ?? x.RejectionReason,
+
+                        // Delivery Model Table Fields (STRICTLY FROM DELIVERIES TABLE):
+                        deliveryId = delObj?.DeliveryId,
+                        deliveryStatus = delObj?.Status ?? "Pending",
+                        deliveryStartedAt = delObj?.StartedAt,
+                        deliveryDeliveredAt = delObj?.DeliveredAt,
+                        deliveryDeviceVerified = delObj?.DeviceVerified ?? false,
+                        deliveryAgentNotes = delObj?.AgentNotes,
+                        deliveryFailureReason = delObj?.FailureReason,
+                        technicianId = latestInspTech?.TechnicianId,
+                        technicianName = techName,
+                        technicianPhone = techPhone,
+                        inspectionCenterName = centerName,
+                        technicianAddress = techAddress,
+                        technicianCity = techCity,
+                        technicianDistrict = techDistrict,
+                        technicianState = techState,
+                        technicianPincode = techPincode,
+                        deliveredAddress = delAddr
+                    };
+                });
 
                 return Ok(assignments);
             }
@@ -1268,20 +1411,16 @@ Regards,<br />
                 // DO NOT CREATE A NEW CollectionAssignment
                 // =========================================================
 
-                assignment.CollectionAgentId =
-                    agent.CollectionAgentId;
-
-                assignment.Status =
-                    "Assigned";
-
-                assignment.AssignedAt =
-                    DateTime.Now;
-
-                assignment.UpdatedAt =
-                    DateTime.Now;
-
-                assignment.RejectionReason =
-                    null;
+                var techInfoManual = await GetTechnicianLocationForDeviceAsync(assignment.DeviceId);
+                assignment.CollectionAgentId = agent.CollectionAgentId;
+                assignment.Status = "Assigned";
+                assignment.AssignedAt = DateTime.Now;
+                assignment.ResponseDeadline = DateTime.Now.AddHours(24);
+                assignment.TechnicianId = techInfoManual.techId;
+                assignment.TechnicianCenterName = techInfoManual.centerName;
+                assignment.DeliveredAddress = techInfoManual.delAddress;
+                assignment.UpdatedAt = DateTime.Now;
+                assignment.RejectionReason = null;
 
                 // Update device lifecycle status
                 assignment.Device.LifecycleStatus =
@@ -1289,13 +1428,21 @@ Regards,<br />
 
                 await db.SaveChangesAsync();
 
+                var device = assignment.Device;
+                string fullAddress =
+                    device.Address +
+                    (string.IsNullOrWhiteSpace(device.User?.City) ? "" : $", {device.User.City}") +
+                    (string.IsNullOrWhiteSpace(device.User?.District) ? "" : $", {device.User.District}") +
+                    (string.IsNullOrWhiteSpace(device.User?.State) ? "" : $", {device.User.State}") +
+                    (string.IsNullOrWhiteSpace(device.User?.Pincode) ? "" : $" - {device.User.Pincode}");
+
                 if (agent != null && agent.LoginId > 0)
                 {
                     var notification = new Notification
                     {
                         LoginId = agent.LoginId,
                         Title = "New Pickup Request Assigned",
-                        Message = $"A new pickup request for {assignment.Device.Brand} {assignment.Device.Model} has been assigned to you.",
+                        Message = $"COLLECT FROM Customer {device.User?.FirstName} {device.User?.LastName} ({fullAddress}) [Slot: {device.PickupDate:dd-MM-yyyy} {device.TimeSlot}] ↓ DELIVER TO {techInfoManual.techName} ({techInfoManual.centerName} - {techInfoManual.delAddress})",
                         Isread = false,
                         Status = true,
                         CreatedAt = DateTime.Now
@@ -1309,134 +1456,54 @@ Regards,<br />
                 // SEND EMAIL TO SELECTED COLLECTION AGENT
                 // =========================================================
 
-                if (agent.Login != null &&
-                    !string.IsNullOrWhiteSpace(agent.Login.Email))
+                string agentEmail = agent?.Login?.Email;
+                if (string.IsNullOrWhiteSpace(agentEmail) && agent != null && agent.LoginId > 0)
                 {
-                    var device = assignment.Device;
+                    var loginObj = await db.Login.FirstOrDefaultAsync(l => l.LoginId == agent.LoginId);
+                    agentEmail = loginObj?.Email;
+                }
 
-                    string fullAddress =
-                        device.Address +
-                        (string.IsNullOrWhiteSpace(device.User?.City)
-                            ? ""
-                            : $", {device.User.City}") +
-                        (string.IsNullOrWhiteSpace(device.User?.District)
-                            ? ""
-                            : $", {device.User.District}") +
-                        (string.IsNullOrWhiteSpace(device.User?.State)
-                            ? ""
-                            : $", {device.User.State}") +
-                        (string.IsNullOrWhiteSpace(device.User?.Pincode)
-                            ? ""
-                            : $" - {device.User.Pincode}");
-
-                    string subject =
-                        "EcoCycle - Collection Pickup Request Assigned";
+                if (agent != null && !string.IsNullOrWhiteSpace(agentEmail))
+                {
+                    string subject = "EcoCycle - Collection Pickup Request Assigned";
 
                     string body = $@"
+<!DOCTYPE html>
 <html>
-<body style='font-family: Arial, sans-serif; color: #333; line-height: 1.6;'>
+<body style=""font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px; color: #0f172a;"">
+    <div style=""max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px;"">
+        <h2 style=""color: #059669; margin-top: 0;"">EcoCycle Pickup Assignment</h2>
+        <p>Dear <strong>{agent.FirstName} {agent.LastName}</strong>,</p>
+        <p>A collection pickup request for <strong>{device.Brand} {device.Model}</strong> (Assignment #{assignment.CollectionAssignmentId}) has been assigned to you.</p>
 
-<h2 style='color: #059669;'>
-    New Collection Request Assigned
-</h2>
+        <div style=""background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; border-radius: 10px; margin-top: 16px;"">
+            <div style=""font-size: 11px; font-weight: 800; color: #047857; text-transform: uppercase; letter-spacing: 0.05em;"">COLLECT FROM</div>
+            <div style=""font-weight: 700; color: #065f46; font-size: 15px; margin-top: 4px;"">Customer: {device.User?.FirstName} {device.User?.LastName} (Ph: {device.User?.PhoneNumber})</div>
+            <div style=""color: #047857; font-size: 14px; margin-top: 4px;""><strong>Customer pickup address:</strong> {fullAddress}</div>
+            <div style=""color: #059669; font-size: 13px; margin-top: 4px;""><strong>Pickup date / time slot:</strong> {device.PickupDate:dd-MM-yyyy} • {device.TimeSlot}</div>
+        </div>
 
-<p>
-Dear {agent.FirstName} {agent.LastName},
-</p>
+        <div style=""text-align: center; font-size: 24px; font-weight: bold; color: #059669; margin: 10px 0;"">↓</div>
 
-<p>
-A collection pickup request has been manually assigned to you
-by the EcoCycle Admin.
-</p>
+        <div style=""background: #eff6ff; border: 1px solid #bfdbfe; padding: 16px; border-radius: 10px;"">
+            <div style=""font-size: 11px; font-weight: 800; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.05em;"">DELIVER TO</div>
+            <div style=""font-weight: 700; color: #1e40af; font-size: 15px; margin-top: 4px;"">Technician / Inspection Center: {techInfoManual.techName} ({techInfoManual.centerName}) {(string.IsNullOrEmpty(techInfoManual.techPhone) ? "" : $"• Ph: {techInfoManual.techPhone}")}</div>
+            <div style=""color: #1e3a8a; font-size: 14px; margin-top: 4px;""><strong>Technician/center address:</strong> {techInfoManual.delAddress}</div>
+        </div>
 
-<h3>Pickup & Device Details</h3>
+        <div style=""margin-top: 24px; text-align: center;"">
+            <a href=""https://localhost:7102"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ Start Pickup ]</a>
+        </div>
 
-<p>
-<strong>Assignment ID:</strong>
-{assignment.CollectionAssignmentId}
-</p>
-
-<p>
-<strong>Device ID:</strong>
-{device.DeviceId}
-</p>
-
-<p>
-<strong>Category:</strong>
-{device.Category?.CategoryName ?? "E-Waste"}
-</p>
-
-<p>
-<strong>Brand:</strong>
-{device.Brand}
-</p>
-
-<p>
-<strong>Model:</strong>
-{device.Model}
-</p>
-
-<p>
-<strong>Quantity:</strong>
-{device.Quantity}
-</p>
-
-<p>
-<strong>Condition:</strong>
-{device.Condition}
-</p>
-
-<h3>Customer & Location Information</h3>
-
-<p>
-<strong>Customer:</strong>
-{device.User?.FirstName} {device.User?.LastName}
-</p>
-
-<p>
-<strong>Phone:</strong>
-{device.User?.PhoneNumber}
-</p>
-
-<p>
-<strong>Pickup Address:</strong>
-{fullAddress}
-</p>
-
-<p>
-<strong>Landmark:</strong>
-{device.Landmark ?? "N/A"}
-</p>
-
-<p>
-<strong>Pickup Date:</strong>
-{device.PickupDate:dd-MM-yyyy}
-</p>
-
-<p>
-<strong>Time Slot:</strong>
-{device.TimeSlot ?? "Standard Slot"}
-</p>
-
-<br />
-
-<p>
-Please log in to your EcoCycle collection agent account
-and respond to this pickup request.
-</p>
-
-<br />
-
-<p>
-Regards,<br />
-<strong>EcoCycle Admin Team</strong>
-</p>
-
+        <p style=""margin-top: 24px; font-size: 12px; color: #64748b;"">
+            Regards,<br/><strong>EcoCycle Admin Team</strong>
+        </p>
+    </div>
 </body>
 </html>";
 
                     await SendEmailAsync(
-                        agent.Login.Email,
+                        agentEmail,
                         subject,
                         body
                     );
@@ -1539,6 +1606,9 @@ Regards,<br />
                             AssignedAt =
                                 null,
 
+                            ResponseDeadline =
+                                DateTime.Now.AddHours(24),
+
                             CreatedAt =
                                 DateTime.Now,
 
@@ -1591,6 +1661,9 @@ Regards,<br />
 
                         AssignedAt =
                             DateTime.Now,
+
+                        ResponseDeadline =
+                            DateTime.Now.AddHours(24),
 
                         CreatedAt =
                             DateTime.Now,

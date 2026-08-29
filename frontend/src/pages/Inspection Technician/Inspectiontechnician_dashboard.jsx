@@ -131,6 +131,7 @@ response.data.forEach((req) => {
     const handleAccept = async (requestId) => {
         try {
             setProcessingId(requestId);
+            setError("");
             const token = localStorage.getItem("token");
             const response = await axios.post(
                 `https://localhost:7102/api/Inspection/accept/${requestId}`,
@@ -149,6 +150,9 @@ response.data.forEach((req) => {
             }
         } catch (err) {
             console.error("Error accepting request:", err);
+            const msg = err.response?.data?.message || err.response?.data?.error || "Error accepting request.";
+            setError(msg);
+            alert(msg);
         } finally {
             setProcessingId(null);
         }
@@ -160,6 +164,7 @@ response.data.forEach((req) => {
 
         try {
             setProcessingId(rejectionTarget.inspectionRequestId);
+            setError("");
             const token = localStorage.getItem("token");
             
             const response = await axios.post(
@@ -181,6 +186,9 @@ response.data.forEach((req) => {
             }
         } catch (err) {
             console.error("Error rejecting request:", err);
+            const msg = err.response?.data?.message || err.response?.data?.error || "Error rejecting request.";
+            setError(msg);
+            alert(msg);
         } finally {
             setProcessingId(null);
         }
@@ -197,6 +205,8 @@ response.data.forEach((req) => {
                 return <span className="pill pill-amber">In Evaluation</span>;
             case "rejected":
                 return <span className="pill pill-red">Declined</span>;
+            case "expired":
+                return <span className="pill pill-red" style={{ backgroundColor: "#ef4444", color: "white" }}>Expired</span>;
             default:
                 return <span className="pill pill-gray">{status || "Assigned"}</span>;
         }
