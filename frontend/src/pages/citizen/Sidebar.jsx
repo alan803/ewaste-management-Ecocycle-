@@ -13,7 +13,8 @@ import {
     FiX,
     FiPlusCircle,
     FiBox,
-    FiArrowUpRight
+    FiArrowUpRight,
+    FiFileText
 } from "react-icons/fi";
 import "./Sidebar.css";
 
@@ -38,6 +39,7 @@ function Sidebar() {
         { path: "/add-device", label: "Add Device", icon: <FiPlusCircle /> },
         { path: "/view-device", label: "My Devices", icon: <FiBox /> },
         { path: "/pickupuser", label: "Pickup details", icon: <FiCalendar /> },
+        { path: "/citizen/reports", label: "Inspection Reports", icon: <FiFileText /> },
         { path: "/citizen/rewards", label: "Eco Rewards", icon: <FiAward /> }
     ];
 

@@ -15,7 +15,9 @@ import {
     FiUsers,
     FiShield,
     FiAlertTriangle,
-    FiRefreshCw
+    FiRefreshCw,
+    FiGrid,
+    FiList
 } from "react-icons/fi";
 import "./Manage_users.css";
 
@@ -24,6 +26,7 @@ function Manage_users() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeFilter, setActiveFilter] = useState("All");
+    const [viewMode, setViewMode] = useState("table"); // 'table' | 'grid'
 
     // Deactivate Modal state & live validation
     const [showDeactivate, setShowDeactivate] = useState(false);
@@ -166,11 +169,16 @@ function Manage_users() {
     });
 
     const getAvatarSrc = (user) => {
-        if (user.profilePicture) return user.profilePicture;
-        if (user.profilePic) return user.profilePic;
-        if (user.image) return user.image;
-        if (user.avatarUrl) return user.avatarUrl;
-        return null;
+        if (!user) return null;
+        const pic = user.profileImage || user.profilePicture || user.profilePic || user.image || user.avatarUrl;
+        if (!pic) return null;
+        if (pic.startsWith("http://") || pic.startsWith("https://") || pic.startsWith("data:")) {
+            return pic;
+        }
+        if (pic.startsWith("/uploads/")) {
+            return `https://localhost:7102${pic}`;
+        }
+        return `https://localhost:7102/uploads/profile/${pic}`;
     };
 
     const getInitials = (firstName, lastName) => {
@@ -236,9 +244,6 @@ function Manage_users() {
                 <header className="admin-topbar">
                     <div className="topbar-left">
                         <div className="command-brand">
-                            <span className="command-badge">
-                                <span className="live-dot"></span> SYSTEM ONLINE
-                            </span>
                             <h1>Manage Registered Users</h1>
                         </div>
                         <p className="command-subtitle">
@@ -270,11 +275,6 @@ function Manage_users() {
                                     <span className="role">Super Admin</span>
                                 </div>
                             </div>
-
-                            <Link to="/logout" className="logout-btn-v2" title="Logout">
-                                <FiLogOut />
-                                <span>Exit</span>
-                            </Link>
                         </div>
                     </div>
                 </header>
@@ -333,9 +333,22 @@ function Manage_users() {
                                 ))}
                             </div>
 
-                            <button className="refresh-icon-btn" onClick={fetchUsers} title="Refresh User Data">
-                                <FiRefreshCw />
-                            </button>
+                            <div className="admin-view-toggle">
+                                <button
+                                    className={`admin-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+                                    onClick={() => setViewMode("grid")}
+                                    title="Grid View"
+                                >
+                                    <FiGrid />
+                                </button>
+                                <button
+                                    className={`admin-toggle-btn ${viewMode === "table" ? "active" : ""}`}
+                                    onClick={() => setViewMode("table")}
+                                    title="Table View"
+                                >
+                                    <FiList />
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -348,6 +361,129 @@ function Manage_users() {
                         <div className="no-data-state">
                             <FiFilter className="no-data-icon" />
                             <p>No user accounts matching your criteria.</p>
+                        </div>
+                    ) : viewMode === "grid" ? (
+                        <div className="admin-cards-grid">
+                            {filteredUsers.map((user) => {
+                                const avatarSrc = getAvatarSrc(user);
+                                const isActive = user.status === "Active";
+
+                                return (
+                                    <div key={user.userId} className="admin-pickup-card">
+                                        <div>
+                                            <div className="admin-card-header">
+                                                <div className="admin-card-top-row">
+                                                    <div className="admin-cat-icon-box" style={{ background: "#ecfdf5", color: "#059669" }}>
+                                                        <FiUsers />
+                                                    </div>
+                                                    <div>{getStatusBadge(user.status)}</div>
+                                                </div>
+                                                <div className="admin-card-title-group">
+                                                    <h4 className="admin-card-brand-name">{user.firstName} {user.lastName}</h4>
+                                                    <p className="admin-card-cat-sub">
+                                                        ID #{user.userId} &bull; Citizen User
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="admin-card-body">
+                                                <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginTop: "0.2rem" }}>
+                                                    <div className="admin-detail-row">
+                                                        <FiUserCheck className="detail-icon" style={{ color: "#3b82f6" }} />
+                                                        <div>
+                                                            <div className="detail-label">Email Address</div>
+                                                            <div className="detail-val">{user.login?.email || user.email || "N/A"}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="admin-detail-row">
+                                                        <FiShield className="detail-icon" style={{ color: "#059669" }} />
+                                                        <div>
+                                                            <div className="detail-label">Phone Number</div>
+                                                            <div className="detail-val">{user.phoneNumber || "N/A"}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", paddingTop: "0.85rem", borderTop: "1px dashed #e2e8f0" }}>
+                                            <button
+                                                onClick={() => openDetailModal(user)}
+                                                title="View Profile Details"
+                                                style={{
+                                                    flex: 1,
+                                                    height: "40px",
+                                                    background: "#ffffff",
+                                                    color: "#334155",
+                                                    border: "1px solid #cbd5e1",
+                                                    borderRadius: "10px",
+                                                    fontSize: "0.825rem",
+                                                    fontWeight: 700,
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    gap: "0.4rem",
+                                                    cursor: "pointer",
+                                                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                                                }}
+                                            >
+                                                <FiEye style={{ fontSize: "0.95rem" }} />
+                                                <span>View</span>
+                                            </button>
+
+                                            {isActive ? (
+                                                <button
+                                                    onClick={() => openDeactivateModal(user)}
+                                                    title="Deactivate Account"
+                                                    style={{
+                                                        flex: 1,
+                                                        height: "40px",
+                                                        background: "#fef2f2",
+                                                        color: "#dc2626",
+                                                        border: "1px solid #fca5a5",
+                                                        borderRadius: "10px",
+                                                        fontSize: "0.825rem",
+                                                        fontWeight: 700,
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        gap: "0.4rem",
+                                                        cursor: "pointer"
+                                                    }}
+                                                >
+                                                    <FiX style={{ fontSize: "0.95rem" }} />
+                                                    <span>Deactivate</span>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => activateuser(user.userId)}
+                                                    title="Activate Account"
+                                                    style={{
+                                                        flex: 1,
+                                                        height: "40px",
+                                                        background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                                                        color: "#ffffff",
+                                                        border: "none",
+                                                        borderRadius: "10px",
+                                                        fontSize: "0.825rem",
+                                                        fontWeight: 700,
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        gap: "0.4rem",
+                                                        cursor: "pointer",
+                                                        boxShadow: "0 4px 12px rgba(5, 150, 105, 0.25)"
+                                                    }}
+                                                >
+                                                    <FiCheck style={{ fontSize: "0.95rem" }} />
+                                                    <span>Activate</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="glass-table-wrapper">
@@ -481,14 +617,22 @@ function Manage_users() {
                                         {getAvatarSrc(selectedUser) ? (
                                             <img
                                                 src={getAvatarSrc(selectedUser)}
-                                                alt=""
+                                                alt={`${selectedUser.firstName} ${selectedUser.lastName}`}
                                                 className="user-avatar-img"
+                                                onError={(e) => {
+                                                    e.target.style.display = "none";
+                                                    if (e.target.nextSibling) {
+                                                        e.target.nextSibling.style.display = "flex";
+                                                    }
+                                                }}
                                             />
-                                        ) : (
-                                            <div className="user-avatar-mini">
-                                                {getInitials(selectedUser.firstName, selectedUser.lastName)}
-                                            </div>
-                                        )}
+                                        ) : null}
+                                        <div
+                                            className="user-avatar-mini"
+                                            style={{ display: getAvatarSrc(selectedUser) ? "none" : "flex" }}
+                                        >
+                                            {getInitials(selectedUser.firstName, selectedUser.lastName)}
+                                        </div>
                                         <div className="user-info">
                                             <span className="user-name">
                                                 {selectedUser.firstName} {selectedUser.lastName}
@@ -584,20 +728,28 @@ function Manage_users() {
                                         {getAvatarSrc(viewUser) ? (
                                             <img
                                                 src={getAvatarSrc(viewUser)}
-                                                alt=""
+                                                alt={`${viewUser.firstName} ${viewUser.lastName}`}
                                                 className="user-avatar-img"
+                                                onError={(e) => {
+                                                    e.target.style.display = "none";
+                                                    if (e.target.nextSibling) {
+                                                        e.target.nextSibling.style.display = "flex";
+                                                    }
+                                                }}
                                             />
-                                        ) : (
-                                            <div className="user-avatar-mini">
-                                                {getInitials(viewUser.firstName, viewUser.lastName)}
-                                            </div>
-                                        )}
+                                        ) : null}
+                                        <div
+                                            className="user-avatar-mini"
+                                            style={{ display: getAvatarSrc(viewUser) ? "none" : "flex" }}
+                                        >
+                                            {getInitials(viewUser.firstName, viewUser.lastName)}
+                                        </div>
                                         <div className="user-info">
                                             <span className="user-name" style={{ fontSize: "1.05rem" }}>
                                                 {viewUser.firstName} {viewUser.lastName}
                                             </span>
                                             <span className="user-email">
-                                                {viewUser.login?.email || viewUser.email}
+                                                {viewUser.login?.email || viewUser.email || "No email"}
                                             </span>
                                         </div>
                                     </div>
@@ -617,6 +769,11 @@ function Manage_users() {
                                     </div>
 
                                     <div className="detail-item">
+                                        <label>Email Address</label>
+                                        <span>{viewUser.login?.email || viewUser.email || "N/A"}</span>
+                                    </div>
+
+                                    <div className="detail-item">
                                         <label>Phone Number</label>
                                         <span>{viewUser.phoneNumber || "N/A"}</span>
                                     </div>
@@ -629,6 +786,11 @@ function Manage_users() {
                                     <div className="detail-item">
                                         <label>Date of Birth</label>
                                         <span>{formatDate(viewUser.dateOfBirth)}</span>
+                                    </div>
+
+                                    <div className="detail-item">
+                                        <label>Registered Date</label>
+                                        <span>{formatDate(viewUser.createdAt)}</span>
                                     </div>
 
                                     <div className="detail-item">

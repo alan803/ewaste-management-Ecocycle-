@@ -68,13 +68,19 @@ function CollectionAgentDashboard() {
             });
             console.log("Today's Pickups Reminder Data:", response.data);
             if (response.data) {
-                setTodaysReminder(response.data);
-                const isFreshLogin = sessionStorage.getItem("justLoggedInCollectionAgent");
-                if (isFreshLogin) {
-                    if (response.data.pickups && response.data.pickups.length > 0) {
-                        setShowReminderModal(true);
-                    }
-                    sessionStorage.removeItem("justLoggedInCollectionAgent");
+                const rawPickups = response.data.pickups || [];
+                const acceptedOnly = rawPickups.filter(p => {
+                    const s = (p?.status || "").toLowerCase();
+                    return s === "accepted" || s === "pickupstarted" || s === "en route";
+                });
+                const filteredData = {
+                    ...response.data,
+                    totalPickups: acceptedOnly.length,
+                    pickups: acceptedOnly
+                };
+                setTodaysReminder(filteredData);
+                if (acceptedOnly.length > 0) {
+                    setShowReminderModal(true);
                 }
             }
         } catch (err) {
@@ -124,6 +130,41 @@ function CollectionAgentDashboard() {
                 return idB - idA;
             });
             setPickups(sorted);
+
+            const activePickups = sorted.filter(p => {
+                const s = (p?.status || "").toLowerCase();
+                return s === "accepted" || s === "pickupstarted" || s === "en route";
+            });
+
+            if (activePickups.length > 0) {
+                setTodaysReminder(prev => prev && prev.pickups?.length > 0 ? prev : {
+                    date: new Date().toISOString().split('T')[0],
+                    totalPickups: activePickups.length,
+                    pickups: activePickups.map(ap => ({
+                        assignmentId: ap.collectionAssignmentId,
+                        deviceId: ap.deviceId,
+                        brand: ap.brand,
+                        model: ap.model,
+                        categoryName: ap.categoryName,
+                        quantity: ap.quantity || 1,
+                        weight: ap.weight || "N/A",
+                        pickupDate: ap.pickupDate,
+                        timeSlot: ap.timeSlot,
+                        address: ap.address,
+                        landmark: ap.landmark,
+                        city: ap.city,
+                        district: ap.district,
+                        state: ap.state,
+                        pincode: ap.pincode,
+                        customerName: ap.customerName,
+                        customerPhone: ap.customerPhone,
+                        status: ap.status,
+                        extensionCount: ap.extensionCount || 0,
+                        responseDeadline: ap.responseDeadline
+                    }))
+                });
+                setShowReminderModal(true);
+            }
         } catch (err) {
             console.error("Error fetching collection assignments:", err);
             if (err.response?.status === 401) {
@@ -230,20 +271,28 @@ function CollectionAgentDashboard() {
                       localStorage.getItem("name") ||
                       "Collection Agent";
 
-    const filteredPickups = pickups.filter((item) => {
+    const safePickups = Array.isArray(pickups) ? pickups : [];
+
+    const filteredPickups = safePickups.filter((item) => {
+        if (!item) return false;
         const matchesSearch =
-            (item.brand || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (item.model || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (item.customerName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (item.customerPhone || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (item.address || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (item.city || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (item.categoryName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (item.condition || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (item.rejectionReason || "").toLowerCase().includes(searchQuery.toLowerCase());
+            (item.brand || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.model || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.customerName || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.customerPhone || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.address || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.city || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.technicianName || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.technicianPhone || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.inspectionCenterName || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.recyclingCenterName || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.recyclingCenterPhone || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.categoryName || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.condition || "").toLowerCase().includes((searchQuery || "").toLowerCase()) ||
+            (item.rejectionReason || "").toLowerCase().includes((searchQuery || "").toLowerCase());
 
         const statusLower = (item.status || "").toLowerCase();
-        const activeTabLower = activeTab.toLowerCase();
+        const activeTabLower = (activeTab || "").toLowerCase();
 
         let matchesTab = true;
         if (activeTabLower === "assigned") {
@@ -253,7 +302,7 @@ function CollectionAgentDashboard() {
         } else if (activeTabLower === "pickupstarted" || activeTabLower === "en route") {
             matchesTab = statusLower === "pickupstarted" || statusLower === "en route";
         } else if (activeTabLower === "completed") {
-            matchesTab = statusLower === "completed";
+            matchesTab = statusLower === "completed" || statusLower === "deliveredtocenter" || statusLower === "delivered" || statusLower === "pickedup";
         } else if (activeTabLower === "rejected" || activeTabLower === "declined") {
             matchesTab = statusLower === "rejected" || statusLower === "declined";
         }
@@ -280,6 +329,11 @@ function CollectionAgentDashboard() {
         switch ((status || "").toLowerCase()) {
             case "completed":
                 return <span className="agent-status-badge collected"><FiCheckCircle /> Completed</span>;
+            case "deliveredtocenter":
+            case "delivered":
+                return <span className="agent-status-badge collected" style={{ background: "#dcfce7", color: "#15803d", border: "1px solid #86efac" }}><FiCheckCircle /> Delivered to Center</span>;
+            case "pickedup":
+                return <span className="agent-status-badge collected" style={{ background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd" }}><FiPackage /> Picked Up</span>;
             case "pickupstarted":
             case "en route":
                 return <span className="agent-status-badge en-route"><FiTruck /> En Route</span>;
@@ -297,16 +351,49 @@ function CollectionAgentDashboard() {
         }
     };
 
-    const totalCount = pickups.length;
-    const totalUnits = pickups.reduce((acc, p) => acc + (p.quantity || 1), 0);
-    const assignedCount = pickups.filter(p => {
-        const s = (p.status || "").toLowerCase();
+    const totalCount = safePickups.length;
+    const totalUnits = safePickups.reduce((acc, p) => acc + (p?.quantity || 1), 0);
+    const assignedCount = safePickups.filter(p => {
+        const s = (p?.status || "").toLowerCase();
         return s === "assigned" || s === "pending";
     }).length;
-    const activeCount = pickups.filter(p => {
-        const s = (p.status || "").toLowerCase();
+    const activeCount = safePickups.filter(p => {
+        const s = (p?.status || "").toLowerCase();
         return s === "accepted" || s === "pickupstarted" || s === "en route";
     }).length;
+
+    const collectionPickupsToComplete = safePickups.filter(p => {
+        const s = (p?.status || "").toLowerCase();
+        return s === "accepted" || s === "pickupstarted" || s === "en route";
+    });
+
+    const reminderList = (todaysReminder?.pickups && todaysReminder.pickups.length > 0)
+        ? todaysReminder.pickups.filter(p => {
+            const s = (p?.status || "").toLowerCase();
+            return s === "accepted" || s === "pickupstarted" || s === "en route";
+        })
+        : collectionPickupsToComplete.map(ap => ({
+            assignmentId: ap.collectionAssignmentId,
+            deviceId: ap.deviceId,
+            brand: ap.brand,
+            model: ap.model,
+            categoryName: ap.categoryName,
+            quantity: ap.quantity || 1,
+            weight: ap.weight || "N/A",
+            pickupDate: ap.pickupDate,
+            timeSlot: ap.timeSlot,
+            address: ap.address,
+            landmark: ap.landmark,
+            city: ap.city,
+            district: ap.district,
+            state: ap.state,
+            pincode: ap.pincode,
+            customerName: ap.customerName,
+            customerPhone: ap.customerPhone,
+            status: ap.status,
+            extensionCount: ap.extensionCount || 0,
+            responseDeadline: ap.responseDeadline
+        }));
 
     return (
         <div className="agent-dashboard-layout">
@@ -327,6 +414,45 @@ function CollectionAgentDashboard() {
                     unreadNotifCount={unreadNotifCount}
                     assignedCount={assignedCount}
                 />
+
+                {/* Top Collection Pickup Alert Banner matching Inspection Technician Dashboard */}
+                {collectionPickupsToComplete.length > 0 && (
+                    <div
+                        className="reminder-alert-banner"
+                        style={{
+                            margin: "1rem 0 1.25rem 0",
+                            cursor: "pointer",
+                            background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+                            border: "1.5px solid #f59e0b",
+                            padding: "1rem 1.25rem",
+                            borderRadius: "14px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            gap: "0.75rem",
+                            boxShadow: "0 4px 12px rgba(245, 158, 11, 0.12)"
+                        }}
+                        onClick={() => setShowReminderModal(true)}
+                    >
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+                            <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: "#fef3c7", border: "1px solid #fde68a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <FiBell className="reminder-bell-ring" style={{ fontSize: "1.35rem", color: "#d97706" }} />
+                            </div>
+                            <div>
+                                <div style={{ fontWeight: 800, color: "#92400e", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                    Scheduled Collection Pickup Alert
+                                    <span style={{ background: "#ef4444", color: "#ffffff", padding: "0.15rem 0.55rem", borderRadius: "20px", fontSize: "0.7rem", fontWeight: 800 }}>
+                                        {collectionPickupsToComplete.length} Pickups Due
+                                    </span>
+                                </div>
+                                <div style={{ color: "#78350f", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                    You have {collectionPickupsToComplete.length} scheduled e-waste collection pickup(s) requiring completion. Click to view pickup schedule &amp; deadlines!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Metric Summary Cards Grid */}
                 <div className="agent-kpi-grid">
@@ -411,7 +537,7 @@ function CollectionAgentDashboard() {
 
                         <div className="panel-controls-row">
                             <div className="agent-tab-pills">
-                                {["All", "Assigned", "Accepted", "PickupStarted"].map((tab) => (
+                                {["All", "Assigned", "Accepted", "PickupStarted", "Completed"].map((tab) => (
                                     <button
                                         key={tab}
                                         className={`agent-tab-btn ${activeTab === tab ? "active" : ""}`}
@@ -423,6 +549,9 @@ function CollectionAgentDashboard() {
                                                 : pickups.filter(p => {
                                                     const s = (p.status || "").toLowerCase();
                                                     if (tab === "Assigned") return s === "assigned" || s === "pending";
+                                                    if (tab === "Accepted") return s === "accepted";
+                                                    if (tab === "PickupStarted") return s === "pickupstarted" || s === "en route";
+                                                    if (tab === "Completed") return s === "completed" || s === "deliveredtocenter" || s === "delivered" || s === "pickedup";
                                                     return s === tab.toLowerCase();
                                                 }).length
                                         })
@@ -492,9 +621,24 @@ function CollectionAgentDashboard() {
                                             <div>
                                                 <div className="card-item-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
                                                     <div>
-                                                        <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#64748b", fontSize: "0.8rem" }}>
-                                                            #{task.collectionAssignmentId}
-                                                        </span>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                                                            <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#64748b", fontSize: "0.8rem" }}>
+                                                                #{task.collectionAssignmentId}
+                                                            </span>
+                                                            {task.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                                <span style={{ background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd", fontSize: "0.7rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>
+                                                                    Tech ➔ Recycler
+                                                                </span>
+                                                            ) : (task.assignmentType === "TechnicianToTechnician" || task.isReassignedFromTech || task.isReassignmentPickup) ? (
+                                                                <span style={{ background: "#fff7ed", color: "#c2410c", border: "1px solid #ffedd5", fontSize: "0.7rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>
+                                                                    Tech ➔ Tech
+                                                                </span>
+                                                            ) : (
+                                                                <span style={{ background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", fontSize: "0.7rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>
+                                                                    Citizen ➔ Tech
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <h3 className="card-device-title" style={{ margin: "0.2rem 0 0", fontSize: "1.05rem", fontWeight: 700, color: "#0f172a" }}>
                                                             {task.brand} {task.model}
                                                         </h3>
@@ -503,18 +647,40 @@ function CollectionAgentDashboard() {
                                                 </div>
 
                                                 <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "10px", border: "1px solid #e2e8f0", marginBottom: "0.75rem" }}>
-                                                    <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>
-                                                        {formattedName}
-                                                    </div>
-                                                    {task.customerPhone && (
-                                                        <a href={`tel:${task.customerPhone}`} style={{ fontSize: "0.78rem", color: "#2563eb", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.25rem", marginTop: "0.15rem" }}>
-                                                            <FiPhoneCall /> {task.customerPhone}
-                                                        </a>
+                                                    {task.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                        <>
+                                                            <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0369a1" }}>
+                                                                Collect From: {task.technicianName || task.inspectionCenterName || "Technician Hub"}
+                                                            </div>
+                                                            <div style={{ fontSize: "0.78rem", color: "#475569", marginTop: "0.15rem", fontWeight: 600 }}>
+                                                                Deliver To: {task.recyclingCenterName || "Recycling Center"}
+                                                            </div>
+                                                            {task.technicianPhone && (
+                                                                <a href={`tel:${task.technicianPhone}`} style={{ fontSize: "0.78rem", color: "#2563eb", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.25rem", marginTop: "0.15rem" }}>
+                                                                    <FiPhoneCall /> {task.technicianPhone}
+                                                                </a>
+                                                            )}
+                                                            <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "0.3rem" }}>
+                                                                <FiMapPin style={{ color: "#059669", marginRight: "0.25rem" }} />
+                                                                {task.deliveredAddress || task.technicianAddress || "Inspection Center Address"}
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>
+                                                                {formattedName}
+                                                            </div>
+                                                            {task.customerPhone && (
+                                                                <a href={`tel:${task.customerPhone}`} style={{ fontSize: "0.78rem", color: "#2563eb", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.25rem", marginTop: "0.15rem" }}>
+                                                                    <FiPhoneCall /> {task.customerPhone}
+                                                                </a>
+                                                            )}
+                                                            <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "0.3rem" }}>
+                                                                <FiMapPin style={{ color: "#059669", marginRight: "0.25rem" }} />
+                                                                {task.address} {task.city ? `, ${task.city}` : ""}
+                                                            </div>
+                                                        </>
                                                     )}
-                                                    <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "0.3rem" }}>
-                                                        <FiMapPin style={{ color: "#059669", marginRight: "0.25rem" }} />
-                                                        {task.address} {task.city ? `, ${task.city}` : ""}
-                                                    </div>
                                                 </div>
 
                                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", color: "#475569", marginBottom: "0.75rem" }}>
@@ -581,11 +747,11 @@ function CollectionAgentDashboard() {
                                     <thead>
                                         <tr>
                                             <th style={{ width: "8%" }}>Task ID</th>
-                                            <th style={{ width: "22%" }}>Device Details</th>
-                                            <th style={{ width: "24%" }}>Citizen & Address</th>
+                                            <th style={{ width: "24%" }}>Device Details</th>
+                                            <th style={{ width: "24%" }}>Sender & Address</th>
                                             <th style={{ width: "16%" }}>Scheduled Slot</th>
                                             <th style={{ width: "12%" }}>Status</th>
-                                            <th style={{ width: "18%", textAlign: "center" }}>Actions</th>
+                                            <th style={{ width: "16%", textAlign: "center" }}>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -604,25 +770,56 @@ function CollectionAgentDashboard() {
                                                         </span>
                                                     </td>
                                                     <td>
-                                                        <div className="cell-title-lg" style={{ fontWeight: 700, color: "#0f172a", fontSize: "0.9rem" }}>
-                                                            {task.brand} {task.model}
+                                                        <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                                                            <div className="cell-title-lg" style={{ fontWeight: 700, color: "#0f172a", fontSize: "0.9rem" }}>
+                                                                {task.brand} {task.model}
+                                                            </div>
+                                                            {task.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                                <span style={{ background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd", fontSize: "0.68rem", fontWeight: 700, padding: "0.08rem 0.4rem", borderRadius: "10px", whiteSpace: "nowrap" }}>
+                                                                    Tech ➔ Recycler
+                                                                </span>
+                                                            ) : (task.assignmentType === "TechnicianToTechnician" || task.isReassignedFromTech || task.isReassignmentPickup) ? (
+                                                                <span style={{ background: "#fff7ed", color: "#c2410c", border: "1px solid #ffedd5", fontSize: "0.68rem", fontWeight: 700, padding: "0.08rem 0.4rem", borderRadius: "10px", whiteSpace: "nowrap" }}>
+                                                                    Tech ➔ Tech
+                                                                </span>
+                                                            ) : (
+                                                                <span style={{ background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", fontSize: "0.68rem", fontWeight: 700, padding: "0.08rem 0.4rem", borderRadius: "10px", whiteSpace: "nowrap" }}>
+                                                                    Citizen ➔ Tech
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem" }}>
                                                             {task.categoryName || "E-Waste"} • {task.quantity || 1} Unit(s) {task.condition ? `• ${task.condition}` : ""}
                                                         </div>
                                                     </td>
                                                     <td>
-                                                        <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>
-                                                            {formattedName}
-                                                        </div>
-                                                        {task.customerPhone && (
-                                                            <a href={`tel:${task.customerPhone}`} style={{ fontSize: "0.775rem", color: "#2563eb", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.2rem" }}>
-                                                                <FiPhoneCall style={{ fontSize: "0.7rem" }} /> {task.customerPhone}
-                                                            </a>
+                                                        {task.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                            <>
+                                                                <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0369a1" }}>
+                                                                    Tech: {task.technicianName || task.inspectionCenterName || "Inspection Hub"}
+                                                                </div>
+                                                                <div style={{ fontSize: "0.75rem", color: "#475569", fontWeight: 600 }}>
+                                                                    To: {task.recyclingCenterName || "Recycling Facility"} • Ph: {task.technicianPhone || "N/A"}
+                                                                </div>
+                                                                <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={task.deliveredAddress || task.technicianAddress}>
+                                                                    {task.deliveredAddress || task.technicianAddress}
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>
+                                                                    {formattedName}
+                                                                </div>
+                                                                {task.customerPhone && (
+                                                                    <a href={`tel:${task.customerPhone}`} style={{ fontSize: "0.775rem", color: "#2563eb", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.2rem" }}>
+                                                                        <FiPhoneCall style={{ fontSize: "0.7rem" }} /> {task.customerPhone}
+                                                                    </a>
+                                                                )}
+                                                                <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={task.address}>
+                                                                    {task.address}
+                                                                </div>
+                                                            </>
                                                         )}
-                                                        <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={task.address}>
-                                                            {task.address}
-                                                        </div>
                                                     </td>
                                                     <td>
                                                         <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#0f172a" }}>
@@ -720,39 +917,117 @@ function CollectionAgentDashboard() {
 
                             {/* COLLECT FROM -> DELIVER TO ROUTING FLOW */}
                             <div style={{ background: "#f8fafc", padding: "1rem", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "1rem" }}>
-                                <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.85rem", borderRadius: "10px" }}>
-                                    <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#047857", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                                        COLLECT FROM
-                                    </div>
-                                    <div style={{ fontWeight: 700, color: "#065f46", fontSize: "0.9rem", marginTop: "0.2rem" }}>
-                                        Customer: {formatName(selectedPickup.customerName)} (Ph: {selectedPickup.customerPhone || "N/A"})
-                                    </div>
-                                    <div style={{ color: "#047857", fontSize: "0.825rem", marginTop: "0.2rem" }}>
-                                        <strong>Customer pickup address:</strong> {selectedPickup.address}
-                                        {selectedPickup.landmark && ` (Landmark: ${selectedPickup.landmark})`}
-                                        {[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).length > 0 &&
-                                            `, ${[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).join(", ")}`}
-                                    </div>
-                                    <div style={{ color: "#059669", fontSize: "0.8rem", marginTop: "0.2rem" }}>
-                                        <strong>Pickup date / time slot:</strong> {selectedPickup.pickupDate ? new Date(selectedPickup.pickupDate).toLocaleDateString() : "Scheduled"} • {selectedPickup.timeSlot || "Standard Slot"}
-                                    </div>
-                                </div>
+                                {selectedPickup.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                    <>
+                                        <div style={{ background: "#e0f2fe", border: "1px solid #bae6fd", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#0369a1", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                COLLECT FROM (TECHNICIAN HUB)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#0c4a6e", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Technician / Hub: {selectedPickup.technicianName || selectedPickup.inspectionCenterName || "Inspection Technician"} {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
+                                            </div>
+                                            <div style={{ color: "#0369a1", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Inspection Center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central Inspection Center"}
+                                            </div>
+                                            <div style={{ color: "#0284c7", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                                                <strong>Pickup date / time slot:</strong> {selectedPickup.pickupDate ? new Date(selectedPickup.pickupDate).toLocaleDateString() : "Scheduled"} • {selectedPickup.timeSlot || "Standard Slot"}
+                                            </div>
+                                        </div>
 
-                                <div style={{ textAlign: "center", fontSize: "1.35rem", fontWeight: 800, color: "#059669", margin: "0.35rem 0" }}>
-                                    ↓
-                                </div>
+                                        <div style={{ textAlign: "center", fontSize: "1.35rem", fontWeight: 800, color: "#0284c7", margin: "0.35rem 0" }}>
+                                            ↓
+                                        </div>
 
-                                <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.85rem", borderRadius: "10px" }}>
-                                    <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                                        DELIVER TO
-                                    </div>
-                                    <div style={{ fontWeight: 700, color: "#1e40af", fontSize: "0.9rem", marginTop: "0.2rem" }}>
-                                        Technician / Inspection Center: {selectedPickup.technicianName || "Inspection Technician"} ({selectedPickup.inspectionCenterName || selectedPickup.technicianCenterName || "EcoCycle Central Inspection Hub"}) {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
-                                    </div>
-                                    <div style={{ color: "#1e3a8a", fontSize: "0.825rem", marginTop: "0.2rem" }}>
-                                        <strong>Technician/center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central E-Waste Facility & Inspection Hub"}
-                                    </div>
-                                </div>
+                                        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#15803d", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                DELIVER TO (RECYCLING CENTER)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#14532d", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Facility: {selectedPickup.recyclingCenterName || "Recycling Facility"} {selectedPickup.recyclingCenterPhone ? `(Ph: ${selectedPickup.recyclingCenterPhone})` : ""}
+                                            </div>
+                                            {selectedPickup.recyclingCenterOwner && (
+                                                <div style={{ color: "#166534", fontSize: "0.825rem", marginTop: "0.1rem" }}>
+                                                    <strong>Contact Person:</strong> {selectedPickup.recyclingCenterOwner}
+                                                </div>
+                                            )}
+                                            <div style={{ color: "#15803d", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Recycling Center address:</strong> {selectedPickup.recyclingCenterAddress || "Recycling Facility Address"}
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (selectedPickup.assignmentType === "TechnicianToTechnician" || selectedPickup.isReassignedFromTech || selectedPickup.isReassignmentPickup) ? (
+                                    <>
+                                        <div style={{ background: "#fff7ed", border: "1px solid #ffedd5", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#c2410c", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                COLLECT FROM (PENALIZED TECHNICIAN CENTER)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#9a3412", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Technician / Hub: {selectedPickup.customerName || selectedPickup.priorTechnicianName || "Penalized Hub"} {selectedPickup.customerPhone ? `(Ph: ${selectedPickup.customerPhone})` : ""}
+                                            </div>
+                                            <div style={{ color: "#c2410c", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Penalized Center address:</strong> {selectedPickup.address}
+                                                {selectedPickup.landmark && ` (Landmark: ${selectedPickup.landmark})`}
+                                                {[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).length > 0 &&
+                                                    `, ${[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).join(", ")}`}
+                                            </div>
+                                            <div style={{ color: "#ea580c", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                                                <strong>Pickup date / time slot:</strong> {selectedPickup.pickupDate ? new Date(selectedPickup.pickupDate).toLocaleDateString() : "Scheduled"} • {selectedPickup.timeSlot || "Standard Slot"}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ textAlign: "center", fontSize: "1.35rem", fontWeight: 800, color: "#ea580c", margin: "0.35rem 0" }}>
+                                            ↓
+                                        </div>
+
+                                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                DELIVER TO (NEW INSPECTION HUB)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#1e40af", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Technician / Inspection Center: {selectedPickup.technicianName || "Inspection Technician"} ({selectedPickup.inspectionCenterName || selectedPickup.technicianCenterName || "EcoCycle Central Inspection Hub"}) {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
+                                            </div>
+                                            <div style={{ color: "#1e3a8a", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Technician/center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central E-Waste Facility & Inspection Hub"}
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#047857", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                COLLECT FROM (CITIZEN)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#065f46", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Customer: {formatName(selectedPickup.customerName)} (Ph: {selectedPickup.customerPhone || "N/A"})
+                                            </div>
+                                            <div style={{ color: "#047857", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Customer pickup address:</strong> {selectedPickup.address}
+                                                {selectedPickup.landmark && ` (Landmark: ${selectedPickup.landmark})`}
+                                                {[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).length > 0 &&
+                                                    `, ${[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).join(", ")}`}
+                                            </div>
+                                            <div style={{ color: "#059669", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                                                <strong>Pickup date / time slot:</strong> {selectedPickup.pickupDate ? new Date(selectedPickup.pickupDate).toLocaleDateString() : "Scheduled"} • {selectedPickup.timeSlot || "Standard Slot"}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ textAlign: "center", fontSize: "1.35rem", fontWeight: 800, color: "#059669", margin: "0.35rem 0" }}>
+                                            ↓
+                                        </div>
+
+                                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                DELIVER TO (INSPECTION HUB)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#1e40af", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Technician / Inspection Center: {selectedPickup.technicianName || "Inspection Technician"} ({selectedPickup.inspectionCenterName || selectedPickup.technicianCenterName || "EcoCycle Central Inspection Hub"}) {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
+                                            </div>
+                                            <div style={{ color: "#1e3a8a", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Technician/center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central E-Waste Facility & Inspection Hub"}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             <div className="modal-grid-box">
@@ -855,7 +1130,7 @@ function CollectionAgentDashboard() {
                                 <div>
                                     <h2>Today's Pickup Reminder</h2>
                                     <p className="modal-sub">
-                                        Date: <strong>{todaysReminder?.date || "Today"}</strong> &bull; Total Scheduled: <strong>{todaysReminder?.totalPickups || 0} Pickups</strong>
+                                        Date: <strong>{todaysReminder?.date ? new Date(todaysReminder.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</strong> &bull; Total Scheduled: <strong>{reminderList.length} Pickups</strong>
                                     </p>
                                 </div>
                             </div>
@@ -865,18 +1140,18 @@ function CollectionAgentDashboard() {
                         </div>
 
                         <div className="reminder-modal-body">
-                            {todaysReminder && todaysReminder.totalPickups > 0 ? (
+                            {reminderList.length > 0 ? (
                                 <>
                                     <div className="reminder-alert-banner">
                                         <FiAlertCircle className="reminder-alert-icon" />
                                         <span>
-                                            You have <strong>{todaysReminder.totalPickups}</strong> pickup assignment(s) scheduled for today. Please review the details below before heading out!
+                                            You have <strong>{reminderList.length}</strong> pickup assignment(s) scheduled for today. Please review the details below before heading out!
                                         </span>
                                     </div>
 
                                     <div className="reminder-pickups-list">
-                                        {todaysReminder.pickups.map((pickup, idx) => (
-                                            <div key={pickup.assignmentId || idx} className="reminder-pickup-card">
+                                        {reminderList.map((pickup, idx) => (
+                                            <div key={pickup.assignmentId || idx} className="reminder-pickup-card" style={{ border: pickup.extensionCount > 0 ? "1.5px solid #f59e0b" : "1px solid #e2e8f0" }}>
                                                 <div className="reminder-card-top">
                                                     <span className="reminder-badge-num">Pickup {idx + 1}</span>
                                                     <h3 className="reminder-device-name">
@@ -908,6 +1183,20 @@ function CollectionAgentDashboard() {
                                                                 ) : (
                                                                     "N/A"
                                                                 )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="reminder-detail-item">
+                                                        <FiCalendar className="item-icn" />
+                                                        <div>
+                                                            <div className="item-lbl">Scheduled Date</div>
+                                                            <div className="item-val">
+                                                                {pickup.pickupDate
+                                                                    ? new Date(pickup.pickupDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                                                                    : todaysReminder?.date
+                                                                    ? new Date(todaysReminder.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                                                                    : "Scheduled Today"}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -949,6 +1238,8 @@ function CollectionAgentDashboard() {
                                                         </div>
                                                     </div>
                                                 </div>
+
+
                                             </div>
                                         ))}
                                     </div>

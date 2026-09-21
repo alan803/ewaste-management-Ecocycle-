@@ -14,10 +14,13 @@ import CollectionAgent_signup from "./pages/signup/CollectionAgent_signup";
 import CollectionAgent_dashboard from "./pages/Collection Agent/Collectionagent_dashboard";
 import Technician_signup from "./pages/technician/Technician_signup";
 import Inspectiontechnician_dashboard from "./pages/Inspection Technician/Inspectiontechnician_dashboard";
+import DeviceInspection from "./pages/Inspection Technician/Device_inspection";
+import InspectionReport from "./pages/Inspection Technician/Inspection_report";
 import RefurbishmentCenter_signup from "./pages/signup/refurbishmentcenter_signup";
 import Refurbishment_dashboard from "./pages/refurbishment center/Refurbishmentcenter_dashboard"
 import RecyclingCenter_signup from "./pages/signup/recyclingcenter_signup";
 import Recycling_dashboard from "./pages/Recycling Center/Recyclingcenter_dashboard";
+import RecyclingPerform from "./pages/Recycling Center/Recycling_perform";
 import Verify_otp from "./pages/forgot password/Verify_otp";
 import Reset_passwprd from "./pages/forgot password/Reset_passwprd";
 import Manage_collectionagent from "./pages/Administrator/Manage_collectionagent";
@@ -39,6 +42,8 @@ import View_device from "./pages/citizen/View_device";
 import Manage_assignmentandpickups from "./pages/Administrator/Manage_assignmentandpickups";
 import Manage_userprofile from "./pages/citizen/Manage_userprofile";
 import Technician_notification from "./pages/Inspection Technician/Technician_notification";
+import TechnicianPenalties from "./pages/Inspection Technician/Technician_penalties";
+import Recyclingcenter_notification from "./pages/Recycling Center/Recyclingcenter_notification";
 import Profile from "./pages/Collection Agent/Profile";
 import Insp_profile from "./pages/Inspection Technician/Insp_profile";
 import RefurbishmentProfile from "./pages/refurbishment center/refurbishment_profile";
@@ -49,6 +54,13 @@ import Pickups from "./pages/Collection Agent/Pickups";
 import TechnicianDelivery from "./pages/Inspection Technician/technician_delivery";
 import ManagePickup from "./pages/Administrator/Manage_pickup";
 import ManageDelivery from "./pages/Administrator/Manage_delivery";
+import ManageInspection from "./pages/Administrator/Manage_inspection";
+import AllocateRecyclingCenter from "./pages/Administrator/Allocate_recyclingcenter";
+import RefurbishmentAllocation from "./pages/Administrator/Refurbishment_allocation";
+import ManageRecyclingAllocation from "./pages/Administrator/Manage_recyclingallocation";
+import ManageCenterAllocation from "./pages/Administrator/Manage_centerallocation";
+import CitizenDeviceReport from "./pages/citizen/Device_report";
+import ManagePenalties from "./pages/Administrator/Manage_penalties";
 
 function App() {
     return (
@@ -79,19 +91,29 @@ function App() {
             <Route path="/recycling_dashboard" element={<Recycling_dashboard />}></Route>
             <Route path="/verify-otp" element={<Verify_otp />}></Route>
             <Route path="/reset-password" element={<Reset_passwprd />}></Route>
-            <Route path="/manage-collectionagent" element={<Manage_collectionagent />}></Route>
+            <Route path="/manage-collectionagent" element={<ManageCollectionAgent />}></Route>
             <Route path="/manage-collectionagents" element={<ManageCollectionAgent />}></Route>
             <Route path="/view-collectionagent/:id" element={<View_collectionagent />} />
-            <Route path="/manage-technicians" element={<Manage_technicians />} />
+            <Route path="/manage-technicians" element={<Managetechnician />} />
             <Route path="/view-technician/:id" element={<View_technician />} />
-            <Route path="/manage-recyclingcenter" element={<Manage_recyclingcenter />} />
+            <Route path="/manage-recyclingcenter" element={<Managerecyclingcenter />} />
             <Route path="/view-recyclingcenter/:id" element={<View_recyclingagent />} />
             <Route path="/view-recyclingagent/:id" element={<View_recyclingagent />} />
-            <Route path="/manage-refurbishmentcenter" element={<Manage_refurbishmentcenter />} />
+            <Route path="/manage-refurbishmentcenter" element={<Managerefurbishment />} />
             <Route path="/view-refurbishmentcenter/:id" element={<View_refurbishmentcenter />} />
             <Route path="/manage-users" element={<Manage_users />} />
             <Route path="/add-device" element={<Add_device />} />
             <Route path="/manage-device" element={<Manage_device/>}/>
+            <Route path="/admin/refurbishment-devices" element={<RefurbishmentAllocation />}/>
+            <Route path="/admin/recycling-devices" element={<AllocateRecyclingCenter />}/>
+            <Route path="/allocate-recycling" element={<AllocateRecyclingCenter />}/>
+            <Route path="/allocate-recyclingcenter" element={<AllocateRecyclingCenter />}/>
+            <Route path="/allocate-refurbishment" element={<RefurbishmentAllocation />}/>
+            <Route path="/manage-recyclingallocation" element={<ManageRecyclingAllocation />}/>
+            <Route path="/manage-refurbishmentallocation" element={<RefurbishmentAllocation />}/>
+            <Route path="/manage-centerallocation" element={<ManageCenterAllocation />}/>
+            <Route path="/manage-centerallocations" element={<ManageCenterAllocation />}/>
+            <Route path="/manage-recyclingcenterallocation" element={<ManageCenterAllocation />}/>
             <Route path="/manage-refurbishment" element={<Managerefurbishment/>}/>
             <Route path="/manage-recyclingcenters" element={<Managerecyclingcenter/>}/>
             <Route path="/managetechnicians" element={<Managetechnician/>}/>
@@ -99,6 +121,12 @@ function App() {
             <Route path="/manage-assignmentandpickups" element={<Manage_assignmentandpickups/>}/>
             <Route path="/manage-userprofile" element={<Manage_userprofile/>}/>
             <Route path="/technician-notification" element={<Technician_notification/>}/>
+            <Route path="/technician/notifications" element={<Technician_notification/>}/>
+            <Route path="/technician/notification" element={<Technician_notification/>}/>
+            <Route path="/recyclingcenter-notification" element={<Recyclingcenter_notification/>}/>
+            <Route path="/recyclingcenter_notification" element={<Recyclingcenter_notification/>}/>
+            <Route path="/recyclingcenter/notifications" element={<Recyclingcenter_notification/>}/>
+            <Route path="/recyclingcenter/notification" element={<Recyclingcenter_notification/>}/>
             <Route path="/agent-profile" element={<Profile/>}/>
             <Route path="/collectionagent/profile" element={<Profile/>}/>
             <Route path="/technician/profile" element={<Insp_profile/>}/>
@@ -110,13 +138,29 @@ function App() {
             <Route path="/recycle_profile" element={<RecycleProfile/>}/>
             <Route path="/recyclingcenter_profile" element={<RecycleProfile/>}/>
             <Route path="/recyclingcenter/profile" element={<RecycleProfile/>}/>
+            <Route path="/recycling_perform" element={<RecyclingPerform/>}/>
+            <Route path="/recyclingcenter_perform" element={<RecyclingPerform/>}/>
+            <Route path="/recycling/perform" element={<RecyclingPerform/>}/>
             <Route path="/collectionagent-pickup" element={<Pickup_collectionagent/>}/>
             <Route path="/collectionagent/pickups" element={<Pickups/>}/>
             <Route path="/agent-pickups" element={<Pickups/>}/>
             <Route path="/pickupuser" element={<Pickupdetails/>}/>
+            <Route path="/citizen/reports" element={<CitizenDeviceReport/>}/>
+            <Route path="/citizen-reports" element={<CitizenDeviceReport/>}/>
+            <Route path="/citizen/device-reports" element={<CitizenDeviceReport/>}/>
             <Route path="/technician/deliveries" element={<TechnicianDelivery/>}/>
             <Route path="/technician-deliveries" element={<TechnicianDelivery/>}/>
+            <Route path="/technician-delivery" element={<TechnicianDelivery/>}/>
             <Route path="/technician_delivery" element={<TechnicianDelivery/>}/>
+            <Route path="/technician/inspect" element={<DeviceInspection/>}/>
+            <Route path="/technician/device-inspection" element={<DeviceInspection/>}/>
+            <Route path="/technician-inspect" element={<DeviceInspection/>}/>
+            <Route path="/technician/reports" element={<InspectionReport/>}/>
+            <Route path="/technician-reports" element={<InspectionReport/>}/>
+            <Route path="/technician/inspection-report" element={<InspectionReport/>}/>
+            <Route path="/technician/penalties" element={<TechnicianPenalties/>}/>
+            <Route path="/technician-penalties" element={<TechnicianPenalties/>}/>
+            <Route path="/technician_penalties" element={<TechnicianPenalties/>}/>
 
             <Route path="/manage-pickup" element={<ManagePickup/>}/>
             <Route path="/manage-pickups" element={<ManagePickup/>}/>
@@ -124,6 +168,13 @@ function App() {
             <Route path="/manage-delivery" element={<ManageDelivery/>}/>
             <Route path="/manage-deliveries" element={<ManageDelivery/>}/>
             <Route path="/manage_delivery" element={<ManageDelivery/>}/>
+            <Route path="/manage-inspection" element={<ManageInspection/>}/>
+            <Route path="/manage-inspections" element={<ManageInspection/>}/>
+            <Route path="/manage_inspection" element={<ManageInspection/>}/>
+            <Route path="/manage-penalties" element={<ManagePenalties/>}/>
+            <Route path="/manage-technician-penalties" element={<ManagePenalties/>}/>
+            <Route path="/admin/technician-penalties" element={<ManagePenalties/>}/>
+            <Route path="/admin/penalties" element={<ManagePenalties/>}/>
 
         </Routes>
     );

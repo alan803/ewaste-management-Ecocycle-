@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import Navbar from "./Navbar";
 import {
     FiSearch,
@@ -20,16 +20,63 @@ import {
     FiCheckCircle,
     FiDollarSign,
     FiRotateCcw,
-    FiTrash2
+    FiTrash2,
+    FiAlertTriangle,
+    FiTruck,
+    FiGrid,
+    FiList
 } from "react-icons/fi";
 import "./Manage_device.css";
 
 function Manage_device() {
+    const location = useLocation();
     const [devices, setDevices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [activeFilter, setActiveFilter] = useState("All");
+    const [viewMode, setViewMode] = useState("table");
+
+    useEffect(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const destination = searchParams.get("destination");
+        if (destination === "refurbishment") {
+            setActiveFilter("Refurbishment");
+        } else if (destination === "recycling") {
+            setActiveFilter("Recycling");
+        } else if (location.pathname === "/admin/refurbishment-devices") {
+            setActiveFilter("Refurbishment");
+        } else if (location.pathname === "/admin/recycling-devices") {
+            setActiveFilter("Recycling");
+        }
+    }, [location]);
+
+    const getDestinationBadge = (device) => {
+        const decision = (
+            device.processingDecision ||
+            device.ProcessingDecision ||
+            device.processingPreference ||
+            device.ProcessingPreference ||
+            ""
+        ).toLowerCase();
+
+        if (decision.includes("refurbish")) {
+            return (
+                <span className="destination-badge destination-badge--refurbishment">
+                    <FiCpu /> Refurbishment Center
+                </span>
+            );
+        } else if (decision.includes("recycl")) {
+            return (
+                <span className="destination-badge destination-badge--recycling">
+                    <FiRefreshCw /> Recycling Center
+                </span>
+            );
+        }
+        return (
+            <span className="badge-tag">{device.processingPreference || "Pending Decision"}</span>
+        );
+    };
     const [selectedDevice, setSelectedDevice] = useState(null);
     const [allocatingId, setAllocatingId] = useState(null);
     const [manualAllocatingDevice, setManualAllocatingDevice] = useState(null);
@@ -38,6 +85,15 @@ function Manage_device() {
     const [manualAllocatingLoading, setManualAllocatingLoading] = useState(false);
     const [manualAllocatingMessage, setManualAllocatingMessage] = useState("");
     const [techSearchQuery, setTechSearchQuery] = useState("");
+
+    // Toast notification state
+    const [toastMessage, setToastMessage] = useState(null);
+
+    const showToast = (msg, type = "success") => {
+        setToastMessage({ msg, type });
+        setTimeout(() => setToastMessage(null), 4500);
+    };
+
     const formatDate = (dateString) => {
         if (!dateString) return "N/A";
         try {
@@ -123,7 +179,7 @@ function Manage_device() {
             setDevices(prevDevices =>
                 prevDevices.map(d =>
                     d.deviceId === deviceId
-                        ? { ...d, status: "Accepted" }
+                        ? { ...d, status: "Accepted", allocationRequested: false, AllocationRequested: false }
                         : d
                 )
             );
@@ -174,6 +230,28 @@ function Manage_device() {
             await fetchAllDevices();
         } catch (err) {
             console.error("Error allocating technician:", err);
+        } finally {
+            setAllocatingId(null);
+        }
+    };
+
+    const allocateRecyclingCenter = async (deviceId) => {
+        try {
+            setAllocatingId(deviceId);
+            const token = localStorage.getItem("token");
+            const response = await axios.post(
+                `https://localhost:7102/api/AllocateRecyclingCenter/allocate/${deviceId}`,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                }
+            );
+            console.log("Recycling center allocation response:", response.data);
+            await fetchAllDevices();
+        } catch (err) {
+            console.error("Error allocating recycling center:", err);
         } finally {
             setAllocatingId(null);
         }
@@ -288,6 +366,15 @@ function Manage_device() {
                     isAllocated: false,
                     icon: <FiClock />,
                     className: "status-btn--pending"
+                };
+            case "inspectionpenalized":
+            case "penalized":
+                return {
+                    statusKey: "InspectionPenalized",
+                    label: "Fine Imposed — Inspection Penalized",
+                    isAllocated: false,
+                    icon: <FiAlertTriangle />,
+                    className: "status-btn--cancelled"
                 };
             case "pickupexpired":
             case "inspectionexpired":
@@ -474,6 +561,23 @@ function Manage_device() {
         const info = getLifecycleInfo(device);
         const hasTechnicianAllocated = info.isAllocated || device.technicianId || device.isAllocated;
         const isAllocationRequested = !!(device.allocationRequested || device.AllocationRequested);
+        const isPenalized = (device.lifecycleStatus || "").toLowerCase() === "inspectionpenalized" ||
+                            (device.status || "").toLowerCase() === "penalized" ||
+                            (device.inspectionRequestStatus || "").toLowerCase() === "penalized";
+
+        if (isPenalized) {
+            return (
+                <button
+                    className={`action-btn action-btn--lifecycle status-btn--cancelled ${isModal ? "modal-lifecycle-btn" : ""}`}
+                    disabled
+                    title="Fine Applied for Device — Reallocate Technician in Manage Inspections"
+                    style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5" }}
+                >
+                    <FiAlertTriangle />
+                    <span>Fine Applied (Reallocate in Inspections)</span>
+                </button>
+            );
+        }
 
         if (!hasTechnicianAllocated && isAllocationRequested) {
             return (
@@ -516,6 +620,23 @@ function Manage_device() {
         return name.includes(query) || city.includes(query) || district.includes(query) || state.includes(query) || pincode.includes(query) || spec.includes(query) || center.includes(query) || phone.includes(query);
     });
 
+    // Filter & Metric Calculations
+    const totalCount = devices.length;
+    const pendingCount = devices.filter((d) => (d.status?.toLowerCase() || "pending") === "pending").length;
+    const acceptedCount = devices.filter((d) => {
+        const s = (d.status?.toLowerCase() || "");
+        return s === "accepted" || s === "active" || s === "approved";
+    }).length;
+    const rejectedCount = devices.filter((d) => (d.status?.toLowerCase() || "") === "rejected").length;
+    const refurbCount = devices.filter((d) => {
+        const decisionStr = (d.processingDecision || d.ProcessingDecision || d.processingPreference || d.ProcessingPreference || "").toLowerCase();
+        return decisionStr.includes("refurbish");
+    }).length;
+    const recyclingCount = devices.filter((d) => {
+        const decisionStr = (d.processingDecision || d.ProcessingDecision || d.processingPreference || d.ProcessingPreference || "").toLowerCase();
+        return decisionStr.includes("recycl");
+    }).length;
+
     const filteredDevices = devices.filter((d) => {
         const matchesSearch =
             (d.brand?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
@@ -523,11 +644,27 @@ function Manage_device() {
             (d.modelNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
             (d.serialNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
             (d.condition?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
-            (d.processingPreference?.toLowerCase() || "").includes(searchQuery.toLowerCase());
+            (d.processingPreference?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+            (d.processingDecision?.toLowerCase() || "").includes(searchQuery.toLowerCase());
 
-        const matchesStatus =
-            activeFilter === "All" ||
-            (d.status?.toLowerCase() || "pending") === activeFilter.toLowerCase();
+        const decisionStr = (
+            d.processingDecision ||
+            d.ProcessingDecision ||
+            d.processingPreference ||
+            d.ProcessingPreference ||
+            ""
+        ).toLowerCase();
+
+        let matchesStatus = true;
+        if (activeFilter === "All") {
+            matchesStatus = true;
+        } else if (activeFilter === "Refurbishment") {
+            matchesStatus = decisionStr.includes("refurbish");
+        } else if (activeFilter === "Recycling") {
+            matchesStatus = decisionStr.includes("recycl");
+        } else {
+            matchesStatus = (d.status?.toLowerCase() || "pending") === activeFilter.toLowerCase();
+        }
 
         return matchesSearch && matchesStatus;
     });
@@ -544,9 +681,6 @@ function Manage_device() {
                 <header className="admin-topbar">
                     <div className="topbar-left">
                         <div className="command-brand">
-                            <span className="command-badge">
-                                <span className="live-dot"></span> SYSTEM ONLINE
-                            </span>
                             <h1>Manage Pending Devices</h1>
                         </div>
                         <p className="command-subtitle">
@@ -579,53 +713,117 @@ function Manage_device() {
                                     <span className="role">Super Admin</span>
                                 </div>
                             </div>
-
-                            <Link to="/logout" className="logout-btn-v2" title="Logout">
-                                <FiLogOut />
-                                <span>Exit</span>
-                            </Link>
                         </div>
                     </div>
                 </header>
+
+                {/* Analytics Metric Cards Grid matching Manage_penalties.jsx */}
+                <div className="admin-metrics-grid">
+                    <div className="admin-metric-card">
+                        <div className="admin-metric-icon total">
+                            <FiSmartphone />
+                        </div>
+                        <div className="admin-metric-info">
+                            <h3>{totalCount}</h3>
+                            <p>Total E-Waste Devices</p>
+                        </div>
+                    </div>
+
+                    <div className="admin-metric-card">
+                        <div className="admin-metric-icon alert">
+                            <FiClock />
+                        </div>
+                        <div className="admin-metric-info">
+                            <h3>{pendingCount}</h3>
+                            <p>Pending Submissions</p>
+                        </div>
+                    </div>
+
+                    <div className="admin-metric-card">
+                        <div className="admin-metric-icon active">
+                            <FiCpu />
+                        </div>
+                        <div className="admin-metric-info">
+                            <h3>{refurbCount}</h3>
+                            <p>Refurbishment Queue</p>
+                        </div>
+                    </div>
+
+                    <div className="admin-metric-card">
+                        <div className="admin-metric-icon done">
+                            <FiRefreshCw />
+                        </div>
+                        <div className="admin-metric-info">
+                            <h3>{recyclingCount}</h3>
+                            <p>Recycling Queue</p>
+                        </div>
+                    </div>
+                </div>
 
                 {/* Content Area */}
                 <section className="content-section">
                     <div className="panel-card table-panel">
                         <div className="panel-header">
                             <div>
-                                <h3 className="panel-title">Device Submissions</h3>
-                                <p className="panel-subtitle">View and manage pending e-waste device registrations</p>
+                                <h3 className="panel-title">E-Waste Device Submissions Queue</h3>
+                                <p className="panel-subtitle">Overview of registered devices, center routing decisions, and status</p>
                             </div>
-                            <div className="panel-actions">
+                            <div className="panel-actions" style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
                                 <div className="filter-pill-group">
-                                    {["All", "Pending", "Accepted", "Rejected"].map((tab) => (
+                                    {[
+                                        { id: "All", label: "All", count: totalCount },
+                                        { id: "Refurbishment", label: "Refurbishment Center", count: refurbCount },
+                                        { id: "Recycling", label: "Recycling Center", count: recyclingCount },
+                                        { id: "Pending", label: "Pending", count: pendingCount },
+                                        { id: "Accepted", label: "Accepted", count: acceptedCount },
+                                        { id: "Rejected", label: "Rejected", count: rejectedCount }
+                                    ].map((tab) => (
                                         <button
-                                            key={tab}
-                                            className={`pill-btn ${activeFilter === tab ? "pill-btn--active" : ""}`}
-                                            onClick={() => setActiveFilter(tab)}
+                                            key={tab.id}
+                                            className={`pill-btn ${activeFilter === tab.id ? "pill-btn--active" : ""}`}
+                                            onClick={() => setActiveFilter(tab.id)}
                                         >
-                                            {tab}
+                                            {tab.label} ({tab.count})
                                         </button>
                                     ))}
+                                </div>
+
+                                <div className="admin-view-toggle">
+                                    <button
+                                        className={`admin-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+                                        onClick={() => setViewMode("grid")}
+                                        title="Grid View"
+                                    >
+                                        <FiGrid />
+                                    </button>
+                                    <button
+                                        className={`admin-toggle-btn ${viewMode === "table" ? "active" : ""}`}
+                                        onClick={() => setViewMode("table")}
+                                        title="Table View"
+                                    >
+                                        <FiList />
+                                    </button>
                                 </div>
                             </div>
                         </div>
 
                         {loading ? (
-                            <div className="loading-state">
-                                <div className="loading-spinner"></div>
-                                <p>Loading device requests...</p>
+                            <div style={{ textAlign: "center", padding: "4rem 2rem", color: "#64748b" }}>
+                                <FiRefreshCw className="spin-icon" style={{ fontSize: "2.5rem", color: "#10b981", marginBottom: "1rem" }} />
+                                <h3 style={{ margin: 0, fontSize: "1.1rem", color: "#0f172a" }}>Loading Device Submissions...</h3>
+                                <p style={{ margin: "0.4rem 0 0", fontSize: "0.85rem" }}>Fetching e-waste device submissions and center routing.</p>
                             </div>
                         ) : error ? (
                             <div className="error-state">
                                 <p>{error}</p>
                             </div>
                         ) : filteredDevices.length === 0 ? (
-                            <div className="no-data-state">
-                                <FiFilter className="no-data-icon" />
-                                <p>No device requests matching your criteria.</p>
+                            <div style={{ textAlign: "center", padding: "4rem 2rem", color: "#64748b" }}>
+                                <FiCheckCircle style={{ fontSize: "3rem", color: "#10b981", marginBottom: "1rem" }} />
+                                <h3 style={{ margin: 0, fontSize: "1.15rem", color: "#0f172a" }}>No Device Submissions Found</h3>
+                                <p style={{ margin: "0.4rem 0 0", fontSize: "0.85rem" }}>No e-waste device submissions match your selected filter criteria.</p>
                             </div>
-                        ) : (
+                        ) : viewMode === "table" ? (
                             <div className="glass-table-wrapper">
                                 <table className="glass-table">
                                     <thead>
@@ -634,10 +832,10 @@ function Manage_device() {
                                             <th>Device</th>
                                             <th>Model / Serial No</th>
                                             <th>Condition</th>
-                                            <th>Preference</th>
+                                            <th>Destination</th>
                                             <th>Status</th>
-                                            <th>Lifecycle Status</th>
-                                            <th>Actions</th>
+                                            <th className="col-lifecycle">Lifecycle Status</th>
+                                            <th className="col-actions">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -663,10 +861,10 @@ function Manage_device() {
                                                     {d.working && <div className="device-sub-text">Working: {d.working}</div>}
                                                 </td>
                                                 <td>
-                                                    <span className="badge-tag">{d.processingPreference || "Standard"}</span>
+                                                    {getDestinationBadge(d)}
                                                 </td>
                                                 <td>{getStatusBadge(d.status)}</td>
-                                                <td>
+                                                <td className="col-lifecycle">
                                                     <button
                                                         className={`action-btn action-btn--lifecycle ${getLifecycleInfo(d).className}`}
                                                         style={{ cursor: "default" }}
@@ -677,7 +875,7 @@ function Manage_device() {
                                                         <span>{getLifecycleInfo(d).label}</span>
                                                     </button>
                                                 </td>
-                                                <td>
+                                                <td className="col-actions">
                                                     <div className="action-buttons">
                                                         <button
                                                             className="action-btn action-btn--view"
@@ -713,9 +911,21 @@ function Manage_device() {
                                                           d.status?.toLowerCase() === "pickupcancelled" ||
                                                           d.status?.toLowerCase() === "cancelled" ||
                                                           (d.lifecycleStatus || "").toLowerCase() === "pickupcancelled") && 
-                                                          (d.allocationRequested || d.AllocationRequested || d.status?.toLowerCase() === "accepted" || d.status?.toLowerCase() === "active" || d.status?.toLowerCase() === "requested" || d.status?.toLowerCase() === "approved") && (
+                                                          (d.allocationRequested || d.AllocationRequested) && (
                                                             <>
-                                                                {d.inspectionRequestStatus?.toLowerCase() === "waiting" ? (
+                                                                {(d.lifecycleStatus || "").toLowerCase() === "inspectionpenalized" ||
+                                                                  (d.status || "").toLowerCase() === "penalized" ||
+                                                                  (d.inspectionRequestStatus || "").toLowerCase() === "penalized" ? (
+                                                                    <button
+                                                                        className="action-btn action-btn--lifecycle status-btn--cancelled"
+                                                                        disabled
+                                                                        title="Fine Imposed on Device - Reallocate Technician in Manage Inspections Page"
+                                                                        style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5" }}
+                                                                    >
+                                                                        <FiAlertTriangle />
+                                                                        <span>Fine Imposed</span>
+                                                                    </button>
+                                                                ) : d.inspectionRequestStatus?.toLowerCase() === "waiting" ? (
                                                                     <button
                                                                         className="action-btn action-btn--allocate"
                                                                         style={{ background: "#fffbebf0", color: "#b45309", border: "1px solid #fde68a" }}
@@ -754,6 +964,160 @@ function Manage_device() {
                                         ))}
                                     </tbody>
                                 </table>
+                            </div>
+                        ) : (
+                            <div className="admin-cards-grid">
+                                {filteredDevices.map((d, index) => {
+                                    const itemKey = d.deviceId || `device-grid-${index}`;
+                                    return (
+                                        <div key={itemKey} className="admin-pickup-card">
+                                            <div>
+                                                <div className="admin-card-header">
+                                                    <div className="admin-card-top-row">
+                                                        <div className="admin-cat-icon-box" style={{ background: "#ecfdf5", color: "#059669" }}>
+                                                            <FiSmartphone />
+                                                        </div>
+                                                        {getStatusBadge(d.status)}
+                                                    </div>
+                                                    <div className="admin-card-title-group">
+                                                        <span className="admin-card-brand-name">{d.brand || "Device"} {d.model || ""}</span>
+                                                        <span className="admin-card-sub-info">
+                                                            Device #DEV-{String(d.deviceId).padStart(3, "0")} • Qty: {d.quantity || 1}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="admin-card-body-details">
+                                                    <div className="admin-detail-row">
+                                                        <FiCpu className="detail-icon" />
+                                                        <div>
+                                                            <div className="detail-label">Model / Serial No</div>
+                                                            <div className="detail-val">{d.modelNumber || "N/A"}</div>
+                                                            <div style={{ fontSize: "0.75rem", color: "#64748b" }}>S/N: {d.serialNumber || "N/A"}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="admin-detail-row">
+                                                        <FiPackage className="detail-icon" />
+                                                        <div>
+                                                            <div className="detail-label">Condition & Working State</div>
+                                                            <div className="detail-val">{d.condition || "N/A"}</div>
+                                                            {d.working && <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Working: {d.working}</div>}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="admin-detail-row">
+                                                        <FiMapPin className="detail-icon" style={{ color: "#059669" }} />
+                                                        <div>
+                                                            <div className="detail-label">Destination Center</div>
+                                                            <div style={{ marginTop: "0.2rem" }}>
+                                                                {getDestinationBadge(d)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="admin-detail-row">
+                                                        <FiClock className="detail-icon" />
+                                                        <div>
+                                                            <div className="detail-label">Lifecycle Status</div>
+                                                            <div style={{ marginTop: "0.25rem" }}>
+                                                                {renderLifecycleAction(d)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="admin-card-actions" style={{ display: "flex", gap: "0.4rem", marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px dashed #e2e8f0" }}>
+                                                <button
+                                                    className="action-btn action-btn--view"
+                                                    onClick={() => setSelectedDevice(d)}
+                                                    title="View Details"
+                                                >
+                                                    <FiEye />
+                                                    <span>View</span>
+                                                </button>
+
+                                                {(!d.status || d.status.toLowerCase() === "pending") && (
+                                                    <>
+                                                        <button
+                                                            className="action-btn action-btn--approve"
+                                                            onClick={() => acceptDevice(d.deviceId)}
+                                                            title="Approve"
+                                                        >
+                                                            <FiCheck />
+                                                            <span>Approve</span>
+                                                        </button>
+                                                        <button
+                                                            className="action-btn action-btn--reject"
+                                                            onClick={() => rejectDevice(d.deviceId)}
+                                                            title="Reject"
+                                                        >
+                                                            <FiX />
+                                                            <span>Reject</span>
+                                                        </button>
+                                                    </>
+                                                )}
+
+                                                {(d.status?.toLowerCase() === "active" ||
+                                                  d.status?.toLowerCase() === "accepted" ||
+                                                  d.status?.toLowerCase() === "approved" ||
+                                                  d.status?.toLowerCase() === "requested" ||
+                                                  d.status?.toLowerCase() === "devicerequested" ||
+                                                  d.status?.toLowerCase() === "pickupcancelled" ||
+                                                  d.status?.toLowerCase() === "cancelled" ||
+                                                  (d.lifecycleStatus || "").toLowerCase() === "pickupcancelled") && 
+                                                  (d.allocationRequested || d.AllocationRequested) && (
+                                                    <>
+                                                        {(d.lifecycleStatus || "").toLowerCase() === "inspectionpenalized" ||
+                                                          (d.status || "").toLowerCase() === "penalized" ||
+                                                          (d.inspectionRequestStatus || "").toLowerCase() === "penalized" ? (
+                                                            <button
+                                                                className="action-btn action-btn--lifecycle status-btn--cancelled"
+                                                                disabled
+                                                                title="Fine Imposed on Device - Reallocate Technician in Manage Inspections Page"
+                                                                style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5" }}
+                                                            >
+                                                                <FiAlertTriangle />
+                                                                <span>Fine Imposed</span>
+                                                            </button>
+                                                        ) : d.inspectionRequestStatus?.toLowerCase() === "waiting" ? (
+                                                            <button
+                                                                className="action-btn action-btn--allocate"
+                                                                style={{ background: "#fffbebf0", color: "#b45309", border: "1px solid #fde68a" }}
+                                                                onClick={() => {
+                                                                    setManualAllocatingDevice(d);
+                                                                    fetchActiveTechnicians();
+                                                                }}
+                                                                disabled={allocatingId === d.deviceId}
+                                                                title="Manually Allocate Technician"
+                                                            >
+                                                                <FiCpu className={allocatingId === d.deviceId ? "spin-icon" : ""} />
+                                                                <span>
+                                                                    {allocatingId === d.deviceId ? "Allocating..." : "Allocate Manually"}
+                                                                </span>
+                                                            </button>
+                                                        ) : (
+                                                            !getLifecycleInfo(d).isAllocated && (
+                                                                <button
+                                                                    className="action-btn action-btn--allocate"
+                                                                    onClick={() => allocateTechnician(d.deviceId)}
+                                                                    disabled={allocatingId === d.deviceId}
+                                                                    title="Allocate Technician for Inspection"
+                                                                >
+                                                                    <FiCpu className={allocatingId === d.deviceId ? "spin-icon" : ""} />
+                                                                    <span>
+                                                                        {allocatingId === d.deviceId ? "Allocating..." : "Allocate"}
+                                                                    </span>
+                                                                </button>
+                                                            )
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -814,7 +1178,7 @@ function Manage_device() {
                                     <label>Time Slot</label>
                                     <span>{selectedDevice.timeSlot || "N/A"}</span>
                                 </div>
-                                <div className="detail-item">
+                                <div className="detail-item detail-item--span-2">
                                     <label>Device Location</label>
                                     <span>
                                         {selectedDevice.userLocation || 
@@ -823,7 +1187,7 @@ function Manage_device() {
                                          "N/A"}
                                     </span>
                                 </div>
-                                <div className="detail-item">
+                                <div className="detail-item detail-item--span-2">
                                     <label>Landmark / Pickup Address</label>
                                     <span>{selectedDevice.address ? (selectedDevice.landmark ? `${selectedDevice.address} (Near: ${selectedDevice.landmark})` : selectedDevice.address) : "N/A"}</span>
                                 </div>
@@ -831,9 +1195,9 @@ function Manage_device() {
                                     <label>Ownership</label>
                                     <span>{selectedDevice.ownership || "N/A"}</span>
                                 </div>
-                                <div className="detail-item">
+                                <div className="detail-item detail-item--full">
                                     <label>Lifecycle Status</label>
-                                    <span style={{ display: "flex", marginTop: "0.25rem" }}>
+                                    <span style={{ display: "flex", marginTop: "0.25rem", flexWrap: "wrap" }}>
                                         <button
                                             className={`action-btn action-btn--lifecycle ${getLifecycleInfo(selectedDevice).className}`}
                                             style={{ cursor: "default" }}
@@ -898,6 +1262,8 @@ function Manage_device() {
                                     </div>
                                 </div>
                             )}
+
+
                         </div>
                     </div>
                 )}
@@ -1076,6 +1442,16 @@ function Manage_device() {
                                 </button>
                             </div>
                         </div>
+                    </div>
+                )}
+
+
+
+                {/* Toast Notification Overlay */}
+                {toastMessage && (
+                    <div className={`admin-toast-overlay ${toastMessage.type}`}>
+                        {toastMessage.type === "error" ? <FiAlertTriangle /> : <FiCheckCircle />}
+                        <span>{toastMessage.msg}</span>
                     </div>
                 )}
             </div>

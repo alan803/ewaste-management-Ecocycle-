@@ -24,6 +24,12 @@ namespace EcoCycle.API.Models
         [ForeignKey(nameof(CategoryId))]
         public DeviceCategory? Category { get; set; }
 
+        // Linked Device Model
+        public int? DeviceModelId { get; set; }
+
+        [ForeignKey(nameof(DeviceModelId))]
+        public DeviceModel? DeviceModel { get; set; }
+
 
         // Device Details
         [Required]
@@ -134,6 +140,13 @@ namespace EcoCycle.API.Models
 
         [MaxLength(100)]
         public string? DeviceQrToken { get; set; }
+
+        public string? ProcessingDecision { get; set; }
+
+        public DateTime? ProcessingDecisionAt { get; set; }
+
+        [StringLength(50)]
+        public string? ProcessingLifecycleStatus { get; set; }
 
         public ICollection<InspectionRequest> InspectionRequests { get; set; }
             = new List<InspectionRequest>();

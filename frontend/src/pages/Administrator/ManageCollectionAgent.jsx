@@ -15,7 +15,11 @@ import {
     FiMapPin,
     FiAward,
     FiFileText,
-    FiShield
+    FiShield,
+    FiGrid,
+    FiList,
+    FiUserCheck,
+    FiUserX
 } from "react-icons/fi";
 import "./Manage_users.css";
 
@@ -25,6 +29,7 @@ function ManageCollectionAgent() {
     const [error, setError] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [activeFilter, setActiveFilter] = useState("All");
+    const [viewMode, setViewMode] = useState("table"); // 'table' | 'grid'
     const [selectedAgent, setSelectedAgent] = useState(null);
     const [rejectModalAgent, setRejectModalAgent] = useState(null);
     const [rejectReason, setRejectReason] = useState("");
@@ -360,10 +365,7 @@ function ManageCollectionAgent() {
                 <header className="admin-topbar">
                     <div className="topbar-left">
                         <div className="command-brand">
-                            <span className="command-badge">
-                                <span className="live-dot"></span> SYSTEM ONLINE
-                            </span>
-                            <h1>Manage Collection Agent Accounts</h1>
+                            <h1>Manage x1ccounts</h1>
                         </div>
                         <p className="command-subtitle">
                             View, activate, deactivate and manage collection agent user accounts
@@ -394,14 +396,52 @@ function ManageCollectionAgent() {
                                     <span className="role">Super Admin</span>
                                 </div>
                             </div>
-
-                            <Link to="/logout" className="logout-btn-v2" title="Logout">
-                                <FiLogOut />
-                                <span>Exit</span>
-                            </Link>
                         </div>
                     </div>
                 </header>
+
+                {/* Stats Overview Grid */}
+                <div className="stats-overview-grid" style={{ marginBottom: "1.5rem" }}>
+                    <div className="stat-card-v2">
+                        <div className="stat-icon-wrapper indigo">
+                            <FiBriefcase />
+                        </div>
+                        <div className="stat-content">
+                            <h4>Total Agents</h4>
+                            <p className="stat-value">{agents.length}</p>
+                        </div>
+                    </div>
+
+                    <div className="stat-card-v2">
+                        <div className="stat-icon-wrapper emerald">
+                            <FiUserCheck />
+                        </div>
+                        <div className="stat-content">
+                            <h4>Active Accounts</h4>
+                            <p className="stat-value">
+                                {agents.filter(a => {
+                                    const s = (a.status || "").toLowerCase();
+                                    return s === "active" || s === "approved";
+                                }).length}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="stat-card-v2">
+                        <div className="stat-icon-wrapper amber">
+                            <FiUserX />
+                        </div>
+                        <div className="stat-content">
+                            <h4>Pending / Inactive</h4>
+                            <p className="stat-value">
+                                {agents.filter(a => {
+                                    const s = (a.status || "").toLowerCase();
+                                    return s === "pending" || s === "inactive" || s === "rejected";
+                                }).length}
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
                 {/* Content Area */}
                 <section className="content-section">
@@ -423,6 +463,23 @@ function ManageCollectionAgent() {
                                         </button>
                                     ))}
                                 </div>
+
+                                <div className="admin-view-toggle">
+                                    <button
+                                        className={`admin-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+                                        onClick={() => setViewMode("grid")}
+                                        title="Grid View"
+                                    >
+                                        <FiGrid />
+                                    </button>
+                                    <button
+                                        className={`admin-toggle-btn ${viewMode === "table" ? "active" : ""}`}
+                                        onClick={() => setViewMode("table")}
+                                        title="Table View"
+                                    >
+                                        <FiList />
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -439,6 +496,161 @@ function ManageCollectionAgent() {
                             <div className="no-data-state">
                                 <FiFilter className="no-data-icon" />
                                 <p>No collection agent requests matching your criteria.</p>
+                            </div>
+                        ) : viewMode === "grid" ? (
+                            <div className="admin-cards-grid">
+                                {filteredAgents.map((agent) => {
+                                    const photoSrc = getPhotoSrc(agent);
+                                    const fullName = `${agent.firstName || ""} ${agent.lastName || ""}`.trim() || "N/A";
+                                    const agentId = agent.collectionAgentId || agent.id;
+                                    const isActionLoading = actionLoadingId === agentId;
+                                    const st = (agent.status || "").toLowerCase();
+
+                                    return (
+                                        <div key={agentId} className="admin-pickup-card">
+                                            <div>
+                                                <div className="admin-card-header">
+                                                    <div className="admin-card-top-row">
+                                                        <div className="admin-agent-avatar" style={{ width: "42px", height: "42px", fontSize: "1rem" }}>
+                                                            {photoSrc ? (
+                                                                <img src={photoSrc} alt={fullName} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+                                                            ) : (
+                                                                agent.firstName?.charAt(0) || "C"
+                                                            )}
+                                                        </div>
+                                                        <div>{getStatusBadge(agent.status)}</div>
+                                                    </div>
+                                                    <div className="admin-card-title-group">
+                                                        <h4 className="admin-card-brand-name">{fullName}</h4>
+                                                        <p className="admin-card-cat-sub">
+                                                            Agent ID #{agentId} &bull; {agent.vehicleType || "Collection Agent"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="admin-card-body">
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginTop: "0.2rem" }}>
+                                                        <div className="admin-detail-row">
+                                                            <FiUser className="detail-icon" style={{ color: "#3b82f6" }} />
+                                                            <div>
+                                                                <div className="detail-label">Email Address</div>
+                                                                <div className="detail-val">{agent.login?.email || "N/A"}</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="admin-detail-row">
+                                                            <FiBriefcase className="detail-icon" style={{ color: "#059669" }} />
+                                                            <div>
+                                                                <div className="detail-label">Phone & Vehicle</div>
+                                                                <div className="detail-val">{agent.phone || "N/A"}</div>
+                                                                {agent.vehicleType && (
+                                                                    <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{agent.vehicleType} {agent.vehicleNumber ? `(${agent.vehicleNumber})` : ""}</div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", paddingTop: "0.85rem", borderTop: "1px dashed #e2e8f0" }}>
+                                                <button
+                                                    onClick={() => handleViewDetails(agent)}
+                                                    title="View Profile Details"
+                                                    style={{
+                                                        flex: 1,
+                                                        height: "40px",
+                                                        background: "#ffffff",
+                                                        color: "#334155",
+                                                        border: "1px solid #cbd5e1",
+                                                        borderRadius: "10px",
+                                                        fontSize: "0.825rem",
+                                                        fontWeight: 700,
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        gap: "0.4rem",
+                                                        cursor: "pointer",
+                                                        boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                                                    }}
+                                                >
+                                                    <FiEye style={{ fontSize: "0.95rem" }} />
+                                                    <span>View</span>
+                                                </button>
+
+                                                {st === "pending" && (
+                                                    <>
+                                                        <button
+                                                            className="action-btn action-btn--approve"
+                                                            onClick={() => acceptAgent(agentId)}
+                                                            disabled={isActionLoading}
+                                                            title="Approve Account"
+                                                        >
+                                                            <FiCheck style={{ strokeWidth: 2.5 }} />
+                                                        </button>
+                                                        <button
+                                                            className="action-btn action-btn--reject"
+                                                            onClick={() => openRejectModal(agent)}
+                                                            disabled={isActionLoading}
+                                                            title="Reject Account"
+                                                        >
+                                                            <FiX style={{ strokeWidth: 2.5 }} />
+                                                        </button>
+                                                    </>
+                                                )}
+
+                                                {(st === "active" || st === "approved") && (
+                                                    <button
+                                                        onClick={() => openDeactivateModal(agent)}
+                                                        disabled={isActionLoading}
+                                                        title="Deactivate Account"
+                                                        style={{
+                                                            flex: 1,
+                                                            height: "40px",
+                                                            background: "#fef2f2",
+                                                            color: "#dc2626",
+                                                            border: "1px solid #fca5a5",
+                                                            borderRadius: "10px",
+                                                            fontSize: "0.825rem",
+                                                            fontWeight: 700,
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "center",
+                                                            gap: "0.4rem",
+                                                            cursor: isActionLoading ? "not-allowed" : "pointer"
+                                                        }}
+                                                    >
+                                                        <span>Deactivate</span>
+                                                    </button>
+                                                )}
+
+                                                {st === "inactive" && (
+                                                    <button
+                                                        onClick={() => reactivateAgent(agentId)}
+                                                        disabled={isActionLoading}
+                                                        title="Activate Account"
+                                                        style={{
+                                                            flex: 1,
+                                                            height: "40px",
+                                                            background: "#f0fdf4",
+                                                            color: "#166534",
+                                                            border: "1px solid #bbf7d0",
+                                                            borderRadius: "10px",
+                                                            fontSize: "0.825rem",
+                                                            fontWeight: 700,
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "center",
+                                                            gap: "0.4rem",
+                                                            cursor: isActionLoading ? "not-allowed" : "pointer"
+                                                        }}
+                                                    >
+                                                        <span>Activate</span>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="glass-table-wrapper">
@@ -747,32 +959,30 @@ function ManageCollectionAgent() {
                                 </div>
                             )}
 
-                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid #e2e8f0" }}>
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem", marginTop: "1.25rem", paddingTop: "0.85rem", borderTop: "1px solid #e2e8f0" }}>
                                 <button
                                     className="pill-btn"
                                     onClick={() => setSelectedAgent(null)}
-                                    style={{ padding: "0.6rem 1.25rem", borderRadius: "8px", cursor: "pointer", fontWeight: 600 }}
+                                    style={{ padding: "0.45rem 0.9rem", borderRadius: "6px", cursor: "pointer", fontWeight: 600, fontSize: "0.8rem" }}
                                 >
                                     Close
                                 </button>
                                 {selectedAgent.status?.toLowerCase() === "pending" && (
                                     <>
                                         <button
-                                            className="action-btn action-btn--approve"
+                                            className="action-btn-text action-btn-text--approve"
                                             onClick={() => acceptAgent(selectedAgent.collectionAgentId || selectedAgent.id)}
                                             disabled={actionLoadingId === (selectedAgent.collectionAgentId || selectedAgent.id)}
-                                            style={{ width: "auto", padding: "0.6rem 1.25rem", borderRadius: "8px", fontWeight: 600 }}
                                         >
                                             Approve Account
                                         </button>
                                         <button
-                                            className="action-btn action-btn--reject"
+                                            className="action-btn-text action-btn-text--reject"
                                             onClick={() => {
                                                 const agent = selectedAgent;
                                                 setSelectedAgent(null);
                                                 openRejectModal(agent);
                                             }}
-                                            style={{ width: "auto", padding: "0.6rem 1.25rem", borderRadius: "8px", fontWeight: 600 }}
                                         >
                                             Reject Application
                                         </button>
@@ -787,7 +997,7 @@ function ManageCollectionAgent() {
                                             openDeactivateModal(agent);
                                         }}
                                         disabled={actionLoadingId === (selectedAgent.collectionAgentId || selectedAgent.id)}
-                                        style={{ padding: "0.6rem 1.25rem", borderRadius: "8px" }}
+                                        style={{ padding: "0.45rem 0.9rem", borderRadius: "6px", fontSize: "0.8rem" }}
                                     >
                                         Deactivate Account
                                     </button>
@@ -797,7 +1007,7 @@ function ManageCollectionAgent() {
                                         className="action-btn-text action-btn-text--activate"
                                         onClick={() => reactivateAgent(selectedAgent.collectionAgentId || selectedAgent.id)}
                                         disabled={actionLoadingId === (selectedAgent.collectionAgentId || selectedAgent.id)}
-                                        style={{ padding: "0.6rem 1.25rem", borderRadius: "8px" }}
+                                        style={{ padding: "0.45rem 0.9rem", borderRadius: "6px", fontSize: "0.8rem" }}
                                     >
                                         Activate Account
                                     </button>

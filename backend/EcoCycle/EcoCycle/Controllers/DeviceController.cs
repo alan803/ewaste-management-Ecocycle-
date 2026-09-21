@@ -72,6 +72,18 @@ namespace EcoCycle.API.Controllers
             return fileName;
         }
 
+        private static string GenerateComplexQrToken(int deviceId)
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            var bytes = RandomNumberGenerator.GetBytes(8);
+            var code = new char[8];
+            for (int i = 0; i < 8; i++)
+            {
+                code[i] = chars[bytes[i] % chars.Length];
+            }
+            return $"ECOQR-DEV-{deviceId}-{new string(code)}";
+        }
+
         [HttpPost("Register")]
         public async Task<IActionResult> Register(
             [FromForm] DeviceAdd dev)
@@ -143,10 +155,39 @@ namespace EcoCycle.API.Controllers
                     });
                 }
 
+                DeviceModel? matchedModel = null;
+                if (!string.IsNullOrWhiteSpace(dev.ModelNumber))
+                {
+                    matchedModel = await db.DeviceModel
+                        .FirstOrDefaultAsync(m =>
+                            m.CategoryId == dev.CategoryId &&
+                            m.Brand.ToLower() == dev.Brand.Trim().ToLower() &&
+                            m.Model.ToLower() == dev.Model.Trim().ToLower() &&
+                            m.ModelNumber != null && m.ModelNumber.ToLower() == dev.ModelNumber.Trim().ToLower());
+                }
+
+                if (matchedModel == null)
+                {
+                    matchedModel = await db.DeviceModel
+                        .FirstOrDefaultAsync(m =>
+                            m.CategoryId == dev.CategoryId &&
+                            m.Brand.ToLower() == dev.Brand.Trim().ToLower() &&
+                            m.Model.ToLower() == dev.Model.Trim().ToLower());
+                }
+
+                if (matchedModel == null)
+                {
+                    matchedModel = await db.DeviceModel
+                        .FirstOrDefaultAsync(m =>
+                            m.Brand.ToLower() == dev.Brand.Trim().ToLower() &&
+                            m.Model.ToLower() == dev.Model.Trim().ToLower());
+                }
+
                 var device = new Device
                 {
                     UserId = user.UserId,
                     CategoryId = dev.CategoryId,
+                    DeviceModelId = matchedModel?.DeviceModelId,
 
                     Brand = dev.Brand,
                     Model = dev.Model,
@@ -210,11 +251,16 @@ namespace EcoCycle.API.Controllers
                 db.Device.Add(device);
 
                 await db.SaveChangesAsync();
+
+                device.DeviceQrToken = GenerateComplexQrToken(device.DeviceId);
+                await db.SaveChangesAsync();
+
                 await transaction.CommitAsync();
                 return Ok(new
                 {
-                    message ="Device registered successfully.",
+                    message = "Device registered successfully.",
                     deviceId = device.DeviceId,
+                    deviceQrToken = device.DeviceQrToken,
                     status = device.Status
                 });
             }
@@ -251,20 +297,72 @@ namespace EcoCycle.API.Controllers
         public async Task<IActionResult> GetAllDevices()
         {
             var today = DateTime.Today;
-            var overdueList = await db.Device
-                .Where(d => d.PickupDate < today 
-                    && d.LifecycleStatus != "DueDatePassed" 
-                    && d.LifecycleStatus != "PickupCancelled" 
-                    && d.LifecycleStatus != "Completed" 
-                    && d.LifecycleStatus != "Delivered" 
-                    && d.LifecycleStatus != "Recycled" 
-                    && d.Status != "Inactive" 
-                    && d.Status != "Deleted")
+
+            // 1. Auto-repair any devices mistakenly marked as DueDatePassed despite having active inspection/collection
+            var corruptedList = await db.Device
+                .Include(d => d.InspectionRequests)
+                .Include(d => d.CollectionAssignments)
+                .Where(d => d.LifecycleStatus == "DueDatePassed")
                 .ToListAsync();
 
-            if (overdueList.Any())
+            if (corruptedList.Any())
             {
-                foreach (var d in overdueList)
+                bool fixedAny = false;
+                foreach (var d in corruptedList)
+                {
+                    if (!string.IsNullOrEmpty(d.ProcessingDecision) || d.InspectionRequests.Any(ir => ir.Status == "Accepted" || ir.Status == "Completed"))
+                    {
+                        d.LifecycleStatus = "Inspected";
+                        fixedAny = true;
+                    }
+                    else if (d.CollectionAssignments.Any(ca => ca.Status == "DeliveredToCenter"))
+                    {
+                        d.LifecycleStatus = "AtInspectionCenter";
+                        fixedAny = true;
+                    }
+                    else if (d.CollectionAssignments.Any(ca => ca.Status == "Assigned" || ca.Status == "Accepted" || ca.Status == "PickupStarted"))
+                    {
+                        d.LifecycleStatus = "CollectionAssigned";
+                        fixedAny = true;
+                    }
+                }
+                if (fixedAny)
+                {
+                    await db.SaveChangesAsync();
+                }
+            }
+
+            // 2. Only mark DueDatePassed for devices strictly in Pending with no inspection/collection activity
+            var activeOrCompletedStatuses = new[]
+            {
+                "inspected", "inspectioncompleted", "inspectionassigned", "inspectionaccepted", "inspectioninprogress",
+                "atinspectioncenter", "collectionassigned", "collectionpending", "pickedup", "enroute",
+                "handoverpendingverification", "recyclingcenteraccepted", "refurbishmentcenteraccepted",
+                "completed", "delivered", "recycled", "refurbished", "duedatepassed", "pickupcancelled", "cancelled"
+            };
+
+            var overdueCandidateList = await db.Device
+                .Include(d => d.InspectionRequests)
+                .Include(d => d.CollectionAssignments)
+                .Where(d => d.PickupDate < today 
+                    && d.Status != "Inactive" 
+                    && d.Status != "Deleted"
+                    && d.Status != "Accepted"
+                    && string.IsNullOrEmpty(d.ProcessingDecision))
+                .ToListAsync();
+
+            var trulyOverdue = overdueCandidateList.Where(d =>
+            {
+                string lcs = (d.LifecycleStatus ?? "").ToLower().Trim();
+                if (activeOrCompletedStatuses.Contains(lcs)) return false;
+                if (d.InspectionRequests != null && d.InspectionRequests.Any(ir => ir.Status != "Rejected" && ir.Status != "Cancelled")) return false;
+                if (d.CollectionAssignments != null && d.CollectionAssignments.Any(ca => ca.Status != "Rejected" && ca.Status != "Cancelled")) return false;
+                return true;
+            }).ToList();
+
+            if (trulyOverdue.Any())
+            {
+                foreach (var d in trulyOverdue)
                 {
                     d.LifecycleStatus = "DueDatePassed";
                 }
@@ -305,11 +403,14 @@ namespace EcoCycle.API.Controllers
                     d.TimeSlot,
                     d.PickupInstructions,
                     d.ProcessingPreference,
+                    d.ProcessingDecision,
+                    d.ProcessingDecisionAt,
                     d.Ownership,
                     d.OwnershipConfirmed,
                     d.TermsAccepted,
                     d.Status,
                     d.LifecycleStatus,
+                    d.ProcessingLifecycleStatus,
                     d.AllocationRequested,
                     d.CreatedAt,
                     userName = d.User != null ? (d.User.FirstName + " " + d.User.LastName) : null,
@@ -335,7 +436,17 @@ namespace EcoCycle.API.Controllers
                         .Where(x => x.Status != "Rejected")
                         .OrderByDescending(x => x.InspectionRequestId)
                         .Select(x => x.TechnicianId)
-                        .FirstOrDefault() ?? d.InspectionRequests.OrderByDescending(x => x.InspectionRequestId).Select(x => x.TechnicianId).FirstOrDefault()
+                        .FirstOrDefault() ?? d.InspectionRequests.OrderByDescending(x => x.InspectionRequestId).Select(x => x.TechnicianId).FirstOrDefault(),
+                    recyclingCenterRequestStatus = db.RecyclingCenterRequests
+                        .Where(x => x.DeviceId == d.DeviceId && x.Status != "Rejected")
+                        .OrderByDescending(x => x.RecyclingCenterRequestId)
+                        .Select(x => x.Status)
+                        .FirstOrDefault() ?? db.RecyclingCenterRequests.Where(x => x.DeviceId == d.DeviceId).OrderByDescending(x => x.RecyclingCenterRequestId).Select(x => x.Status).FirstOrDefault(),
+                    recyclingCenterId = db.RecyclingCenterRequests
+                        .Where(x => x.DeviceId == d.DeviceId && x.Status != "Rejected")
+                        .OrderByDescending(x => x.RecyclingCenterRequestId)
+                        .Select(x => x.RecyclingCenterId)
+                        .FirstOrDefault() ?? db.RecyclingCenterRequests.Where(x => x.DeviceId == d.DeviceId).OrderByDescending(x => x.RecyclingCenterRequestId).Select(x => x.RecyclingCenterId).FirstOrDefault()
                 })
                 .ToListAsync();
 
@@ -357,7 +468,7 @@ namespace EcoCycle.API.Controllers
                 });
             }
             device.Status = "Accepted";
-            device.AllocationRequested = true;
+            device.AllocationRequested = false;
             await db.SaveChangesAsync();
             return Ok();
         }
@@ -394,33 +505,132 @@ namespace EcoCycle.API.Controllers
                 return NotFound(new { message = "User not found." });
 
             var today = DateTime.Today;
-            var overdueList = await db.Device
+            var activeOrCompletedStatusesUser = new[]
+            {
+                "inspected", "inspectioncompleted", "inspectionassigned", "inspectionaccepted", "inspectioninprogress",
+                "atinspectioncenter", "collectionassigned", "collectionpending", "pickedup", "enroute",
+                "handoverpendingverification", "recyclingcenteraccepted", "refurbishmentcenteraccepted",
+                "completed", "delivered", "recycled", "refurbished", "duedatepassed", "pickupcancelled", "cancelled"
+            };
+
+            var overdueCandidateListUser = await db.Device
+                .Include(d => d.InspectionRequests)
+                .Include(d => d.CollectionAssignments)
                 .Where(d => d.UserId == user.UserId
                     && d.PickupDate < today 
-                    && d.LifecycleStatus != "DueDatePassed" 
-                    && d.LifecycleStatus != "PickupCancelled" 
-                    && d.LifecycleStatus != "Completed" 
-                    && d.LifecycleStatus != "Delivered" 
-                    && d.LifecycleStatus != "Recycled" 
                     && d.Status != "Inactive" 
-                    && d.Status != "Deleted")
+                    && d.Status != "Deleted"
+                    && d.Status != "Accepted"
+                    && string.IsNullOrEmpty(d.ProcessingDecision))
                 .ToListAsync();
 
-            if (overdueList.Any())
+            var trulyOverdueUser = overdueCandidateListUser.Where(d =>
             {
-                foreach (var d in overdueList)
+                string lcs = (d.LifecycleStatus ?? "").ToLower().Trim();
+                if (activeOrCompletedStatusesUser.Contains(lcs)) return false;
+                if (d.InspectionRequests != null && d.InspectionRequests.Any(ir => ir.Status != "Rejected" && ir.Status != "Cancelled")) return false;
+                if (d.CollectionAssignments != null && d.CollectionAssignments.Any(ca => ca.Status != "Rejected" && ca.Status != "Cancelled")) return false;
+                return true;
+            }).ToList();
+
+            if (trulyOverdueUser.Any())
+            {
+                foreach (var d in trulyOverdueUser)
                 {
                     d.LifecycleStatus = "DueDatePassed";
                 }
                 await db.SaveChangesAsync();
             }
 
-            var devices = await db.Device
+            var devicesList = await db.Device
                 .Where(x => x.UserId == user.UserId)
                 .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync();
 
-            return Ok(devices);
+            var result = new List<object>();
+            var defaultTech = await db.Technician.FirstOrDefaultAsync();
+
+            foreach (var d in devicesList)
+            {
+                var inspReq = await db.InspectionRequest
+                    .Include(ir => ir.Technician)
+                    .Where(ir => ir.DeviceId == d.DeviceId)
+                    .OrderByDescending(ir => ir.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                var tech = inspReq?.Technician ?? defaultTech;
+                string? techName = tech != null ? $"{tech.FirstName} {tech.LastName}".Trim() : "EcoCycle Lead Technician";
+                
+                // User Location (From Address)
+                string userCity = !string.IsNullOrWhiteSpace(user.City) ? user.City : (!string.IsNullOrWhiteSpace(user.District) ? user.District : "Kochi");
+                string userPincode = !string.IsNullOrWhiteSpace(user.Pincode) ? user.Pincode : "682001";
+                string userAddrCore = !string.IsNullOrWhiteSpace(d.Address) ? d.Address : user.Address;
+                string userLandmarkCore = !string.IsNullOrWhiteSpace(d.Landmark) ? d.Landmark : "";
+
+                List<string> uParts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(userAddrCore)) uParts.Add(userAddrCore);
+                if (!string.IsNullOrWhiteSpace(userLandmarkCore)) uParts.Add($"Landmark: {userLandmarkCore}");
+                if (!string.IsNullOrWhiteSpace(userCity)) uParts.Add($"City: {userCity}");
+                if (!string.IsNullOrWhiteSpace(userPincode)) uParts.Add($"PIN: {userPincode}");
+
+                string userAddressFormatted = string.Join(", ", uParts);
+
+                // Technician Location (To Address)
+                string techCenterName = tech != null && !string.IsNullOrWhiteSpace(tech.InspectionCenterName)
+                    ? tech.InspectionCenterName
+                    : "EcoCycle Regional Inspection Center";
+
+                string techAddrCore = tech != null && !string.IsNullOrWhiteSpace(tech.Address) ? tech.Address : "EcoCycle Industrial Hub";
+                string techCity = tech != null && !string.IsNullOrWhiteSpace(tech.City) ? tech.City : "Ernakulam";
+                string techPin = tech != null && !string.IsNullOrWhiteSpace(tech.PinCode) ? tech.PinCode : "682030";
+
+                List<string> tParts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(techAddrCore)) tParts.Add(techAddrCore);
+                if (!string.IsNullOrWhiteSpace(techCity)) tParts.Add($"City: {techCity}");
+                if (!string.IsNullOrWhiteSpace(techPin)) tParts.Add($"PIN: {techPin}");
+
+                string techCenterAddress = string.Join(", ", tParts);
+                string techFullLocation = $"{techCenterName} ({techCenterAddress})";
+
+                result.Add(new
+                {
+                    d.DeviceId,
+                    d.UserId,
+                    d.Brand,
+                    d.Model,
+                    d.Condition,
+                    d.Working,
+                    d.Weight,
+                    Address = userAddressFormatted,
+                    d.Landmark,
+                    Pincode = userPincode,
+                    City = userCity,
+                    userFullLocation = userAddressFormatted,
+                    userCity,
+                    userPincode,
+                    d.PickupDate,
+                    d.TimeSlot,
+                    d.Status,
+                    d.LifecycleStatus,
+                    d.AllocationRequested,
+                    d.FrontPhoto,
+                    d.BackPhoto,
+                    d.DamagePhoto,
+                    d.LabelPhoto,
+                    d.SerialNumber,
+                    d.ModelNumber,
+                    DeviceQrToken = !string.IsNullOrEmpty(d.DeviceQrToken) ? d.DeviceQrToken : $"ECOQR-DEV-{d.DeviceId}",
+                    d.CreatedAt,
+                    assignedTechnicianName = techName,
+                    assignedTechnicianCenter = techFullLocation,
+                    assignedTechnicianCenterName = techCenterName,
+                    assignedTechnicianCenterAddress = techCenterAddress,
+                    techCity,
+                    techPincode = techPin
+                });
+            }
+
+            return Ok(result);
         }
         [HttpPost("Delete/{id}")]
         public async Task<IActionResult> Deletedevice(int id)

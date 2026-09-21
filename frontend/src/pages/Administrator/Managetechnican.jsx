@@ -8,6 +8,7 @@ import {
     FiLogOut,
     FiEye,
     FiX,
+    FiCheck,
     FiFilter,
     FiUserCheck,
     FiUserX,
@@ -21,7 +22,9 @@ import {
     FiBriefcase,
     FiAward,
     FiCalendar,
-    FiCheckCircle
+    FiCheckCircle,
+    FiGrid,
+    FiList
 } from "react-icons/fi";
 import "./Manage_users.css";
 
@@ -30,6 +33,7 @@ function Managetechnician() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeFilter, setActiveFilter] = useState("All");
+    const [viewMode, setViewMode] = useState("table"); // 'table' | 'grid'
 
     // Deactivate Modal state & live validation
     const [showDeactivate, setShowDeactivate] = useState(false);
@@ -145,22 +149,92 @@ function Managetechnician() {
         }
     };
 
-    // Exclude pending accounts (pending accounts belong in Account Approvals)
-    const nonPendingTechnicians = technicians.filter(
-        t => t.status?.toLowerCase() !== "pending"
-    );
+    const acceptTechnician = async (id) => {
+        try {
+            await axios.post(
+                `https://localhost:7102/api/Technician/Accept/${id}`
+            );
+            fetchTechnicians();
+        } catch (error) {
+            console.error("Error accepting technician:", error);
+            alert(error.response?.data?.message || "Failed to accept technician.");
+        }
+    };
 
-    // Statistics
-    const totalTechCount = nonPendingTechnicians.length;
-    const activeTechCount = nonPendingTechnicians.filter(
+    // Live Rejection Modal state & validation
+    const [rejectModalTech, setRejectModalTech] = useState(null);
+    const [rejectReason, setRejectReason] = useState("");
+    const [rejectReasonError, setRejectReasonError] = useState("");
+    const [rejectReasonTouched, setRejectReasonTouched] = useState(false);
+    const [rejecting, setRejecting] = useState(false);
+
+    const validateRejectionReason = (value) => {
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return "Reason for rejection is required.";
+        }
+        if (trimmed.length < 10) {
+            return "Reason for rejection must be at least 10 characters long.";
+        }
+        if (!/^[a-zA-Z0-9\s]+$/.test(trimmed)) {
+            return "Special characters are not allowed in the rejection reason.";
+        }
+        return "";
+    };
+
+    const handleRejectReasonChange = (e) => {
+        const val = e.target.value;
+        setRejectReason(val);
+        setRejectReasonTouched(true);
+        setRejectReasonError(validateRejectionReason(val));
+    };
+
+    const openRejectModal = (tech) => {
+        setRejectModalTech(tech);
+        setRejectReason("");
+        setRejectReasonError("");
+        setRejectReasonTouched(false);
+    };
+
+    const confirmRejectTechnician = async () => {
+        const err = validateRejectionReason(rejectReason);
+        setRejectReasonTouched(true);
+        setRejectReasonError(err);
+        if (err || !rejectModalTech) return;
+
+        setRejecting(true);
+        const techId = rejectModalTech.technicianId || rejectModalTech.id;
+        try {
+            await axios.post(
+                `https://localhost:7102/api/Technician/Reject/${techId}`,
+                null,
+                { params: { reason: rejectReason.trim() } }
+            );
+            setRejectModalTech(null);
+            setRejectReason("");
+            fetchTechnicians();
+        } catch (error) {
+            console.error("Error rejecting technician:", error);
+            alert(error.response?.data?.message || "Failed to reject technician.");
+        } finally {
+            setRejecting(false);
+        }
+    };
+
+    // Statistics across all technicians
+    const totalTechCount = technicians.length;
+    const pendingTechCount = technicians.filter(
+        t => (t.status || "").toLowerCase() === "pending"
+    ).length;
+    const activeTechCount = technicians.filter(
         t => t.status === "Active" || t.status === "Approved"
     ).length;
-    const inactiveTechCount = nonPendingTechnicians.filter(
+    const inactiveTechCount = technicians.filter(
         t => t.status === "Inactive" || t.status === "Rejected"
     ).length;
 
     // Filter technicians
-    const filteredTechnicians = nonPendingTechnicians.filter((tech) => {
+    const filteredTechnicians = technicians.filter((tech) => {
         const fullName = `${tech.firstName || ""} ${tech.lastName || ""}`.trim();
 
         const matchesSearch =
@@ -174,10 +248,12 @@ function Managetechnician() {
             (tech.state?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
             (tech.employeeId?.toLowerCase() || "").includes(searchQuery.toLowerCase());
 
+        const statusLower = (tech.status || "").toLowerCase();
         const matchesStatus =
             activeFilter === "All" ||
-            (activeFilter === "Active" && (tech.status === "Active" || tech.status === "Approved")) ||
-            (activeFilter === "Inactive" && (tech.status === "Inactive" || tech.status === "Rejected"));
+            (activeFilter === "Pending" && statusLower === "pending") ||
+            (activeFilter === "Active" && (statusLower === "active" || statusLower === "approved")) ||
+            (activeFilter === "Inactive" && (statusLower === "inactive" || statusLower === "rejected"));
 
         return matchesSearch && matchesStatus;
     });
@@ -285,9 +361,6 @@ function Managetechnician() {
                 <header className="admin-topbar">
                     <div className="topbar-left">
                         <div className="command-brand">
-                            <span className="command-badge">
-                                <span className="live-dot"></span> SYSTEM ONLINE
-                            </span>
                             <h1>Manage Technicians</h1>
                         </div>
                         <p className="command-subtitle">
@@ -319,11 +392,6 @@ function Managetechnician() {
                                     <span className="role">Super Admin</span>
                                 </div>
                             </div>
-
-                            <Link to="/logout" className="logout-btn-v2" title="Logout">
-                                <FiLogOut />
-                                <span>Exit</span>
-                            </Link>
                         </div>
                     </div>
                 </header>
@@ -341,6 +409,16 @@ function Managetechnician() {
                     </div>
 
                     <div className="stat-card-v2">
+                        <div className="stat-icon-wrapper amber" style={{ background: "rgba(245, 158, 11, 0.1)", color: "#d97706" }}>
+                            <FiShield />
+                        </div>
+                        <div className="stat-content">
+                            <h4>Pending Requests</h4>
+                            <p className="stat-value">{pendingTechCount}</p>
+                        </div>
+                    </div>
+
+                    <div className="stat-card-v2">
                         <div className="stat-icon-wrapper emerald">
                             <FiUserCheck />
                         </div>
@@ -351,7 +429,7 @@ function Managetechnician() {
                     </div>
 
                     <div className="stat-card-v2">
-                        <div className="stat-icon-wrapper amber">
+                        <div className="stat-icon-wrapper rose" style={{ background: "rgba(225, 29, 72, 0.1)", color: "#e11d48" }}>
                             <FiUserX />
                         </div>
                         <div className="stat-content">
@@ -371,7 +449,7 @@ function Managetechnician() {
 
                         <div className="panel-actions">
                             <div className="filter-pill-group">
-                                {["All", "Active", "Inactive"].map((tab) => (
+                                {["All", "Pending", "Active", "Inactive"].map((tab) => (
                                     <button
                                         key={tab}
                                         className={`pill-btn ${activeFilter === tab ? "pill-btn--active" : ""}`}
@@ -382,9 +460,22 @@ function Managetechnician() {
                                 ))}
                             </div>
 
-                            <button className="refresh-icon-btn" onClick={fetchTechnicians} title="Refresh Data">
-                                <FiRefreshCw />
-                            </button>
+                            <div className="admin-view-toggle">
+                                <button
+                                    className={`admin-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+                                    onClick={() => setViewMode("grid")}
+                                    title="Grid View"
+                                >
+                                    <FiGrid />
+                                </button>
+                                <button
+                                    className={`admin-toggle-btn ${viewMode === "table" ? "active" : ""}`}
+                                    onClick={() => setViewMode("table")}
+                                    title="Table View"
+                                >
+                                    <FiList />
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -397,6 +488,153 @@ function Managetechnician() {
                         <div className="no-data-state">
                             <FiFilter className="no-data-icon" />
                             <p>No technicians matching your criteria.</p>
+                        </div>
+                    ) : viewMode === "grid" ? (
+                        <div className="admin-cards-grid">
+                            {filteredTechnicians.map((tech) => {
+                                const photoSrc = getPhotoSrc(tech);
+                                const fullName = `${tech.firstName || ""} ${tech.lastName || ""}`.trim() || "N/A";
+                                const isActive = tech.status === "Active" || tech.status === "Approved";
+
+                                return (
+                                    <div key={tech.technicianId} className="admin-pickup-card">
+                                        <div>
+                                            <div className="admin-card-header">
+                                                <div className="admin-card-top-row">
+                                                    <div className="admin-agent-avatar" style={{ width: "42px", height: "42px", fontSize: "1rem" }}>
+                                                        {photoSrc ? (
+                                                            <img src={photoSrc} alt={fullName} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+                                                        ) : (
+                                                            tech.firstName?.charAt(0) || "T"
+                                                        )}
+                                                    </div>
+                                                    <div>{getStatusBadge(tech.status)}</div>
+                                                </div>
+                                                <div className="admin-card-title-group">
+                                                    <h4 className="admin-card-brand-name">{fullName}</h4>
+                                                    <p className="admin-card-cat-sub">
+                                                        Tech ID #{tech.technicianId} &bull; {tech.specialization || "Inspection Technician"}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="admin-card-body">
+                                                <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginTop: "0.2rem" }}>
+                                                    <div className="admin-detail-row">
+                                                        <FiUser className="detail-icon" style={{ color: "#3b82f6" }} />
+                                                        <div>
+                                                            <div className="detail-label">Email Address</div>
+                                                            <div className="detail-val">{tech.login?.email || "N/A"}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="admin-detail-row">
+                                                        <FiMapPin className="detail-icon" style={{ color: "#059669" }} />
+                                                        <div>
+                                                            <div className="detail-label">Phone & Location</div>
+                                                            <div className="detail-val">{tech.phoneNumber || "N/A"}</div>
+                                                            {tech.city && (
+                                                                <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                                                                    {tech.city}{tech.state ? `, ${tech.state}` : ""}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem", paddingTop: "0.85rem", borderTop: "1px dashed #e2e8f0" }}>
+                                            <button
+                                                onClick={() => openDetailModal(tech)}
+                                                title="View Details"
+                                                style={{
+                                                    flex: 1,
+                                                    height: "40px",
+                                                    background: "#ffffff",
+                                                    color: "#334155",
+                                                    border: "1px solid #cbd5e1",
+                                                    borderRadius: "10px",
+                                                    fontSize: "0.825rem",
+                                                    fontWeight: 700,
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    gap: "0.4rem",
+                                                    cursor: "pointer",
+                                                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)"
+                                                }}
+                                            >
+                                                <FiEye style={{ fontSize: "0.95rem" }} />
+                                                <span>View</span>
+                                            </button>
+
+                                            {isPending ? (
+                                                <>
+                                                    <button
+                                                        className="action-btn action-btn--approve"
+                                                        onClick={() => acceptTechnician(tech.technicianId || tech.id)}
+                                                        title="Approve Account"
+                                                    >
+                                                        <FiCheck style={{ strokeWidth: 2.5 }} />
+                                                    </button>
+                                                    <button
+                                                        className="action-btn action-btn--reject"
+                                                        onClick={() => openRejectModal(tech)}
+                                                        title="Reject Account"
+                                                    >
+                                                        <FiX style={{ strokeWidth: 2.5 }} />
+                                                    </button>
+                                                </>
+                                            ) : isActive ? (
+                                                <button
+                                                    onClick={() => openDeactivateModal(tech)}
+                                                    title="Deactivate Account"
+                                                    style={{
+                                                        flex: 1,
+                                                        height: "40px",
+                                                        background: "#fef2f2",
+                                                        color: "#dc2626",
+                                                        border: "1px solid #fca5a5",
+                                                        borderRadius: "10px",
+                                                        fontSize: "0.825rem",
+                                                        fontWeight: 700,
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        gap: "0.4rem",
+                                                        cursor: "pointer"
+                                                    }}
+                                                >
+                                                    <span>Deactivate</span>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => activateTechnician(tech.technicianId || tech.id)}
+                                                    title="Activate Account"
+                                                    style={{
+                                                        flex: 1,
+                                                        height: "40px",
+                                                        background: "#f0fdf4",
+                                                        color: "#166534",
+                                                        border: "1px solid #bbf7d0",
+                                                        borderRadius: "10px",
+                                                        fontSize: "0.825rem",
+                                                        fontWeight: 700,
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        gap: "0.4rem",
+                                                        cursor: "pointer"
+                                                    }}
+                                                >
+                                                    <span>Activate</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="glass-table-wrapper">
@@ -416,6 +654,7 @@ function Managetechnician() {
                                         const photoSrc = getPhotoSrc(tech);
                                         const fullName = `${tech.firstName || ""} ${tech.lastName || ""}`.trim() || "N/A";
                                         const isActive = tech.status === "Active" || tech.status === "Approved";
+                                        const isPending = (tech.status || "").toLowerCase() === "pending";
 
                                         return (
                                             <tr key={tech.technicianId} className="table-row-hover">
@@ -497,7 +736,24 @@ function Managetechnician() {
                                                             <FiEye />
                                                         </button>
 
-                                                        {isActive ? (
+                                                        {isPending ? (
+                                                            <>
+                                                                <button
+                                                                    className="action-btn action-btn--approve"
+                                                                    onClick={() => acceptTechnician(tech.technicianId || tech.id)}
+                                                                    title="Approve Account"
+                                                                >
+                                                                    <FiCheck style={{ strokeWidth: 2.5 }} />
+                                                                </button>
+                                                                <button
+                                                                    className="action-btn action-btn--reject"
+                                                                    onClick={() => openRejectModal(tech)}
+                                                                    title="Reject Account"
+                                                                >
+                                                                    <FiX style={{ strokeWidth: 2.5 }} />
+                                                                </button>
+                                                            </>
+                                                        ) : isActive ? (
                                                             <button
                                                                 className="action-btn-text action-btn-text--deactivate"
                                                                 onClick={() => openDeactivateModal(tech)}
@@ -507,7 +763,7 @@ function Managetechnician() {
                                                         ) : (
                                                             <button
                                                                 className="action-btn-text action-btn-text--activate"
-                                                                onClick={() => activateTechnician(tech.technicianId)}
+                                                                onClick={() => activateTechnician(tech.technicianId || tech.id)}
                                                             >
                                                                 Activate
                                                             </button>
@@ -923,7 +1179,7 @@ function Managetechnician() {
                             </div>
 
                             {/* Fixed Modal Footer */}
-                            <div className="modal-footer" style={{ padding: "1rem 1.75rem", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
+                            <div className="modal-footer" style={{ padding: "1rem 1.75rem", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "flex-end", gap: "0.75rem", flexShrink: 0 }}>
                                 <button
                                     className="btn-secondary"
                                     onClick={() => {
@@ -933,6 +1189,137 @@ function Managetechnician() {
                                     style={{ padding: "0.6rem 1.5rem", borderRadius: "10px", fontWeight: 600 }}
                                 >
                                     Close
+                                </button>
+                                {(viewTech.status || "").toLowerCase() === "pending" && (
+                                    <>
+                                        <button
+                                            onClick={() => {
+                                                const id = viewTech.technicianId || viewTech.id;
+                                                setShowDetailModal(false);
+                                                setViewTech(null);
+                                                acceptTechnician(id);
+                                            }}
+                                            style={{
+                                                padding: "0.6rem 1.25rem",
+                                                background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                                                color: "#ffffff",
+                                                border: "none",
+                                                borderRadius: "10px",
+                                                fontWeight: 700,
+                                                fontSize: "0.875rem",
+                                                cursor: "pointer"
+                                            }}
+                                        >
+                                            Approve Technician
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const target = viewTech;
+                                                setShowDetailModal(false);
+                                                setViewTech(null);
+                                                openRejectModal(target);
+                                            }}
+                                            style={{
+                                                padding: "0.6rem 1.25rem",
+                                                background: "#fef2f2",
+                                                color: "#dc2626",
+                                                border: "1px solid #fca5a5",
+                                                borderRadius: "10px",
+                                                fontWeight: 700,
+                                                fontSize: "0.875rem",
+                                                cursor: "pointer"
+                                            }}
+                                        >
+                                            Reject Technician
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* REJECTION REASON MODAL */}
+                {rejectModalTech && (
+                    <div className="modal-overlay">
+                        <div className="modal-card modal-card--deactivate" style={{ maxWidth: "520px", padding: 0, overflow: "hidden" }}>
+                            <div className="modal-header" style={{ padding: "1.25rem 1.5rem", background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", color: "#ffffff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+                                    <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(239, 68, 68, 0.15)", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem" }}>
+                                        <FiX />
+                                    </div>
+                                    <div>
+                                        <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#ffffff" }}>
+                                            Reject Technician Request
+                                        </h3>
+                                        <p style={{ margin: 0, fontSize: "0.8rem", color: "#94a3b8" }}>
+                                            {`${rejectModalTech.firstName || ""} ${rejectModalTech.lastName || ""}`.trim() || "Selected Technician"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setRejectModalTech(null)}
+                                    style={{ background: "transparent", border: "none", color: "#94a3b8", fontSize: "1.2rem", cursor: "pointer", display: "flex", alignItems: "center" }}
+                                >
+                                    <FiX />
+                                </button>
+                            </div>
+
+                            <div style={{ padding: "1.5rem" }}>
+                                <p style={{ fontSize: "0.875rem", color: "#475569", marginTop: 0, marginBottom: "1rem", lineHeight: 1.5 }}>
+                                    Please specify the official reason for rejecting this technician application.
+                                </p>
+
+                                <div style={{ marginBottom: "0.5rem" }}>
+                                    <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#334155", marginBottom: "0.35rem" }}>
+                                        Rejection Reason <span style={{ color: "#ef4444" }}>*</span>
+                                    </label>
+                                    <textarea
+                                        rows="4"
+                                        placeholder="Enter detailed rejection reason (minimum 10 characters, letters and numbers only)..."
+                                        value={rejectReason}
+                                        onChange={handleRejectReasonChange}
+                                        style={{
+                                            width: "100%",
+                                            padding: "0.75rem",
+                                            borderRadius: "10px",
+                                            border: rejectReasonTouched && rejectReasonError ? "1.5px solid #ef4444" : "1px solid #cbd5e1",
+                                            outline: "none",
+                                            fontSize: "0.875rem",
+                                            fontFamily: "inherit",
+                                            resize: "vertical"
+                                        }}
+                                    ></textarea>
+                                    {rejectReasonTouched && rejectReasonError && (
+                                        <p style={{ margin: "0.35rem 0 0 0", fontSize: "0.78rem", color: "#ef4444", fontWeight: 600 }}>
+                                            {rejectReasonError}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div style={{ padding: "1rem 1.5rem", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+                                <button
+                                    className="btn-secondary"
+                                    onClick={() => setRejectModalTech(null)}
+                                    style={{ padding: "0.55rem 1.25rem", borderRadius: "8px", fontWeight: 600 }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmRejectTechnician}
+                                    disabled={Boolean(rejecting || rejectReasonError || !rejectReason.trim())}
+                                    style={{
+                                        padding: "0.55rem 1.25rem",
+                                        borderRadius: "8px",
+                                        fontWeight: 700,
+                                        background: Boolean(rejecting || rejectReasonError || !rejectReason.trim()) ? "#94a3b8" : "#dc2626",
+                                        color: "#ffffff",
+                                        border: "none",
+                                        cursor: Boolean(rejecting || rejectReasonError || !rejectReason.trim()) ? "not-allowed" : "pointer"
+                                    }}
+                                >
+                                    {rejecting ? "Rejecting..." : "Confirm Rejection"}
                                 </button>
                             </div>
                         </div>

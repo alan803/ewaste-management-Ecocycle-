@@ -254,7 +254,7 @@ function Insp_profile() {
                 }
             );
             if (Array.isArray(response.data)) {
-                const unread = response.data.filter((n) => !n.isRead).length;
+                const unread = response.data.filter((n) => !n.isRead && !n.isread).length;
                 setUnreadNotifCount(unread);
             }
         } catch (err) {
@@ -547,37 +547,59 @@ function Insp_profile() {
             <Sidebar />
 
             <div className="tech-profile-main">
-                {/* Dedicated Technician Header Topbar */}
-                <header className="tech-header-topbar">
-                    <div className="tech-topbar-left">
-                        <div className="tech-topbar-icon-badge">
-                            <FiCpu />
-                        </div>
-                        <div className="tech-topbar-title-group">
-                            <h1>Technician Profile & Credentials</h1>
-                            <p>EcoCycle Diagnostic Station • Certified Inspection Officer</p>
-                        </div>
-                    </div>
-
-                    <div className="tech-topbar-right">
-                        <Link to="/technician-notification" className="tech-notif-bell-btn" title="Notification Inbox">
-                            <FiBell />
-                            {unreadNotifCount > 0 && <span className="tech-notif-badge-dot"></span>}
-                        </Link>
-
-                        <div className="tech-user-pill">
-                            <div className="tech-user-pill-avatar">{avatarInitial}</div>
-                            <div className="tech-user-pill-info">
-                                <span className="tech-user-pill-name">{name.split(" ")[0]}</span>
-                                <span className="tech-user-pill-role">Inspector</span>
-                            </div>
-                        </div>
-
-                        <button className="tech-signout-btn" onClick={handleLogout} title="Sign Out">
-                            <FiLogOut />
+                {/* Dedicated Technician Header Topbar matching Device_inspection.jsx */}
+                <div className="tech-header-bar" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
+                    <div className="tech-header-actions">
+                        <button className="tech-refresh-btn" onClick={() => loadProfile()}>
+                            <FiRefreshCw className={loading ? "spin-icon" : ""} /> Refresh
                         </button>
+
+                        {/* Notification Bell */}
+                        <button
+                            className="tech-refresh-btn"
+                            style={{ position: "relative" }}
+                            title={`Notifications ${unreadNotifCount > 0 ? `(${unreadNotifCount} unread)` : ""}`}
+                            onClick={() => navigate("/technician-notification")}
+                        >
+                            <FiBell style={{ fontSize: "1.1rem" }} />
+                            {unreadNotifCount > 0 && (
+                                <span style={{
+                                    position: "absolute",
+                                    top: "-4px",
+                                    right: "-4px",
+                                    background: "#ef4444",
+                                    color: "#ffffff",
+                                    fontSize: "0.65rem",
+                                    fontWeight: 800,
+                                    width: "18px",
+                                    height: "18px",
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center"
+                                }}>
+                                    {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                                </span>
+                            )}
+                        </button>
+
+                        <div className="tech-user-avatar" title={name} style={{ cursor: "pointer" }} onClick={() => navigate("/technician-profile")}>
+                            {(profileImagePreview || profile?.Photo || profile?.photo || profile?.profilePhoto || profile?.PhotoPath || profile?.photoPath) ? (
+                                <img
+                                    src={profileImagePreview || getMediaUrl(profile?.Photo || profile?.photo || profile?.profilePhoto || profile?.PhotoPath || profile?.photoPath, "profile")}
+                                    alt={name}
+                                    style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.style.display = "none";
+                                    }}
+                                />
+                            ) : (
+                                avatarInitial
+                            )}
+                        </div>
                     </div>
-                </header>
+                </div>
 
                 {/* Hidden File Input for Avatar Photo Upload */}
                 <input

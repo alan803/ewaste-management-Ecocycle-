@@ -287,6 +287,40 @@
 .badge-enroute { background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; }
 .badge-completed { background: #d1fae5; color: #047857; border: 1px solid #a7f3d0; }
 .badge-declined { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+.badge-expired { background: #fef2f2 !important; color: #dc2626 !important; border: 1.5px solid #fca5a5 !important; }
+
+/* Expired Pickup Special Design */
+.pro-pickup-card--expired {
+    background: #fff8f8 !important;
+    border: 1.5px dashed #fca5a5 !important;
+    position: relative;
+}
+
+.pro-pickup-card--expired:hover {
+    border-color: #ef4444 !important;
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.12) !important;
+}
+
+.table-row-expired {
+    background: #fff8f8 !important;
+}
+
+.status-expired-pill {
+    background: #fef2f2 !important;
+    color: #b91c1c !important;
+    border: 1px solid #fecaca !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.35rem !important;
+    padding: 0.4rem 0.75rem !important;
+    border-radius: 9px !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+    height: 38px !important;
+}
 
 /* Item Specs */
 .pro-card-body {
@@ -399,6 +433,8 @@
     align-items: center;
     justify-content: center;
     gap: 5px;
+    white-space: nowrap;
+    box-sizing: border-box;
 }
 
 /* Card Actions - PERFECT FIT & ZERO OVERFLOW */
@@ -1133,6 +1169,7 @@
     justify-content: center;
     gap: 6px;
     box-sizing: border-box;
+    white-space: nowrap;
 }
 
 /* Live Validation Elements Styling */

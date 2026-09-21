@@ -119,8 +119,23 @@ function Pickupdetails() {
     const isPickupCancelled = (req) => {
         if (!req) return false;
         const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
+        const status = String(req.status || "").toLowerCase();
         const lcs = String(req.lifecycleStatus || "").toLowerCase();
-        return cas === "cancelled" || lcs === "pickupcancelled";
+        return cas === "cancelled" || status === "cancelled" || lcs === "pickupcancelled";
+    };
+
+    const isDeviceCollectedFromUser = (req) => {
+        if (!req) return false;
+        const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
+        const lcs = String(req.lifecycleStatus || "").toLowerCase();
+        const delStat = String(req.deliveryStatus || "").toLowerCase();
+
+        return (
+            req.pickedUpAt != null ||
+            ["completed", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "deliveredtocenter", "delivered"].includes(cas) ||
+            ["pickedup", "collected", "intransit", "handoverpendingverification", "atinspectioncenter", "delivered"].includes(lcs) ||
+            ["intransit", "pendingverification", "delivered"].includes(delStat)
+        );
     };
 
     useEffect(() => {
@@ -328,45 +343,69 @@ function Pickupdetails() {
           localStorage.getItem("name") ||
           "Citizen Champion";
 
-    // Filter to devices strictly accepted by Collection Agent for delivery or cancelled requests
-    const acceptedRequests = pickupRequests.filter(req => {
-        const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
-        const lcs = String(req.lifecycleStatus || "").toLowerCase();
-
-        // Keep cancelled pickup requests visible on the card feed
-        if (cas === "cancelled" || lcs === "pickupcancelled") return true;
-
-        if (req.collectionAgentAccepted === true) return true;
-        if (["accepted", "pickupstarted", "completed", "intransit", "pickedup", "delivered"].includes(cas)) return true;
-        return false;
-    });
+    // Include ALL citizen pickup requests in the feed (even if collected from user or in transit)
+    const allRequests = pickupRequests;
 
     // KPI Metrics calculation
-    const inTransitCount = acceptedRequests.filter(r => {
+    const collectedCount = allRequests.filter(r => {
+        const isCancelled = isPickupCancelled(r);
+        if (isCancelled) return false;
+        return isDeviceCollectedFromUser(r);
+    }).length;
+
+    const inTransitCount = allRequests.filter(r => {
         const cas = String(r.collectionAssignmentStatus || "").toLowerCase();
         const lcs = String(r.lifecycleStatus || "").toLowerCase();
-        return cas === "intransit" || cas === "pickedup" || cas === "pickupstarted" || lcs === "enroute";
+        const delStat = String(r.deliveryStatus || "").toLowerCase();
+        const isDeliveredToTech = delStat === "delivered" || cas === "deliveredtocenter" || lcs === "atinspectioncenter";
+        const isCancelled = isPickupCancelled(r);
+        if (isCancelled || isDeliveredToTech) return false;
+        
+        return isDeviceCollectedFromUser(r);
     }).length;
 
-    const completedCount = acceptedRequests.filter(r => {
+    const completedCount = allRequests.filter(r => {
         const cas = String(r.collectionAssignmentStatus || "").toLowerCase();
-        return cas === "completed" || cas === "delivered";
+        const lcs = String(r.lifecycleStatus || "").toLowerCase();
+        const delStat = String(r.deliveryStatus || "").toLowerCase();
+        return delStat === "delivered" || cas === "deliveredtocenter" || lcs === "atinspectioncenter";
     }).length;
 
-    const cancelledCount = acceptedRequests.filter(r => isPickupCancelled(r)).length;
+    const cancelledCount = allRequests.filter(r => isPickupCancelled(r)).length;
 
-    const totalWeight = acceptedRequests.reduce((sum, r) => sum + ((Number(r.weight) || 0) * (Number(r.quantity) || 1)), 0);
+    const totalWeight = allRequests.reduce((sum, r) => sum + ((Number(r.weight) || 0) * (Number(r.quantity) || 1)), 0);
 
     // Tab Filtered & Search Filtered requests
-    const filteredRequests = acceptedRequests.filter(req => {
+    const filteredRequests = allRequests.filter(req => {
         // Tab filter
         const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
         const lcs = String(req.lifecycleStatus || "").toLowerCase();
+        const delStat = String(req.deliveryStatus || "").toLowerCase();
 
-        if (activeTab === "InTransit" && cas !== "intransit" && cas !== "pickedup" && cas !== "pickupstarted" && lcs !== "enroute") return false;
-        if (activeTab === "Delivered" && cas !== "completed" && cas !== "delivered") return false;
-        if (activeTab === "Accepted" && cas !== "accepted" && req.collectionAgentAccepted !== true) return false;
-        if (activeTab === "Cancelled" && !isPickupCancelled(req)) return false;
+        const isCancelled = isPickupCancelled(req);
+        const isDeliveredToTech = delStat === "delivered" || cas === "deliveredtocenter" || lcs === "atinspectioncenter";
+        const isCitizenPickupDone = isDeviceCollectedFromUser(req);
+
+        if (activeTab === "Collected") {
+            if (isCancelled || !isCitizenPickupDone) return false;
+        }
+
+        if (activeTab === "InTransit") {
+            if (isCancelled || isDeliveredToTech) return false;
+            if (!isCitizenPickupDone && delStat !== "intransit" && delStat !== "pending" && cas !== "intransit" && cas !== "pickedup" && cas !== "completed") return false;
+        }
+
+        if (activeTab === "Delivered") {
+            if (!isDeliveredToTech) return false;
+        }
+
+        if (activeTab === "Accepted") {
+            if (cas !== "accepted" && req.collectionAgentAccepted !== true && !isCitizenPickupDone) return false;
+        }
+
+        if (activeTab === "Cancelled") {
+            if (!isCancelled) return false;
+        }
 
         // Search query filter
         if (!searchQuery.trim()) return true;
@@ -430,14 +469,23 @@ function Pickupdetails() {
             return <span className="status-pill status-overdue" style={{ ...badgeStyle, background: "#fff7ed", color: "#c2410c", borderColor: "#ffedd5" }}><FiAlertCircle style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Overdue</span>;
         }
         const cas = String(req.collectionAssignmentStatus || req.status || "").toLowerCase();
-        if (cas === "completed" || cas === "delivered") {
-            return <span className="status-pill status-completed" style={{ ...badgeStyle, background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0" }}><FiCheckCircle style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Completed</span>;
-        } else if (cas === "pickupstarted" || cas === "en route" || cas === "intransit" || cas === "pickedup") {
-            return <span className="status-pill status-progress" style={{ ...badgeStyle, background: "#eff6ff", color: "#1d4ed8", borderColor: "#bfdbfe" }}><FiTruck style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Pickup Started</span>;
-        } else if (cas === "accepted") {
-            return <span className="status-pill status-assigned" style={{ ...badgeStyle, background: "#f0fdf4", color: "#15803d", borderColor: "#bbf7d0" }}><FiUserCheck style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Agent Accepted</span>;
+        const delStat = String(req.deliveryStatus || "").toLowerCase();
+        const lcs = String(req.lifecycleStatus || "").toLowerCase();
+
+        if (delStat === "delivered" || cas === "deliveredtocenter" || lcs === "atinspectioncenter" || req.deliveredAt != null) {
+            return <span className="status-pill status-completed" style={{ ...badgeStyle, background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0" }}><FiCheckCircle style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Delivered to Hub</span>;
+        } else if (delStat === "pendingverification" || delStat === "handoverpendingverification" || cas === "awaitingtechnicianapproval" || lcs === "handoverpendingverification") {
+            return <span className="status-pill status-progress" style={{ ...badgeStyle, background: "#fef3c7", color: "#b45309", borderColor: "#fde68a" }}><FiClock style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Handover Verification</span>;
+        } else if (delStat === "intransit" || cas === "intransit" || lcs === "intransit" || cas === "outfordelivery") {
+            return <span className="status-pill status-progress" style={{ ...badgeStyle, background: "#eff6ff", color: "#1d4ed8", borderColor: "#bfdbfe" }}><FiTruck style={{ fontSize: "0.75rem", flexShrink: 0 }} /> In Transit to Hub</span>;
+        } else if (req.pickedUpAt != null || cas === "completed" || cas === "pickedup" || lcs === "pickedup" || lcs === "collected") {
+            return <span className="status-pill status-progress" style={{ ...badgeStyle, background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0" }}><FiCheckCircle style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Picked Up</span>;
+        } else if (cas === "pickupstarted" || cas === "en route" || cas === "enroute" || lcs === "enroute") {
+            return <span className="status-pill status-progress" style={{ ...badgeStyle, background: "#eff6ff", color: "#1d4ed8", borderColor: "#bfdbfe" }}><FiTruck style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Agent En Route</span>;
+        } else if (cas === "accepted" || lcs === "collectionassigned" || req.collectionAgentAccepted === true || Boolean(req.collectionAgentName)) {
+            return <span className="status-pill status-assigned" style={{ ...badgeStyle, background: "#f0fdf4", color: "#15803d", borderColor: "#bbf7d0" }}><FiCheckCircle style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Accepted</span>;
         } else {
-            return <span className="status-pill status-scheduled" style={{ ...badgeStyle, background: "#f8fafc", color: "#475569", borderColor: "#e2e8f0" }}>Scheduled</span>;
+            return <span className="status-pill status-scheduled" style={{ ...badgeStyle, background: "#f8fafc", color: "#475569", borderColor: "#e2e8f0" }}><FiCalendar style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Scheduled</span>;
         }
     };
 
@@ -457,9 +505,11 @@ function Pickupdetails() {
                 {/* Title & User Header Ribbon */}
                 <div className="vd-ribbon" style={{ marginBottom: "1.75rem" }}>
                     <div>
-                        <h1 className="vd-page-heading">Accepted Pickup Details</h1>
-                        <p style={{ margin: "0.25rem 0 0", color: "#64748b", fontSize: "0.875rem" }}>
-                            Track e-waste devices accepted by collection agents for delivery & recycling
+                        <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a202c", margin: "0 0 0.25rem 0", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.025em" }}>
+                            Pickup Details & Status
+                        </h1>
+                        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0, fontWeight: 500 }}>
+                            Track accepted e-waste collection schedules, agent assignments, and delivery statuses.
                         </p>
                     </div>
 
@@ -475,58 +525,34 @@ function Pickupdetails() {
                             <FiRefreshCw className={loading ? "spin-animation" : ""} />
                         </button>
 
-                        <div style={{ position: "relative" }}>
-                            <button 
-                                type="button"
-                                className="vd-circle-btn" 
-                                title={`Notifications ${notifications.filter(n => !n.isRead && !n.isread).length > 0 ? `(${notifications.filter(n => !n.isRead && !n.isread).length} unread)` : ""}`} 
-                                onClick={() => setShowNotifDropdown(!showNotifDropdown)}
-                                style={{ position: "relative" }}
-                            >
-                                <FiBell />
-                                {notifications.filter(n => !n.isRead && !n.isread).length > 0 && (
-                                    <span className="vd-notif-badge-pill">
-                                        {notifications.filter(n => !n.isRead && !n.isread).length > 9 ? "9+" : notifications.filter(n => !n.isRead && !n.isread).length}
-                                    </span>
-                                )}
-                            </button>
-
-                            {showNotifDropdown && (
-                                <div className="notif-dropdown-popover">
-                                    <div className="notif-dropdown-header">
-                                        <h4 className="notif-dropdown-title">Notifications</h4>
-                                        {notifications.filter(n => !n.isRead && !n.isread).length > 0 && (
-                                            <button type="button" className="notif-mark-read-btn" onClick={markAllNotificationsAsRead}>
-                                                Mark all as read
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="notif-dropdown-body">
-                                        {notifications.length === 0 ? (
-                                            <div style={{ padding: "1.5rem", textAlign: "center", color: "#94a3b8", fontSize: "0.825rem" }}>
-                                                No notifications yet
-                                            </div>
-                                        ) : (
-                                            notifications.map((notif, idx) => {
-                                                const isUnread = !notif.isRead && !notif.isread;
-                                                return (
-                                                    <div key={notif.notificationId || notif.id || idx} className={`notif-item-card ${isUnread ? "unread" : ""}`}>
-                                                        <div className="notif-item-icon">
-                                                            <FiBell />
-                                                        </div>
-                                                        <div className="notif-item-content">
-                                                            <h5 className="notif-item-heading">{notif.title || notif.Title || "Notification"}</h5>
-                                                            <p className="notif-item-text">{notif.message || notif.Message || ""}</p>
-                                                            <span className="notif-item-time">{formatDate(notif.createdAt || notif.CreatedAt)}</span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })
-                                        )}
-                                    </div>
-                                </div>
+                        <button 
+                            type="button"
+                            className="vd-circle-btn" 
+                            title={`Notifications ${notifications.filter(n => !n.isRead && !n.isread).length > 0 ? `(${notifications.filter(n => !n.isRead && !n.isread).length} unread)` : ""}`} 
+                            onClick={() => navigate("/technician-notification")}
+                            style={{ position: "relative" }}
+                        >
+                            <FiBell />
+                            {notifications.filter(n => !n.isRead && !n.isread).length > 0 && (
+                                <span className="vd-notif-badge-pill" style={{
+                                    position: "absolute",
+                                    top: "-4px",
+                                    right: "-4px",
+                                    background: "#ef4444",
+                                    color: "#ffffff",
+                                    fontSize: "0.65rem",
+                                    fontWeight: 800,
+                                    width: "18px",
+                                    height: "18px",
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center"
+                                }}>
+                                    {notifications.filter(n => !n.isRead && !n.isread).length > 9 ? "9+" : notifications.filter(n => !n.isRead && !n.isread).length}
+                                </span>
                             )}
-                        </div>
+                        </button>
 
                         <Link 
                             to="/manage-userprofile" 
@@ -555,13 +581,11 @@ function Pickupdetails() {
                             <div className="vd-kpi-icon-circle teal">
                                 <FiTruck />
                             </div>
-                            <span className="vd-kpi-badge">Active Agent</span>
                         </div>
                         <div>
-                            <span className="vd-kpi-label">Accepted For Delivery</span>
+                            <span className="vd-kpi-label">Total Pickups Tracked</span>
                             <div className="vd-kpi-body">
-                                <h3 className="vd-kpi-number">{acceptedRequests.length}</h3>
-                                <span className="vd-kpi-badge">Items</span>
+                                <h3 className="vd-kpi-number">{allRequests.length}</h3>
                             </div>
                         </div>
                     </div>
@@ -572,13 +596,11 @@ function Pickupdetails() {
                             <div className="vd-kpi-icon-circle purple">
                                 <FiNavigation />
                             </div>
-                            <span className="vd-kpi-badge" style={{ background: "#fef3c7", color: "#b45309" }}>Live</span>
                         </div>
                         <div>
                             <span className="vd-kpi-label">In Transit / Picked Up</span>
                             <div className="vd-kpi-body">
                                 <h3 className="vd-kpi-number">{inTransitCount}</h3>
-                                <span className="vd-kpi-badge" style={{ background: "#eff6ff", color: "#1d4ed8" }}>En Route</span>
                             </div>
                         </div>
                     </div>
@@ -594,7 +616,6 @@ function Pickupdetails() {
                             <span className="vd-kpi-label">Delivered To Facility</span>
                             <div className="vd-kpi-body">
                                 <h3 className="vd-kpi-number">{completedCount}</h3>
-                                <span className="vd-kpi-badge" style={{ background: "#ecfdf5", color: "#047857" }}>Completed</span>
                             </div>
                         </div>
                     </div>
@@ -635,13 +656,19 @@ function Pickupdetails() {
                             className={`pk-tab-btn ${activeTab === "All" ? "active" : ""}`}
                             onClick={() => setActiveTab("All")}
                         >
-                            All Accepted ({acceptedRequests.length})
+                            All Pickups ({allRequests.length})
                         </button>
                         <button 
                             className={`pk-tab-btn ${activeTab === "Accepted" ? "active" : ""}`}
                             onClick={() => setActiveTab("Accepted")}
                         >
-                            Agent Accepted
+                            Accepted
+                        </button>
+                        <button 
+                            className={`pk-tab-btn ${activeTab === "Collected" ? "active" : ""}`}
+                            onClick={() => setActiveTab("Collected")}
+                        >
+                            Collected ({collectedCount})
                         </button>
                         <button 
                             className={`pk-tab-btn ${activeTab === "InTransit" ? "active" : ""}`}
@@ -685,9 +712,9 @@ function Pickupdetails() {
                 <div className="panel-card" style={{ padding: "1.5rem" }}>
                     <div className="panel-header" style={{ marginBottom: "1rem" }}>
                         <div>
-                            <h2 className="panel-title">Devices Accepted by Collection Agent</h2>
+                            <h2 className="panel-title">Accepted Pickup Devices</h2>
                             <p className="panel-subtitle">
-                                Collection agent assignment details, vehicle info & live delivery progress
+                                Collection agent details, vehicle info & live delivery progress
                             </p>
                         </div>
                         <Link to="/add-device" className="panel-action-link" style={{ fontSize: "0.85rem" }}>
@@ -735,7 +762,6 @@ function Pickupdetails() {
                                                         </h3>
                                                     </div>
                                                 </div>
-                                                {getDeliveryStatusBadge(req)}
                                             </div>
 
                                             {/* Collection Agent Profile Box */}
@@ -743,20 +769,22 @@ function Pickupdetails() {
                                                 {agentPhoto ? (
                                                     <img src={agentPhoto} alt="Agent" className="pk-agent-avatar" />
                                                 ) : (
-                                                    <div className="pk-agent-avatar">
-                                                        {(req.collectionAgentName || "CA").charAt(0).toUpperCase()}
+                                                    <div className="pk-agent-avatar" style={!req.collectionAgentName ? { background: "#cbd5e1", color: "#64748b" } : {}}>
+                                                        {req.collectionAgentName ? req.collectionAgentName.charAt(0).toUpperCase() : <FiUser />}
                                                     </div>
                                                 )}
                                                 <div className="pk-agent-info">
                                                     <div className="pk-agent-name">
-                                                        {capitalizeWords(req.collectionAgentName) || "Collection Agent"}
+                                                        {req.collectionAgentName ? capitalizeWords(req.collectionAgentName) : "Pending Allocation"}
                                                     </div>
                                                     {req.collectionAgentPhone ? (
                                                         <a href={`tel:${req.collectionAgentPhone}`} className="pk-agent-phone" style={{ textDecoration: "none" }}>
                                                             <FiPhone style={{ fontSize: "0.75rem" }} /> {req.collectionAgentPhone}
                                                         </a>
                                                     ) : (
-                                                        <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>Contact Pending</span>
+                                                        <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>
+                                                            {req.collectionAgentName ? "Contact Pending" : "Awaiting Agent Allocation"}
+                                                        </span>
                                                     )}
                                                     {req.vehicleNumber && (
                                                         <div className="pk-vehicle-tag">
@@ -800,9 +828,7 @@ function Pickupdetails() {
                                             </div>
                                             {(() => {
                                                 const isCancelled = isPickupCancelled(req);
-                                                const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
-                                                const isPickedUpOrDelivered = ["pickupstarted", "pickedup", "intransit", "delivered", "completed"].includes(cas);
-                                                const canCancel = !isCancelled && !isPickedUpOrDelivered;
+                                                const canCancel = !isCancelled && !isDeviceCollectedFromUser(req);
 
                                                 return (
                                                     <div className="pk-footer-actions">
@@ -855,7 +881,6 @@ function Pickupdetails() {
                                         <th>Vehicle Info</th>
                                         <th>Scheduled Slot</th>
                                         <th>Pickup Address</th>
-                                        <th>Status</th>
                                         <th>Action</th>
                                     </tr>
                                 </thead>
@@ -877,14 +902,18 @@ function Pickupdetails() {
                                                 </div>
                                             </td>
                                             <td>
-                                                <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#0f172a" }}>
-                                                    {capitalizeWords(req.collectionAgentName) || "Agent Assigned"}
+                                                <div style={{ fontWeight: 600, fontSize: "0.85rem", color: req.collectionAgentName ? "#0f172a" : "#94a3b8" }}>
+                                                    {req.collectionAgentName ? capitalizeWords(req.collectionAgentName) : "Pending Allocation"}
                                                 </div>
-                                                {req.collectionAgentPhone && (
+                                                {req.collectionAgentPhone ? (
                                                     <a href={`tel:${req.collectionAgentPhone}`} onClick={(e) => e.stopPropagation()} style={{ fontSize: "0.775rem", color: "#2563eb", textDecoration: "none", fontWeight: 600 }}>
                                                         <FiPhone style={{ fontSize: "0.7rem", marginRight: "0.2rem" }} />
                                                         {req.collectionAgentPhone}
                                                     </a>
+                                                ) : (
+                                                    <div style={{ fontSize: "0.725rem", color: "#94a3b8" }}>
+                                                        {req.collectionAgentName ? "Contact Pending" : "Awaiting Assignment"}
+                                                    </div>
                                                 )}
                                             </td>
                                             <td>
@@ -919,13 +948,10 @@ function Pickupdetails() {
                                                     </div>
                                                 )}
                                             </td>
-                                            <td>{getDeliveryStatusBadge(req)}</td>
                                             <td onClick={(e) => e.stopPropagation()}>
                                                 {(() => {
                                                     const isCancelled = isPickupCancelled(req);
-                                                    const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
-                                                    const isPickedUpOrDelivered = ["pickupstarted", "pickedup", "intransit", "delivered", "completed"].includes(cas);
-                                                    const canCancel = !isCancelled && !isPickedUpOrDelivered;
+                                                    const canCancel = !isCancelled && !isDeviceCollectedFromUser(req);
 
                                                     return (
                                                         <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
@@ -990,6 +1016,9 @@ function Pickupdetails() {
                         borderRadius: "20px",
                         width: "100%",
                         maxWidth: "600px",
+                        maxHeight: "85vh",
+                        display: "flex",
+                        flexDirection: "column",
                         boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
                         overflow: "hidden"
                     }}>
@@ -1000,7 +1029,8 @@ function Pickupdetails() {
                             padding: "1.25rem 1.5rem",
                             display: "flex",
                             alignItems: "center",
-                            justifyContent: "space-between"
+                            justifyContent: "space-between",
+                            flexShrink: 0
                         }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                                 <div style={{ background: "rgba(255,255,255,0.2)", padding: "0.5rem", borderRadius: "10px", display: "flex" }}>
@@ -1008,7 +1038,9 @@ function Pickupdetails() {
                                 </div>
                                 <div>
                                     <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>Collection Delivery Details</h3>
-                                    <span style={{ fontSize: "0.75rem", opacity: 0.9 }}>  {selectedPickup.brand} {selectedPickup.model}</span>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.2rem" }}>
+                                        <span style={{ fontSize: "0.75rem", opacity: 0.9 }}>{selectedPickup.brand} {selectedPickup.model}</span>
+                                    </div>
                                 </div>
                             </div>
                             <button 
@@ -1020,64 +1052,132 @@ function Pickupdetails() {
                         </div>
 
                         {/* Modal Content Body */}
-                        <div style={{ padding: "1.5rem", maxHeight: "75vh", overflowY: "auto" }}>
+                        <div style={{ padding: "1.5rem", flex: 1, overflowY: "auto" }}>
                             {/* Assigned Collection Agent Banner */}
-                            <div style={{
-                                background: "#f0fdf4",
-                                border: "1px solid #bbf7d0",
-                                borderRadius: "14px",
-                                padding: "1rem",
-                                marginBottom: "1.25rem",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between"
-                            }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
-                                    {getAgentPhoto(selectedPickup.collectionAgentPhoto) ? (
-                                        <img 
-                                            src={getAgentPhoto(selectedPickup.collectionAgentPhoto)} 
-                                            alt="Agent Profile" 
-                                            style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }} 
-                                        />
-                                    ) : (
-                                        <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#059669", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "1.15rem" }}>
-                                            {(selectedPickup.collectionAgentName || "CA").charAt(0).toUpperCase()}
-                                        </div>
-                                    )}
-                                    <div>
-                                        <div style={{ fontSize: "0.725rem", color: "#166534", fontWeight: 700, textTransform: "uppercase" }}>Collection Agent</div>
-                                        <div style={{ fontWeight: 700, fontSize: "1rem", color: "#065f46" }}>
-                                            {capitalizeWords(selectedPickup.collectionAgentName) || "Agent Assigned"}
-                                        </div>
-                                        {selectedPickup.vehicleNumber && (
-                                            <div style={{ fontSize: "0.775rem", color: "#047857", fontWeight: 600, marginTop: "0.1rem" }}>
-                                                Vehicle: {selectedPickup.vehicleNumber} ({selectedPickup.vehicleType || "Pickup Van"})
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                            {(() => {
+                                const cas = String(selectedPickup.collectionAssignmentStatus || selectedPickup.assignmentStatus || selectedPickup.status || "").toLowerCase();
+                                const lcs = String(selectedPickup.lifecycleStatus || "").toLowerCase();
+                                const isPickupStarted = cas === "pickupstarted" || cas === "enroute" || lcs === "enroute" || lcs === "pickupstarted" || selectedPickup.pickupStartedAt != null || selectedPickup.startedAt != null;
+                                const isAccepted = selectedPickup.collectionAgentAccepted === true || ["accepted", "pickupstarted", "enroute", "completed", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "delivered", "deliveredtocenter"].includes(cas);
+                                const hasAgent = Boolean(selectedPickup.collectionAgentName);
 
-                                {selectedPickup.collectionAgentPhone && (
-                                    <a 
-                                        href={`tel:${selectedPickup.collectionAgentPhone}`}
-                                        style={{
-                                            background: "#059669",
-                                            color: "#ffffff",
-                                            padding: "0.5rem 1rem",
-                                            borderRadius: "10px",
-                                            textDecoration: "none",
-                                            fontSize: "0.825rem",
-                                            fontWeight: 700,
+                                if (isAccepted) {
+                                    return (
+                                        <div style={{
+                                            background: "#f0fdf4",
+                                            border: "1px solid #bbf7d0",
+                                            borderRadius: "14px",
+                                            padding: "1rem",
+                                            marginBottom: "1.25rem",
                                             display: "flex",
                                             alignItems: "center",
-                                            gap: "0.4rem",
-                                            boxShadow: "0 2px 5px rgba(5,150,105,0.3)"
-                                        }}
-                                    >
-                                        <FiPhone /> Call Agent
-                                    </a>
-                                )}
-                            </div>
+                                            justifyContent: "space-between"
+                                        }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+                                                {getAgentPhoto(selectedPickup.collectionAgentPhoto) ? (
+                                                    <img 
+                                                        src={getAgentPhoto(selectedPickup.collectionAgentPhoto)} 
+                                                        alt="Agent Profile" 
+                                                        style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }} 
+                                                    />
+                                                ) : (
+                                                    <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#059669", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "1.15rem" }}>
+                                                        {(selectedPickup.collectionAgentName || "CA").charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <div style={{ fontSize: "0.725rem", color: "#166534", fontWeight: 700, textTransform: "uppercase" }}>
+                                                        {isPickupStarted && !isDeviceCollectedFromUser(selectedPickup) ? "Collection Agent (En Route for Pickup)" : "Collection Agent (Accepted)"}
+                                                    </div>
+                                                    <div style={{ fontWeight: 700, fontSize: "1rem", color: "#065f46" }}>
+                                                        {capitalizeWords(selectedPickup.collectionAgentName)}
+                                                    </div>
+                                                    {selectedPickup.vehicleNumber && (
+                                                        <div style={{ fontSize: "0.775rem", color: "#047857", fontWeight: 600, marginTop: "0.1rem" }}>
+                                                            Vehicle: {selectedPickup.vehicleNumber} ({selectedPickup.vehicleType || "Pickup Van"})
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {selectedPickup.collectionAgentPhone && (
+                                                <a 
+                                                    href={`tel:${selectedPickup.collectionAgentPhone}`}
+                                                    style={{
+                                                        background: "#059669",
+                                                        color: "#ffffff",
+                                                        padding: "0.5rem 1rem",
+                                                        borderRadius: "10px",
+                                                        textDecoration: "none",
+                                                        fontSize: "0.825rem",
+                                                        fontWeight: 700,
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        gap: "0.4rem",
+                                                        boxShadow: "0 2px 5px rgba(5,150,105,0.3)"
+                                                    }}
+                                                >
+                                                    <FiPhone /> Call Agent
+                                                </a>
+                                            )}
+                                        </div>
+                                    );
+                                } else if (hasAgent) {
+                                    return (
+                                        <div style={{
+                                            background: "#fff7ed",
+                                            border: "1px solid #fed7aa",
+                                            borderRadius: "14px",
+                                            padding: "1rem",
+                                            marginBottom: "1.25rem",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between"
+                                        }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
+                                                <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#ea580c", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "1.15rem" }}>
+                                                    {(selectedPickup.collectionAgentName || "CA").charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontSize: "0.725rem", color: "#c2410c", fontWeight: 700, textTransform: "uppercase" }}>Collection Agent (Awaiting Acceptance)</div>
+                                                    <div style={{ fontWeight: 700, fontSize: "1rem", color: "#9a3412" }}>
+                                                        {capitalizeWords(selectedPickup.collectionAgentName)}
+                                                    </div>
+                                                    <div style={{ fontSize: "0.775rem", color: "#c2410c", marginTop: "0.1rem" }}>
+                                                        Agent allocated; awaiting response acceptance.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                } else {
+                                    return (
+                                        <div style={{
+                                            background: "#f8fafc",
+                                            border: "1px solid #e2e8f0",
+                                            borderRadius: "14px",
+                                            padding: "1rem",
+                                            marginBottom: "1.25rem",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.85rem"
+                                        }}>
+                                            <div style={{ width: "44px", height: "44px", borderRadius: "50%", background: "#e2e8f0", color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>
+                                                <FiUser />
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: "0.725rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase" }}>Collection Agent</div>
+                                                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#334155" }}>
+                                                    Pending Agent Allocation
+                                                </div>
+                                                <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.1rem" }}>
+                                                    An EcoCycle collection agent will be assigned shortly for your scheduled pickup.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+                            })()}
 
 
                             {/* Delivery Progress Timeline */}
@@ -1089,13 +1189,32 @@ function Pickupdetails() {
                                 </h4>
                                 <div className="pk-timeline">
                                     {(() => {
-                                        const cas = String(selectedPickup.collectionAssignmentStatus || selectedPickup.status || "").toLowerCase();
+                                        const cas = String(selectedPickup.collectionAssignmentStatus || selectedPickup.assignmentStatus || selectedPickup.status || "").toLowerCase();
                                         const lcs = String(selectedPickup.lifecycleStatus || "").toLowerCase();
+                                        const delStat = String(selectedPickup.deliveryStatus || "").toLowerCase();
                                         const isCancelled = isPickupCancelled(selectedPickup);
 
-                                        const isAccepted = cas === "accepted" || cas === "pickupstarted" || cas === "en route" || cas === "pickedup" || cas === "intransit" || cas === "delivered" || cas === "completed";
-                                        const isPickupStarted = cas === "pickupstarted" || cas === "en route" || cas === "pickedup" || cas === "intransit" || cas === "delivered" || cas === "completed";
-                                        const isCompleted = cas === "completed" || cas === "delivered";
+                                        // Step 2: Agent Accepted
+                                        const isAccepted = selectedPickup.collectionAgentAccepted === true || ["accepted", "pickupstarted", "enroute", "completed", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "delivered", "deliveredtocenter"].includes(cas);
+
+                                        // Pickup Started (En Route to Customer)
+                                        const isPickupStarted = cas === "pickupstarted" || cas === "enroute" || lcs === "enroute" || lcs === "pickupstarted" || selectedPickup.pickupStartedAt != null || selectedPickup.startedAt != null;
+
+                                        // An agent is assigned (allocated) even if not accepted yet
+                                        const isAgentAssigned = Boolean(selectedPickup.collectionAgentName) || cas === "assigned" || cas === "pending";
+
+                                        // Step 3: Citizen Pickup Completed
+                                        const isCitizenPickupDone = selectedPickup.pickedUpAt != null || ["completed", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "delivered", "deliveredtocenter"].includes(cas) || ["pickedup", "collected", "intransit", "handoverpendingverification", "atinspectioncenter", "delivered"].includes(lcs);
+
+                                        // Step 4: Transit Active or Completed
+                                        const isTransitActiveOrDone = delStat === "intransit" || delStat === "pendingverification" || delStat === "delivered" || selectedPickup.deliveryStartedAt != null || cas === "intransit" || cas === "deliveredtocenter" || lcs === "intransit" || lcs === "atinspectioncenter";
+                                        const isTransitCompleted = delStat === "pendingverification" || delStat === "delivered" || cas === "deliveredtocenter" || lcs === "atinspectioncenter";
+
+                                        // Step 5: Handover Verification Requested
+                                        const isHandoverRequested = delStat === "pendingverification" || delStat === "delivered" || cas === "awaitingtechnicianapproval" || cas === "deliveredtocenter" || lcs === "handoverpendingverification" || lcs === "atinspectioncenter";
+
+                                        // Step 6: Delivered & Verified by Technician
+                                        const isDeliveredToTech = delStat === "delivered" || cas === "deliveredtocenter" || lcs === "atinspectioncenter" || selectedPickup.deliveredAt != null;
 
                                         if (isCancelled) {
                                             return (
@@ -1122,6 +1241,9 @@ function Pickupdetails() {
                                             );
                                         }
 
+                                        const techCenter = selectedPickup.assignedTechnicianCenterName || selectedPickup.technicianCenterName || "EcoCycle Regional Hub";
+                                        const techName = selectedPickup.assignedTechnicianName || selectedPickup.technicianName || "Inspection Officer";
+
                                         return (
                                             <>
                                                 {/* Step 1: Created */}
@@ -1134,68 +1256,105 @@ function Pickupdetails() {
                                                     <div className="pk-step-time">{formatDate(selectedPickup.createdAt)}</div>
                                                 </div>
 
-                                                {/* Step 2: Agent Accepted */}
-                                                <div className={`pk-timeline-step ${isAccepted ? "completed" : "active"}`}>
+                                                {/* Step 2: Agent Assigned & Accepted */}
+                                                <div className={`pk-timeline-step ${isAccepted ? "completed" : isAgentAssigned ? "active" : ""}`}>
                                                     <div className="pk-timeline-dot">
-                                                        {isAccepted ? <FiCheck style={{ fontSize: "0.7rem" }} /> : null}
+                                                        {isAccepted ? <FiCheck style={{ fontSize: "0.7rem" }} /> : isAgentAssigned ? <FiUser style={{ fontSize: "0.7rem" }} /> : null}
                                                     </div>
-                                                    <div className="pk-step-title">Collection Agent Assigned & Accepted</div>
+                                                    <div className="pk-step-title">Collection Agent Allocation & Acceptance</div>
                                                     <div className="pk-step-desc">
-                                                        {selectedPickup.collectionAgentName 
-                                                            ? `Agent: ${capitalizeWords(selectedPickup.collectionAgentName)} (${selectedPickup.collectionAgentPhone || "Phone available"})`
-                                                            : "Collection agent accepted task"}
+                                                        {isAccepted 
+                                                            ? `Agent: ${capitalizeWords(selectedPickup.collectionAgentName)} (${selectedPickup.collectionAgentPhone || "Ph: Available"}) accepted task`
+                                                            : isAgentAssigned
+                                                            ? `Agent: ${capitalizeWords(selectedPickup.collectionAgentName)} assigned — awaiting agent acceptance`
+                                                            : "Awaiting collection agent assignment"}
                                                     </div>
-                                                    {selectedPickup.acceptedAt && (
+                                                    {selectedPickup.acceptedAt && isAccepted && (
                                                         <div className="pk-step-time">{formatDate(selectedPickup.acceptedAt)}</div>
                                                     )}
                                                 </div>
 
-                                                {/* Step 3: Pickup Started / En Route */}
-                                                <div className={`pk-timeline-step ${isCompleted ? "completed" : isPickupStarted ? "active" : ""}`}>
+                                                {/* Step 3: Agent Pickup from Your Address */}
+                                                <div className={`pk-timeline-step ${isCitizenPickupDone ? "completed" : (isPickupStarted || isAccepted) ? "active" : ""}`}>
                                                     <div className="pk-timeline-dot">
-                                                        {isCompleted ? <FiCheck style={{ fontSize: "0.7rem" }} /> : isPickupStarted ? <FiTruck style={{ fontSize: "0.7rem" }} /> : null}
+                                                        {isCitizenPickupDone ? <FiCheck style={{ fontSize: "0.7rem" }} /> : (isPickupStarted || isAccepted) ? <FiTruck style={{ fontSize: "0.7rem" }} /> : null}
                                                     </div>
-                                                    <div className="pk-step-title">Pickup Started & Agent En Route</div>
+                                                    <div className="pk-step-title">Agent Pickup from Your Address</div>
                                                     <div className="pk-step-desc">
-                                                        {isPickupStarted 
-                                                            ? "Collection agent has started pickup and is on the way to your pickup address" 
-                                                            : `Scheduled for pickup on ${formatDate(selectedPickup.pickupDate)} (${selectedPickup.timeSlot || "Scheduled slot"})`}
+                                                        {isCitizenPickupDone 
+                                                            ? "Collection agent collected device from your address" 
+                                                            : isPickupStarted
+                                                            ? "Collection agent is currently en route to your address for pickup"
+                                                            : isAccepted
+                                                            ? `Scheduled for pickup on ${formatDate(selectedPickup.pickupDate)} (${selectedPickup.timeSlot || "Scheduled slot"})`
+                                                            : "Scheduled upon agent acceptance"}
                                                     </div>
-                                                    {(selectedPickup.pickupStartedAt || selectedPickup.startedAt) && (
-                                                        <div className="pk-step-time">{formatDate(selectedPickup.pickupStartedAt || selectedPickup.startedAt)}</div>
+                                                    {(selectedPickup.pickedUpAt || selectedPickup.pickupStartedAt || selectedPickup.startedAt) && (
+                                                        <div className="pk-step-time">{formatDate(selectedPickup.pickedUpAt || selectedPickup.pickupStartedAt || selectedPickup.startedAt)}</div>
                                                     )}
                                                 </div>
 
-                                                {/* Step 4: Pickup Finished & Delivered */}
-                                                <div className={`pk-timeline-step ${isCompleted ? "completed" : ""}`}>
+                                                {/* Step 4: In Transit to Inspection Center */}
+                                                <div className={`pk-timeline-step ${isTransitCompleted || isHandoverRequested || isDeliveredToTech ? "completed" : (isCitizenPickupDone || isTransitActiveOrDone ? "active" : "")}`}>
                                                     <div className="pk-timeline-dot">
-                                                        {isCompleted ? <FiCheck style={{ fontSize: "0.7rem" }} /> : null}
+                                                        {isTransitCompleted || isHandoverRequested || isDeliveredToTech ? <FiCheck style={{ fontSize: "0.7rem" }} /> : (isCitizenPickupDone || isTransitActiveOrDone ? <FiTruck style={{ fontSize: "0.7rem" }} /> : null)}
                                                     </div>
-                                                    <div className="pk-step-title">Pickup Completed & Delivered</div>
+                                                    <div className="pk-step-title">In Transit to Inspection Center</div>
                                                     <div className="pk-step-desc">
-                                                        {isCompleted 
-                                                            ? "E-waste device collected successfully and delivered to inspection facility" 
-                                                            : "Final handover completion upon agent arrival at facility"}
+                                                        {isTransitCompleted || isHandoverRequested || isDeliveredToTech
+                                                            ? `E-waste device transported to ${techCenter}`
+                                                            : isCitizenPickupDone || isTransitActiveOrDone
+                                                            ? `Device collected from your address; in transit to ${techCenter}`
+                                                            : `Destination: ${techCenter}`}
                                                     </div>
-                                                    {(selectedPickup.deliveredAt || selectedPickup.pickedUpAt) && (
-                                                        <div className="pk-step-time">{formatDate(selectedPickup.deliveredAt || selectedPickup.pickedUpAt)}</div>
+                                                    {selectedPickup.deliveryStartedAt && (
+                                                        <div className="pk-step-time">{formatDate(selectedPickup.deliveryStartedAt)}</div>
+                                                    )}
+                                                </div>
+
+                                                {/* Step 5: Handover & Technician Verification */}
+                                                <div className={`pk-timeline-step ${isDeliveredToTech ? "completed" : isHandoverRequested ? "active" : ""}`}>
+                                                    <div className="pk-timeline-dot">
+                                                        {isDeliveredToTech ? <FiCheck style={{ fontSize: "0.7rem" }} /> : isHandoverRequested ? <FiClock style={{ fontSize: "0.7rem" }} /> : null}
+                                                    </div>
+                                                    <div className="pk-step-title">Technician Delivery Handover</div>
+                                                    <div className="pk-step-desc">
+                                                        {isDeliveredToTech
+                                                            ? `Handover verified and accepted by Technician ${techName}`
+                                                            : isHandoverRequested
+                                                            ? `Collection Agent arrived at ${techCenter}; verification requested to Technician ${techName}`
+                                                            : `Awaiting arrival at ${techCenter}`}
+                                                    </div>
+                                                </div>
+
+                                                {/* Step 6: Delivered & Ready for Inspection */}
+                                                <div className={`pk-timeline-step ${isDeliveredToTech ? "completed" : ""}`}>
+                                                    <div className="pk-timeline-dot">
+                                                        {isDeliveredToTech ? <FiCheck style={{ fontSize: "0.7rem" }} /> : null}
+                                                    </div>
+                                                    <div className="pk-step-title">Delivered & Verified at Inspection Hub</div>
+                                                    <div className="pk-step-desc">
+                                                        {isDeliveredToTech 
+                                                            ? `Device safely stored at ${techCenter} for technical diagnostics.` 
+                                                            : "Pending final receipt & verification by Inspection Officer"}
+                                                    </div>
+                                                    {isDeliveredToTech && selectedPickup.deliveredAt && (
+                                                        <div className="pk-step-time">{formatDate(selectedPickup.deliveredAt)}</div>
                                                     )}
                                                 </div>
                                             </>
                                         );
                                     })()}
-                                </div>
+                                 </div>
                             </div>
                         </div>
 
                         {/* Modal Footer */}
-                        <div style={{ padding: "1rem 1.5rem", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                        <div style={{ padding: "1rem 1.5rem", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", flexShrink: 0 }}>
                             <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
                                 {(() => {
                                     const isCancelled = isPickupCancelled(selectedPickup);
-                                    const cas = String(selectedPickup.collectionAssignmentStatus || "").toLowerCase();
-                                    const isPickedUpOrDelivered = ["pickupstarted", "pickedup", "intransit", "delivered", "completed"].includes(cas);
-                                    const canCancel = !isCancelled && !isPickedUpOrDelivered;
+                                    const canCancel = !isCancelled && !isDeviceCollectedFromUser(selectedPickup);
 
                                     return (
                                         <>

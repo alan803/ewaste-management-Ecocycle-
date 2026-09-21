@@ -828,3 +828,35 @@
   color: #2d3748;
   line-height: 1.6;
 }
+
+/* Inspection Technician Filter Pills Standard */
+.filter-pills {
+  display: flex;
+  background: #f1f5f9;
+  padding: 0.25rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  gap: 0.25rem;
+}
+
+.pill-btn {
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #64748b;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pill-btn.active {
+  background: #ffffff;
+  color: #047857;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}

@@ -162,9 +162,6 @@ function View_recyclingagent() {
                 <header className="admin-topbar">
                     <div className="topbar-left">
                         <div className="command-brand">
-                            <span className="command-badge">
-                                <span className="live-dot"></span> SYSTEM ONLINE
-                            </span>
                             <h1>Recycling Center Details</h1>
                         </div>
                         <p className="command-subtitle">
@@ -196,11 +193,6 @@ function View_recyclingagent() {
                                     <span className="role">Super Admin</span>
                                 </div>
                             </div>
-
-                            <Link to="/logout" className="logout-btn-v2" title="Logout">
-                                <FiLogOut />
-                                <span>Exit</span>
-                            </Link>
                         </div>
                     </div>
                 </header>

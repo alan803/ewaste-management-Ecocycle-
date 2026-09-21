@@ -27,19 +27,47 @@ function Navbar({
     setSearchQuery,
     onRefresh,
     loading,
-    unreadNotifCount = 0,
+    unreadNotifCount: propUnreadNotifCount,
     assignedCount = 0
 }) {
     const location = useLocation();
     const navigate = useNavigate();
     const [profile, setProfile] = useState(null);
+    const [fetchedUnreadCount, setFetchedUnreadCount] = useState(0);
 
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (token) {
             fetchProfile(token);
+            fetchNotifications(token);
         }
     }, []);
+
+    const fetchNotifications = async (token) => {
+        try {
+            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const notificationsData = Array.isArray(response.data) ? response.data : [];
+            const unread = notificationsData.filter((n) => !n.isRead && !n.isread).length;
+            setFetchedUnreadCount(unread);
+        } catch (err) {
+            try {
+                const response = await axios.get("https://localhost:7102/api/Notification/mynotifications", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const notificationsData = Array.isArray(response.data) ? response.data : [];
+                const unread = notificationsData.filter((n) => !n.isRead && !n.isread).length;
+                setFetchedUnreadCount(unread);
+            } catch (fallbackErr) {
+                console.error("Error fetching notifications in Navbar:", fallbackErr);
+            }
+        }
+    };
+
+    const finalUnreadCount = (propUnreadNotifCount !== undefined && propUnreadNotifCount !== null && propUnreadNotifCount > 0)
+        ? propUnreadNotifCount
+        : fetchedUnreadCount;
 
     const fetchProfile = async (token) => {
         try {
@@ -51,6 +79,23 @@ function Navbar({
             console.error("Error fetching agent profile for Navbar:", err);
         }
     };
+
+    const getMediaUrl = (filename, folderName = "") => {
+        if (!filename) return null;
+        if (filename.startsWith("http://") || filename.startsWith("https://") || filename.startsWith("blob:")) {
+            return filename;
+        }
+        const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
+        if (cleanName.includes("/") || cleanName.includes("\\")) {
+            return `https://localhost:7102/uploads/${cleanName.replace(/\\/g, "/")}`;
+        }
+        return folderName
+            ? `https://localhost:7102/uploads/${folderName}/${cleanName}`
+            : `https://localhost:7102/uploads/${cleanName}`;
+    };
+
+    const rawPic = profile?.Profilepicture || profile?.profilepicture || profile?.profilePicture || profile?.profile_picture;
+    const profilePicUrl = getMediaUrl(rawPic, "profile");
 
     const agentName = (profile?.Name || profile?.name || profile?.FirstName || profile?.firstName)
         ? (profile.Name || profile.name || `${profile.FirstName || profile.firstName || ""} ${profile.LastName || profile.lastName || ""}`).trim()
@@ -134,13 +179,13 @@ function Navbar({
                     <button
                         type="button"
                         className="agent-nav-action-btn"
-                        title={`Notifications ${unreadNotifCount > 0 ? `(${unreadNotifCount} unread)` : ""}`}
+                        title={`Notifications ${finalUnreadCount > 0 ? `(${finalUnreadCount} unread)` : ""}`}
                         onClick={() => navigate("/technician-notification")}
                     >
                         <FiBell />
-                        {unreadNotifCount > 0 ? (
+                        {finalUnreadCount > 0 ? (
                             <span className="nav-notif-badge">
-                                {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                                {finalUnreadCount > 9 ? "9+" : finalUnreadCount}
                             </span>
                         ) : assignedCount > 0 ? (
                             <span className="nav-dot-badge"></span>
@@ -162,7 +207,22 @@ function Navbar({
                     {/* Profile Link Pill */}
                     <Link to="/agent-profile" className="agent-user-badge">
                         <div className="agent-user-avatar">
-                            {avatarInitial}
+                            {profilePicUrl ? (
+                                <img
+                                    src={profilePicUrl}
+                                    alt={agentName}
+                                    className="agent-avatar-img"
+                                    onError={(e) => {
+                                        e.target.style.display = "none";
+                                        if (e.target.nextSibling) {
+                                            e.target.nextSibling.style.display = "flex";
+                                        }
+                                    }}
+                                />
+                            ) : null}
+                            <span style={{ display: profilePicUrl ? "none" : "flex" }}>
+                                {avatarInitial}
+                            </span>
                         </div>
                         <div className="agent-user-text">
                             <span className="agent-user-name">{agentName}</span>
@@ -278,13 +338,13 @@ function Navbar({
                 <button
                     type="button"
                     className="agent-nav-action-btn"
-                    title={`Notifications ${unreadNotifCount > 0 ? `(${unreadNotifCount} unread)` : ""}`}
+                    title={`Notifications ${finalUnreadCount > 0 ? `(${finalUnreadCount} unread)` : ""}`}
                     onClick={() => navigate("/technician-notification")}
                 >
                     <FiBell />
-                    {unreadNotifCount > 0 ? (
+                    {finalUnreadCount > 0 ? (
                         <span className="nav-notif-badge">
-                            {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                            {finalUnreadCount > 9 ? "9+" : finalUnreadCount}
                         </span>
                     ) : assignedCount > 0 ? (
                         <span className="nav-dot-badge"></span>
@@ -306,7 +366,22 @@ function Navbar({
                 {/* Profile Link Pill */}
                 <Link to="/agent-profile" className="agent-user-badge">
                     <div className="agent-user-avatar">
-                        {avatarInitial}
+                        {profilePicUrl ? (
+                            <img
+                                src={profilePicUrl}
+                                alt={agentName}
+                                className="agent-avatar-img"
+                                onError={(e) => {
+                                    e.target.style.display = "none";
+                                    if (e.target.nextSibling) {
+                                        e.target.nextSibling.style.display = "flex";
+                                    }
+                                }}
+                            />
+                        ) : null}
+                        <span style={{ display: profilePicUrl ? "none" : "flex" }}>
+                            {avatarInitial}
+                        </span>
                     </div>
                     <div className="agent-user-text">
                         <span className="agent-user-name">{agentName}</span>

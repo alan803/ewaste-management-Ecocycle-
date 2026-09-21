@@ -667,7 +667,7 @@ function CollectionAgent_signup()
                                 textAlign: "left"
                             }}>
                                 <p style={{ margin: 0, fontWeight: 700, fontSize: "0.95rem", color: "#a16207", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                                    <span>⏳</span> Account Verification Pending
+                                    Account Verification Pending
                                 </p>
                                 <p style={{ margin: "0.5rem 0 0 0", color: "#475569", fontSize: "0.9rem", lineHeight: 1.6 }}>
                                     Your Collection Agent account has been created. <strong>Please note that your account needs to be verified and approved by the Administrator before you can log in.</strong>
@@ -948,7 +948,6 @@ function CollectionAgent_signup()
                                             <option value="Scooter">Scooter</option>
                                             <option value="Van">Van</option>
                                             <option value="Mini Truck">Mini Truck</option>
-                                            <option value="Pickup Truck">Pickup Truck</option>
                                         </select>
                                         {error.vehicleType_er && <div className="error-message">{error.vehicleType_er}</div>}
                                     </div>

@@ -277,7 +277,7 @@ function Profile() {
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://localhost:7102/uploads/${cleanName.replace("\\", "/")}`;
+            return `https://localhost:7102/uploads/${cleanName.replace(/\\/g, "/")}`;
         }
         return folderName
             ? `https://localhost:7102/uploads/${folderName}/${cleanName}`

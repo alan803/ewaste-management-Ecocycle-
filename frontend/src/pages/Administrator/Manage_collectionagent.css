@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap");
+@import "./AdminCommon.css";
 
 .admin-dashboard-v2 {
   --primary: #10b981;
@@ -545,50 +546,101 @@
 .action-buttons {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
+/* Icon-only table buttons */
 .action-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  border: none;
-  display: flex;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 1rem;
+  font-size: 0.875rem;
+  padding: 0;
+  flex-shrink: 0;
 }
 
 .action-btn--view {
   background: #f1f5f9;
   color: var(--text-muted);
+  border-color: #cbd5e1;
 }
 
 .action-btn--view:hover {
   background: var(--primary-dark);
   color: #ffffff;
+  border-color: var(--primary-dark);
 }
 
 .action-btn--approve {
   background: #ecfdf5;
   color: #10b981;
+  border-color: #a7f3d0;
 }
 
 .action-btn--approve:hover {
   background: #10b981;
   color: #ffffff;
+  border-color: #10b981;
 }
 
 .action-btn--reject {
   background: #fff1f2;
   color: var(--rose);
+  border-color: #fecdd3;
 }
 
 .action-btn--reject:hover {
   background: var(--rose);
   color: #ffffff;
+  border-color: var(--rose);
+}
+
+/* Text buttons for modals and status actions */
+.action-btn-text {
+  height: 32px;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  width: auto;
+}
+
+.action-btn-text--approve {
+  background: #ecfdf5;
+  color: #10b981;
+  border-color: #a7f3d0;
+}
+
+.action-btn-text--approve:hover {
+  background: #10b981;
+  color: #ffffff;
+  border-color: #10b981;
+}
+
+.action-btn-text--reject {
+  background: #fff1f2;
+  color: var(--rose);
+  border-color: #fecdd3;
+}
+
+.action-btn-text--reject:hover {
+  background: var(--rose);
+  color: #ffffff;
+  border-color: var(--rose);
 }
 
 /* Modal Overlay & Card for Agent Details */

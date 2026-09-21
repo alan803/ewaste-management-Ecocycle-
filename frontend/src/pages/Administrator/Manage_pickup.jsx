@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { Link, useLocation } from "react-router-dom";
 import Navbar from "./Navbar";
 import {
     FiPackage,
@@ -26,7 +27,8 @@ import {
     FiCheck,
     FiCalendar,
     FiXCircle,
-    FiEye
+    FiEye,
+    FiLogOut
 } from "react-icons/fi";
 import "./Manage_pickup.css";
 
@@ -36,49 +38,48 @@ function ManagePickup() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("All");
-    const [viewMode, setViewMode] = useState("grid"); // 'grid' | 'table'
+    const [viewMode, setViewMode] = useState("table"); // 'table' | 'grid'
     const [selectedAssignment, setSelectedAssignment] = useState(null);
     const [reassignModalTarget, setReassignModalTarget] = useState(null);
     const [selectedNewAgentId, setSelectedNewAgentId] = useState("");
     const [reassigning, setReassigning] = useState(false);
-    const [toastMessage, setToastMessage] = useState(null);
 
     useEffect(() => {
         const token = localStorage.getItem("token");
         fetchData(token);
     }, []);
 
-    const fetchData = async (authToken) => {
+    const getAuthHeaders = (authToken) => {
         const token = authToken || localStorage.getItem("token");
+        if (token && token !== "null" && token !== "undefined") {
+            return { Authorization: `Bearer ${token}` };
+        }
+        return {};
+    };
+
+    const fetchData = async (authToken) => {
+        const headers = getAuthHeaders(authToken);
+        const config = Object.keys(headers).length > 0 ? { headers } : {};
         try {
             setLoading(true);
             const [assignRes, agentRes] = await Promise.all([
-                axios.get("https://localhost:7102/api/CollectionAssignment/admin/all-assignments", {
-                    headers: { Authorization: `Bearer ${token}` }
-                }),
-                axios.get("https://localhost:7102/api/CollectionAgent/All", {
-                    headers: { Authorization: `Bearer ${token}` }
-                }).catch(() => ({ data: [] }))
+                axios.get("https://localhost:7102/api/CollectionAssignment/admin/all-assignments", config),
+                axios.get("https://localhost:7102/api/CollectionAgent/All", config).catch(() => ({ data: [] }))
             ]);
 
             setAssignments(assignRes.data || []);
             setAgents(agentRes.data || []);
         } catch (err) {
             console.error("Error fetching admin pickup assignments:", err);
-            showToast("Failed to load pickup assignments", "error");
         } finally {
             setLoading(false);
         }
     };
 
-    const showToast = (msg, type = "success") => {
-        setToastMessage({ msg, type });
-        setTimeout(() => setToastMessage(null), 4000);
-    };
-
     const handleReassignAgent = async () => {
         if (!selectedNewAgentId || !reassignModalTarget) return;
-        const token = localStorage.getItem("token");
+        const headers = getAuthHeaders();
+        const config = Object.keys(headers).length > 0 ? { headers } : {};
         try {
             setReassigning(true);
             await axios.post(
@@ -87,16 +88,14 @@ function ManagePickup() {
                     collectionAssignmentId: reassignModalTarget.collectionAssignmentId,
                     newCollectionAgentId: parseInt(selectedNewAgentId, 10)
                 },
-                { headers: { Authorization: `Bearer ${token}` } }
+                config
             );
 
-            showToast("Collection Agent reassigned successfully!");
             setReassignModalTarget(null);
             setSelectedNewAgentId("");
             fetchData(token);
         } catch (err) {
             console.error("Error reassigning agent:", err);
-            showToast(err.response?.data?.message || "Failed to reassign agent", "error");
         } finally {
             setReassigning(false);
         }
@@ -106,12 +105,20 @@ function ManagePickup() {
     const totalPickups = assignments.length;
     const activePickups = assignments.filter(a => {
         const s = String(a.status || "").toLowerCase();
-        return s === "pickupstarted" || s === "en route" || s === "outfordelivery";
+        const delStat = String(a.deliveryStatus || "").toLowerCase();
+        const lcs = String(a.lifecycleStatus || "").toLowerCase();
+        const isDelivered = delStat === "delivered" || s === "deliveredtocenter" || lcs === "atinspectioncenter";
+        const isCancelled = s === "expired" || s === "cancelled";
+        if (isCancelled || isDelivered) return false;
+
+        return s === "pickupstarted" || s === "en route" || s === "outfordelivery" || s === "completed" || s === "pickedup" || delStat === "intransit" || delStat === "pending" || delStat === "pendingverification";
     }).length;
 
     const completedPickups = assignments.filter(a => {
         const s = String(a.status || "").toLowerCase();
-        return s === "completed" || s === "pickedup" || s === "deliveredtocenter";
+        const delStat = String(a.deliveryStatus || "").toLowerCase();
+        const lcs = String(a.lifecycleStatus || "").toLowerCase();
+        return delStat === "delivered" || s === "deliveredtocenter" || lcs === "atinspectioncenter";
     }).length;
 
     const pendingScheduled = assignments.filter(a => {
@@ -119,13 +126,32 @@ function ManagePickup() {
         return s === "scheduled" || s === "assigned" || s === "accepted";
     }).length;
 
+    const location = useLocation();
+    const typeQuery = new URLSearchParams(location.search).get("type");
+
     const filteredAssignments = assignments.filter(item => {
         const status = String(item.status || "").toLowerCase();
+        const delStat = String(item.deliveryStatus || "").toLowerCase();
+        const lcs = String(item.lifecycleStatus || "").toLowerCase();
+        const itemType = String(item.assignmentType || "").toLowerCase();
+
+        if (typeQuery) {
+            const reqType = typeQuery.toLowerCase();
+            if (reqType === "customertotechnician" && itemType === "techniciantorecyclingcenter") return false;
+            if (reqType === "techniciantorecyclingcenter" && itemType !== "techniciantorecyclingcenter") return false;
+        }
+
+        const isDelivered = delStat === "delivered" || status === "deliveredtocenter" || lcs === "atinspectioncenter";
+        const isCancelled = status === "expired" || status === "cancelled";
+        const isCitizenPickupDone = item.pickedUpAt != null || ["completed", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "delivered", "deliveredtocenter"].includes(status);
 
         if (activeTab === "Pending" && status !== "scheduled" && status !== "assigned" && status !== "accepted") return false;
-        if (activeTab === "PickupStarted" && status !== "pickupstarted" && status !== "en route") return false;
-        if (activeTab === "Completed" && status !== "completed" && status !== "pickedup" && status !== "deliveredtocenter") return false;
-        if (activeTab === "Expired" && status !== "expired" && status !== "cancelled") return false;
+        if (activeTab === "PickupStarted") {
+            if (isCancelled || isDelivered) return false;
+            if (!isCitizenPickupDone && status !== "pickupstarted" && status !== "en route" && delStat !== "intransit" && delStat !== "pending") return false;
+        }
+        if (activeTab === "Completed" && !isDelivered) return false;
+        if (activeTab === "Expired" && !isCancelled) return false;
 
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
@@ -154,25 +180,39 @@ function ManagePickup() {
     };
 
     const getStatusBadge = (item) => {
-        const s = String(item.status || "").toLowerCase();
+        const cas = String(item?.status || "").toLowerCase();
+        const delStat = String(item?.deliveryStatus || "").toLowerCase();
+        const lcs = String(item?.lifecycleStatus || "").toLowerCase();
 
         const badgeStyle = {
-            padding: "0.35rem 0.75rem",
-            fontSize: "0.775rem",
-            fontWeight: 700,
+            padding: "0.22rem 0.55rem",
+            fontSize: "0.725rem",
+            fontWeight: 600,
             borderRadius: "9999px",
             display: "inline-flex",
             alignItems: "center",
-            gap: "0.35rem",
+            gap: "0.25rem",
             whiteSpace: "nowrap"
         };
 
-        if (s === "completed" || s === "pickedup" || s === "deliveredtocenter") {
-            return <span style={{ ...badgeStyle, background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0" }}><FiCheckCircle /> Pickup Completed</span>;
-        } else if (s === "pickupstarted" || s === "en route") {
-            return <span style={{ ...badgeStyle, background: "#fef3c7", color: "#b45309", border: "1px solid #fde68a" }}><FiTruck /> Agent Pickup Started</span>;
-        } else if (s === "expired" || s === "cancelled") {
-            return <span style={{ ...badgeStyle, background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" }}><FiAlertTriangle /> Expired / Cancelled</span>;
+        if (delStat === "delivered" || cas === "deliveredtocenter" || lcs === "atinspectioncenter") {
+            return <span style={{ ...badgeStyle, background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0" }}><FiCheckCircle /> Delivered to Hub</span>;
+        } else if (delStat === "pendingverification" || cas === "awaitingtechnicianapproval" || lcs === "handoverpendingverification") {
+            return <span style={{ ...badgeStyle, background: "#fef3c7", color: "#b45309", border: "1px solid #fde68a" }}><FiClock /> Handover Verification</span>;
+        } else if (cas === "completed" || cas === "pickedup" || cas === "intransit" || delStat === "intransit") {
+            return <span style={{ ...badgeStyle, background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" }}><FiTruck /> In Transit to Hub</span>;
+        } else if (cas === "pickupstarted" || cas === "en route") {
+            return <span style={{ ...badgeStyle, background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd" }}><FiNavigation /> Agent En Route</span>;
+        } else if (cas === "accepted") {
+            return <span style={{ ...badgeStyle, background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0" }}><FiUserCheck /> Agent Accepted</span>;
+        } else if (cas === "assigned" || cas === "pending") {
+            return <span style={{ ...badgeStyle, background: "#fffbeb", color: "#d97706", border: "1px solid #fde68a" }}><FiClock /> Agent Assigned (Pending)</span>;
+        } else if (cas === "expired" || delStat === "expired") {
+            return <span style={{ ...badgeStyle, background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" }}><FiAlertTriangle /> Expired</span>;
+        } else if (cas === "cancelled" || delStat === "cancelled") {
+            return <span style={{ ...badgeStyle, background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" }}><FiAlertTriangle /> Cancelled</span>;
+        } else if (cas === "rejected" || cas === "declined" || delStat === "rejected") {
+            return <span style={{ ...badgeStyle, background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" }}><FiAlertTriangle /> Rejected</span>;
         } else {
             return <span style={{ ...badgeStyle, background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}><FiClock /> Scheduled</span>;
         }
@@ -229,293 +269,349 @@ function ManagePickup() {
 
             {/* Main Content Area */}
             <div className="admin-pickup-main">
-                {/* Header Top Bar */}
-                <div className="admin-top-bar">
-                    <div className="admin-page-title">
-                        <h1><FiPackage style={{ color: "#059669" }} /> Manage Device Pickups</h1>
-                        <p>Track, manage, and reassign citizen e-waste collection agent pickup requests.</p>
-                    </div>
-
-                    <div className="admin-bar-actions">
-                        <button
-                            className="btn-admin-refresh"
-                            onClick={() => fetchData()}
-                            title="Sync pickup assignments"
-                        >
-                            <FiRefreshCw /> Refresh Data
-                        </button>
-                        <div className="admin-profile-chip">A</div>
-                    </div>
-                </div>
-
-                {/* Toast Alert Notice */}
-                {toastMessage && (
-                    <div style={{
-                        marginBottom: "1.5rem",
-                        padding: "0.85rem 1.2rem",
-                        borderRadius: "14px",
-                        background: toastMessage.type === "error" ? "#fef2f2" : "#ecfdf5",
-                        color: toastMessage.type === "error" ? "#991b1b" : "#065f46",
-                        border: `1px solid ${toastMessage.type === "error" ? "#fecaca" : "#a7f3d0"}`,
-                        fontWeight: 700,
-                        fontSize: "0.875rem",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between"
-                    }}>
-                        <span>{toastMessage.msg}</span>
-                        <button onClick={() => setToastMessage(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}><FiX /></button>
-                    </div>
-                )}
-
-                {/* Analytics Metrics Cards Grid */}
-                <div className="admin-metrics-grid">
-                    <div className="admin-metric-card">
-                        <div className="admin-metric-icon total"><FiPackage /></div>
-                        <div className="admin-metric-info">
-                            <h3>{totalPickups}</h3>
-                            <p>Total Pickup Tasks</p>
+                {/* Floating Glass Header */}
+                <header className="admin-topbar">
+                    <div className="topbar-left">
+                        <div className="command-brand">
+                            <h1>Manage Device Pickups</h1>
                         </div>
+                        <p className="command-subtitle">
+                            Track, manage, and reassign citizen e-waste collection agent pickup requests
+                        </p>
                     </div>
 
-                    <div className="admin-metric-card">
-                        <div className="admin-metric-icon active"><FiTruck /></div>
-                        <div className="admin-metric-info">
-                            <h3>{activePickups}</h3>
-                            <p>En Route Pickups</p>
+                    <div className="topbar-right">
+                        <div className="search-box-v2">
+                            <FiSearch className="search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Search pickup, agent, customer..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            <span className="search-shortcut">⌘K</span>
                         </div>
-                    </div>
 
-                    <div className="admin-metric-card">
-                        <div className="admin-metric-icon done"><FiCheckCircle /></div>
-                        <div className="admin-metric-info">
-                            <h3>{completedPickups}</h3>
-                            <p>Completed Pickups</p>
-                        </div>
-                    </div>
-
-                    <div className="admin-metric-card">
-                        <div className="admin-metric-icon alert"><FiClock /></div>
-                        <div className="admin-metric-info">
-                            <h3>{pendingScheduled}</h3>
-                            <p>Pending / Scheduled</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Control & Filter Bar */}
-                <div className="admin-filter-bar">
-                    <div className="admin-search-input-box">
-                        <FiSearch style={{ color: "#94a3b8" }} />
-                        <input
-                            type="text"
-                            placeholder="Search device, customer name, agent, city..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        {searchQuery && (
-                            <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}>
-                                <FiX />
+                        <div className="topbar-actions">
+                            <button className="glass-btn notification-btn" onClick={() => fetchData()} title="Sync pickup assignments">
+                                <FiRefreshCw />
+                                <span className="pulse-ping"></span>
                             </button>
-                        )}
-                    </div>
 
-                    <div className="admin-tab-group">
-                        <button
-                            className={`admin-tab-btn ${activeTab === "All" ? "active" : ""}`}
-                            onClick={() => setActiveTab("All")}
-                        >
-                            All <span className="admin-count-pill">{totalPickups}</span>
-                        </button>
-                        <button
-                            className={`admin-tab-btn ${activeTab === "Pending" ? "active" : ""}`}
-                            onClick={() => setActiveTab("Pending")}
-                        >
-                            Scheduled <span className="admin-count-pill">{pendingScheduled}</span>
-                        </button>
-                        <button
-                            className={`admin-tab-btn ${activeTab === "PickupStarted" ? "active" : ""}`}
-                            onClick={() => setActiveTab("PickupStarted")}
-                        >
-                            En Route <span className="admin-count-pill">{activePickups}</span>
-                        </button>
-                        <button
-                            className={`admin-tab-btn ${activeTab === "Completed" ? "active" : ""}`}
-                            onClick={() => setActiveTab("Completed")}
-                        >
-                            Completed <span className="admin-count-pill">{completedPickups}</span>
-                        </button>
-                    </div>
-
-                    <div className="admin-view-toggle">
-                        <button
-                            className={`admin-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
-                            onClick={() => setViewMode("grid")}
-                            title="Grid View"
-                        >
-                            <FiGrid />
-                        </button>
-                        <button
-                            className={`admin-toggle-btn ${viewMode === "table" ? "active" : ""}`}
-                            onClick={() => setViewMode("table")}
-                            title="Table View"
-                        >
-                            <FiList />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Content Area: Grid Feed or Table View */}
-                {loading ? (
-                    <div style={{ textAlign: "center", padding: "4rem 1rem", background: "#ffffff", borderRadius: "22px", border: "1px solid #e2e8f0" }}>
-                        <FiRefreshCw style={{ fontSize: "2.5rem", color: "#059669", animation: "spin 1.5s linear infinite" }} />
-                        <p style={{ color: "#64748b", marginTop: "1rem", fontWeight: 700 }}>Loading pickup tasks...</p>
-                    </div>
-                ) : filteredAssignments.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "4rem 1rem", background: "#ffffff", borderRadius: "22px", border: "1px solid #e2e8f0" }}>
-                        <FiBox style={{ fontSize: "3rem", color: "#cbd5e1" }} />
-                        <h3 style={{ color: "#0f172a", marginTop: "1rem", fontWeight: 800 }}>No Pickups Found</h3>
-                        <p style={{ color: "#64748b", fontSize: "0.9rem" }}>No pickup tasks match your search or filter selection.</p>
-                    </div>
-                ) : viewMode === "grid" ? (
-                    <div className="admin-cards-grid">
-                        {filteredAssignments.map((item) => (
-                            <div key={item.collectionAssignmentId || item.deviceId} className="admin-pickup-card">
-                                <div className="admin-card-header">
-                                    <div className="admin-card-top-row">
-                                        <div className="admin-cat-icon-box">
-                                            {getCategoryIcon(item.categoryName)}
-                                        </div>
-                                        <div>
-                                            {getStatusBadge(item)}
-                                        </div>
-                                    </div>
-                                    <div className="admin-card-title-group">
-                                        <h3 className="admin-card-brand-name">{item.brand} {item.model}</h3>
-                                        <p className="admin-card-cat-sub">{item.categoryName} &bull; {item.quantity || 1} Unit(s)</p>
-                                    </div>
-                                </div>
-
-                                <div className="admin-card-body">
-                                    {/* Assigned Collection Agent Box */}
-                                    <div className="admin-agent-chip-box">
-                                        <div className="admin-agent-chip-left">
-                                            <div className="admin-agent-avatar">
-                                                {item.collectionAgentPhoto ? (
-                                                    <img src={getAgentPhoto(item.collectionAgentPhoto)} alt={item.collectionAgentName} />
-                                                ) : (
-                                                    (item.collectionAgentName || "A").charAt(0).toUpperCase()
-                                                )}
-                                            </div>
-                                            <div>
-                                                <span className="admin-agent-name">{item.collectionAgentName || "Unassigned"}</span>
-                                                <span className="admin-agent-sub">Collection Agent</span>
-                                            </div>
-                                        </div>
-
-                                        {item.collectionAgentPhone && (
-                                            <a href={`tel:${item.collectionAgentPhone}`} className="btn-admin-call" title="Call Agent">
-                                                <FiPhone />
-                                            </a>
-                                        )}
-                                    </div>
-
-                                    {/* Customer & Address Details */}
-                                    <div className="admin-customer-box">
-                                        <div><strong>Customer:</strong> {item.customerName} ({item.customerPhone || "N/A"})</div>
-                                        <div style={{ marginTop: "4px" }}>
-                                            <FiMapPin style={{ color: "#d97706", marginRight: "4px" }} />
-                                            {item.address || "Pickup address"}, {item.city}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="admin-card-footer">
-                                    <button
-                                        className="btn-admin-action-track"
-                                        onClick={() => setSelectedAssignment(item)}
-                                    >
-                                        <FiNavigation /> Track Live
-                                    </button>
-
-                                    {!["completed", "pickedup", "deliveredtocenter"].includes(String(item.status || "").toLowerCase()) && (
-                                        <button
-                                            className="btn-admin-action-reassign"
-                                            onClick={() => {
-                                                setReassignModalTarget(item);
-                                                setSelectedNewAgentId(item.collectionAgentId || "");
-                                            }}
-                                            title="Reassign Agent"
-                                        >
-                                            <FiUserCheck /> Reassign
-                                        </button>
-                                    )}
+                            <div className="user-profile-chip">
+                                <div className="avatar-gradient">A</div>
+                                <div className="user-info-text">
+                                    <span className="name">Admin User</span>
+                                    <span className="role">Super Admin</span>
                                 </div>
                             </div>
-                        ))}
+                        </div>
                     </div>
-                ) : (
-                    /* Table View */
-                    <div className="admin-table-wrapper">
-                        <table className="admin-table">
-                            <thead>
-                                <tr>
-                                    <th>Task / Device</th>
-                                    <th>Customer</th>
-                                    <th>Collection Agent</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredAssignments.map((item) => {
-                                    const isDone = ["completed", "pickedup", "deliveredtocenter"].includes(String(item.status || "").toLowerCase());
-                                    return (
-                                        <tr key={item.collectionAssignmentId || item.deviceId}>
-                                            <td>
-                                                <div style={{ fontWeight: 800, color: "#0f172a" }}>{item.brand} {item.model}</div>
-                                                <div style={{ fontSize: "0.775rem", color: "#64748b" }}>{item.categoryName} &bull; ID #{item.collectionAssignmentId}</div>
-                                            </td>
-                                            <td>
-                                                <div style={{ fontWeight: 700, color: "#0f172a" }}>{item.customerName}</div>
-                                                <div style={{ fontSize: "0.775rem", color: "#64748b" }}>{item.city}</div>
-                                            </td>
-                                            <td>
-                                                <div style={{ fontWeight: 700, color: "#0f172a" }}>{item.collectionAgentName || "Unassigned"}</div>
-                                                <div style={{ fontSize: "0.775rem", color: "#64748b" }}>{item.collectionAgentPhone}</div>
-                                            </td>
-                                            <td>{getStatusBadge(item)}</td>
-                                            <td>
-                                                <div style={{ display: "flex", gap: "0.5rem" }}>
-                                                    <button
-                                                        className="btn-admin-action-track"
-                                                        style={{ padding: "0.45rem 0.85rem", fontSize: "0.8rem" }}
-                                                        onClick={() => setSelectedAssignment(item)}
-                                                    >
-                                                        <FiNavigation /> Track
-                                                    </button>
+                </header>
 
-                                                    {!isDone && (
-                                                        <button
-                                                            className="btn-admin-action-reassign"
-                                                            style={{ padding: "0.45rem 0.85rem", fontSize: "0.8rem" }}
-                                                            onClick={() => {
-                                                                setReassignModalTarget(item);
-                                                                setSelectedNewAgentId(item.collectionAgentId || "");
-                                                            }}
-                                                        >
-                                                            <FiUserCheck /> Reassign
-                                                        </button>
-                                                    )}
+                {/* Analytics Metric Cards Grid */}
+                <div className="admin-metrics-grid">
+                    <div className="admin-metric-card">
+                        <div className="admin-metric-icon total">
+                            <FiPackage />
+                        </div>
+                        <div className="admin-metric-info">
+                            <h3>{totalPickups}</h3>
+                            <p>Total Pickups</p>
+                        </div>
+                    </div>
+
+                    <div className="admin-metric-card">
+                        <div className="admin-metric-icon active">
+                            <FiNavigation />
+                        </div>
+                        <div className="admin-metric-info">
+                            <h3>{activePickups}</h3>
+                            <p>En Route / Active</p>
+                        </div>
+                    </div>
+
+                    <div className="admin-metric-card">
+                        <div className="admin-metric-icon done">
+                            <FiCheckCircle />
+                        </div>
+                        <div className="admin-metric-info">
+                            <h3>{completedPickups}</h3>
+                            <p>Delivered to Hub</p>
+                        </div>
+                    </div>
+
+                    <div className="admin-metric-card">
+                        <div className="admin-metric-icon alert">
+                            <FiClock />
+                        </div>
+                        <div className="admin-metric-info">
+                            <h3>{pendingScheduled}</h3>
+                            <p>Pending Scheduled</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Content Section */}
+                <section className="content-section">
+                    <div className="panel-card table-panel">
+                        <div className="panel-header">
+                            <div>
+                                <h3 className="panel-title">Device Pickups &amp; Dispatches</h3>
+                                <p className="panel-subtitle">
+                                    Track, manage, and reassign citizen e-waste collection agent pickup requests
+                                </p>
+                            </div>
+                            <div className="panel-actions">
+                                <div className="filter-pill-group">
+                                    {[
+                                        { id: "All", label: "All" },
+                                        { id: "Pending", label: "Scheduled" },
+                                        { id: "PickupStarted", label: "En Route" },
+                                        { id: "Completed", label: "Completed" }
+                                    ].map((tab) => {
+                                        const count = tab.id === "All"
+                                            ? totalPickups
+                                            : tab.id === "Pending"
+                                            ? pendingScheduled
+                                            : tab.id === "PickupStarted"
+                                            ? activePickups
+                                            : completedPickups;
+
+                                        return (
+                                            <button
+                                                key={tab.id}
+                                                className={`pill-btn ${activeTab === tab.id ? "pill-btn--active" : ""}`}
+                                                onClick={() => setActiveTab(tab.id)}
+                                            >
+                                                {tab.label} ({count})
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="admin-view-toggle">
+                                    <button
+                                        className={`admin-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+                                        onClick={() => setViewMode("grid")}
+                                        title="Grid View"
+                                    >
+                                        <FiGrid />
+                                    </button>
+                                    <button
+                                        className={`admin-toggle-btn ${viewMode === "table" ? "active" : ""}`}
+                                        onClick={() => setViewMode("table")}
+                                        title="Table View"
+                                    >
+                                        <FiList />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {loading ? (
+                            <div className="loading-state">
+                                <div className="loading-spinner"></div>
+                                <p>Loading pickup tasks...</p>
+                            </div>
+                        ) : filteredAssignments.length === 0 ? (
+                            <div className="no-data-state">
+                                <FiBox className="no-data-icon" />
+                                <p>No pickup tasks matching "{activeTab}".</p>
+                            </div>
+                        ) : viewMode === "grid" ? (
+                            <div className="admin-cards-grid">
+                                {filteredAssignments.map((item, index) => {
+                                    const trackingId = `TRK-PKP-${item.collectionAssignmentId || item.deviceId}`;
+                                    return (
+                                        <div className="admin-pickup-card" key={item.collectionAssignmentId || item.deviceId || index}>
+                                            <div>
+                                                <div className="admin-card-header">
+                                                    <div className="admin-card-top-row">
+                                                        <div className="admin-cat-icon-box">
+                                                            {getCategoryIcon(item.categoryName)}
+                                                        </div>
+                                                        <div>{getStatusBadge(item)}</div>
+                                                    </div>
+                                                    <div className="admin-card-title-group">
+                                                        <h4 className="admin-card-brand-name">{item.brand} {item.model}</h4>
+                                                        <p className="admin-card-cat-sub">
+                                                            {trackingId} &bull; {item.categoryName || "E-Waste"} ({item.quantity || 1} units)
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </td>
-                                        </tr>
+
+                                                <div className="admin-card-body">
+                                                    <div className="admin-agent-chip-box">
+                                                        <div className="admin-agent-chip-left">
+                                                            <div className="admin-agent-avatar">
+                                                                {item.collectionAgentPhoto ? (
+                                                                    <img src={getAgentPhoto(item.collectionAgentPhoto)} alt={item.collectionAgentName} />
+                                                                ) : (
+                                                                    (item.collectionAgentName || "A").charAt(0).toUpperCase()
+                                                                )}
+                                                            </div>
+                                                            <div>
+                                                                <span className="admin-agent-name">
+                                                                    {capitalizeWords(item.collectionAgentName) || "Assigned Agent"}
+                                                                </span>
+                                                                <span className="admin-agent-sub">
+                                                                    {item.collectionAgentPhone || "Ph: N/A"}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {item.collectionAgentPhone && item.collectionAgentPhone !== "Ph: N/A" && (
+                                                            <a href={`tel:${item.collectionAgentPhone}`} className="btn-admin-call" title="Call Agent">
+                                                                <FiPhone />
+                                                            </a>
+                                                        )}
+                                                    </div>
+
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem", marginTop: "0.6rem" }}>
+                                                        <div className="admin-detail-row">
+                                                            <FiUser className="detail-icon" style={{ color: "#3b82f6" }} />
+                                                            <div>
+                                                                <div className="detail-label">Origin Customer</div>
+                                                                <div className="detail-val">{item.customerName || "N/A"}</div>
+                                                                <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{item.city || "City N/A"}</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="admin-detail-row">
+                                                            <FiMapPin className="detail-icon" style={{ color: "#059669" }} />
+                                                            <div>
+                                                                <div className="detail-label">Destination Hub</div>
+                                                                <div className="detail-val">{item.inspectionCenterName || "Central Hub"}</div>
+                                                                <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Tech: {item.technicianName || "N/A"}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ marginTop: "1rem", paddingTop: "0.85rem", borderTop: "1px dashed #e2e8f0" }}>
+                                                <button
+                                                    onClick={() => setSelectedAssignment(item)}
+                                                    title="Track Live Status"
+                                                    style={{
+                                                        width: "100%",
+                                                        height: "42px",
+                                                        background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                                                        color: "#ffffff",
+                                                        border: "none",
+                                                        borderRadius: "10px",
+                                                        fontSize: "0.875rem",
+                                                        fontWeight: 700,
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        gap: "0.55rem",
+                                                        boxShadow: "0 4px 14px rgba(5, 150, 105, 0.28)",
+                                                        cursor: "pointer",
+                                                        transition: "all 0.2s ease"
+                                                    }}
+                                                >
+                                                    <FiNavigation style={{ fontSize: "1rem" }} />
+                                                    <span>Track Live Status</span>
+                                                </button>
+                                            </div>
+                                        </div>
                                     );
                                 })}
-                            </tbody>
-                        </table>
+                            </div>
+                        ) : (
+                            <div className="glass-table-wrapper">
+                                <table className="glass-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Tracking ID</th>
+                                            <th>Device / Shipment</th>
+                                            <th>Collection Agent</th>
+                                            <th>Origin Customer</th>
+                                            <th>Destination Hub</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredAssignments.map((item, index) => {
+                                            const isDone = ["completed", "pickedup", "deliveredtocenter"].includes(String(item.status || "").toLowerCase());
+                                            const trackingId = `TRK-PKP-${item.collectionAssignmentId || item.deviceId}`;
+                                            return (
+                                                <tr key={item.collectionAssignmentId || item.deviceId || index} className="table-row-hover">
+                                                    <td style={{ fontWeight: "700", color: "var(--text-muted)", fontSize: "0.875rem" }}>
+                                                        {index + 1}
+                                                    </td>
+                                                    <td>
+                                                        <span style={{
+                                                            background: "#f1f5f9",
+                                                            color: "#0f172a",
+                                                            border: "1px solid #cbd5e1",
+                                                            padding: "0.2rem 0.5rem",
+                                                            borderRadius: "6px",
+                                                            fontSize: "0.725rem",
+                                                            fontWeight: 700,
+                                                            fontFamily: "monospace",
+                                                            letterSpacing: "0.02em",
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            gap: "0.25rem"
+                                                        }}>
+                                                            <FiNavigation style={{ color: "#059669" }} />
+                                                            {trackingId}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <div className="user-info">
+                                                            <span className="user-name">
+                                                                {item.brand} {item.model}
+                                                            </span>
+                                                            <span className="user-email">
+                                                                {item.categoryName} &bull; {item.quantity || 1} Unit(s) | Task #{item.collectionAssignmentId}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="contact-cell">
+                                                        <div className="user-info">
+                                                            <span className="user-name">{item.collectionAgentName || "Assigned Agent"}</span>
+                                                            <span className="user-email">{item.collectionAgentPhone || "Ph: N/A"}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="contact-cell">
+                                                        <div className="user-info">
+                                                            <span className="user-name">{item.customerName}</span>
+                                                            <span className="user-email">{item.city}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="contact-cell">
+                                                        <div className="user-info">
+                                                            <span className="user-name">{item.inspectionCenterName || "Central Hub"}</span>
+                                                            <span className="user-email">Technician: {item.technicianName || "N/A"}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td>{getStatusBadge(item)}</td>
+                                                    <td>
+                                                        <div className="action-buttons" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                                            <button
+                                                                className="btn-track-live"
+                                                                onClick={() => setSelectedAssignment(item)}
+                                                                title="Track Pickup Status"
+                                                            >
+                                                                <FiNavigation />
+                                                                <span>Track</span>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
-                )}
+                </section>
             </div>
 
             {/* Live Pickup Tracking Stepper Modal (Matching Citizen Live Tracking) */}
@@ -552,6 +648,34 @@ function ManagePickup() {
 
                         {/* Modal Content Body */}
                         <div style={{ padding: "1.5rem", maxHeight: "75vh", overflowY: "auto" }}>
+                            {/* Tracking Summary Reference Card */}
+                            <div style={{
+                                background: "#f8fafc",
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "14px",
+                                padding: "1rem 1.2rem",
+                                marginBottom: "1.25rem",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                flexWrap: "wrap",
+                                gap: "0.75rem"
+                            }}>
+                                <div>
+                                    <div style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>Tracking ID</div>
+                                    <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0f172a", fontFamily: "monospace", marginTop: "0.15rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                                        <FiNavigation style={{ color: "#059669" }} />
+                                        TRK-PKP-{selectedAssignment.collectionAssignmentId || selectedAssignment.deviceId}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>Current Tracking Status</div>
+                                    <div style={{ marginTop: "0.2rem" }}>
+                                        {getStatusBadge(selectedAssignment)}
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Assigned Collection Agent Banner */}
                             <div style={{
                                 background: "#f0fdf4",
@@ -611,131 +735,144 @@ function ManagePickup() {
                             </div>
 
                             {/* Pickup Stepper Timeline */}
-                            <div style={{ marginBottom: "1.25rem" }}>
-                                <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.875rem", fontWeight: 700, color: "#1e293b" }}>
-                                    Pickup Progress Timeline
-                                </h4>
-                                <div className="pk-timeline">
-                                    {(() => {
-                                        const cas = String(selectedAssignment.status || "").toLowerCase();
-                                        const isCancelled = cas === "cancelled" || cas === "expired";
+                             <div style={{ marginBottom: "1.25rem" }}>
+                                 <h4 style={{ margin: "0 0 0.5rem 0", fontSize: "0.875rem", fontWeight: 700, color: "#1e293b" }}>
+                                     Pickup &amp; Delivery Progress Timeline
+                                 </h4>
+                                  <div className="pk-timeline">
+                                      {(() => {
+                                          const cas = String(selectedAssignment.status || "").toLowerCase();
+                                          const lcs = String(selectedAssignment.lifecycleStatus || "").toLowerCase();
+                                          const delStat = String(selectedAssignment.deliveryStatus || "").toLowerCase();
+                                          const isCancelled = cas === "cancelled" || cas === "expired";
 
-                                        const isAccepted = cas === "accepted" || cas === "pickupstarted" || cas === "en route" || cas === "pickedup" || cas === "intransit" || cas === "deliveredtocenter" || cas === "completed";
-                                        const isPickupStarted = cas === "pickupstarted" || cas === "en route" || cas === "pickedup" || cas === "intransit" || cas === "deliveredtocenter" || cas === "completed";
-                                        const isCompleted = cas === "completed" || cas === "deliveredtocenter" || cas === "pickedup";
+                                          // Step 2: Agent Accepted
+                                          const isAccepted = ["accepted", "pickupstarted", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "delivered", "deliveredtocenter", "completed"].includes(cas) || selectedAssignment.collectionAgentName != null;
 
-                                        if (isCancelled) {
-                                            return (
-                                                <>
-                                                    {/* Step 1: Created */}
-                                                    <div className="pk-timeline-step completed">
-                                                        <div className="pk-timeline-dot">
-                                                            <FiCheck style={{ fontSize: "0.7rem" }} />
-                                                        </div>
-                                                        <div className="pk-step-title">Pickup Request Created</div>
-                                                        <div className="pk-step-desc">Item registered in EcoCycle portal</div>
-                                                        <div className="pk-step-time">{formatDate(selectedAssignment.createdAt)}</div>
-                                                    </div>
+                                          // Step 3: Pickup Started & Pickup Completed
+                                          const isPickupStarted = cas === "pickupstarted" || cas === "en route" || selectedAssignment.pickupStartedAt != null || selectedAssignment.startedAt != null;
+                                          const actualPickupTime = selectedAssignment.pickupPickedUpAt || selectedAssignment.pickedUpAt;
+                                          const isCitizenPickupDone = Boolean(actualPickupTime) || cas === "completed" || cas === "pickedup" || lcs === "pickedup" || String(selectedAssignment.pickupStatus || "").toLowerCase() === "completed";
 
-                                                    {/* Step 2: Cancelled */}
-                                                    <div className="pk-timeline-step cancelled">
-                                                        <div className="pk-timeline-dot pk-dot-cancelled" style={{ background: "#ef4444", borderColor: "#fca5a5", color: "#ffffff" }}>
-                                                            <FiX style={{ fontSize: "0.75rem" }} />
-                                                        </div>
-                                                        <div className="pk-step-title" style={{ color: "#dc2626" }}>Pickup Allocation Expired / Cancelled</div>
-                                                        <div className="pk-step-desc">The pickup allocation cycle was cancelled or expired.</div>
-                                                    </div>
-                                                </>
-                                            );
-                                        }
+                                          // Step 4: Delivered to Inspection Center Hub
+                                          const isDelivered = delStat === "delivered" || cas === "deliveredtocenter" || lcs === "atinspectioncenter" || Boolean(selectedAssignment.deliveredAt || selectedAssignment.deliveryDeliveredAt);
 
-                                        return (
-                                            <>
-                                                {/* Step 1: Created */}
-                                                <div className="pk-timeline-step completed">
-                                                    <div className="pk-timeline-dot">
-                                                        <FiCheck style={{ fontSize: "0.7rem" }} />
-                                                    </div>
-                                                    <div className="pk-step-title">Pickup Request Created</div>
-                                                    <div className="pk-step-desc">Item registered in EcoCycle portal</div>
-                                                    <div className="pk-step-time">{formatDate(selectedAssignment.createdAt)}</div>
-                                                </div>
+                                          if (isCancelled) {
+                                              return (
+                                                  <>
+                                                      {/* Step 1: Created */}
+                                                      <div className="pk-timeline-step completed">
+                                                          <div className="pk-timeline-dot">
+                                                              <FiCheck style={{ fontSize: "0.7rem" }} />
+                                                          </div>
+                                                          <div className="pk-step-title">Pickup Request Created</div>
+                                                          <div className="pk-step-desc">Item registered in EcoCycle portal</div>
+                                                          <div className="pk-step-time">{formatDate(selectedAssignment.createdAt)}</div>
+                                                      </div>
 
-                                                {/* Step 2: Agent Accepted */}
-                                                <div className={`pk-timeline-step ${isAccepted ? "completed" : "active"}`}>
-                                                    <div className="pk-timeline-dot">
-                                                        {isAccepted ? <FiCheck style={{ fontSize: "0.7rem" }} /> : null}
-                                                    </div>
-                                                    <div className="pk-step-title">Collection Agent Assigned & Accepted</div>
-                                                    <div className="pk-step-desc">
-                                                        {selectedAssignment.collectionAgentName 
-                                                            ? `Agent: ${capitalizeWords(selectedAssignment.collectionAgentName)} (${selectedAssignment.collectionAgentPhone || "Phone available"})`
-                                                            : "Collection agent accepted task"}
-                                                    </div>
-                                                    {selectedAssignment.assignedAt && (
-                                                        <div className="pk-step-time">{formatDate(selectedAssignment.assignedAt)}</div>
-                                                    )}
-                                                </div>
+                                                      {/* Step 2: Cancelled */}
+                                                      <div className="pk-timeline-step cancelled">
+                                                          <div className="pk-timeline-dot pk-dot-cancelled" style={{ background: "#ef4444", borderColor: "#fca5a5", color: "#ffffff" }}>
+                                                              <FiX style={{ fontSize: "0.75rem" }} />
+                                                          </div>
+                                                           <div className="pk-step-title" style={{ color: "#dc2626" }}>
+                                                               {cas === "expired" ? "Pickup Allocation Expired" : "Pickup Allocation Cancelled"}
+                                                           </div>
+                                                           <div className="pk-step-desc">
+                                                               {cas === "expired" ? "The pickup deadline passed before collection completion." : "The pickup request was cancelled."}
+                                                           </div>
+                                                      </div>
+                                                  </>
+                                              );
+                                          }
 
-                                                {/* Step 3: Pickup Started / En Route */}
-                                                <div className={`pk-timeline-step ${isCompleted ? "completed" : isPickupStarted ? "active" : ""}`}>
-                                                    <div className="pk-timeline-dot">
-                                                        {isCompleted ? <FiCheck style={{ fontSize: "0.7rem" }} /> : isPickupStarted ? <FiTruck style={{ fontSize: "0.7rem" }} /> : null}
-                                                    </div>
-                                                    <div className="pk-step-title">Pickup Started & Agent En Route</div>
-                                                    <div className="pk-step-desc">
-                                                        {isPickupStarted 
-                                                            ? "Collection agent is en route to customer pickup address" 
-                                                            : `Scheduled for pickup on ${formatDate(selectedAssignment.pickupDate)} (${selectedAssignment.timeSlot || "Scheduled slot"})`}
-                                                    </div>
-                                                    {(selectedAssignment.startedAt || selectedAssignment.pickupStartedAt) && (
-                                                        <div className="pk-step-time">{formatDate(selectedAssignment.startedAt || selectedAssignment.pickupStartedAt)}</div>
-                                                    )}
-                                                </div>
+                                          return (
+                                              <>
+                                                  {/* Step 1: Pickup Request Created */}
+                                                  <div className="pk-timeline-step completed">
+                                                      <div className="pk-timeline-dot">
+                                                          <FiCheck style={{ fontSize: "0.7rem" }} />
+                                                      </div>
+                                                      <div className="pk-step-title">Pickup Request Created</div>
+                                                      <div className="pk-step-desc">Item registered in EcoCycle portal</div>
+                                                      <div className="pk-step-time">{formatDate(selectedAssignment.createdAt)}</div>
+                                                  </div>
 
-                                                {/* Step 4: Pickup Finished & Item Collected */}
-                                                <div className={`pk-timeline-step ${isCompleted ? "completed" : ""}`}>
-                                                    <div className="pk-timeline-dot">
-                                                        {isCompleted ? <FiCheck style={{ fontSize: "0.7rem" }} /> : null}
-                                                    </div>
-                                                    <div className="pk-step-title">Pickup Completed & Item Collected</div>
-                                                    <div className="pk-step-desc">
-                                                        {isCompleted 
-                                                            ? "E-waste device verified and collected successfully from citizen by agent" 
-                                                            : "Final pickup completion upon agent arrival at customer location"}
-                                                    </div>
-                                                    {(selectedAssignment.pickedUpAt || selectedAssignment.deliveredAt || selectedAssignment.completedAt) && (
-                                                        <div className="pk-step-time">{formatDate(selectedAssignment.pickedUpAt || selectedAssignment.deliveredAt || selectedAssignment.completedAt)}</div>
-                                                    )}
-                                                </div>
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            </div>
+                                                  {/* Step 2: Collection Agent Assigned & Accepted */}
+                                                  <div className={`pk-timeline-step ${isAccepted ? "completed" : "active"}`}>
+                                                      <div className="pk-timeline-dot">
+                                                          {isAccepted ? <FiCheck style={{ fontSize: "0.7rem" }} /> : null}
+                                                      </div>
+                                                      <div className="pk-step-title">Collection Agent Assigned & Accepted</div>
+                                                      <div className="pk-step-desc">
+                                                          {selectedAssignment.collectionAgentName 
+                                                              ? `Agent: ${capitalizeWords(selectedAssignment.collectionAgentName)} (${selectedAssignment.collectionAgentPhone || "Phone available"})`
+                                                              : "Collection agent assigned to task"}
+                                                      </div>
+                                                      <div className="pk-step-time">
+                                                          {formatDate(selectedAssignment.assignedAt || selectedAssignment.acceptedAt || selectedAssignment.createdAt)}
+                                                      </div>
+                                                  </div>
 
-                            {/* Pickup Address & Verification Record Cards */}
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0.85rem" }}>
-                                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "1rem" }}>
-                                    <div style={{ fontSize: "0.725rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                                        Pickup Location (Citizen)
-                                    </div>
-                                    <div style={{ fontWeight: 700, fontSize: "0.925rem", color: "#0f172a", marginTop: "0.2rem" }}>
-                                        {selectedAssignment.customerName} ({selectedAssignment.customerPhone || "Phone registered"})
-                                    </div>
-                                    <div style={{ fontSize: "0.825rem", color: "#334155", marginTop: "0.2rem" }}>
-                                        <FiMapPin style={{ color: "#d97706", marginRight: "4px" }} />
-                                        {selectedAssignment.address}, {selectedAssignment.city}
-                                    </div>
-                                    {selectedAssignment.landmark && (
-                                        <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem" }}>
-                                            Landmark: {selectedAssignment.landmark}
-                                        </div>
-                                    )}
-                                    <div style={{ fontSize: "0.775rem", color: "#2563eb", fontWeight: 600, marginTop: "0.35rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                                        <FiCalendar /> Scheduled: {formatDate(selectedAssignment.pickupDate)} ({selectedAssignment.timeSlot})
-                                    </div>
-                                </div>
+                                                  {/* Step 3: Device Picked Up & Collected */}
+                                                  <div className={`pk-timeline-step ${isCitizenPickupDone ? "completed" : isAccepted ? "active" : ""}`}>
+                                                      <div className="pk-timeline-dot">
+                                                          {isCitizenPickupDone ? <FiCheck style={{ fontSize: "0.7rem" }} /> : isAccepted ? <FiClock style={{ fontSize: "0.7rem" }} /> : null}
+                                                      </div>
+                                                      <div className="pk-step-title">Device Picked Up & Collected</div>
+                                                      <div className="pk-step-desc">
+                                                          Collection agent collected device from pickup address
+                                                      </div>
+                                                      <div className="pk-step-time">
+                                                          {actualPickupTime ? `Picked Up: ${formatDate(actualPickupTime)}` : "Pending Doorstep Pickup"}
+                                                      </div>
+                                                  </div>
+
+                                                  {/* Step 4: Delivered to Inspection Center Hub */}
+                                                  <div className={`pk-timeline-step ${isDelivered ? "completed" : isCitizenPickupDone ? "active" : ""}`}>
+                                                      <div className="pk-timeline-dot">
+                                                          {isDelivered ? <FiCheck style={{ fontSize: "0.7rem" }} /> : isCitizenPickupDone ? <FiClock style={{ fontSize: "0.7rem" }} /> : null}
+                                                      </div>
+                                                      <div className="pk-step-title">Delivered to Inspection Center Hub</div>
+                                                      <div className="pk-step-desc">
+                                                          {isDelivered ? "E-Waste item successfully received at inspection hub" : "In transit to inspection center hub"}
+                                                      </div>
+                                                      <div className="pk-step-time">
+                                                          {isDelivered ? `Delivered: ${formatDate(selectedAssignment.deliveredAt || selectedAssignment.deliveryDeliveredAt)}` : "Pending Hub Arrival"}
+                                                      </div>
+                                                  </div>
+                                              </>
+                                          );
+                                      })()}
+                                  </div>
+                             </div>
+
+                             {/* Pickup Address & Verification Record Cards */}
+                             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "0.85rem" }}>
+                                 <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "1rem" }}>
+                                     <div style={{ fontSize: "0.725rem", color: "#64748b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                                         {selectedAssignment.assignmentType === "TechnicianToRecyclingCenter" ? "Pickup Location (Tech Facility)" : "Pickup Location (Citizen)"}
+                                     </div>
+                                     <div style={{ fontWeight: 700, fontSize: "0.925rem", color: "#0f172a", marginTop: "0.2rem" }}>
+                                         {selectedAssignment.assignmentType === "TechnicianToRecyclingCenter"
+                                             ? `${selectedAssignment.technicianName || "Technician"} (${selectedAssignment.inspectionCenterName || "Center Hub"})`
+                                             : `${selectedAssignment.customerName} (${selectedAssignment.customerPhone || "Phone registered"})`}
+                                     </div>
+                                     <div style={{ fontSize: "0.825rem", color: "#334155", marginTop: "0.2rem" }}>
+                                         <FiMapPin style={{ color: "#d97706", marginRight: "4px" }} />
+                                         {selectedAssignment.assignmentType === "TechnicianToRecyclingCenter"
+                                             ? (selectedAssignment.deliveredAddress || selectedAssignment.address || "Technician Center Address")
+                                             : `${selectedAssignment.address}, ${selectedAssignment.city}`}
+                                     </div>
+                                     {selectedAssignment.landmark && (
+                                         <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem" }}>
+                                             Landmark: {selectedAssignment.landmark}
+                                         </div>
+                                     )}
+                                     <div style={{ fontSize: "0.775rem", color: "#2563eb", fontWeight: 600, marginTop: "0.35rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                                         <FiCalendar /> Scheduled: {formatDate(selectedAssignment.pickupDate)} ({selectedAssignment.timeSlot || "Standard Slot"})
+                                     </div>
+                                 </div>
 
                                 {/* Pickup Verification & Handover Record from Pickup Table */}
                                 {(selectedAssignment.deviceVerified || selectedAssignment.proofPhotoPath || selectedAssignment.agentNotes || selectedAssignment.failureReason) && (

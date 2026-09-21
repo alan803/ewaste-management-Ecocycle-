@@ -1,0 +1,71 @@
+/* Manage_penalties.css - General User & Technician Penalty Management Design */
+@import "./Manage_inspection.css";
+
+.penalty-amount-badge {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #dc2626;
+}
+
+.penalty-id-pill {
+    background: #fef2f2;
+    color: #dc2626;
+    font-weight: 800;
+    font-size: 0.775rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    border: 1px solid #fecaca;
+    display: inline-block;
+}
+
+.user-role-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.user-role-badge.technician {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+.user-role-badge.citizen {
+    background: #f0fdf4;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+}
+
+.user-role-badge.agent {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+}
+
+/* Glass Table column sizing and text wrapping fixes for Penalty Management */
+.glass-table th {
+    white-space: nowrap;
+}
+
+.glass-table td {
+    white-space: nowrap;
+}
+
+.glass-table td.col-reason,
+.glass-table th.col-reason {
+    min-width: 240px;
+    max-width: 320px;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+}
+
+.glass-table td.col-reason span {
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+}
+

@@ -135,7 +135,6 @@ namespace EcoCycle.API.Controllers
                         Status = "Assigned",
                         AssignedAt = DateTime.Now,
                         ResponseDeadline = DateTime.Now.AddHours(24),
-                        InspectionDeadline = DateTime.Now.AddDays(3),
                         ReassignmentCount = existingRequest.ReassignmentCount + 1,
                         CreatedAt = DateTime.Now,
                         UpdatedAt = DateTime.Now
@@ -174,13 +173,21 @@ namespace EcoCycle.API.Controllers
                         });
                     }
 
-                    request = existingRequest;
-                    request.TechnicianId = technician.TechnicianId;
-                    request.Status = "Assigned";
-                    request.AssignedAt = DateTime.Now;
-                    request.ResponseDeadline = DateTime.Now.AddHours(24);
-                    request.InspectionDeadline = DateTime.Now.AddDays(3);
-                    request.UpdatedAt = DateTime.Now;
+                    existingRequest.Status = "Reassigned";
+                    existingRequest.UpdatedAt = DateTime.Now;
+
+                    request = new InspectionRequest
+                    {
+                        DeviceId = device.DeviceId,
+                        TechnicianId = technician.TechnicianId,
+                        Status = "Assigned",
+                        AssignedAt = DateTime.Now,
+                        ResponseDeadline = DateTime.Now.AddHours(24),
+                        ReassignmentCount = existingRequest.ReassignmentCount + 1,
+                        CreatedAt = DateTime.Now,
+                        UpdatedAt = DateTime.Now
+                    };
+                    db.InspectionRequest.Add(request);
                     device.LifecycleStatus = "InspectionAssigned";
 
                     await db.SaveChangesAsync();
@@ -227,7 +234,6 @@ namespace EcoCycle.API.Controllers
                     request.Status = "Assigned";
                     request.AssignedAt = DateTime.Now;
                     request.ResponseDeadline = DateTime.Now.AddHours(24);
-                    request.InspectionDeadline = DateTime.Now.AddDays(3);
                     device.LifecycleStatus = "InspectionAssigned";
                 }
                 else
@@ -316,11 +322,6 @@ namespace EcoCycle.API.Controllers
                     </p>
 
                     <p>
-                        <strong>Inspection Deadline:</strong>
-                        {request.InspectionDeadline:dd-MM-yyyy hh:mm tt}
-                    </p>
-
-                    <p>
                         Please log in to your EcoCycle technician account
                         and respond to this inspection request.
                     </p>
@@ -369,9 +370,15 @@ namespace EcoCycle.API.Controllers
                 return null;
             }
 
+            var penalizedTechIds = await db.technicianPenalties
+                .Where(p => p.Status == "Pending" || p.Status == "Unpaid")
+                .Select(p => p.TechnicianId)
+                .Distinct()
+                .ToListAsync();
+
             var technicians = await db.Technician
                 .Include(t => t.Login)
-                .Where(t => t.Status == "Active")
+                .Where(t => t.Status == "Active" && !penalizedTechIds.Contains(t.TechnicianId))
                 .ToListAsync();
 
             if (!technicians.Any())
@@ -440,8 +447,150 @@ namespace EcoCycle.API.Controllers
                 .Select(x => x.Technician)
                 .FirstOrDefault();
         }
+        private async Task CheckAndApplyOverdueInspectionPenalties()
+        {
+            try
+            {
+                var now = DateTime.Now;
+
+                // Query Inspections where deadline has expired, ExtensionCount >= 2, and inspection is not completed
+                var overdueInspections = await db.Inspection
+                    .Include(i => i.Technician)
+                        .ThenInclude(t => t!.Login)
+                    .Include(i => i.Device)
+                    .Where(i => i.InspectionCompletedAt == null &&
+                                i.InspectionDeadline.HasValue &&
+                                i.InspectionDeadline.Value < now &&
+                                i.ExtensionCount >= 2)
+                    .ToListAsync();
+
+                if (!overdueInspections.Any()) return;
+
+                foreach (var insp in overdueInspections)
+                {
+                    // Check if a penalty record already exists for this inspection/device/technician
+                    bool penaltyExists = await db.technicianPenalties
+                        .AnyAsync(p => p.TechnicianId == insp.TechnicianId &&
+                                       p.DeviceId == insp.DeviceId &&
+                                       p.InspectionRequestId == insp.InspectionRequestId);
+
+                    if (!penaltyExists && insp.Technician != null && insp.Device != null)
+                    {
+                        // 1. Create TechnicianPenalty entry (₹100 fine)
+                        var penalty = new TechnicianPenalty
+                        {
+                            TechnicianId = insp.TechnicianId,
+                            DeviceId = insp.DeviceId,
+                            InspectionRequestId = insp.InspectionRequestId,
+                            PenaltyAmount = 100.00m,
+                            Reason = $"Failure to complete device inspection within permitted 24-hour extension timeframe for Device #DEV-{insp.DeviceId} ({insp.Device.Brand} {insp.Device.Model}).",
+                            Status = "Pending",
+                            CreatedAt = now
+                        };
+                        db.technicianPenalties.Add(penalty);
+
+                        insp.Status = "Penalized";
+                        if (insp.Device != null)
+                        {
+                            insp.Device.LifecycleStatus = "InspectionPenalized";
+                        }
+
+                        await db.SaveChangesAsync();
+
+                        // 2. Send email notice ONLY to technician (NO in-app notification per requirement)
+                        string techEmail = insp.Technician.Login?.Email ?? "";
+                        if (!string.IsNullOrWhiteSpace(techEmail))
+                        {
+                            string subject = $"EcoCycle Penalty Notice: ₹100 Fine Applied (Device #DEV-{insp.DeviceId})";
+                            string emailBody = $@"
+                            <!DOCTYPE html>
+                            <html>
+                            <head>
+                                <style>
+                                    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }}
+                                    .container {{ max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }}
+                                    .header {{ background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: #ffffff; padding: 24px; text-align: center; }}
+                                    .header h1 {{ margin: 0; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }}
+                                    .content {{ padding: 24px; }}
+                                    .alert-box {{ background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 6px; padding: 16px; margin: 16px 0; color: #991b1b; font-weight: 600; font-size: 14px; }}
+                                    .detail-table {{ width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }}
+                                    .detail-table td {{ padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }}
+                                    .detail-label {{ color: #64748b; font-weight: 600; width: 40%; }}
+                                    .detail-val {{ color: #0f172a; font-weight: 700; }}
+                                    .policy-card {{ background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; margin-top: 20px; font-size: 13px; color: #475569; }}
+                                    .footer {{ background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }}
+                                </style>
+                            </head>
+                            <body>
+                                <div class='container'>
+                                    <div class='header'>
+                                        <h1>EcoCycle Penalty Notice</h1>
+                                        <p style='margin: 4px 0 0 0; font-size: 13px; opacity: 0.9;'>Inspection Deadline & Penalty Enforcement</p>
+                                    </div>
+                                    <div class='content'>
+                                        <p style='font-size: 15px; margin-top: 0;'>Dear <strong>{insp.Technician.FirstName} {insp.Technician.LastName}</strong>,</p>
+                                        
+                                        <div class='alert-box'>
+                                            ⚠️ A penalty of <strong>₹100.00</strong> has been automatically generated for your account due to failure to complete device inspection within the permitted timeframe.
+                                        </div>
+
+                                        <p style='font-size: 14px; color: #475569;'>Your assigned e-waste device inspection exceeded the maximum permitted 24-hour extensions without completion. Details are outlined below:</p>
+
+                                        <table class='detail-table'>
+                                            <tr>
+                                                <td class='detail-label'>Device ID</td>
+                                                <td class='detail-val'>#DEV-{insp.DeviceId}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class='detail-label'>Device Description</td>
+                                                <td class='detail-val'>{insp.Device.Brand} {insp.Device.Model}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class='detail-label'>Penalty Amount</td>
+                                                <td class='detail-val' style='color: #dc2626; font-size: 16px;'>₹100.00</td>
+                                            </tr>
+                                            <tr>
+                                                <td class='detail-label'>Extensions Used</td>
+                                                <td class='detail-val'>{insp.ExtensionCount} of 2 permitted</td>
+                                            </tr>
+                                            <tr>
+                                                <td class='detail-label'>Deadline Expiry</td>
+                                                <td class='detail-val'>{insp.InspectionDeadline:dd-MM-yyyy hh:mm tt}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class='detail-label'>Penalty Status</td>
+                                                <td class='detail-val' style='color: #d97706;'>Pending Resolution</td>
+                                            </tr>
+                                        </table>
+
+                                        <div class='policy-card'>
+                                            <strong>Technician Compliance Policy:</strong><br/>
+                                            Once a device is assigned to you, inspections must be completed within the specified deadline. Extensions are limited to a maximum of two 24-hour periods. Failure to complete inspections within these limits results in an automated ₹100 penalty and may impact future assignment eligibility.
+                                        </div>
+                                    </div>
+                                    <div class='footer'>
+                                        EcoCycle E-Waste Platform &bull; Technician Management System<br/>
+                                        This is an automated system notification.
+                                    </div>
+                                </div>
+                            </body>
+                            </html>";
+
+                            await SendEmailAsync(techEmail, subject, emailBody);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking overdue inspection penalties: {ex.Message}");
+            }
+        }
+
         private async Task CheckAndUpdateExpiredInspectionRequests()
         {
+            await CheckAndApplyOverdueInspectionPenalties();
+
             var now = DateTime.Now;
             var expiredRequests = await db.InspectionRequest
                 .Include(x => x.Device)
@@ -481,31 +630,62 @@ namespace EcoCycle.API.Controllers
                     ? tech.TechnicianId
                     : technicianId;
 
-
-            var requests = await db.InspectionRequest
-
+            var rawRequests = await db.InspectionRequest
                 .Include(x => x.Device)
                     .ThenInclude(d => d.Category)
-
                 .Include(x => x.Device)
                     .ThenInclude(d => d.User)
-
                 .Where(x =>
                     x.TechnicianId == targetTechId &&
-
                     x.Device.Status != "Inactive" &&
                     x.Device.Status != "Deleted" &&
-
                     (
                         x.Status == "Assigned" ||
                         x.Status == "Accepted" ||
                         x.Status == "InProgress"
                     ))
-
-                .OrderBy(x => x.InspectionDeadline)
-
+                .OrderBy(x => x.CreatedAt)
                 .ToListAsync();
 
+            var deviceIds = rawRequests.Select(r => r.DeviceId).ToList();
+            var reqIds = rawRequests.Select(r => r.InspectionRequestId).ToList();
+
+            var inspections = await db.Inspection
+                .Where(i => deviceIds.Contains(i.DeviceId) || reqIds.Contains(i.InspectionRequestId))
+                .ToListAsync();
+
+            var requests = rawRequests.Select(x => {
+                var insp = inspections.FirstOrDefault(i => i.InspectionRequestId == x.InspectionRequestId) ?? inspections.FirstOrDefault(i => i.InspectionRequestId == 0 && i.DeviceId == x.DeviceId);
+                
+                string effectiveStatus = (insp != null && !string.IsNullOrWhiteSpace(insp.Status) && insp.Status != "NotStarted" && insp.Status != "Pending")
+                    ? insp.Status
+                    : x.Status;
+
+                DateTime? calcDeadline = insp?.InspectionDeadline ?? (x.AssignedAt.HasValue ? x.AssignedAt.Value.AddDays(3) : x.CreatedAt.AddDays(3));
+                return new
+                {
+                    inspectionRequestId = x.InspectionRequestId,
+                    deviceId = x.DeviceId,
+                    technicianId = x.TechnicianId,
+                    status = effectiveStatus,
+                    assignedAt = x.AssignedAt,
+                    responseDeadline = x.ResponseDeadline,
+                    inspectionDeadline = calcDeadline,
+                    respondedAt = x.RespondedAt,
+                    rejectionReason = x.RejectionReason,
+                    reassignmentCount = x.ReassignmentCount,
+                    createdAt = x.CreatedAt,
+                    updatedAt = x.UpdatedAt,
+                    device = x.Device
+                };
+            })
+            .Where(r => !string.Equals(r.status, "Reassigned", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(r.status, "Penalized", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(r.status, "Completed", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(r.status, "Expired", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(r.status, "Rejected", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(r.status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
             return Ok(requests);
         }
@@ -536,12 +716,20 @@ namespace EcoCycle.API.Controllers
 
                 if (tech == null)
                 {
-                    return NotFound(new { message = "Technician account not found." });
+                    tech = await db.Technician
+                        .Include(t => t.Login)
+                        .FirstOrDefaultAsync(t => t.Status == "Approved" || t.Status == "Active")
+                        ?? await db.Technician.Include(t => t.Login).FirstOrDefaultAsync();
+                }
+
+                if (tech == null)
+                {
+                    return Ok(new List<object>());
                 }
 
                 int targetTechId = tech.TechnicianId;
 
-                // Find inspection requests assigned to this technician
+                // Find inspection requests assigned to this technician that have been ACCEPTED by the technician
                 var inspRequests = await db.InspectionRequest
                     .Include(x => x.Device)
                         .ThenInclude(d => d.Category)
@@ -550,17 +738,29 @@ namespace EcoCycle.API.Controllers
                     .Include(x => x.Device)
                         .ThenInclude(d => d.CollectionAssignments)
                             .ThenInclude(ca => ca.CollectionAgent)
-                    .Where(x => x.TechnicianId == targetTechId && x.Device.Status != "Inactive" && x.Device.Status != "Deleted")
+                    .Where(x => x.TechnicianId == targetTechId && 
+                                x.Device.Status != "Inactive" && 
+                                x.Device.Status != "Deleted" &&
+                                (x.Status == "Accepted" || x.Status == "InProgress" || x.Status == "Completed"))
                     .OrderByDescending(x => x.CreatedAt)
                     .ToListAsync();
 
+                var processedDeviceIds = new HashSet<int>();
                 var result = new List<object>();
+
                 foreach (var x in inspRequests)
                 {
                     var dev = x.Device;
-                    if (dev == null) continue;
+                    if (dev == null || processedDeviceIds.Contains(dev.DeviceId)) continue;
+                    processedDeviceIds.Add(dev.DeviceId);
 
-                    var latestCa = dev.CollectionAssignments.OrderByDescending(ca => ca.CreatedAt).FirstOrDefault();
+                    var allCas = dev.CollectionAssignments.OrderByDescending(caItem => caItem.CreatedAt).ToList();
+                    var latestCa = allCas.FirstOrDefault();
+                    var prevCa = allCas.Skip(1).FirstOrDefault(p => p.Status == "Failed" || p.Status == "PickupFailed" || p.Status == "Cancelled" || p.Status == "Rejected" || p.Status == "Expired");
+
+                    bool hasPreviousFailedPickup = prevCa != null;
+                    string previousFailureReason = prevCa?.RejectionReason ?? "";
+                    string previousAgentName = prevCa?.CollectionAgent != null ? $"{prevCa.CollectionAgent.FirstName} {prevCa.CollectionAgent.LastName}".Trim() : "";
 
                     Delivery? delObj = null;
                     if (latestCa != null)
@@ -578,17 +778,31 @@ namespace EcoCycle.API.Controllers
                     result.Add(new
                     {
                         deviceId = dev.DeviceId,
-                        inspectionRequestId = x.InspectionRequestId,
+                        inspectionRequestId = (int?)x.InspectionRequestId,
                         collectionAssignmentId = latestCa?.CollectionAssignmentId,
 
                         brand = dev.Brand,
                         model = dev.Model,
+                        modelNumber = dev.ModelNumber,
+                        serialNumber = dev.SerialNumber,
+                        deviceQrToken = !string.IsNullOrEmpty(dev.DeviceQrToken) ? dev.DeviceQrToken : $"ECOQR-DEV-{dev.DeviceId}",
                         categoryName = dev.Category?.CategoryName ?? "E-Waste",
                         quantity = dev.Quantity,
                         weight = dev.Weight,
                         condition = dev.Condition,
                         working = dev.Working,
+                        physicalDamage = dev.PhysicalDamage,
+                        displayCondition = dev.DisplayCondition,
+                        batteryCondition = dev.BatteryCondition,
+                        accessories = dev.Accessories,
+                        charger = dev.Charger,
+                        ownership = dev.Ownership,
+                        ownershipConfirmed = dev.OwnershipConfirmed,
                         processingPreference = dev.ProcessingPreference,
+                        frontPhoto = dev.FrontPhoto,
+                        backPhoto = dev.BackPhoto,
+                        damagePhoto = dev.DamagePhoto,
+                        labelPhoto = dev.LabelPhoto,
 
                         customerName = dev.User != null ? $"{dev.User.FirstName} {dev.User.LastName}".Trim() : "Citizen",
                         customerPhone = dev.User?.PhoneNumber ?? "",
@@ -608,6 +822,10 @@ namespace EcoCycle.API.Controllers
                         lifecycleStatus = dev.LifecycleStatus,
                         requestStatus = x.Status,
 
+                        hasPreviousFailedPickup = hasPreviousFailedPickup,
+                        previousFailureReason = previousFailureReason,
+                        previousAgentName = previousAgentName,
+
                         collectionAgentId = latestCa?.CollectionAgentId,
                         collectionAgentName = latestCa?.CollectionAgent != null ? $"{latestCa.CollectionAgent.FirstName} {latestCa.CollectionAgent.LastName}".Trim() : "Assigned Agent",
                         collectionAgentPhone = latestCa?.CollectionAgent?.Phone ?? latestCa?.CollectionAgent?.AlternatePhone ?? "",
@@ -621,8 +839,124 @@ namespace EcoCycle.API.Controllers
                         assignedAt = latestCa?.AssignedAt ?? x.CreatedAt,
                         startedAt = latestCa?.AssignedAt,
                         deliveredAt = delObj?.DeliveredAt,
+                        inspectionDeadline = (await db.Inspection.FirstOrDefaultAsync(i => i.DeviceId == dev.DeviceId || i.InspectionRequestId == x.InspectionRequestId))?.InspectionDeadline ?? (delObj?.DeliveredAt?.AddDays(3) ?? (latestCa?.AssignedAt?.AddDays(3) ?? x.CreatedAt.AddDays(3))),
                         createdAt = dev.CreatedAt
                     });
+                }
+
+                // Also fetch active devices with CollectionAssignments allocated to this technician ONLY if accepted
+                var allCaList = await db.CollectionAssignments
+                    .Include(ca => ca.Device)
+                        .ThenInclude(d => d.Category)
+                    .Include(ca => ca.Device)
+                        .ThenInclude(d => d.User)
+                    .Include(ca => ca.Device)
+                        .ThenInclude(d => d.InspectionRequests)
+                    .Include(ca => ca.CollectionAgent)
+                    .Where(ca => ca.Device != null && ca.Device.Status != "Inactive" && ca.Device.Status != "Deleted")
+                    .OrderByDescending(ca => ca.CreatedAt)
+                    .ToListAsync();
+
+                foreach (var ca in allCaList)
+                {
+                    var dev = ca.Device;
+                    if (dev == null || processedDeviceIds.Contains(dev.DeviceId)) continue;
+
+                    var latestInspReq = dev.InspectionRequests?
+                        .OrderByDescending(ir => ir.CreatedAt)
+                        .FirstOrDefault();
+
+                    // Only include if latest inspection request is assigned to targetTechId AND HAS BEEN ACCEPTED
+                    if (latestInspReq != null && 
+                        latestInspReq.TechnicianId == targetTechId && 
+                        (latestInspReq.Status == "Accepted" || latestInspReq.Status == "InProgress" || latestInspReq.Status == "Completed"))
+                    {
+                        processedDeviceIds.Add(dev.DeviceId);
+                        Delivery? delObj = null;
+                        try
+                        {
+                            delObj = await db.Deliveries.FirstOrDefaultAsync(d => d.CollectionAssignmentId == ca.CollectionAssignmentId);
+                        }
+                        catch { }
+
+                        string caStatus = ca.Status ?? "Scheduled";
+                        string delStatus = delObj != null ? delObj.Status : (caStatus == "Completed" ? "Pending" : caStatus == "OutForDelivery" ? "InTransit" : caStatus == "DeliveredToCenter" ? "Delivered" : "Pending");
+
+                        var allCas = dev.CollectionAssignments?.OrderByDescending(caItem => caItem.CreatedAt).ToList() ?? new List<CollectionAssignment>();
+                        var prevCa = allCas.Skip(1).FirstOrDefault(p => p.Status == "Failed" || p.Status == "PickupFailed" || p.Status == "Cancelled" || p.Status == "Rejected" || p.Status == "Expired");
+
+                        bool hasPreviousFailedPickup = prevCa != null;
+                        string previousFailureReason = prevCa?.RejectionReason ?? "";
+                        string previousAgentName = prevCa?.CollectionAgent != null ? $"{prevCa.CollectionAgent.FirstName} {prevCa.CollectionAgent.LastName}".Trim() : "";
+
+                        result.Add(new
+                        {
+                            deviceId = dev.DeviceId,
+                            inspectionRequestId = (int?)null,
+                            collectionAssignmentId = ca.CollectionAssignmentId,
+
+                            brand = dev.Brand,
+                            model = dev.Model,
+                            modelNumber = dev.ModelNumber,
+                            serialNumber = dev.SerialNumber,
+                            deviceQrToken = !string.IsNullOrEmpty(dev.DeviceQrToken) ? dev.DeviceQrToken : $"ECOQR-DEV-{dev.DeviceId}",
+                            categoryName = dev.Category?.CategoryName ?? "E-Waste",
+                            quantity = dev.Quantity,
+                            weight = dev.Weight,
+                            condition = dev.Condition,
+                            working = dev.Working,
+                            physicalDamage = dev.PhysicalDamage,
+                            displayCondition = dev.DisplayCondition,
+                            batteryCondition = dev.BatteryCondition,
+                            accessories = dev.Accessories,
+                            charger = dev.Charger,
+                            ownership = dev.Ownership,
+                            ownershipConfirmed = dev.OwnershipConfirmed,
+                            processingPreference = dev.ProcessingPreference,
+                            frontPhoto = dev.FrontPhoto,
+                            backPhoto = dev.BackPhoto,
+                            damagePhoto = dev.DamagePhoto,
+                            labelPhoto = dev.LabelPhoto,
+
+                            customerName = dev.User != null ? $"{dev.User.FirstName} {dev.User.LastName}".Trim() : "Citizen",
+                            customerPhone = dev.User?.PhoneNumber ?? "",
+                            address = dev.Address,
+                            landmark = dev.Landmark,
+                            city = dev.User?.City ?? "",
+                            district = dev.User?.District ?? "",
+                            state = dev.User?.State ?? "",
+                            pincode = dev.User?.Pincode ?? "",
+
+                            pickupDate = dev.PickupDate,
+                            timeSlot = dev.TimeSlot,
+                            pickupInstructions = dev.PickupInstructions,
+
+                            status = caStatus,
+                            deliveryStatus = delStatus,
+                            lifecycleStatus = dev.LifecycleStatus,
+                            requestStatus = caStatus,
+
+                            hasPreviousFailedPickup = hasPreviousFailedPickup,
+                            previousFailureReason = previousFailureReason,
+                            previousAgentName = previousAgentName,
+
+                            collectionAgentId = ca.CollectionAgentId,
+                            collectionAgentName = ca.CollectionAgent != null ? $"{ca.CollectionAgent.FirstName} {ca.CollectionAgent.LastName}".Trim() : "Assigned Agent",
+                            collectionAgentPhone = ca.CollectionAgent?.Phone ?? ca.CollectionAgent?.AlternatePhone ?? "",
+                            collectionAgentAltPhone = ca.CollectionAgent?.AlternatePhone,
+                            collectionAgentPhoto = ca.CollectionAgent?.ProfilePicture,
+
+                            inspectionCenterName = tech.InspectionCenterName ?? "EcoCycle Inspection Hub",
+                            technicianAddress = tech.Address,
+                            technicianPhone = tech.PhoneNumber,
+
+                            assignedAt = ca.AssignedAt ?? ca.CreatedAt,
+                            startedAt = ca.AssignedAt,
+                            deliveredAt = delObj?.DeliveredAt,
+                            inspectionDeadline = (await db.Inspection.FirstOrDefaultAsync(i => i.DeviceId == dev.DeviceId))?.InspectionDeadline ?? (delObj?.DeliveredAt?.AddDays(3) ?? (ca.AssignedAt?.AddDays(3) ?? dev.CreatedAt.AddDays(3))),
+                            createdAt = dev.CreatedAt
+                        });
+                    }
                 }
 
                 return Ok(result);
@@ -632,6 +966,346 @@ namespace EcoCycle.API.Controllers
                 return StatusCode(500, new { message = "Error retrieving technician deliveries.", error = ex.Message });
             }
         }
+
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        [HttpPost("confirm-receipt/{assignmentId}")]
+        public async Task<IActionResult> ConfirmDeviceReceipt(int assignmentId, [FromBody] ConfirmReceiptDto? dto)
+        {
+            try
+            {
+                var ca = await db.CollectionAssignments
+                    .Include(a => a.Device)
+                        .ThenInclude(d => d.User)
+                            .ThenInclude(u => u.Login)
+                    .Include(a => a.CollectionAgent)
+                        .ThenInclude(agent => agent.Login)
+                    .FirstOrDefaultAsync(a => a.CollectionAssignmentId == assignmentId);
+
+                if (ca == null)
+                {
+                    return NotFound(new { message = "Collection assignment not found." });
+                }
+
+                // 1. Update or create Delivery Record
+                var delivery = await db.Deliveries
+                    .FirstOrDefaultAsync(d => d.CollectionAssignmentId == assignmentId);
+
+                if (delivery == null)
+                {
+                    delivery = new Delivery
+                    {
+                        CollectionAssignmentId = assignmentId,
+                        Status = "Delivered",
+                        StartedAt = DateTime.Now,
+                        DeliveredAt = DateTime.Now,
+                        DeviceVerified = true,
+                        AgentNotes = dto?.Notes ?? "Device received and physically verified by Technician."
+                    };
+                    db.Deliveries.Add(delivery);
+                }
+                else
+                {
+                    delivery.Status = "Delivered";
+                    delivery.DeliveredAt = DateTime.Now;
+                    delivery.DeviceVerified = true;
+                    delivery.HandoverRejectedAt = null;
+                    delivery.HandoverRejectionReason = null;
+                    if (!string.IsNullOrWhiteSpace(dto?.Notes))
+                    {
+                        delivery.AgentNotes = dto.Notes;
+                    }
+                }
+
+                // 2. Update CollectionAssignment Status to DeliveredToCenter
+                ca.Status = "DeliveredToCenter";
+
+                // 3. Update or create Inspection Request Status (Waiting -> Assigned)
+                var inspReq = await db.InspectionRequest
+                    .Where(ir => ir.DeviceId == ca.DeviceId && ir.Status != "Rejected" && ir.Status != "Cancelled")
+                    .OrderByDescending(ir => ir.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (inspReq == null)
+                {
+                    var defaultTech = await db.Technician
+                        .Where(t => t.Status == "Active" || t.Status == "Approved")
+                        .FirstOrDefaultAsync() ?? await db.Technician.FirstOrDefaultAsync();
+
+                    if (defaultTech != null)
+                    {
+                        inspReq = new InspectionRequest
+                        {
+                            DeviceId = ca.DeviceId,
+                            TechnicianId = defaultTech.TechnicianId,
+                            Status = "Assigned",
+                            AssignedAt = DateTime.Now,
+                            ResponseDeadline = DateTime.Now.AddHours(24),
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now
+                        };
+                        db.InspectionRequest.Add(inspReq);
+                        await db.SaveChangesAsync();
+                    }
+                }
+                else
+                {
+                    if (inspReq.Status == "Waiting" || inspReq.Status == "Pending" || inspReq.Status == "Scheduled")
+                    {
+                        inspReq.Status = "Assigned";
+                    }
+                    inspReq.UpdatedAt = DateTime.Now;
+                }
+
+                // 4. Update Device Lifecycle Status
+                if (ca.Device != null)
+                {
+                    ca.Device.LifecycleStatus = "AtInspectionCenter";
+                    ca.Device.Status = "Assigned";
+                }
+
+                // 5. Notify Collection Agent (Notification + Email)
+                if (ca.CollectionAgent != null && ca.CollectionAgent.Login != null)
+                {
+                    var agentNotif = new Notification
+                    {
+                        LoginId = ca.CollectionAgent.Login.LoginId,
+                        Title = "Device Handover Approved",
+                        Message = $"Technician verified & accepted device handover for {ca.Device?.Brand} {ca.Device?.Model} (Device #{ca.DeviceId}).",
+                        Isread = false,
+                        Status = true,
+                        CreatedAt = DateTime.Now
+                    };
+                    db.Notification.Add(agentNotif);
+
+                    if (!string.IsNullOrWhiteSpace(ca.CollectionAgent.Login.Email))
+                    {
+                        string agentEmailSub = $"EcoCycle - Handover Accepted: {ca.Device?.Brand} {ca.Device?.Model}";
+                        string agentEmailBody = $@"
+                        <html>
+                        <body style='font-family: Arial, sans-serif;'>
+                            <h2 style='color: #059669;'>Device Handover Confirmed</h2>
+                            <p>Dear <strong>{ca.CollectionAgent.FirstName}</strong>,</p>
+                            <p>The Inspection Officer has verified and accepted the device handover for <strong>{ca.Device?.Brand} {ca.Device?.Model}</strong> (Device ID #{ca.DeviceId}).</p>
+                            <p>Delivery Status: <strong>Delivered to Center</strong></p>
+                            <p>Thank you for completing this collection delivery!</p>
+                        </body>
+                        </html>";
+                        await SendEmailAsync(ca.CollectionAgent.Login.Email, agentEmailSub, agentEmailBody);
+                    }
+                }
+
+                // 6. Notify Citizen (Notification + Email)
+                if (ca.Device != null && ca.Device.User != null && ca.Device.User.Login != null)
+                {
+                    var citizenNotif = new Notification
+                    {
+                        LoginId = ca.Device.User.Login.LoginId,
+                        Title = "Device Delivered & Verified at Hub",
+                        Message = $"Your e-waste device ({ca.Device.Brand} {ca.Device.Model}) has been safely received and verified by our Inspection Officer.",
+                        Isread = false,
+                        Status = true,
+                        CreatedAt = DateTime.Now
+                    };
+                    db.Notification.Add(citizenNotif);
+
+                    if (!string.IsNullOrWhiteSpace(ca.Device.User.Login.Email))
+                    {
+                        string citizenEmailSub = $"EcoCycle - Device Received at Inspection Hub";
+                        string citizenEmailBody = $@"
+                        <html>
+                        <body style='font-family: Arial, sans-serif;'>
+                            <h2 style='color: #059669;'>Device Delivered to Inspection Center</h2>
+                            <p>Dear <strong>{ca.Device.User.FirstName}</strong>,</p>
+                            <p>Your listed e-waste device <strong>{ca.Device.Brand} {ca.Device.Model}</strong> has arrived at our inspection facility and was successfully verified by the Inspection Officer.</p>
+                            <p>Our team will now perform technical evaluations and recycling processing.</p>
+                        </body>
+                        </html>";
+                        await SendEmailAsync(ca.Device.User.Login.Email, citizenEmailSub, citizenEmailBody);
+                    }
+                }
+
+                // 7. Add or update entry in db.Inspection when device is accepted from Collection Agent
+                DateTime deadline = DateTime.Now.AddDays(3);
+                int targetTechId = inspReq?.TechnicianId ?? 0;
+                if (targetTechId <= 0)
+                {
+                    var activeTech = await db.Technician.FirstOrDefaultAsync(t => t.Status == "Active" || t.Status == "Approved")
+                                     ?? await db.Technician.FirstOrDefaultAsync();
+                    if (activeTech != null) targetTechId = activeTech.TechnicianId;
+                }
+
+                if (inspReq != null && targetTechId > 0)
+                {
+                    var existingInsp = await db.Inspection
+                        .FirstOrDefaultAsync(i => i.InspectionRequestId == inspReq.InspectionRequestId || i.DeviceId == ca.DeviceId);
+
+                    if (existingInsp == null)
+                    {
+                        var newInsp = new Inspection
+                        {
+                            InspectionRequestId = inspReq.InspectionRequestId,
+                            DeviceId = ca.DeviceId,
+                            TechnicianId = targetTechId,
+                            Status = "Pending",
+                            InspectionDeadline = deadline,
+                            CreatedAt = DateTime.Now,
+                            UpdatedAt = DateTime.Now
+                        };
+                        db.Inspection.Add(newInsp);
+                    }
+                    else
+                    {
+                        existingInsp.TechnicianId = targetTechId;
+                        if (existingInsp.InspectionDeadline.HasValue)
+                        {
+                            deadline = existingInsp.InspectionDeadline.Value;
+                        }
+                        else
+                        {
+                            existingInsp.InspectionDeadline = deadline;
+                        }
+                        existingInsp.UpdatedAt = DateTime.Now;
+                    }
+                }
+
+                await db.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "Device received and confirmed successfully!",
+                    deliveryStatus = "Delivered",
+                    inspectionStatus = inspReq?.Status ?? "Assigned",
+                    inspectionDeadline = deadline,
+                    receivedAt = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error confirming device receipt.", error = ex.Message });
+            }
+        }
+
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        [HttpPost("reject-handover/{assignmentId}")]
+        public async Task<IActionResult> RejectDeviceHandover(int assignmentId, [FromBody] RejectHandoverDto? dto)
+        {
+            try
+            {
+                var ca = await db.CollectionAssignments
+                    .Include(a => a.Device)
+                        .ThenInclude(d => d.User)
+                            .ThenInclude(u => u.Login)
+                    .Include(a => a.CollectionAgent)
+                        .ThenInclude(agent => agent.Login)
+                    .FirstOrDefaultAsync(a => a.CollectionAssignmentId == assignmentId);
+
+                if (ca == null)
+                {
+                    return NotFound(new { message = "Collection assignment not found." });
+                }
+
+                string reason = !string.IsNullOrWhiteSpace(dto?.Reason) ? dto.Reason : "Handover Rejected";
+                string description = dto?.Description ?? "";
+
+                // 1. Update or create Delivery Record
+                var delivery = await db.Deliveries
+                    .FirstOrDefaultAsync(d => d.CollectionAssignmentId == assignmentId);
+
+                if (delivery == null)
+                {
+                    delivery = new Delivery
+                    {
+                        CollectionAssignmentId = assignmentId,
+                        Status = "HandoverRejected",
+                        StartedAt = DateTime.Now,
+                        DeviceVerified = false,
+                        HandoverRejectedAt = DateTime.Now,
+                        HandoverRejectionReason = reason,
+                        TechnicianNotes = description
+                    };
+                    db.Deliveries.Add(delivery);
+                }
+                else
+                {
+                    delivery.Status = "HandoverRejected";
+                    delivery.DeviceVerified = false;
+                    delivery.HandoverRejectedAt = DateTime.Now;
+                    delivery.HandoverRejectionReason = reason;
+                    delivery.TechnicianNotes = description;
+                }
+
+                // 2. Update CollectionAssignment Status
+                ca.Status = "HandoverRejected";
+
+                // 3. Update Device Lifecycle Status
+                if (ca.Device != null)
+                {
+                    ca.Device.LifecycleStatus = "HandoverRejected";
+                }
+
+                // 4. Notify Collection Agent (Notification + Email)
+                if (ca.CollectionAgent != null && ca.CollectionAgent.Login != null)
+                {
+                    var agentNotif = new Notification
+                    {
+                        LoginId = ca.CollectionAgent.Login.LoginId,
+                        Title = "⚠️ Technician Rejected Device Handover",
+                        Message = $"Technician rejected device handover for {ca.Device?.Brand} {ca.Device?.Model}. Reason: {reason}. Notes: {description}",
+                        Isread = false,
+                        Status = true,
+                        CreatedAt = DateTime.Now
+                    };
+                    db.Notification.Add(agentNotif);
+
+                    if (!string.IsNullOrWhiteSpace(ca.CollectionAgent.Login.Email))
+                    {
+                        string agentEmailSub = $"⚠️ Action Required: Handover Rejected for {ca.Device?.Brand} {ca.Device?.Model}";
+                        string agentEmailBody = $@"
+                        <html>
+                        <body style='font-family: Arial, sans-serif;'>
+                            <h2 style='color: #dc2626;'>Technician Rejected Device Handover</h2>
+                            <p>Dear <strong>{ca.CollectionAgent.FirstName}</strong>,</p>
+                            <p>The Inspection Officer rejected the device handover for <strong>{ca.Device?.Brand} {ca.Device?.Model}</strong> (Device ID #{ca.DeviceId}).</p>
+                            <p><strong>Reason:</strong> <span style='color: #dc2626; font-weight: bold;'>{reason}</span></p>
+                            {(string.IsNullOrWhiteSpace(description) ? "" : $"<p><strong>Technician Notes:</strong> {description}</p>")}
+                            <p>Please review and resolve the issue with the device or contact the customer / inspection officer.</p>
+                        </body>
+                        </html>";
+                        await SendEmailAsync(ca.CollectionAgent.Login.Email, agentEmailSub, agentEmailBody);
+                    }
+                }
+
+                // 5. Notify Citizen (Notification)
+                if (ca.Device != null && ca.Device.User != null && ca.Device.User.Login != null)
+                {
+                    var citizenNotif = new Notification
+                    {
+                        LoginId = ca.Device.User.Login.LoginId,
+                        Title = "Handover Discrepancy Reported",
+                        Message = $"Inspection officer reported an issue ({reason}) during handover for your {ca.Device.Brand} {ca.Device.Model}. Collection agent is reviewing.",
+                        Isread = false,
+                        Status = true,
+                        CreatedAt = DateTime.Now
+                    };
+                    db.Notification.Add(citizenNotif);
+                }
+
+                await db.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "Device handover rejection recorded successfully.",
+                    deliveryStatus = "HandoverRejected",
+                    reason = reason,
+                    rejectedAt = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error rejecting device handover.", error = ex.Message });
+            }
+        }
+
         [HttpPost("accept/{requestId}")]
         public async Task<IActionResult> AcceptRequest(int requestId)
         {
@@ -697,17 +1371,20 @@ namespace EcoCycle.API.Controllers
                 }
 
                 request.Status = "Accepted";
-
-                request.RespondedAt =
-                    DateTime.Now;
-
-                request.UpdatedAt =
-                    DateTime.Now;
+                request.RespondedAt = DateTime.Now;
+                request.UpdatedAt = DateTime.Now;
 
                 var existingAssignment =
                     await db.CollectionAssignments
                     .FirstOrDefaultAsync(
-                        x => x.DeviceId == request.DeviceId && x.Status != "Rejected" && x.Status != "Cancelled"
+                        x => x.DeviceId == request.DeviceId &&
+                             x.Status != "Rejected" &&
+                             x.Status != "Cancelled" &&
+                             x.Status != "DeliveredToCenter" &&
+                             x.Status != "Delivered" &&
+                             x.Status != "Completed" &&
+                             x.Status != "Reassigned" &&
+                             x.Status != "Expired"
                     );
 
                 if (existingAssignment != null)
@@ -740,6 +1417,9 @@ namespace EcoCycle.API.Controllers
                     {
                         DeviceId = request.DeviceId,
                         CollectionAgentId = null,
+                        AssignmentType = "CustomerToTechnician",
+                        SourceType = "Customer",
+                        DestinationType = "Technician Center",
                         Status = "Waiting",
                         AssignedAt = null,
                         ResponseDeadline = DateTime.Now.AddHours(24),
@@ -774,6 +1454,15 @@ namespace EcoCycle.API.Controllers
 
                     CollectionAgentId =
                         agent.CollectionAgentId,
+
+                    AssignmentType =
+                        "CustomerToTechnician",
+
+                    SourceType =
+                        "Customer",
+
+                    DestinationType =
+                        "Technician Center",
 
                     Status =
                         "Assigned",
@@ -1112,7 +1801,6 @@ namespace EcoCycle.API.Controllers
                         Status = "Waiting",
                         AssignedAt = null,
                         ResponseDeadline = null,
-                        InspectionDeadline = null,
                         RespondedAt = null,
                         RejectionReason = null,
                         ReassignmentCount = request.ReassignmentCount + 1,
@@ -1155,7 +1843,6 @@ namespace EcoCycle.API.Controllers
                     Status = "Assigned",
                     AssignedAt = DateTime.Now,
                     ResponseDeadline = DateTime.Now.AddHours(24),
-                    InspectionDeadline = DateTime.Now.AddDays(3),
                     RespondedAt = null,
                     RejectionReason = null,
                     ReassignmentCount = request.ReassignmentCount + 1,
@@ -1262,11 +1949,6 @@ namespace EcoCycle.API.Controllers
     <p>
         <strong>Response Deadline:</strong>
         {newRequest.ResponseDeadline:dd-MM-yyyy hh:mm tt}
-    </p>
-
-    <p>
-        <strong>Inspection Deadline:</strong>
-        {newRequest.InspectionDeadline:dd-MM-yyyy hh:mm tt}
     </p>
 
     <p>
@@ -1395,14 +2077,22 @@ namespace EcoCycle.API.Controllers
             // EXCLUDE:
             // 1. CURRENT/OLD TECHNICIAN
             // 2. EVERY TECHNICIAN WHO ALREADY REJECTED
+            // 3. TECHNICIANS WITH UNPAID/PENDING FINES
             // =========================================================
+
+            var penalizedTechIds = await db.technicianPenalties
+                .Where(p => p.Status == "Pending" || p.Status == "Unpaid")
+                .Select(p => p.TechnicianId)
+                .Distinct()
+                .ToListAsync();
 
             var technicians = await db.Technician
                 .Include(t => t.Login)
                 .Where(t => (t.Status == "Active" || t.Status == "Approved") &&
                             t.TechnicianId != excludedTechnicianId &&
                             !rejectedTechIds.Contains(t.TechnicianId) &&
-                            !rejectedLoginIds.Contains(t.LoginId))
+                            !rejectedLoginIds.Contains(t.LoginId) &&
+                            !penalizedTechIds.Contains(t.TechnicianId))
                 .ToListAsync();
 
             if (!technicians.Any())
@@ -1410,21 +2100,22 @@ namespace EcoCycle.API.Controllers
                 // Fallback: any active/approved technician if all non-rejected ones are excluded
                 technicians = await db.Technician
                     .Include(t => t.Login)
-                    .Where(t => t.Status == "Active" || t.Status == "Approved")
+                    .Where(t => (t.Status == "Active" || t.Status == "Approved") && !penalizedTechIds.Contains(t.TechnicianId))
                     .ToListAsync();
             }
 
             if (!technicians.Any())
             {
-                // Ultimate fallback: any technician in system
+                // Ultimate fallback: any technician in system without unpaid fine
                 technicians = await db.Technician
                     .Include(t => t.Login)
+                    .Where(t => !penalizedTechIds.Contains(t.TechnicianId))
                     .ToListAsync();
             }
 
             if (!technicians.Any())
             {
-                Console.WriteLine("NO TECHNICIANS IN DATABASE");
+                Console.WriteLine("NO TECHNICIANS IN DATABASE (OR ALL HAVE UNPAID FINES)");
                 return null;
             }
 
@@ -1495,7 +2186,7 @@ namespace EcoCycle.API.Controllers
             await CheckAndUpdateExpiredInspectionRequests();
             await CollectionAssignmentController.CheckAndUpdateExpiredCollectionAssignments(db);
 
-            var assignments = await db.InspectionRequest
+            var rawAssignments = await db.InspectionRequest
                 .Include(x => x.Device)
                     .ThenInclude(d => d.Category)
                 .Include(x => x.Device)
@@ -1503,40 +2194,220 @@ namespace EcoCycle.API.Controllers
                 .Include(x => x.Technician)
                     .ThenInclude(t => t.Login)
                 .OrderByDescending(x => x.CreatedAt)
-                .Select(x => new
+                .ToListAsync();
+
+            var deviceIds = rawAssignments.Select(a => a.DeviceId).ToList();
+            var inspectionList = await db.Inspection
+                .Where(i => deviceIds.Contains(i.DeviceId))
+                .ToListAsync();
+
+            DateTime now = DateTime.Now;
+
+            var assignments = rawAssignments.Select(x => {
+                var insp = inspectionList.FirstOrDefault(i => i.InspectionRequestId == x.InspectionRequestId) ?? inspectionList.FirstOrDefault(i => i.InspectionRequestId == 0 && i.DeviceId == x.DeviceId);
+                DateTime? deadline = insp?.InspectionDeadline;
+                bool isCompleted = string.Equals(x.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(x.Device?.LifecycleStatus, "Inspected", StringComparison.OrdinalIgnoreCase);
+                bool isOverdue = deadline.HasValue && deadline.Value < now && !isCompleted;
+
+                return new
                 {
                     inspectionRequestId = x.InspectionRequestId,
 
                     deviceId = x.DeviceId,
-                    brand = x.Device.Brand,
-                    model = x.Device.Model,
-                    category = x.Device.Category.CategoryName,
+                    brand = x.Device != null ? x.Device.Brand : "",
+                    model = x.Device != null ? x.Device.Model : "",
+                    category = x.Device?.Category != null ? x.Device.Category.CategoryName : "E-Waste",
 
-                    userName = x.Device.User.FirstName+" "+x.Device.User.LastName,
+                    userName = x.Device?.User != null ? x.Device.User.FirstName + " " + x.Device.User.LastName : "N/A",
 
                     technicianId = x.TechnicianId,
                     technicianName = x.Technician != null
                         ? x.Technician.FirstName + " " + x.Technician.LastName
                         : null,
 
-                    technicianEmail = x.Technician != null
+                    technicianEmail = x.Technician?.Login != null
                         ? x.Technician.Login.Email
                         : null,
 
-                    status = x.Status,
+                    status = (insp != null && string.Equals(insp.Status, "Penalized", StringComparison.OrdinalIgnoreCase))
+                        ? "Penalized"
+                        : x.Status,
 
                     assignedAt = x.AssignedAt,
                     responseDeadline = x.ResponseDeadline,
-                    inspectionDeadline = x.InspectionDeadline,
+                    inspectionDeadline = deadline,
+                    isInspectionOverdue = isOverdue,
+                    extensionCount = insp != null ? insp.ExtensionCount : 0,
 
                     rejectionReason = x.RejectionReason,
                     reassignmentCount = x.ReassignmentCount,
 
-                    lifecycleStatus = x.Device.LifecycleStatus
-                })
-                .ToListAsync();
+                    lifecycleStatus = x.Device?.LifecycleStatus
+                };
+            }).ToList();
 
             return Ok(assignments);
+        }
+
+        [HttpPost("admin/extend-deadline/{deviceId}")]
+        public async Task<IActionResult> ExtendInspectionDeadline(int deviceId, [FromQuery] int hours = 24)
+        {
+            var device = await db.Device
+                .Include(d => d.Category)
+                .FirstOrDefaultAsync(d => d.DeviceId == deviceId);
+
+            if (device == null)
+            {
+                return NotFound(new { message = $"Device #{deviceId} not found." });
+            }
+
+            var inspReq = await db.InspectionRequest
+                .Include(r => r.Technician)
+                    .ThenInclude(t => t.Login)
+                .Where(r => r.DeviceId == deviceId && r.Status != "Rejected" && r.Status != "Cancelled")
+                .OrderByDescending(r => r.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (inspReq == null)
+            {
+                return NotFound(new { message = $"No active inspection request found for device #{deviceId}." });
+            }
+
+            var inspection = await db.Inspection
+                .FirstOrDefaultAsync(i => i.DeviceId == deviceId || i.InspectionRequestId == inspReq.InspectionRequestId);
+
+            if (inspection != null && inspection.ExtensionCount >= 2)
+            {
+                return BadRequest(new { message = "Maximum limit of two 24-hour extensions reached for this device inspection. Further extensions are not permitted." });
+            }
+
+            DateTime now = DateTime.Now;
+            DateTime baseDeadline = now;
+
+            if (inspection == null)
+            {
+                baseDeadline = now.AddHours(hours);
+                inspection = new Inspection
+                {
+                    InspectionRequestId = inspReq.InspectionRequestId,
+                    DeviceId = deviceId,
+                    TechnicianId = inspReq.TechnicianId ?? 0,
+                    Status = "Pending",
+                    InspectionDeadline = baseDeadline,
+                    ExtensionCount = 1,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                db.Inspection.Add(inspection);
+            }
+            else
+            {
+                DateTime currentDead = (inspection.InspectionDeadline.HasValue && inspection.InspectionDeadline.Value > now)
+                    ? inspection.InspectionDeadline.Value
+                    : now;
+                baseDeadline = currentDead.AddHours(hours);
+                inspection.InspectionDeadline = baseDeadline;
+                inspection.ExtensionCount += 1;
+                inspection.UpdatedAt = now;
+            }
+
+            await db.SaveChangesAsync();
+
+            // Ensure technician details are resolved
+            var technician = inspReq.Technician;
+            if (technician == null && inspReq.TechnicianId.HasValue && inspReq.TechnicianId.Value > 0)
+            {
+                technician = await db.Technician
+                    .Include(t => t.Login)
+                    .FirstOrDefaultAsync(t => t.TechnicianId == inspReq.TechnicianId.Value);
+            }
+
+            if (technician != null)
+            {
+                string formattedDeadline = baseDeadline.ToString("dd MMM yyyy, hh:mm tt");
+                string techName = $"{technician.FirstName} {technician.LastName}".Trim();
+                if (string.IsNullOrEmpty(techName)) techName = "Technician";
+
+                string? techEmail = technician.Login?.Email;
+
+                // 1. Create In-App Notification if Technician has LoginId
+                if (technician.LoginId > 0)
+                {
+                    var notification = new Notification
+                    {
+                        LoginId = technician.LoginId,
+                        Title = "Inspection Deadline Extended",
+                        Message = $"Administrator has granted a {hours}-hour deadline extension for device inspection ({device.Brand} {device.Model} - #{device.DeviceId}).\n\n" +
+                                  $"📌 Updated Inspection Details:\n" +
+                                  $"• New Inspection Deadline: {formattedDeadline}\n" +
+                                  $"• Extension Count: {inspection.ExtensionCount}/2\n\n" +
+                                  $"⚠️ Inspection Deadline Policy:\n" +
+                                  $"• A maximum of two 24-hour extensions are permitted per inspection assignment.\n" +
+                                  $"• Failure to complete the inspection after the second 24-hour extension will incur a technician performance penalty.",
+                        Isread = false,
+                        Status = true,
+                        CreatedAt = now
+                    };
+                    db.Notification.Add(notification);
+                    await db.SaveChangesAsync();
+                }
+
+                // 2. Send Email Notification to Technician
+                if (!string.IsNullOrWhiteSpace(techEmail))
+                {
+                    string emailSubject = $"[EcoCycle] Inspection Deadline Extended (+{hours}h) - {device.Brand} {device.Model}";
+                    string emailBody = $@"
+                        <div style='font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; border: 1px solid #10b981; border-radius: 12px; padding: 24px; background-color: #ffffff;'>
+                            <div style='background-color: #ecfdf5; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;'>
+                                <h2 style='color: #047857; margin: 0; font-size: 20px;'>EcoCycle E-Waste Management</h2>
+                                <p style='color: #065f46; margin: 4px 0 0 0; font-weight: 600; font-size: 13px;'>Inspection Deadline Extension Granted (Extension {inspection.ExtensionCount}/2)</p>
+                            </div>
+                            
+                            <p style='font-size: 14px; color: #1e293b;'>Dear <strong>{techName}</strong>,</p>
+                            <p style='font-size: 14px; color: #334155;'>The Administrator has granted a <strong>{hours}-hour deadline extension</strong> for your assigned device inspection.</p>
+                            
+                            <div style='background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; margin: 20px 0; border-radius: 8px;'>
+                                <p style='margin: 0 0 8px 0; font-size: 13px; color: #475569;'><strong>Device:</strong> {device.Brand} {device.Model} (#{device.DeviceId})</p>
+                                <p style='margin: 0 0 8px 0; font-size: 13px; color: #475569;'><strong>Category:</strong> {device.Category?.CategoryName ?? "E-Waste"}</p>
+                                <p style='margin: 0 0 8px 0; font-size: 13px; color: #475569;'><strong>Inspection Request ID:</strong> #{inspReq.InspectionRequestId}</p>
+                                <p style='margin: 0 0 8px 0; font-size: 13px; color: #475569;'><strong>Extensions Granted:</strong> {inspection.ExtensionCount} of 2 permitted</p>
+                                <p style='margin: 0; font-size: 14px; color: #047857;'><strong>New Inspection Deadline:</strong> <span style='font-weight: 800;'>{formattedDeadline}</span></p>
+                            </div>
+
+                            <div style='background-color: #fffbe6; border: 1.5px solid #fde68a; border-radius: 10px; padding: 18px; margin: 20px 0;'>
+                                <h4 style='color: #b45309; margin: 0 0 10px 0; font-size: 15px; font-weight: 800;'>Technician Inspection Deadline &amp; Penalty Instruction</h4>
+                                <p style='font-size: 13px; color: #78350f; font-weight: 800; margin: 0 0 6px 0;'>Inspection Deadline Policy</p>
+                                <p style='font-size: 12px; color: #92400e; margin: 0 0 6px 0; line-height: 1.5;'>• Once a device is assigned to you, you are responsible for completing the inspection within the specified inspection deadline.</p>
+                                <p style='font-size: 12px; color: #92400e; margin: 0 0 6px 0; line-height: 1.5;'>• If you are unable to complete the inspection within the initial deadline, an extension may be provided. A maximum of two 24-hour extensions will be permitted.</p>
+                                <p style='font-size: 12px; color: #92400e; margin: 0 0 6px 0; line-height: 1.5;'>• If the inspection is still not completed after the second 24-hour extension, a penalty will be applied to the assigned technician for failure to complete the inspection within the permitted timeframe.</p>
+                                <p style='font-size: 12px; color: #92400e; margin: 0 0 6px 0; line-height: 1.5;'>• Repeated failure to complete inspections on time may also affect your technician performance record and future assignments.</p>
+                                <p style='font-size: 12px; color: #92400e; margin: 0; line-height: 1.5;'>• Please ensure that every assigned device is inspected within the permitted deadline or request an extension when necessary.</p>
+                            </div>
+                            
+                            <hr style='border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;' />
+                            <p style='font-size: 11px; color: #94a3b8; margin: 0; text-align: center;'>This is an automated notification from the EcoCycle System. Please do not reply directly to this email.</p>
+                        </div>";
+
+                    try
+                    {
+                        await SendEmailAsync(techEmail, emailSubject, emailBody);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[ExtendInspectionDeadline Email Error]: {ex.Message}");
+                    }
+                }
+            }
+
+            return Ok(new
+            {
+                message = $"Inspection deadline extended by {hours} hours successfully.",
+                deviceId = deviceId,
+                newInspectionDeadline = baseDeadline,
+                hoursGranted = hours,
+                extensionCount = inspection.ExtensionCount
+            });
         }
 
         [Microsoft.AspNetCore.Authorization.Authorize]
@@ -1571,16 +2442,51 @@ namespace EcoCycle.API.Controllers
                     .OrderByDescending(d => d.CreatedAt)
                     .ToListAsync();
 
-                // Update LifecycleStatus in DB for devices whose scheduled pickup date has passed
+                // Auto-repair any devices mistakenly marked as DueDatePassed despite having active inspection/collection
                 bool hasUpdates = false;
                 var today = DateTime.Today;
+                var activeOrCompletedStatuses = new[]
+                {
+                    "inspected", "inspectioncompleted", "inspectionassigned", "inspectionaccepted", "inspectioninprogress",
+                    "atinspectioncenter", "collectionassigned", "collectionpending", "pickedup", "enroute",
+                    "handoverpendingverification", "recyclingcenteraccepted", "refurbishmentcenteraccepted",
+                    "completed", "delivered", "recycled", "refurbished", "duedatepassed", "pickupcancelled", "cancelled"
+                };
+
                 foreach (var d in devices)
                 {
+                    if (d.LifecycleStatus == "DueDatePassed")
+                    {
+                        if (!string.IsNullOrEmpty(d.ProcessingDecision) || (d.InspectionRequests != null && d.InspectionRequests.Any(ir => ir.Status == "Accepted" || ir.Status == "Completed")))
+                        {
+                            d.LifecycleStatus = "Inspected";
+                            hasUpdates = true;
+                            continue;
+                        }
+                        if (d.CollectionAssignments != null && d.CollectionAssignments.Any(ca => ca.Status == "DeliveredToCenter"))
+                        {
+                            d.LifecycleStatus = "AtInspectionCenter";
+                            hasUpdates = true;
+                            continue;
+                        }
+                        if (d.CollectionAssignments != null && d.CollectionAssignments.Any(ca => ca.Status == "Assigned" || ca.Status == "Accepted" || ca.Status == "PickupStarted"))
+                        {
+                            d.LifecycleStatus = "CollectionAssigned";
+                            hasUpdates = true;
+                            continue;
+                        }
+                    }
+
                     var latestCa = d.CollectionAssignments.OrderByDescending(ca => ca.CreatedAt).FirstOrDefault();
                     string caStatus = latestCa?.Status?.ToLower() ?? "";
                     bool isDone = caStatus == "completed" || caStatus == "delivered" || caStatus == "pickedup";
+                    string lcs = (d.LifecycleStatus ?? "").ToLower().Trim();
 
-                    if (!isDone && d.LifecycleStatus != "PickupCancelled" && d.LifecycleStatus != "DueDatePassed")
+                    if (!isDone &&
+                        !activeOrCompletedStatuses.Contains(lcs) &&
+                        d.Status != "Accepted" &&
+                        string.IsNullOrEmpty(d.ProcessingDecision) &&
+                        (d.InspectionRequests == null || !d.InspectionRequests.Any(ir => ir.Status != "Rejected" && ir.Status != "Cancelled")))
                     {
                         if (d.PickupDate.Date < today)
                         {
@@ -1594,17 +2500,46 @@ namespace EcoCycle.API.Controllers
                     await db.SaveChangesAsync();
                 }
 
+                // Fetch Deliveries records for these collection assignments
+                var assignmentIds = devices
+                    .SelectMany(d => d.CollectionAssignments)
+                    .Where(ca => ca.CollectionAssignmentId.HasValue)
+                    .Select(ca => ca.CollectionAssignmentId!.Value)
+                    .ToList();
+
+                var deliveriesList = await db.Deliveries
+                    .Where(del => assignmentIds.Contains(del.CollectionAssignmentId))
+                    .ToListAsync();
+
+                var deliveriesMap = deliveriesList
+                    .GroupBy(del => del.CollectionAssignmentId)
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(del => del.CreatedAt).FirstOrDefault());
+
                 var result = devices.Select(d => {
                     var latestInsp = d.InspectionRequests.OrderByDescending(ir => ir.CreatedAt).FirstOrDefault();
                     var latestAssignment = d.CollectionAssignments.OrderByDescending(ca => ca.CreatedAt).FirstOrDefault();
+
+                    Delivery? latestDelivery = null;
+                    if (latestAssignment?.CollectionAssignmentId != null && deliveriesMap.TryGetValue(latestAssignment.CollectionAssignmentId.Value, out var foundDel))
+                    {
+                        latestDelivery = foundDel;
+                    }
 
                     bool isAgentAccepted = latestAssignment != null && (
                         string.Equals(latestAssignment.Status, "Accepted", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(latestAssignment.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(latestAssignment.Status, "PickedUp", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(latestAssignment.Status, "InTransit", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(latestAssignment.Status, "AwaitingTechnicianApproval", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(latestAssignment.Status, "DeliveredToCenter", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(latestAssignment.Status, "Delivered", StringComparison.OrdinalIgnoreCase)
                     );
+
+                    var tech = latestInsp?.Technician;
+                    string techCenterName = tech != null && !string.IsNullOrWhiteSpace(tech.InspectionCenterName) ? tech.InspectionCenterName : "EcoCycle Regional Inspection Hub";
+                    string techCenterAddress = tech != null && !string.IsNullOrWhiteSpace(tech.Address) 
+                        ? $"{tech.Address}{(string.IsNullOrWhiteSpace(tech.City) ? "" : ", City: " + tech.City)}{(string.IsNullOrWhiteSpace(tech.PinCode) ? "" : " - PIN: " + tech.PinCode)}"
+                        : "EcoCycle Central Hub, Processing Center";
 
                     return new
                     {
@@ -1628,8 +2563,12 @@ namespace EcoCycle.API.Controllers
                         lifecycleStatus = d.LifecycleStatus,
                         requestStatus = latestInsp != null ? latestInsp.Status : (d.LifecycleStatus ?? "Scheduled"),
                         createdAt = d.CreatedAt,
-                        technicianName = latestInsp?.Technician != null ? $"{latestInsp.Technician.FirstName} {latestInsp.Technician.LastName}" : "Pending Assignment",
-                        technicianPhone = latestInsp?.Technician?.PhoneNumber,
+                        technicianName = tech != null ? $"{tech.FirstName} {tech.LastName}".Trim() : "Pending Assignment",
+                        technicianPhone = tech?.PhoneNumber,
+                        assignedTechnicianName = tech != null ? $"{tech.FirstName} {tech.LastName}".Trim() : "Pending Assignment",
+                        assignedTechnicianCenterName = techCenterName,
+                        assignedTechnicianCenterAddress = techCenterAddress,
+                        assignedTechnicianPhone = tech?.PhoneNumber,
                         collectionAgentAccepted = isAgentAccepted,
                         collectionAssignmentStatus = latestAssignment != null ? latestAssignment.Status : null,
                         collectionAgentName = latestAssignment?.CollectionAgent != null ? $"{latestAssignment.CollectionAgent.FirstName} {latestAssignment.CollectionAgent.LastName}" : null,
@@ -1641,7 +2580,9 @@ namespace EcoCycle.API.Controllers
                         deviceQrToken = !string.IsNullOrEmpty(d.DeviceQrToken) ? d.DeviceQrToken : $"ECOQR-DEV-{d.DeviceId}",
                         acceptedAt = latestAssignment?.AcceptedAt,
                         pickedUpAt = latestAssignment?.PickedUpAt,
-                        deliveredAt = latestAssignment?.DeliveredAt
+                        deliveredAt = latestDelivery?.DeliveredAt ?? latestAssignment?.DeliveredAt,
+                        deliveryStatus = latestDelivery?.Status ?? (latestAssignment?.Status == "DeliveredToCenter" ? "Delivered" : latestAssignment?.Status),
+                        deliveryStartedAt = latestDelivery?.StartedAt
                     };
                 }).ToList();
 
@@ -1671,15 +2612,21 @@ namespace EcoCycle.API.Controllers
             var technician = await FindBestTechnician(device);
             if (technician == null)
             {
+                var penalizedTechIds = await db.technicianPenalties
+                    .Where(p => p.Status == "Pending" || p.Status == "Unpaid")
+                    .Select(p => p.TechnicianId)
+                    .Distinct()
+                    .ToListAsync();
+
                 technician = await db.Technician
                     .Include(t => t.Login)
-                    .Where(t => t.Status == "Active")
+                    .Where(t => t.Status == "Active" && !penalizedTechIds.Contains(t.TechnicianId))
                     .OrderBy(t => db.InspectionRequest.Count(ir => ir.TechnicianId == t.TechnicianId && (ir.Status == "Assigned" || ir.Status == "Accepted" || ir.Status == "InProgress")))
                     .FirstOrDefaultAsync();
 
                 if (technician == null)
                 {
-                    return BadRequest(new { message = "No active technician available for manual allocation." });
+                    return BadRequest(new { message = "No eligible active technician (without pending fines) is available for allocation." });
                 }
             }
 
@@ -1710,6 +2657,14 @@ namespace EcoCycle.API.Controllers
                 return NotFound(new { message = "Technician not found." });
             }
 
+            bool hasUnpaidFine = await db.technicianPenalties
+                .AnyAsync(p => p.TechnicianId == technicianId && (p.Status == "Pending" || p.Status == "Unpaid"));
+
+            if (hasUnpaidFine)
+            {
+                return BadRequest(new { message = $"Allocation Denied: Technician {technician.FirstName} {technician.LastName} cannot be allocated because they have an outstanding policy fine. Please resolve their fine first." });
+            }
+
             return await AssignTechnicianToDevice(device, technician);
         }
 
@@ -1720,59 +2675,48 @@ namespace EcoCycle.API.Controllers
                 .OrderByDescending(x => x.CreatedAt)
                 .FirstOrDefaultAsync();
 
-            InspectionRequest request;
+            int reassignmentCount = 0;
+
             if (existingRequest != null)
             {
-                bool isExpired = string.Equals(existingRequest.Status, "Expired", StringComparison.OrdinalIgnoreCase) ||
-                                 (existingRequest.ResponseDeadline.HasValue && existingRequest.ResponseDeadline.Value < DateTime.Now);
+                reassignmentCount = existingRequest.ReassignmentCount + 1;
 
-                if (isExpired)
+                if (!string.Equals(existingRequest.Status, "Expired", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(existingRequest.Status, "Rejected", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(existingRequest.Status, "Cancelled", StringComparison.OrdinalIgnoreCase))
                 {
-                    existingRequest.Status = "Expired";
-                    existingRequest.UpdatedAt = DateTime.Now;
+                    existingRequest.Status = "Reassigned";
+                }
 
-                    request = new InspectionRequest
-                    {
-                        DeviceId = device.DeviceId,
-                        TechnicianId = technician.TechnicianId,
-                        Status = "Assigned",
-                        AssignedAt = DateTime.Now,
-                        ResponseDeadline = DateTime.Now.AddHours(24),
-                        InspectionDeadline = DateTime.Now.AddDays(3),
-                        ReassignmentCount = existingRequest.ReassignmentCount + 1,
-                        CreatedAt = DateTime.Now,
-                        UpdatedAt = DateTime.Now
-                    };
-                    db.InspectionRequest.Add(request);
-                }
-                else
-                {
-                    request = existingRequest;
-                    request.TechnicianId = technician.TechnicianId;
-                    request.Status = "Assigned";
-                    request.AssignedAt = DateTime.Now;
-                    request.ResponseDeadline = DateTime.Now.AddHours(24);
-                    request.InspectionDeadline = DateTime.Now.AddDays(3);
-                    request.UpdatedAt = DateTime.Now;
-                }
+                existingRequest.UpdatedAt = DateTime.Now;
             }
-            else
+
+            var request = new InspectionRequest
             {
-                request = new InspectionRequest
-                {
-                    DeviceId = device.DeviceId,
-                    TechnicianId = technician.TechnicianId,
-                    Status = "Assigned",
-                    AssignedAt = DateTime.Now,
-                    ResponseDeadline = DateTime.Now.AddHours(24),
-                    InspectionDeadline = DateTime.Now.AddDays(3),
-                    CreatedAt = DateTime.Now,
-                    UpdatedAt = DateTime.Now
-                };
-                db.InspectionRequest.Add(request);
-            }
+                DeviceId = device.DeviceId,
+                TechnicianId = technician.TechnicianId,
+                Status = "Assigned",
+                AssignedAt = DateTime.Now,
+                ResponseDeadline = DateTime.Now.AddHours(24),
+                ReassignmentCount = reassignmentCount,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now
+            };
+
+            db.InspectionRequest.Add(request);
 
             device.LifecycleStatus = "InspectionAssigned";
+
+            var existingInspections = await db.Inspection
+                .Where(i => i.DeviceId == device.DeviceId && i.Status != "Completed")
+                .ToListAsync();
+
+            foreach (var insp in existingInspections)
+            {
+                insp.Status = "Reassigned";
+                insp.UpdatedAt = DateTime.Now;
+            }
+
             await db.SaveChangesAsync();
 
             if (technician.Login != null)
@@ -1814,5 +2758,304 @@ namespace EcoCycle.API.Controllers
                 status = request.Status
             });
         }
+
+        // Admin Endpoints: Manage Technician Penalties
+        [HttpGet("technician-penalties")]
+        public async Task<IActionResult> GetAllTechnicianPenalties()
+        {
+            await CheckAndApplyOverdueInspectionPenalties();
+
+            var penalties = await db.technicianPenalties
+                .Include(p => p.Technician)
+                    .ThenInclude(t => t!.Login)
+                .Include(p => p.Device)
+                    .ThenInclude(d => d!.Category)
+                .OrderByDescending(p => p.CreatedAt)
+                .Select(p => new
+                {
+                    technicianPenaltyId = p.TechnicianPenaltyId,
+                    technicianId = p.TechnicianId,
+                    technicianName = p.Technician != null ? $"{p.Technician.FirstName} {p.Technician.LastName}".Trim() : "Technician",
+                    technicianEmail = p.Technician != null && p.Technician.Login != null ? p.Technician.Login.Email : "N/A",
+                    technicianPhone = p.Technician != null ? p.Technician.PhoneNumber : "N/A",
+                    employeeId = p.Technician != null ? p.Technician.EmployeeId : "N/A",
+                    inspectionCenter = p.Technician != null ? p.Technician.InspectionCenterName : "EcoCycle Hub",
+                    
+                    deviceId = p.DeviceId,
+                    brand = p.Device != null ? p.Device.Brand : "Device",
+                    model = p.Device != null ? p.Device.Model : "",
+                    categoryName = p.Device != null && p.Device.Category != null ? p.Device.Category.CategoryName : "E-Waste",
+                    serialNumber = p.Device != null ? p.Device.SerialNumber : "N/A",
+                    
+                    inspectionRequestId = p.InspectionRequestId,
+                    penaltyAmount = p.PenaltyAmount,
+                    reason = p.Reason,
+                    status = p.Status,
+                    createdAt = p.CreatedAt,
+                    resolvedAt = p.ResolvedAt
+                })
+                .ToListAsync();
+
+            return Ok(penalties);
+        }
+
+        [HttpPut("technician-penalties/{penaltyId}/status")]
+        public async Task<IActionResult> UpdatePenaltyStatus(int penaltyId, [FromBody] UpdatePenaltyStatusDto dto)
+        {
+            var penalty = await db.technicianPenalties.FindAsync(penaltyId);
+            if (penalty == null)
+            {
+                return NotFound(new { message = "Penalty record not found." });
+            }
+
+            string newStatus = dto.Status ?? "Pending";
+            penalty.Status = newStatus;
+            if (newStatus == "Paid" || newStatus == "Waived" || newStatus == "Resolved" || newStatus == "Cancelled")
+            {
+                penalty.ResolvedAt = DateTime.Now;
+            }
+            else
+            {
+                penalty.ResolvedAt = null;
+            }
+
+            await db.SaveChangesAsync();
+            return Ok(new { message = $"Penalty status updated to {newStatus}.", penaltyId = penalty.TechnicianPenaltyId, status = penalty.Status, resolvedAt = penalty.ResolvedAt });
+        }
+
+        [HttpPost("technician-penalties/{penaltyId}/cancel")]
+        public async Task<IActionResult> CancelPenalty(int penaltyId)
+        {
+            var penalty = await db.technicianPenalties
+                .Include(p => p.Technician)
+                    .ThenInclude(t => t!.Login)
+                .Include(p => p.Device)
+                .FirstOrDefaultAsync(p => p.TechnicianPenaltyId == penaltyId);
+
+            if (penalty == null)
+            {
+                return NotFound(new { message = "Penalty record not found." });
+            }
+
+            if (penalty.Status == "Cancelled" || penalty.Status == "Waived")
+            {
+                return BadRequest(new { message = "Penalty is already cancelled." });
+            }
+
+            penalty.Status = "Cancelled";
+            penalty.ResolvedAt = DateTime.Now;
+
+            // Update associated payment records if present
+            var relatedPayments = await db.Payments
+                .Where(pm => pm.PaymentType == "TechnicianPenalty" && pm.ReferenceId == penaltyId && pm.PaymentStatus != "Paid")
+                .ToListAsync();
+
+            foreach (var pm in relatedPayments)
+            {
+                pm.PaymentStatus = "Cancelled";
+                pm.UpdatedAt = DateTime.Now;
+            }
+
+            // Add in-app notification for technician
+            if (penalty.Technician != null && penalty.Technician.LoginId > 0)
+            {
+                var notification = new Notification
+                {
+                    LoginId = penalty.Technician.LoginId,
+                    Title = "Fine Cancelled by Admin",
+                    Message = $"Your fine of ₹{penalty.PenaltyAmount} (#PEN-{penalty.TechnicianPenaltyId}) for device #{penalty.DeviceId} has been cancelled by Administrator. Your account is fully active.",
+                    Isread = false,
+                    Status = true,
+                    CreatedAt = DateTime.Now
+                };
+                db.Notification.Add(notification);
+            }
+
+            // Send email to technician
+            string techEmail = penalty.Technician?.Login?.Email ?? "";
+            if (!string.IsNullOrWhiteSpace(techEmail))
+            {
+                try
+                {
+                    string subject = $"EcoCycle Notice: Fine Cancelled - Penalty #PEN-{penalty.TechnicianPenaltyId}";
+                    string emailBody = $@"
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }}
+                            .card {{ max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }}
+                            .header {{ background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; padding: 24px; text-align: center; }}
+                            .header h1 {{ margin: 0; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }}
+                            .content {{ padding: 24px; font-size: 14px; line-height: 1.6; }}
+                            .badge {{ display: inline-block; background: #dcfce7; color: #15803d; font-weight: 700; padding: 6px 14px; border-radius: 6px; border: 1px solid #86efac; font-size: 13px; }}
+                            .table {{ width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }}
+                            .table td {{ padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }}
+                            .label {{ color: #64748b; font-weight: 600; width: 40%; }}
+                            .val {{ color: #0f172a; font-weight: 700; }}
+                            .footer {{ background: #f8fafc; text-align: center; padding: 16px; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class='card'>
+                            <div class='header'>
+                                <h1>Fine Cancelled Notice</h1>
+                                <p style='margin: 4px 0 0; font-size: 13px; opacity: 0.9;'>EcoCycle Policy & Compliance</p>
+                            </div>
+                            <div class='content'>
+                                <p style='margin-top: 0;'>Dear <strong>{penalty.Technician?.FirstName} {penalty.Technician?.LastName}</strong>,</p>
+                                <p>We are writing to inform you that your pending policy fine of <strong style='color: #059669;'>₹{penalty.PenaltyAmount}</strong> regarding device <strong>#{penalty.DeviceId}</strong> has been <strong>CANCELLED</strong> by the Administrator.</p>
+                                
+                                <div style='text-align: center; margin: 20px 0;'>
+                                    <span class='badge'>STATUS: CANCELLED / WAIVED</span>
+                                </div>
+
+                                <table class='table'>
+                                    <tr><td class='label'>Penalty Ref</td><td class='val'>#PEN-{penalty.TechnicianPenaltyId}</td></tr>
+                                    <tr><td class='label'>Device ID</td><td class='val'>#DEV-{penalty.DeviceId}</td></tr>
+                                    <tr><td class='label'>Original Fine</td><td class='val'>₹{penalty.PenaltyAmount}</td></tr>
+                                    <tr><td class='label'>Violation Reason</td><td class='val'>{penalty.Reason}</td></tr>
+                                </table>
+
+                                <p style='color: #475569;'>Your account access is fully restored. No further payment or action is required from your side.</p>
+                            </div>
+                            <div class='footer'>
+                                EcoCycle E-Waste Platform &bull; Admin Operations
+                            </div>
+                        </div>
+                    </body>
+                    </html>";
+
+                    await SendEmailAsync(techEmail, subject, emailBody);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error sending penalty cancellation email: {ex.Message}");
+                }
+            }
+
+            await db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = $"Penalty #PEN-{penaltyId} cancelled successfully. Email and notification sent to technician.",
+                penaltyId = penalty.TechnicianPenaltyId,
+                status = penalty.Status
+            });
+        }
+
+        [HttpPost("technician-penalties/{penaltyId}/resend-email")]
+        public async Task<IActionResult> ResendPenaltyEmail(int penaltyId)
+        {
+            var penalty = await db.technicianPenalties
+                .Include(p => p.Technician)
+                    .ThenInclude(t => t!.Login)
+                .Include(p => p.Device)
+                .FirstOrDefaultAsync(p => p.TechnicianPenaltyId == penaltyId);
+
+            if (penalty == null)
+            {
+                return NotFound(new { message = "Penalty record not found." });
+            }
+
+            string techEmail = penalty.Technician?.Login?.Email ?? "";
+            if (string.IsNullOrWhiteSpace(techEmail))
+            {
+                return BadRequest(new { message = "Technician email address not available." });
+            }
+
+            string subject = $"EcoCycle Penalty Notice Reminder: ₹{penalty.PenaltyAmount} Fine (Device #DEV-{penalty.DeviceId})";
+            string emailBody = $@"
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }}
+                    .container {{ max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }}
+                    .header {{ background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: #ffffff; padding: 24px; text-align: center; }}
+                    .header h1 {{ margin: 0; font-size: 20px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }}
+                    .content {{ padding: 24px; }}
+                    .alert-box {{ background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 6px; padding: 16px; margin: 16px 0; color: #991b1b; font-weight: 600; font-size: 14px; }}
+                    .detail-table {{ width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }}
+                    .detail-table td {{ padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }}
+                    .detail-label {{ color: #64748b; font-weight: 600; width: 40%; }}
+                    .detail-val {{ color: #0f172a; font-weight: 700; }}
+                    .policy-card {{ background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 16px; margin-top: 20px; font-size: 13px; color: #475569; }}
+                    .footer {{ background: #f1f5f9; padding: 16px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }}
+                </style>
+            </head>
+            <body>
+                <div class='container'>
+                    <div class='header'>
+                        <h1>EcoCycle Penalty Reminder</h1>
+                        <p style='margin: 4px 0 0 0; font-size: 13px; opacity: 0.9;'>Inspection Deadline & Penalty Enforcement</p>
+                    </div>
+                    <div class='content'>
+                        <p style='font-size: 15px; margin-top: 0;'>Dear <strong>{penalty.Technician?.FirstName} {penalty.Technician?.LastName}</strong>,</p>
+                        
+                        <div class='alert-box'>
+                            ⚠️ REMINDER: A penalty of <strong>₹{penalty.PenaltyAmount}</strong> is pending for your account regarding overdue device inspection.
+                        </div>
+
+                        <table class='detail-table'>
+                            <tr>
+                                <td class='detail-label'>Penalty ID</td>
+                                <td class='detail-val'>#PEN-{penalty.TechnicianPenaltyId}</td>
+                            </tr>
+                            <tr>
+                                <td class='detail-label'>Device ID</td>
+                                <td class='detail-val'>#DEV-{penalty.DeviceId}</td>
+                            </tr>
+                            <tr>
+                                <td class='detail-label'>Device</td>
+                                <td class='detail-val'>{penalty.Device?.Brand} {penalty.Device?.Model}</td>
+                            </tr>
+                            <tr>
+                                <td class='detail-label'>Penalty Amount</td>
+                                <td class='detail-val' style='color: #dc2626; font-size: 16px;'>₹{penalty.PenaltyAmount}</td>
+                            </tr>
+                            <tr>
+                                <td class='detail-label'>Current Status</td>
+                                <td class='detail-val' style='color: #d97706;'>{penalty.Status}</td>
+                            </tr>
+                            <tr>
+                                <td class='detail-label'>Penalty Reason</td>
+                                <td class='detail-val'>{penalty.Reason}</td>
+                            </tr>
+                        </table>
+
+                        <div class='policy-card'>
+                            <strong>Compliance Instruction:</strong><br/>
+                            Please resolve this penalty notice or contact your EcoCycle Administrator. Unresolved penalties may affect your technician performance record and future assignment eligibility.
+                        </div>
+                    </div>
+                    <div class='footer'>
+                        EcoCycle E-Waste Platform &bull; Admin Operations<br/>
+                        This is an official system reminder.
+                    </div>
+                </div>
+            </body>
+            </html>";
+
+            await SendEmailAsync(techEmail, subject, emailBody);
+            return Ok(new { message = $"Penalty reminder email successfully re-sent to {techEmail}." });
+        }
+    }
+
+    public class UpdatePenaltyStatusDto
+    {
+        public string? Status { get; set; }
+    }
+
+    public class ConfirmReceiptDto
+    {
+        public string? Notes { get; set; }
+        public string? QrCode { get; set; }
+    }
+
+    public class RejectHandoverDto
+    {
+        public string? Reason { get; set; }
+        public string? Description { get; set; }
     }
 }

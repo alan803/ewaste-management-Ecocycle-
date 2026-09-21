@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap");
+@import "./AdminCommon.css";
 
 .admin-dashboard-v2 {
   --primary: #10b981;
@@ -56,7 +57,7 @@
 
 .admin-main-container {
   flex: 1;
-  margin-left: 280px;
+  margin-left: 255px;
   padding: 1.5rem 2rem 2rem 1rem;
   z-index: 1;
   max-width: 1650px;

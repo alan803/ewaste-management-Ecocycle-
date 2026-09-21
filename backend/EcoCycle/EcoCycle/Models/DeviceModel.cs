@@ -31,5 +31,6 @@ namespace EcoCycle.API.Models
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public ICollection<DeviceModelComponent> DeviceModelComponents { get; set; } = new List<DeviceModelComponent>();
     }
 }

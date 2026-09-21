@@ -1,21 +1,22 @@
 import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FaLeaf } from "react-icons/fa";
 import {
     FiRefreshCw,
     FiUser,
     FiLogOut,
     FiMenu,
     FiX,
-    FiActivity,
-    FiCheckSquare,
-    FiShield
+    FiLayers,
+    FiZap,
+    FiChevronRight
 } from "react-icons/fi";
 import "./Sidebar.css";
 
 function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
-    const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     const isActive = (path) => {
         const p = location.pathname;
@@ -24,7 +25,11 @@ function Sidebar() {
             return true;
         }
         if ((path === "/recycle_profile" || path === "/recyclingcenter_profile") && 
-            (p === "/recycle_profile" || p === "/recyclingcenter_profile" || p === "/recycling/profile")) {
+            (p === "/recycle_profile" || p === "/recyclingcenter_profile" || p === "/recycling/profile" || p === "/recyclingcenter/profile")) {
+            return true;
+        }
+        if ((path === "/recyclingcenter_notification" || path === "/recyclingcenter/notifications") &&
+            (p.includes("notification"))) {
             return true;
         }
         if (path !== "/recyclingcenter_dashboard" && p.startsWith(path)) return true;
@@ -36,91 +41,93 @@ function Sidebar() {
         navigate("/login");
     };
 
-    const navItems = [
-        { path: "/recyclingcenter_dashboard", label: "Recycling Dashboard", icon: <FiRefreshCw /> },
-        { path: "/recycle_profile", label: "Facility Profile", icon: <FiUser /> }
-    ];
+    const closeMobileMenu = () => {
+        setMobileOpen(false);
+    };
 
     return (
         <>
-            {/* Mobile Sidebar Toggle Button */}
-            <button
-                className="recyc-mobile-toggle"
-                onClick={() => setIsMobileOpen(!isMobileOpen)}
-                aria-label="Toggle Sidebar Navigation"
-            >
-                {isMobileOpen ? <FiX /> : <FiMenu />}
+            {/* Mobile Menu Toggle Button */}
+            <button className="admin-sb-mobile-toggle" onClick={() => setMobileOpen(!mobileOpen)} aria-label="Toggle sidebar">
+                {mobileOpen ? <FiX /> : <FiMenu />}
             </button>
 
-            {/* Sidebar Navigation */}
-            <aside className={`recyc-sidebar-aside ${isMobileOpen ? "open" : ""}`}>
-                <div>
-                    {/* Brand Header */}
-                    <Link to="/recyclingcenter_dashboard" className="recyc-sidebar-brand">
-                        <div className="recyc-brand-badge">
-                            <FiRefreshCw />
+            {/* Backdrop overlay for mobile */}
+            {mobileOpen && <div className="admin-sb-backdrop" onClick={closeMobileMenu}></div>}
+
+            <aside className={`admin-sidebar ${mobileOpen ? "open" : ""}`}>
+                {/* Brand Header */}
+                <div className="admin-sb-header">
+                    <Link to="/recyclingcenter_dashboard" className="admin-sb-logo-link" onClick={closeMobileMenu}>
+                        <div className="admin-sb-logo-icon">
+                            <FaLeaf />
                         </div>
-                        <div>
-                            <h1 className="recyc-brand-title">EcoCycle</h1>
-                            <span className="recyc-brand-sub">Recycling Facility</span>
+                        <div className="admin-sb-logo-text">
+                            <span className="admin-sb-brand-name">EcoCycle</span>
+                            <span className="admin-sb-brand-tag">RECYCLING CENTER</span>
                         </div>
                     </Link>
-
-                    {/* Navigation Items */}
-                    <div className="recyc-sidebar-scroll">
-                        <div className="recyc-nav-group">
-                            <span className="recyc-group-title">Facility Menu</span>
-                            <ul className="recyc-sidebar-ul">
-                                {navItems.map((item) => (
-                                    <li key={item.path}>
-                                        <Link
-                                            to={item.path}
-                                            className={`recyc-sidebar-link ${isActive(item.path) ? "active" : ""}`}
-                                            onClick={() => setIsMobileOpen(false)}
-                                        >
-                                            <span className="recyc-sidebar-icon">{item.icon}</span>
-                                            <span>{item.label}</span>
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-
-                        <div className="recyc-nav-group">
-                            <span className="recyc-group-title">Account</span>
-                            <ul className="recyc-sidebar-ul">
-                                <li>
-                                    <button
-                                        onClick={handleLogout}
-                                        className="recyc-sidebar-link recyc-logout-btn"
-                                    >
-                                        <span className="recyc-sidebar-icon"><FiLogOut /></span>
-                                        <span>Sign Out</span>
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
                 </div>
 
-                {/* Bottom Plant Status Widget */}
-                <div className="recyc-status-card">
-                    <div className="recyc-status-header">
-                        <span>SMELTING & SHREDDING LINE</span>
-                        <FiActivity style={{ color: "#2dd4bf" }} />
+                {/* Navigation Links */}
+                <nav className="admin-sb-nav">
+                    <div className="admin-sb-section">
+                        <ul className="admin-sb-menu">
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/recyclingcenter_dashboard"
+                                    className={`admin-sb-link ${isActive("/recyclingcenter_dashboard") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--emerald">
+                                        <FiLayers />
+                                    </div>
+                                    <span className="admin-sb-link-text">Recycling Queue</span>
+                                    {isActive("/recyclingcenter_dashboard") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/recycling_perform"
+                                    className={`admin-sb-link ${isActive("/recycling_perform") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--teal">
+                                        <FiZap />
+                                    </div>
+                                    <span className="admin-sb-link-text">Perform Recycling</span>
+                                    {isActive("/recycling_perform") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/recycle_profile"
+                                    className={`admin-sb-link ${isActive("/recycle_profile") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--purple">
+                                        <FiUser />
+                                    </div>
+                                    <span className="admin-sb-link-text">Facility Profile</span>
+                                    {isActive("/recycle_profile") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+                        </ul>
                     </div>
-                    <div className="recyc-status-name">Eco Shredder #02</div>
-                    <div className="recyc-status-sub">● Plant Operational (High Throughput)</div>
+                </nav>
+
+                {/* Footer Section */}
+                <div className="admin-sb-footer">
+
+                    <button type="button" onClick={handleLogout} className="admin-sb-link admin-sb-link--logout">
+                        <div className="admin-sb-icon-box icon-box--rose">
+                            <FiLogOut />
+                        </div>
+                        <span className="admin-sb-link-text">Sign Out</span>
+                    </button>
                 </div>
             </aside>
-
-            {/* Mobile Drawer Overlay */}
-            {isMobileOpen && (
-                <div 
-                    className="recyc-sidebar-overlay" 
-                    onClick={() => setIsMobileOpen(false)}
-                ></div>
-            )}
         </>
     );
 }

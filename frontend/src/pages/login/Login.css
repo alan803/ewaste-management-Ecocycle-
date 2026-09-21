@@ -325,3 +325,218 @@
   .login-card { padding: 2rem 1.5rem; }
   .login-header h1 { font-size: 1.6rem; }
 }
+
+/* Penalty Restricted Screen Styles */
+.penalty-restriction-card {
+  animation: fadeInPenalty 0.3s ease-in-out;
+}
+
+@keyframes fadeInPenalty {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.penalty-restriction-header {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.penalty-badge-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.15);
+}
+
+.penalty-status-tag {
+  display: block;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.725rem;
+  font-weight: 800;
+  color: #dc2626;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.4rem;
+}
+
+.penalty-restriction-header h2 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.5rem;
+}
+
+.penalty-sub-desc {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.penalty-details-box {
+  background: #fff8f8;
+  border: 1px solid #fee2e2;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.penalty-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  border-bottom: 1px dashed #fecaca;
+  padding-bottom: 0.4rem;
+}
+
+.penalty-detail-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.penalty-detail-item.reason-item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.p-label {
+  color: #64748b;
+  font-size: 0.775rem;
+  font-weight: 600;
+}
+
+.p-val.bold {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.p-val.fine-amount {
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: #dc2626;
+  background: #fef2f2;
+  padding: 0.15rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+}
+
+.p-val.reason-text {
+  font-size: 0.8rem;
+  color: #7f1d1d;
+  line-height: 1.35;
+  font-weight: 600;
+}
+
+.penalty-success-wrapper {
+  text-align: center;
+  animation: fadeInPenalty 0.35s ease-in-out;
+}
+
+.penalty-badge-icon--success {
+  background: #f0fdf4 !important;
+  color: #10b981 !important;
+  border-color: #bbf7d0 !important;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.22) !important;
+}
+
+.penalty-status-tag--success {
+  color: #059669 !important;
+  font-weight: 800;
+}
+
+.penalty-details-box--success {
+  background: #f0fdf4 !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+.fine-amount--paid {
+  color: #166534 !important;
+  background: #dcfce7 !important;
+  border: 1px solid #86efac !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  font-weight: 800;
+}
+
+.penalty-actions-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.penalty-btn {
+  width: 100%;
+  padding: 0.8rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.penalty-btn--pay {
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.penalty-btn--pay:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+}
+
+.penalty-btn--admin {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.penalty-btn--admin:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.penalty-btn--back {
+  background: transparent;
+  color: #64748b;
+  border: none;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+
+.penalty-btn--back:hover {
+  color: #0f172a;
+  text-decoration: underline;
+}
+
+.spin-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}

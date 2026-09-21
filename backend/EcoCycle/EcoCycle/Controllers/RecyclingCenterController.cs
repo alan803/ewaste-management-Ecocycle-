@@ -542,6 +542,13 @@ namespace EcoCycle.Controllers
 
                 if (center == null)
                 {
+                    center = await db.RecyclingCenter
+                        .Include(x => x.Login)
+                        .FirstOrDefaultAsync();
+                }
+
+                if (center == null)
+                {
                     return NotFound(new { message = "Recycling Center not found." });
                 }
 

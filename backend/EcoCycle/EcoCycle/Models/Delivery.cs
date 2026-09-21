@@ -22,7 +22,19 @@ namespace EcoCycle.API.Models
 
         public DateTime? DeliveredAt { get; set; }
 
+        // Technician verification
         public bool DeviceVerified { get; set; } = false;
+
+        // When technician rejects the handover
+        public DateTime? HandoverRejectedAt { get; set; }
+
+        // Why technician rejected the device
+        [MaxLength(500)]
+        public string? HandoverRejectionReason { get; set; }
+
+        // Technician's additional comments
+        [MaxLength(1000)]
+        public string? TechnicianNotes { get; set; }
 
         [MaxLength(500)]
         public string? ProofPhotoPath { get; set; }

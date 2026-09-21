@@ -48,6 +48,7 @@ function Add_device() {
     const [successMessage, setSuccessMessage] = useState("");
     const [submissionError, setSubmissionError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [notifications, setNotifications] = useState([]);
 
     useEffect(() => {
         const token = localStorage.getItem("token");
@@ -70,9 +71,17 @@ function Add_device() {
                     if (savedImage) setProfileImage(savedImage);
                 }
             })
-            .catch(err => console.error("Error loading user profile in Add_device:", err));
+            .catch(err => console.error("Error fetching user profile:", err));
+
+            axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            .then(res => setNotifications(res.data || []))
+            .catch(err => console.error("Error fetching notifications:", err));
         }
     }, []);
+
+    const totalNotifCount = notifications.filter(n => !n.isRead && !n.isread).length;
 
     const [form_data, set_formdata] = useState({
         categoryId: "",
@@ -530,13 +539,44 @@ function Add_device() {
 
             <main className="citizen-main-content">
                 {/* Title & User Header Ribbon */}
-                <div className="vd-ribbon" style={{ marginBottom: "1.5rem" }}>
-                    <h1 className="vd-page-heading">Post E-Waste Device</h1>
+                <div className="vd-ribbon" style={{ marginBottom: "1.75rem" }}>
+                    <div>
+                        <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a202c", margin: "0 0 0.25rem 0", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.025em" }}>
+                            Post E-Waste Device
+                        </h1>
+                        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0, fontWeight: 500 }}>
+                            Register your old or unused electronic devices for safe pickup, recycling, or refurbishment.
+                        </p>
+                    </div>
 
                     <div className="vd-top-actions">
-                        <button className="vd-circle-btn" title="Notifications" style={{ position: "relative" }}>
+                        <button 
+                            type="button" 
+                            className="vd-circle-btn" 
+                            title={`Notifications ${totalNotifCount > 0 ? `(${totalNotifCount} unread)` : ""}`} 
+                            onClick={() => navigate("/technician-notification")}
+                            style={{ position: "relative" }}
+                        >
                             <FiBell />
-                            <span style={{ position: "absolute", top: "10px", right: "10px", width: "7px", height: "7px", borderRadius: "50%", background: "#ef4444" }}></span>
+                            {totalNotifCount > 0 && (
+                                <span className="vd-notif-badge-pill" style={{
+                                    position: "absolute",
+                                    top: "-4px",
+                                    right: "-4px",
+                                    background: "#ef4444",
+                                    color: "#ffffff",
+                                    fontSize: "0.65rem",
+                                    fontWeight: 800,
+                                    width: "18px",
+                                    height: "18px",
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center"
+                                }}>
+                                    {totalNotifCount > 9 ? "9+" : totalNotifCount}
+                                </span>
+                            )}
                         </button>
 
                         <Link 

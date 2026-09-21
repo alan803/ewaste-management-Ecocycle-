@@ -238,7 +238,14 @@ function CitizenDashboard() {
             <main className="citizen-main-content">
                 {/* Title & User Header Ribbon */}
                 <div className="vd-ribbon" style={{ marginBottom: "1.75rem" }}>
-                    <h1 className="vd-page-heading">Citizen Eco Dashboard</h1>
+                    <div>
+                        <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a202c", margin: "0 0 0.25rem 0", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.025em" }}>
+                            Citizen Eco Dashboard
+                        </h1>
+                        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0, fontWeight: 500 }}>
+                            Overview of your e-waste recycling impact, active pickup requests, and eco rewards.
+                        </p>
+                    </div>
 
                     <div className="vd-top-actions">
                         <button 

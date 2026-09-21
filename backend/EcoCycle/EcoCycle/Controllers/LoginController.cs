@@ -115,6 +115,8 @@ namespace EcoCycle.Controllers
                         });
                     }
 
+                    EcoCycle.API.Controllers.CollectionAssignmentController.CheckAndUpdateExpiredCollectionAssignments(db).GetAwaiter().GetResult();
+
                     firstName = agent.FirstName;
                     status = agent.Status;
 
@@ -130,6 +132,27 @@ namespace EcoCycle.Controllers
                         return BadRequest(new
                         {
                             message = "Technician not found."
+                        });
+                    }
+
+                    var pendingPenalty = db.technicianPenalties
+                        .FirstOrDefault(p => p.TechnicianId == technician.TechnicianId &&
+                                             (p.Status == "Pending" || p.Status == "Unpaid"));
+
+                    if (pendingPenalty != null)
+                    {
+                        return BadRequest(new
+                        {
+                            field = "penalty_blocked",
+                            message = $"Access Restricted: Outstanding Policy Violation Fine Pending",
+                            penaltyData = new
+                            {
+                                penaltyId = pendingPenalty.TechnicianPenaltyId,
+                                penaltyAmount = pendingPenalty.PenaltyAmount,
+                                reason = pendingPenalty.Reason,
+                                deviceId = pendingPenalty.DeviceId,
+                                createdAt = pendingPenalty.CreatedAt
+                            }
                         });
                     }
 
@@ -561,6 +584,8 @@ namespace EcoCycle.Controllers
                             });
                         }
 
+                        EcoCycle.API.Controllers.CollectionAssignmentController.CheckAndUpdateExpiredCollectionAssignments(db).GetAwaiter().GetResult();
+
                         firstName = agent.FirstName;
                         status = agent.Status;
 
@@ -579,6 +604,27 @@ namespace EcoCycle.Controllers
                             return BadRequest(new
                             {
                                 message = "Technician not found."
+                            });
+                        }
+
+                        var pendingGooglePenalty = await db.technicianPenalties
+                            .FirstOrDefaultAsync(p => p.TechnicianId == technician.TechnicianId &&
+                                                      (p.Status == "Pending" || p.Status == "Unpaid"));
+
+                        if (pendingGooglePenalty != null)
+                        {
+                            return BadRequest(new
+                            {
+                                field = "penalty_blocked",
+                                message = $"Access Restricted: Outstanding Policy Violation Fine Pending",
+                                penaltyData = new
+                                {
+                                    penaltyId = pendingGooglePenalty.TechnicianPenaltyId,
+                                    penaltyAmount = pendingGooglePenalty.PenaltyAmount,
+                                    reason = pendingGooglePenalty.Reason,
+                                    deviceId = pendingGooglePenalty.DeviceId,
+                                    createdAt = pendingGooglePenalty.CreatedAt
+                                }
                             });
                         }
 
@@ -760,6 +806,30 @@ namespace EcoCycle.Controllers
                     message = "An error occurred during Google login."
                 });
             }
+        }
+
+        [HttpPost("PayPenalty/{penaltyId}")]
+        public async Task<IActionResult> PayPenalty(int penaltyId)
+        {
+            var penalty = await db.technicianPenalties.FirstOrDefaultAsync(p => p.TechnicianPenaltyId == penaltyId);
+            if (penalty == null)
+            {
+                return NotFound(new { message = "Penalty record not found." });
+            }
+
+            penalty.Status = "Paid";
+            penalty.ResolvedAt = DateTime.Now;
+
+            // Restore inspection status if penalized
+            var insp = await db.Inspection.FirstOrDefaultAsync(i => i.InspectionRequestId == penalty.InspectionRequestId);
+            if (insp != null && insp.Status == "Penalized")
+            {
+                insp.Status = "Waiting";
+            }
+
+            await db.SaveChangesAsync();
+
+            return Ok(new { message = $"Penalty fine of ₹{penalty.PenaltyAmount} (#PEN-{penalty.TechnicianPenaltyId}) paid successfully! You may now sign in to your dashboard." });
         }
     }
 }

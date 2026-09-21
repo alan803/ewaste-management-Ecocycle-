@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import {
     validate_password,
@@ -30,7 +30,8 @@ import {
     FiTruck,
     FiZap,
     FiUser,
-    FiBox
+    FiBox,
+    FiBell
 } from "react-icons/fi";
 import "./recycle_profile.css";
 
@@ -44,6 +45,7 @@ function RecycleProfile() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
+    const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
     // Profile Picture Upload State
     const [selectedFile, setSelectedFile] = useState(null);
@@ -242,7 +244,20 @@ function RecycleProfile() {
             return;
         }
         loadProfile(token);
+        fetchUnreadNotifCount(token);
     }, [navigate]);
+
+    const fetchUnreadNotifCount = async (token) => {
+        try {
+            const res = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+                headers: { Authorization: `Bearer ${token || localStorage.getItem("token")}` }
+            });
+            const list = Array.isArray(res.data) ? res.data : [];
+            setUnreadNotifCount(list.filter(n => !n.isRead).length);
+        } catch {
+            setUnreadNotifCount(0);
+        }
+    };
 
     const getMediaUrl = (filename, folderName = "") => {
         if (!filename) return null;
@@ -422,40 +437,36 @@ function RecycleProfile() {
 
     if (loading) {
         return (
-            <div className="recyc-profile-layout">
+            <div className="recyc-dashboard-shell">
                 <Sidebar />
-                <div className="recyc-profile-main">
-                    <div style={{ padding: "1.5rem" }}>
-                        <div className="recyc-skeleton-card">
-                            <div className="recyc-skeleton-line" style={{ width: "40%", height: "30px" }}></div>
-                            <div className="recyc-skeleton-line" style={{ width: "60%" }}></div>
-                            <div className="recyc-skeleton-line" style={{ width: "100%", height: "140px", marginTop: "1rem" }}></div>
-                        </div>
+                <main className="recyc-dashboard-main">
+                    <div className="loading-container">
+                        <FiRefreshCw className="spin-icon" style={{ fontSize: "1.8rem", color: "#10b981" }} />
+                        <p>Loading facility profile...</p>
                     </div>
-                </div>
+                </main>
             </div>
         );
     }
 
     if (error && !profile) {
         return (
-            <div className="recyc-profile-layout">
+            <div className="recyc-dashboard-shell">
                 <Sidebar />
-                <div className="recyc-profile-main">
-                    <div className="recyc-error-container">
-                        <div className="recyc-error-icon">
-                            <FiAlertCircle />
-                        </div>
-                        <h2 className="recyc-error-title">Profile Load Error</h2>
-                        <p className="recyc-error-msg">{error}</p>
+                <main className="recyc-dashboard-main">
+                    <div className="empty-container">
+                        <FiAlertCircle style={{ fontSize: "2.5rem", color: "#ef4444" }} />
+                        <h4>Profile Load Error</h4>
+                        <p>{error}</p>
                         <button
-                            className="recyc-retry-btn"
+                            className="btn btn-emerald"
+                            style={{ marginTop: "1rem" }}
                             onClick={() => loadProfile()}
                         >
-                            <FiRefreshCw style={{ marginRight: "6px" }} /> Try Again
+                            <FiRefreshCw /> Try Again
                         </button>
                     </div>
-                </div>
+                </main>
             </div>
         );
     }
@@ -549,22 +560,41 @@ function RecycleProfile() {
     ];
 
     return (
-        <div className="recyc-profile-layout">
+        <div className="recyc-dashboard-shell">
             <Sidebar />
 
-            <div className="recyc-profile-main">
-                {/* Header Top Bar Ribbon */}
-                <div className="recyc-profile-top-nav">
-                    <div className="recyc-profile-page-title">
-                        <div className="recyc-title-icon-badge">
-                            <FiRefreshCw />
+            <main className="recyc-dashboard-main">
+                {/* Header Topbar */}
+                <header className="recyc-dashboard-topbar">
+                    <div className="topbar-title-group">
+                        <div className="topbar-header-row">
+                            <h1>Facility Profile &amp; Credentials</h1>
                         </div>
-                        <div>
-                            <h1>Facility Profile & Credentials</h1>
-                            <p>EcoCycle E-Waste Operations • Certified Recycling Center Facility</p>
-                        </div>
+                        <p className="topbar-subtitle">
+                            EcoCycle Industrial E-Waste Operations Center &bull; Certified Facility Overview
+                        </p>
                     </div>
-                </div>
+
+                    <div className="topbar-right-group">
+                        <button
+                            className="icon-button notif-bell-btn"
+                            onClick={() => navigate("/recyclingcenter_notification")}
+                            title="Notifications"
+                        >
+                            <FiBell />
+                            {unreadNotifCount > 0 && (
+                                <span className="notif-badge">{unreadNotifCount > 9 ? "9+" : unreadNotifCount}</span>
+                            )}
+                        </button>
+
+                        <Link to="/recycle_profile" className="profile-chip">
+                            <div className="profile-avatar">
+                                {avatarInitial}
+                            </div>
+                            <span className="profile-name">{centerName}</span>
+                        </Link>
+                    </div>
+                </header>
 
                 {/* Hidden File Input for Photo Upload */}
                 <input
@@ -577,14 +607,12 @@ function RecycleProfile() {
 
                 {/* Success Message Banner */}
                 {successMessage && (
-                    <div className="recyc-success-alert">
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                            <FiCheckCircle style={{ fontSize: "1.2rem" }} />
-                            <span>{successMessage}</span>
-                        </div>
+                    <div className="recyc-notice-banner success">
+                        <FiCheckCircle />
+                        <span>{successMessage}</span>
                         <button
                             onClick={() => setSuccessMessage("")}
-                            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }}
+                            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", marginLeft: "auto" }}
                         >
                             <FiX />
                         </button>
@@ -593,139 +621,139 @@ function RecycleProfile() {
 
                 {/* Error Banner */}
                 {error && profile && (
-                    <div className="recyc-success-alert danger">
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                            <FiAlertCircle style={{ fontSize: "1.2rem" }} />
-                            <span>{error}</span>
-                        </div>
+                    <div className="recyc-notice-banner info" style={{ background: "#fef2f2", color: "#dc2626", borderColor: "#fca5a5" }}>
+                        <FiAlertCircle />
+                        <span>{error}</span>
                         <button
                             onClick={() => setError("")}
-                            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer" }}
+                            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", marginLeft: "auto" }}
                         >
                             <FiX />
                         </button>
                     </div>
                 )}
 
-                {/* Clean Flat Profile Header Card */}
-                <div className="recyc-flat-profile-header">
-                    <div className="recyc-flat-header-left">
-                        <div className="recyc-avatar-frame">
-                            {profileImagePreview ? (
-                                <img
-                                    src={profileImagePreview}
-                                    alt={centerName}
-                                    className="recyc-avatar-img"
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.style.display = "none";
-                                        e.target.nextSibling.style.display = "flex";
+                {/* Hero Facility Header Banner Card */}
+                <div className="recyc-hero-card">
+                    <div className="recyc-hero-banner"></div>
+
+                    <div className="recyc-hero-content">
+                        <div className="recyc-hero-profile-group">
+                            <div className="recyc-avatar-frame">
+                                {profileImagePreview ? (
+                                    <img
+                                        src={profileImagePreview}
+                                        alt={centerName}
+                                        className="recyc-avatar-img"
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.style.display = "none";
+                                            e.target.nextSibling.style.display = "flex";
+                                        }}
+                                    />
+                                ) : null}
+                                <div
+                                    className="recyc-avatar-fallback"
+                                    style={{ display: profileImagePreview ? "none" : "flex" }}
+                                >
+                                    {avatarInitial}
+                                </div>
+                                <div className="recyc-verified-badge" title="Certified Recycling Center">
+                                    <FiCheck />
+                                </div>
+
+                                <button
+                                    type="button"
+                                    className="recyc-avatar-camera-btn"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    title="Upload facility picture"
+                                >
+                                    <FiCamera />
+                                </button>
+                            </div>
+
+                            <div className="recyc-hero-info">
+                                <div className="recyc-flat-title-row">
+                                    <h2 className="recyc-flat-name">{centerName}</h2>
+                                    <span className="recyc-facility-code">
+                                        Facility ID: RC-{profile?.RecyclingCenterId || "005"}
+                                    </span>
+                                </div>
+                                <div className="recyc-flat-subtext">
+                                    <span className="recyc-subtext-item">
+                                        <FiMail /> {email}
+                                    </span>
+                                    <span className="recyc-subtext-item">
+                                        <FiPhone /> {phone}
+                                    </span>
+                                    <span className="recyc-subtext-item">
+                                        <FiMapPin /> {city}, {state}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="recyc-hero-actions">
+                            {!isEditing ? (
+                                <button
+                                    type="button"
+                                    className="btn btn-emerald"
+                                    onClick={() => setIsEditing(true)}
+                                >
+                                    <FiEdit3 /> Edit Profile
+                                </button>
+                            ) : (
+                                <div style={{ display: "flex", gap: "0.5rem" }}>
+                                    <button
+                                        type="button"
+                                        className="btn btn-emerald"
+                                        onClick={handleSaveChanges}
+                                        disabled={saving}
+                                    >
+                                        <FiSave /> {saving ? "Saving..." : "Save Changes"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost"
+                                        onClick={handleCancelEdit}
+                                        disabled={saving}
+                                    >
+                                        <FiX /> Cancel
+                                    </button>
+                                </div>
+                            )}
+
+                            {!showPasswordSection && (
+                                <button
+                                    type="button"
+                                    className="btn btn-ghost"
+                                    onClick={() => {
+                                        handleResetPasswordForm();
+                                        setShowPasswordSection(true);
                                     }}
-                                />
-                            ) : null}
-                            <div
-                                className="recyc-avatar-fallback"
-                                style={{ display: profileImagePreview ? "none" : "flex" }}
-                            >
-                                {avatarInitial}
-                            </div>
-                            <div className="recyc-verified-badge" title="Certified Recycling Center">
-                                <FiCheck />
-                            </div>
-
-                            <button
-                                type="button"
-                                className="recyc-avatar-camera-btn"
-                                onClick={() => fileInputRef.current?.click()}
-                                title="Upload facility picture"
-                            >
-                                <FiCamera />
-                            </button>
-                        </div>
-
-                        <div className="recyc-flat-header-info">
-                            <div className="recyc-flat-title-row">
-                                <h2 className="recyc-flat-name">{centerName}</h2>
-                                <span className="recyc-status-pill active">
-                                    <span className="recyc-status-dot"></span>
-                                    Operational Active
-                                </span>
-                                <span className="recyc-id-tag">
-                                    Facility ID: RC-{profile?.RecyclingCenterId || "005"}
-                                </span>
-                            </div>
-                            <div className="recyc-flat-subtext">
-                                <span className="recyc-subtext-item">
-                                    <FiMail /> {email}
-                                </span>
-                                <span className="recyc-subtext-item">
-                                    <FiPhone /> {phone}
-                                </span>
-                                <span className="recyc-subtext-item">
-                                    <FiMapPin /> {city}, {state}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="recyc-flat-header-actions">
-                        {!isEditing ? (
-                            <button
-                                type="button"
-                                className="recyc-edit-btn"
-                                onClick={() => setIsEditing(true)}
-                            >
-                                <FiEdit3 /> Edit Profile
-                            </button>
-                        ) : (
-                            <div style={{ display: "flex", gap: "0.5rem" }}>
-                                <button
-                                    type="button"
-                                    className="recyc-save-btn"
-                                    onClick={handleSaveChanges}
-                                    disabled={saving}
                                 >
-                                    <FiSave /> {saving ? "Saving..." : "Save Changes"}
+                                    <FiKey /> Change Password
                                 </button>
-                                <button
-                                    type="button"
-                                    className="recyc-cancel-btn"
-                                    onClick={handleCancelEdit}
-                                    disabled={saving}
-                                >
-                                    <FiX /> Cancel
-                                </button>
-                            </div>
-                        )}
-
-                        {!showPasswordSection && (
-                            <button
-                                type="button"
-                                className="recyc-change-pwd-btn"
-                                onClick={() => {
-                                    handleResetPasswordForm();
-                                    setShowPasswordSection(true);
-                                }}
-                            >
-                                <FiKey /> Change Password
-                            </button>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
 
                 {/* Change Password Card UI (Step 1 & Step 2 Flow) */}
                 {showPasswordSection && (
-                    <div className="recyc-password-change-card">
+                    <div className="recyc-password-panel">
                         <div className="recyc-password-card-header">
                             <div className="recyc-password-card-title-group">
                                 <FiKey style={{ color: "#059669", fontSize: "1.15rem" }} />
-                                <h3 className="recyc-card-title" style={{ margin: 0, fontSize: "1rem", fontWeight: "700" }}>
+                                <h3 className="panel-title" style={{ margin: 0 }}>
                                     {passwordStep === 1 ? "Verify Current Password" : "Set New Password"}
                                 </h3>
+                                <span className="recyc-step-badge">Step {passwordStep} of 2</span>
                             </div>
                             <button
                                 type="button"
-                                className="recyc-password-close-btn"
+                                className="modal-close-icon"
+                                style={{ background: "#f1f5f9", color: "#0f172a" }}
                                 onClick={handleResetPasswordForm}
                                 title="Close Password Form"
                             >
@@ -735,20 +763,8 @@ function RecycleProfile() {
 
                         {/* Error Alert Message */}
                         {passwordError && (
-                            <div style={{
-                                background: "#fef2f2",
-                                border: "1px solid #fecaca",
-                                color: "#dc2626",
-                                padding: "0.65rem 0.85rem",
-                                borderRadius: "10px",
-                                fontSize: "0.8rem",
-                                fontWeight: "600",
-                                marginBottom: "0.85rem",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.5rem"
-                            }}>
-                                <FiAlertCircle style={{ flexShrink: 0 }} />
+                            <div className="recyc-notice-banner info" style={{ background: "#fef2f2", color: "#dc2626", borderColor: "#fca5a5", marginBottom: "1rem" }}>
+                                <FiAlertCircle />
                                 <span>{passwordError}</span>
                             </div>
                         )}
@@ -761,14 +777,14 @@ function RecycleProfile() {
                                 </p>
 
                                 <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.775rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>
+                                    <label className="form-label">
                                         <FiLock style={{ color: "#059669" }} /> Current Password
                                     </label>
                                     <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                                         <input
                                             type={showCurrentPassword ? "text" : "password"}
-                                            className="recyc-input"
-                                            style={{ paddingRight: "2.5rem" }}
+                                            className="form-textarea"
+                                            style={{ paddingRight: "2.5rem", height: "42px" }}
                                             placeholder="Enter current password"
                                             value={currentPasswordInput}
                                             onChange={(e) => handleCurrentPasswordChange(e.target.value)}
@@ -801,7 +817,7 @@ function RecycleProfile() {
                                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.5rem" }}>
                                     <button
                                         type="button"
-                                        className="recyc-cancel-btn"
+                                        className="btn btn-ghost"
                                         style={{ flex: 1, justifyContent: "center" }}
                                         onClick={handleResetPasswordForm}
                                         disabled={passwordLoading}
@@ -810,7 +826,7 @@ function RecycleProfile() {
                                     </button>
                                     <button
                                         type="submit"
-                                        className="recyc-save-btn"
+                                        className="btn btn-emerald"
                                         style={{ flex: 1.2, justifyContent: "center" }}
                                         disabled={passwordLoading}
                                     >
@@ -826,14 +842,14 @@ function RecycleProfile() {
                                 </p>
 
                                 <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.775rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>
+                                    <label className="form-label">
                                         <FiLock style={{ color: "#059669" }} /> New Password
                                     </label>
                                     <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                                         <input
                                             type={showNewPassword ? "text" : "password"}
-                                            className="recyc-input"
-                                            style={{ paddingRight: "2.5rem" }}
+                                            className="form-textarea"
+                                            style={{ paddingRight: "2.5rem", height: "42px" }}
                                             placeholder="Enter new password (8-15 chars)"
                                             value={newPasswordInput}
                                             onChange={(e) => handleNewPasswordChange(e.target.value)}
@@ -864,14 +880,14 @@ function RecycleProfile() {
                                 </div>
 
                                 <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.775rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>
+                                    <label className="form-label">
                                         <FiCheckCircle style={{ color: "#059669" }} /> Confirm New Password
                                     </label>
                                     <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                                         <input
                                             type={showConfirmPassword ? "text" : "password"}
-                                            className="recyc-input"
-                                            style={{ paddingRight: "2.5rem" }}
+                                            className="form-textarea"
+                                            style={{ paddingRight: "2.5rem", height: "42px" }}
                                             placeholder="Re-enter new password"
                                             value={confirmPasswordInput}
                                             onChange={(e) => handleConfirmPasswordChange(e.target.value)}
@@ -903,7 +919,7 @@ function RecycleProfile() {
                                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.5rem" }}>
                                     <button
                                         type="button"
-                                        className="recyc-cancel-btn"
+                                        className="btn btn-ghost"
                                         style={{ flex: 1, justifyContent: "center" }}
                                         onClick={handleResetPasswordForm}
                                         disabled={passwordLoading}
@@ -912,7 +928,7 @@ function RecycleProfile() {
                                     </button>
                                     <button
                                         type="submit"
-                                        className="recyc-save-btn"
+                                        className="btn btn-emerald"
                                         style={{ flex: 1.2, justifyContent: "center" }}
                                         disabled={passwordLoading}
                                     >
@@ -927,37 +943,39 @@ function RecycleProfile() {
                 {/* Structured Multi-Card Grid */}
                 <div className="recyc-profile-grid">
                     {/* Card 1: Facility & Contact Overview */}
-                    <div className="recyc-info-card">
+                    <div className="recyc-main-panel">
                         <div className="recyc-card-header">
-                            <FiRefreshCw className="recyc-card-icon" />
-                            <h3 className="recyc-card-title">Facility Information</h3>
+                            <div className="recyc-card-icon-wrapper">
+                                <FiRefreshCw />
+                            </div>
+                            <h3 className="panel-title" style={{ margin: 0 }}>Facility Information</h3>
                         </div>
 
                         {!isEditing ? (
                             <div className="recyc-details-list">
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Center Name</span>
                                     <span className="recyc-detail-value bold">{centerName}</span>
                                 </div>
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Authorized Owner</span>
                                     <span className="recyc-detail-value">{ownerName}</span>
                                 </div>
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Registered Email</span>
                                     <span className="recyc-detail-value">{email}</span>
                                 </div>
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Phone Contact</span>
                                     <span className="recyc-detail-value">{phone}</span>
                                 </div>
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Experience</span>
                                     <span className="recyc-detail-value">{experienceYears} Years</span>
                                 </div>
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Pickup Service</span>
-                                    <span className="recyc-detail-value tag">{pickupAvailable}</span>
+                                    <span className="recyc-pill pill-completed">{pickupAvailable}</span>
                                 </div>
                             </div>
                         ) : (
@@ -966,7 +984,7 @@ function RecycleProfile() {
                                     <label>Center Name</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.centerName}
                                         onChange={(e) => handleFormInputChange("centerName", e.target.value)}
                                     />
@@ -975,7 +993,7 @@ function RecycleProfile() {
                                     <label>Owner Name</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.ownerName}
                                         onChange={(e) => handleFormInputChange("ownerName", e.target.value)}
                                     />
@@ -984,7 +1002,7 @@ function RecycleProfile() {
                                     <label>Phone Number</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.phoneNumber}
                                         onChange={(e) => handleFormInputChange("phoneNumber", e.target.value)}
                                     />
@@ -993,7 +1011,7 @@ function RecycleProfile() {
                                     <label>Experience (Years)</label>
                                     <input
                                         type="number"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.experienceYears}
                                         onChange={(e) => handleFormInputChange("experienceYears", e.target.value)}
                                     />
@@ -1001,7 +1019,7 @@ function RecycleProfile() {
                                 <div className="recyc-form-group">
                                     <label>Pickup Service Available</label>
                                     <select
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.pickupAvailable}
                                         onChange={(e) => handleFormInputChange("pickupAvailable", e.target.value)}
                                     >
@@ -1014,61 +1032,65 @@ function RecycleProfile() {
                     </div>
 
                     {/* Card 2: Regulatory Registrations (Locked Read-Only) */}
-                    <div className="recyc-info-card">
+                    <div className="recyc-main-panel">
                         <div className="recyc-card-header">
-                            <FiShield className="recyc-card-icon" />
-                            <h3 className="recyc-card-title">Regulatory Verification & Compliance</h3>
+                            <div className="recyc-card-icon-wrapper">
+                                <FiShield />
+                            </div>
+                            <h3 className="panel-title" style={{ margin: 0 }}>Regulatory Compliance</h3>
                         </div>
 
                         <div className="recyc-details-list">
-                            <div className="recyc-detail-row">
-                                <span className="recyc-detail-label">Business Registration No</span>
+                            <div className="recyc-detail-item">
+                                <span className="recyc-detail-label">Business Reg No</span>
                                 <span className="recyc-detail-value lock-badge">
-                                    <FiLock style={{ fontSize: "0.75rem", marginRight: "4px" }} /> {busRegNo}
+                                    <FiLock /> {busRegNo}
                                 </span>
                             </div>
-                            <div className="recyc-detail-row">
-                                <span className="recyc-detail-label">Recycler Registration No</span>
+                            <div className="recyc-detail-item">
+                                <span className="recyc-detail-label">Recycler Reg No</span>
                                 <span className="recyc-detail-value lock-badge">
-                                    <FiLock style={{ fontSize: "0.75rem", marginRight: "4px" }} /> {recyclerRegNo}
+                                    <FiLock /> {recyclerRegNo}
                                 </span>
                             </div>
-                            <div className="recyc-detail-row">
-                                <span className="recyc-detail-label">GST Identification No</span>
+                            <div className="recyc-detail-item">
+                                <span className="recyc-detail-label">GST No</span>
                                 <span className="recyc-detail-value lock-badge">
-                                    <FiLock style={{ fontSize: "0.75rem", marginRight: "4px" }} /> {gstNo}
+                                    <FiLock /> {gstNo}
                                 </span>
                             </div>
-                            <div className="recyc-detail-row">
-                                <span className="recyc-detail-label">Hazardous Waste Authorization</span>
-                                <span className="recyc-detail-value tag green">{hazardousWasteHandling === "Yes" ? "Authorized" : "N/A"}</span>
+                            <div className="recyc-detail-item">
+                                <span className="recyc-detail-label">Hazardous Waste Auth</span>
+                                <span className="recyc-pill pill-completed">{hazardousWasteHandling === "Yes" ? "Authorized" : "N/A"}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Card 3: Location Address */}
-                    <div className="recyc-info-card">
+                    <div className="recyc-main-panel">
                         <div className="recyc-card-header">
-                            <FiMapPin className="recyc-card-icon" />
-                            <h3 className="recyc-card-title">Facility Location</h3>
+                            <div className="recyc-card-icon-wrapper">
+                                <FiMapPin />
+                            </div>
+                            <h3 className="panel-title" style={{ margin: 0 }}>Facility Location</h3>
                         </div>
 
                         {!isEditing ? (
                             <div className="recyc-details-list">
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Building / Premises</span>
                                     <span className="recyc-detail-value">{buildingNo}</span>
                                 </div>
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Street / Area</span>
                                     <span className="recyc-detail-value">{street}</span>
                                 </div>
-                                <div className="recyc-detail-row">
-                                    <span className="recyc-detail-label">City & District</span>
+                                <div className="recyc-detail-item">
+                                    <span className="recyc-detail-label">City &amp; District</span>
                                     <span className="recyc-detail-value">{city}, {district}</span>
                                 </div>
-                                <div className="recyc-detail-row">
-                                    <span className="recyc-detail-label">State & Pincode</span>
+                                <div className="recyc-detail-item">
+                                    <span className="recyc-detail-label">State &amp; Pincode</span>
                                     <span className="recyc-detail-value">{state} - {pincode}</span>
                                 </div>
                             </div>
@@ -1078,7 +1100,7 @@ function RecycleProfile() {
                                     <label>Building Number</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.buildingNumber}
                                         onChange={(e) => handleFormInputChange("buildingNumber", e.target.value)}
                                     />
@@ -1087,7 +1109,7 @@ function RecycleProfile() {
                                     <label>Street</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.street}
                                         onChange={(e) => handleFormInputChange("street", e.target.value)}
                                     />
@@ -1096,7 +1118,7 @@ function RecycleProfile() {
                                     <label>City</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.city}
                                         onChange={(e) => handleFormInputChange("city", e.target.value)}
                                     />
@@ -1105,7 +1127,7 @@ function RecycleProfile() {
                                     <label>District</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.district}
                                         onChange={(e) => handleFormInputChange("district", e.target.value)}
                                     />
@@ -1114,7 +1136,7 @@ function RecycleProfile() {
                                     <label>State</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.state}
                                         onChange={(e) => handleFormInputChange("state", e.target.value)}
                                     />
@@ -1123,7 +1145,7 @@ function RecycleProfile() {
                                     <label>Pincode</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.pincode}
                                         onChange={(e) => handleFormInputChange("pincode", e.target.value)}
                                     />
@@ -1133,27 +1155,29 @@ function RecycleProfile() {
                     </div>
 
                     {/* Card 4: Operations, Processes & Materials */}
-                    <div className="recyc-info-card">
+                    <div className="recyc-main-panel">
                         <div className="recyc-card-header">
-                            <FiCpu className="recyc-card-icon" />
-                            <h3 className="recyc-card-title">Processing & Material Capabilities</h3>
+                            <div className="recyc-card-icon-wrapper">
+                                <FiCpu />
+                            </div>
+                            <h3 className="panel-title" style={{ margin: 0 }}>Capabilities</h3>
                         </div>
 
                         {!isEditing ? (
                             <div className="recyc-details-list">
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Accepted Device Types</span>
                                     <span className="recyc-detail-value">{deviceTypes}</span>
                                 </div>
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Recycling Processes</span>
                                     <span className="recyc-detail-value">{recyclingProcesses}</span>
                                 </div>
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Recovered Materials</span>
                                     <span className="recyc-detail-value">{recoveredMaterials || "N/A"}</span>
                                 </div>
-                                <div className="recyc-detail-row">
+                                <div className="recyc-detail-item">
                                     <span className="recyc-detail-label">Hazardous Waste Types</span>
                                     <span className="recyc-detail-value">{hazardousWasteTypes || "N/A"}</span>
                                 </div>
@@ -1164,7 +1188,7 @@ function RecycleProfile() {
                                     <label>Accepted Device Types</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.deviceTypes}
                                         onChange={(e) => handleFormInputChange("deviceTypes", e.target.value)}
                                     />
@@ -1173,7 +1197,7 @@ function RecycleProfile() {
                                     <label>Recycling Processes</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.recyclingProcesses}
                                         onChange={(e) => handleFormInputChange("recyclingProcesses", e.target.value)}
                                     />
@@ -1182,7 +1206,7 @@ function RecycleProfile() {
                                     <label>Recovered Materials Output</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.recoveredMaterials}
                                         onChange={(e) => handleFormInputChange("recoveredMaterials", e.target.value)}
                                     />
@@ -1191,7 +1215,7 @@ function RecycleProfile() {
                                     <label>Hazardous Waste Types</label>
                                     <input
                                         type="text"
-                                        className="recyc-input"
+                                        className="recyc-form-input"
                                         value={editForm.hazardousWasteTypes}
                                         onChange={(e) => handleFormInputChange("hazardousWasteTypes", e.target.value)}
                                     />
@@ -1202,10 +1226,12 @@ function RecycleProfile() {
                 </div>
 
                 {/* Documents & Compliance Credentials Section */}
-                <div className="recyc-documents-section">
-                    <div className="recyc-section-header">
-                        <FiFileText className="recyc-section-icon" />
-                        <h2>Verified Compliance Documents & Licenses</h2>
+                <div className="recyc-documents-panel">
+                    <div className="panel-header-row">
+                        <div>
+                            <h2 className="panel-title">Verified Compliance Documents &amp; Licenses</h2>
+                            <p className="panel-subtitle">Government compliance certificates and facility operational permits</p>
+                        </div>
                     </div>
 
                     <div className="recyc-documents-grid">
@@ -1220,16 +1246,16 @@ function RecycleProfile() {
                                         <h4 className="recyc-doc-title">{doc.title}</h4>
                                         <p className="recyc-doc-status">
                                             {url ? (
-                                                <span className="doc-uploaded"><FiCheckCircle /> Uploaded</span>
+                                                <span className="recyc-pill pill-completed"><FiCheckCircle /> Uploaded</span>
                                             ) : (
-                                                <span className="doc-missing"><FiAlertCircle /> Pending</span>
+                                                <span className="recyc-pill pill-expired"><FiAlertCircle /> Pending</span>
                                             )}
                                         </p>
                                     </div>
                                     {url && (
                                         <button
                                             type="button"
-                                            className="recyc-doc-view-btn"
+                                            className="btn btn-ghost"
                                             onClick={() => setActiveDoc({ title: doc.title, url })}
                                         >
                                             <FiEye /> View
@@ -1243,48 +1269,48 @@ function RecycleProfile() {
 
                 {/* Modal Document Viewer */}
                 {activeDoc && (
-                    <div className="recyc-doc-modal-overlay" onClick={() => setActiveDoc(null)}>
-                        <div className="recyc-doc-modal-content" onClick={(e) => e.stopPropagation()}>
-                            <div className="recyc-doc-modal-header">
+                    <div className="recyc-modal-backdrop" onClick={() => setActiveDoc(null)}>
+                        <div className="recyc-modal-content" style={{ maxWidth: "800px", width: "90%" }} onClick={(e) => e.stopPropagation()}>
+                            <div className="recyc-modal-header">
                                 <h3>{activeDoc.title}</h3>
                                 <div style={{ display: "flex", gap: "0.5rem" }}>
                                     <a
                                         href={activeDoc.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="recyc-doc-external-link"
+                                        className="modal-close-icon"
                                         title="Open in new tab"
                                     >
                                         <FiExternalLink />
                                     </a>
                                     <button
                                         type="button"
-                                        className="recyc-doc-close-btn"
+                                        className="modal-close-icon"
                                         onClick={() => setActiveDoc(null)}
                                     >
                                         <FiX />
                                     </button>
                                 </div>
                             </div>
-                            <div className="recyc-doc-modal-body">
+                            <div className="recyc-modal-body" style={{ padding: "1rem" }}>
                                 {activeDoc.url.toLowerCase().endsWith(".pdf") ? (
                                     <iframe
                                         src={activeDoc.url}
                                         title={activeDoc.title}
-                                        className="recyc-doc-iframe"
+                                        style={{ width: "100%", height: "550px", border: "none", borderRadius: "12px" }}
                                     />
                                 ) : (
                                     <img
                                         src={activeDoc.url}
                                         alt={activeDoc.title}
-                                        className="recyc-doc-img-preview"
+                                        style={{ width: "100%", maxHeight: "550px", objectFit: "contain", borderRadius: "12px" }}
                                     />
                                 )}
                             </div>
                         </div>
                     </div>
                 )}
-            </div>
+            </main>
         </div>
     );
 }

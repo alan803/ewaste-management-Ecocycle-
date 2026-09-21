@@ -42,16 +42,57 @@ namespace EcoCycle.API.Controllers
                 return null;
             }
 
+            // Check if device is being reallocated from an old penalized/reassigned technician
+            Technician? oldTech = null;
+            var priorTechReq = await db.InspectionRequest
+                .Include(ir => ir.Technician)
+                .Where(ir => ir.DeviceId == device.DeviceId &&
+                             ir.Technician != null &&
+                             (ir.Status == "Reassigned" || ir.Status == "Penalized" || ir.Status == "Expired" || ir.Status == "Rejected"))
+                .OrderByDescending(ir => ir.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            oldTech = priorTechReq?.Technician;
+
+            if (oldTech == null)
+            {
+                var priorInsp = await db.Inspection
+                    .Include(i => i.Technician)
+                    .Where(i => i.DeviceId == device.DeviceId &&
+                                 i.Technician != null &&
+                                 (i.Status == "Penalized" || i.Status == "Reassigned"))
+                    .OrderByDescending(i => i.CreatedAt)
+                    .FirstOrDefaultAsync();
+                oldTech = priorInsp?.Technician;
+            }
+
+            if (oldTech == null)
+            {
+                var penaltyRecord = await db.technicianPenalties
+                    .Include(p => p.Technician)
+                    .Where(p => p.DeviceId == device.DeviceId && p.Technician != null)
+                    .OrderByDescending(p => p.CreatedAt)
+                    .FirstOrDefaultAsync();
+                oldTech = penaltyRecord?.Technician;
+            }
+
+            string targetState = oldTech != null && !string.IsNullOrWhiteSpace(oldTech.State)
+                ? oldTech.State
+                : device.User?.State ?? "";
+
+            string targetDistrict = oldTech != null && !string.IsNullOrWhiteSpace(oldTech.District)
+                ? oldTech.District
+                : device.User?.District ?? "";
+
             var candidates = new List<(CollectionAgent Agent, int Workload)>();
 
             foreach (var agent in agents)
             {
                 // Strict State match
-                if (device.User != null &&
-                    !string.IsNullOrWhiteSpace(device.User.State) &&
+                if (!string.IsNullOrWhiteSpace(targetState) &&
                     !string.IsNullOrWhiteSpace(agent.State))
                 {
-                    if (!device.User.State.Trim().Equals(
+                    if (!targetState.Trim().Equals(
                             agent.State.Trim(),
                             StringComparison.OrdinalIgnoreCase))
                     {
@@ -60,11 +101,10 @@ namespace EcoCycle.API.Controllers
                 }
 
                 // Strict District match
-                if (device.User != null &&
-                    !string.IsNullOrWhiteSpace(device.User.District) &&
+                if (!string.IsNullOrWhiteSpace(targetDistrict) &&
                     !string.IsNullOrWhiteSpace(agent.District))
                 {
-                    if (!device.User.District.Trim().Equals(
+                    if (!targetDistrict.Trim().Equals(
                             agent.District.Trim(),
                             StringComparison.OrdinalIgnoreCase))
                     {
@@ -144,6 +184,9 @@ namespace EcoCycle.API.Controllers
                 {
                     DeviceId = deviceid,
                     CollectionAgentId = agent?.CollectionAgentId,
+                    AssignmentType = "CustomerToTechnician",
+                    SourceType = "Customer",
+                    DestinationType = "Technician Center",
                     Status = agent != null ? "Assigned" : "Waiting",
                     AssignedAt = agent != null ? DateTime.Now : null,
                     ResponseDeadline = DateTime.Now.AddHours(24),

@@ -1756,19 +1756,14 @@ Regards,<br>
                         .Include(x => x.Device)
                             .ThenInclude(d => d.User)
                         .Where(x =>
-                            x.CollectionAgentId ==
-                                agent.CollectionAgentId &&
-
-                            x.Device.PickupDate >= today &&
-                            x.Device.PickupDate < tomorrow &&
-
+                            x.CollectionAgentId == agent.CollectionAgentId &&
+                            x.Device != null &&
                             x.Device.Status != "Inactive" &&
                             x.Device.Status != "Deleted" &&
-
                             (
-                                x.Status == "Assigned" ||
                                 x.Status == "Accepted" ||
-                                x.Status == "PickupStarted"
+                                x.Status == "PickupStarted" ||
+                                x.Status == "accepted"
                             ))
                         .OrderBy(x => x.Device.PickupDate)
                         .Select(x => new
@@ -1844,7 +1839,13 @@ Regards,<br>
                                     : "",
 
                             status =
-                                x.Status
+                                x.Status,
+
+                            extensionCount =
+                                x.ExtensionCount,
+
+                            responseDeadline =
+                                x.ResponseDeadline
                         })
                         .ToListAsync();
 

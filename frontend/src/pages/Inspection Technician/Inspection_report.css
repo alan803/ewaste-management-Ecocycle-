@@ -1,0 +1,149 @@
+/* Inspection Report Styles */
+
+.report-summary-hero {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  color: #0f172a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 15px rgba(15, 23, 42, 0.05);
+}
+
+.report-summary-hero .hero-left h4 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  margin: 0 0 0.35rem 0;
+  color: #0f172a;
+}
+
+.report-summary-hero .hero-left p {
+  font-size: 0.825rem;
+  color: #475569;
+  margin: 0;
+}
+
+.report-summary-hero .hero-left p strong {
+  color: #0f172a;
+}
+
+.report-summary-hero .hero-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.grade-badge {
+  background: #10b981;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.4rem 1rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+
+.hub-tag {
+  background: #ffffff;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+  font-size: 0.725rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+}
+
+/* Compact Card Action Buttons Sizing */
+.card-actions-footer {
+  display: flex !important;
+  gap: 0.4rem !important;
+  margin-top: 0.75rem !important;
+  width: 100% !important;
+}
+
+.card-actions-footer .action-btn {
+  padding: 0.38rem 0.75rem !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  white-space: nowrap !important;
+  border-radius: 8px !important;
+  box-sizing: border-box !important;
+  flex: 1 1 50% !important;
+  min-width: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.3rem !important;
+}
+
+.card-actions-footer .action-btn svg {
+  font-size: 0.75rem !important;
+  flex-shrink: 0 !important;
+}
+
+/* Inspection Technician Filter Pills Standard */
+.filter-pills {
+  display: flex;
+  background: #f1f5f9;
+  padding: 0.25rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  gap: 0.25rem;
+}
+
+.pill-btn {
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #64748b;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pill-btn.active {
+  background: #ffffff;
+  color: #047857;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.view-toggle {
+  display: flex;
+  background: #f1f5f9;
+  padding: 0.25rem;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.toggle-btn {
+  border: none;
+  background: transparent;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.05rem;
+}
+
+.toggle-btn.active {
+  background: #ffffff;
+  color: #047857;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}

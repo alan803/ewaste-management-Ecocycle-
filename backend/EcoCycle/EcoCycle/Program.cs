@@ -1,4 +1,5 @@
 using EcoCycle.API.Data;
+using EcoCycle.API.Models;
 using EcoCycle.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -49,6 +50,9 @@ builder.Services.AddAuthentication(
 });
 
 builder.Services.AddAuthorization();
+
+builder.Services.Configure<RazorpaySettings>(
+    builder.Configuration.GetSection("Razorpay"));
 
 builder.Services.AddOpenApi();
 
@@ -103,6 +107,88 @@ using (var scope = app.Services.CreateScope())
             BEGIN
                 ALTER TABLE [dbo].[CollectionAssignments] ADD [RespondedAt] DATETIME2 NULL;
             END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[CollectionAssignments]') 
+                AND name = N'ExtensionCount'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[CollectionAssignments] ADD [ExtensionCount] INT NOT NULL DEFAULT 0;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[CollectionAssignments]') 
+                AND name = N'SourceType'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[CollectionAssignments] ADD [SourceType] NVARCHAR(100) NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[CollectionAssignments]') 
+                AND name = N'DestinationType'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[CollectionAssignments] ADD [DestinationType] NVARCHAR(100) NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[Device]') 
+                AND name = N'DeviceModelId'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[Device] ADD [DeviceModelId] INT NULL;
+                ALTER TABLE [dbo].[Device] ADD CONSTRAINT [FK_Device_DeviceModel_DeviceModelId] FOREIGN KEY ([DeviceModelId]) REFERENCES [dbo].[DeviceModel] ([DeviceModelId]) ON DELETE SET NULL;
+            END
+
+            IF EXISTS (SELECT * FROM sys.tables WHERE name = N'collectionAgentPenalties')
+            BEGIN
+                DROP TABLE [dbo].[collectionAgentPenalties];
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = N'technicianPenalties')
+            BEGIN
+                CREATE TABLE [dbo].[technicianPenalties] (
+                    [TechnicianPenaltyId] INT IDENTITY(1,1) NOT NULL,
+                    [TechnicianId] INT NOT NULL,
+                    [InspectionRequestId] INT NULL,
+                    [PenaltyAmount] DECIMAL(18,2) NOT NULL DEFAULT 100.00,
+                    [Reason] NVARCHAR(500) NOT NULL DEFAULT '',
+                    [Status] NVARCHAR(30) NOT NULL DEFAULT 'Pending',
+                    [CreatedAt] DATETIME2 NOT NULL DEFAULT GETDATE(),
+                    [ResolvedAt] DATETIME2 NULL,
+                    CONSTRAINT [PK_technicianPenalties] PRIMARY KEY CLUSTERED ([TechnicianPenaltyId] ASC)
+                );
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = N'Payments')
+            BEGIN
+                CREATE TABLE [dbo].[Payments] (
+                    [PaymentId] INT IDENTITY(1,1) NOT NULL,
+                    [PaymentType] NVARCHAR(50) NOT NULL,
+                    [ReferenceId] INT NULL,
+                    [PayerType] NVARCHAR(50) NOT NULL DEFAULT '',
+                    [PayerLoginId] INT NULL,
+                    [ReceiverType] NVARCHAR(50) NOT NULL DEFAULT '',
+                    [ReceiverLoginId] INT NULL,
+                    [Amount] DECIMAL(18,2) NOT NULL,
+                    [Currency] NVARCHAR(10) NOT NULL DEFAULT 'INR',
+                    [PaymentStatus] NVARCHAR(30) NOT NULL DEFAULT 'Pending',
+                    [PaymentMethod] NVARCHAR(50) NULL,
+                    [TransactionReference] NVARCHAR(100) NULL,
+                    [RazorpayOrderId] NVARCHAR(100) NULL,
+                    [RazorpayPaymentId] NVARCHAR(100) NULL,
+                    [RazorpaySignature] NVARCHAR(250) NULL,
+                    [Description] NVARCHAR(500) NULL,
+                    [PaidAt] DATETIME2 NULL,
+                    [CreatedAt] DATETIME2 NOT NULL DEFAULT GETDATE(),
+                    CONSTRAINT [PK_Payments] PRIMARY KEY CLUSTERED ([PaymentId] ASC)
+                );
+            END
         ");
     }
     catch (Exception ex)
@@ -110,6 +196,7 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("Database auto-migration error: " + ex.Message);
     }
 }
+
 
 app.MapControllers();
 

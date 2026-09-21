@@ -50,6 +50,7 @@ function Manage_userprofile() {
     const [error, seterror] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
     const [saving, setSaving] = useState(false);
+    const [notifications, setNotifications] = useState([]);
 
     // Edit Mode & Form State
     const [isEditing, setIsEditing] = useState(false);
@@ -197,7 +198,23 @@ function Manage_userprofile() {
             return;
         }
         loadprofile();
+        fetchNotifications();
     }, [navigate]);
+
+    const fetchNotifications = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setNotifications(response.data || []);
+        } catch (err) {
+            console.error("Error fetching notifications:", err);
+        }
+    };
+
+    const totalNotifCount = notifications.filter(n => !n.isRead && !n.isread).length;
 
     const loadprofile = async () => {
         const token = localStorage.getItem("token");
@@ -478,12 +495,43 @@ function Manage_userprofile() {
             <main className="citizen-main-content">
                 {/* Title & Top Ribbon */}
                 <div className="vd-ribbon" style={{ marginBottom: "1.75rem" }}>
-                    <h1 className="vd-page-heading">Citizen User Profile</h1>
+                    <div>
+                        <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a202c", margin: "0 0 0.25rem 0", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.025em" }}>
+                            Citizen User Profile
+                        </h1>
+                        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0, fontWeight: 500 }}>
+                            View and update your personal contact info, pickup address, and account security settings.
+                        </p>
+                    </div>
 
                     <div className="vd-top-actions">
-                        <button className="vd-circle-btn" title="Notifications" style={{ position: "relative" }}>
+                        <button 
+                            type="button" 
+                            className="vd-circle-btn" 
+                            title={`Notifications ${totalNotifCount > 0 ? `(${totalNotifCount} unread)` : ""}`} 
+                            onClick={() => navigate("/technician-notification")}
+                            style={{ position: "relative" }}
+                        >
                             <FiBell />
-                            <span style={{ position: "absolute", top: "10px", right: "10px", width: "7px", height: "7px", borderRadius: "50%", background: "#ef4444" }}></span>
+                            {totalNotifCount > 0 && (
+                                <span className="vd-notif-badge-pill" style={{
+                                    position: "absolute",
+                                    top: "-4px",
+                                    right: "-4px",
+                                    background: "#ef4444",
+                                    color: "#ffffff",
+                                    fontSize: "0.65rem",
+                                    fontWeight: 800,
+                                    width: "18px",
+                                    height: "18px",
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center"
+                                }}>
+                                    {totalNotifCount > 9 ? "9+" : totalNotifCount}
+                                </span>
+                            )}
                         </button>
 
                         <div className="vd-user-profile-pill">

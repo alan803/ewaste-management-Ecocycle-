@@ -42,6 +42,7 @@ function Pickups() {
     
     // Logged-in Agent Profile
     const [agentProfile, setAgentProfile] = useState(null);
+    const [unreadNotifCount, setUnreadNotifCount] = useState(0);
     
     // Pickups Data belonging strictly to THIS agent
     const [pickups, setPickups] = useState([]);
@@ -55,6 +56,12 @@ function Pickups() {
     const [selectedPickup, setSelectedPickup] = useState(null);
     const [completePickupTarget, setCompletePickupTarget] = useState(null);
     const [completeDeliveryTarget, setCompleteDeliveryTarget] = useState(null);
+    // Tech→Recycler: separate pickup completion modal (OTP to technician only)
+    const [completeTechPickupTarget, setCompleteTechPickupTarget] = useState(null);
+    // Tech→Recycler delivery: QR scan state (separate from citizen pickup QR)
+    const [deliveryQrInput, setDeliveryQrInput] = useState("");
+    const [deliveryQrVerified, setDeliveryQrVerified] = useState(false);
+    const [deliveryQrError, setDeliveryQrError] = useState("");
     
     // Interactive Verification Steps state for Active Handover Completion Modal
     const [qrScanInput, setQrScanInput] = useState("");
@@ -102,7 +109,23 @@ function Pickups() {
         }
         fetchAgentProfile(token);
         fetchMyPickups(token);
+        fetchNotifications(token);
     }, [navigate]);
+
+    const fetchNotifications = async (token) => {
+        const authToken = token || localStorage.getItem("token");
+        if (!authToken) return;
+        try {
+            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+                headers: { Authorization: `Bearer ${authToken}` }
+            });
+            const notificationsData = Array.isArray(response.data) ? response.data : [];
+            const unread = notificationsData.filter((n) => !n.isRead && !n.isread).length;
+            setUnreadNotifCount(unread);
+        } catch (err) {
+            console.error("Error fetching unread notifications in Pickups:", err);
+        }
+    };
 
     // Fetch logged-in agent profile info
     const fetchAgentProfile = async (token) => {
@@ -421,6 +444,98 @@ function Pickups() {
         setDeliveryOtpSent(false);
         setDeliveryOtpTimer(0);
         setDeliveryOtpError("");
+        // Reset delivery QR state for Tech→Recycler delivery
+        setDeliveryQrInput("");
+        setDeliveryQrVerified(false);
+        setDeliveryQrError("");
+    };
+
+    // Open Tech→Recycler Complete Pickup modal (OTP to technician only, no QR/photo)
+    const handleOpenCompleteTechPickupModal = (item) => {
+        setCompleteTechPickupTarget(item);
+        // Reuse delivery OTP state for technician OTP
+        setDeliveryOtpInput("");
+        setDeliveryOtpVerified(false);
+        setDeliveryOtpSent(false);
+        setDeliveryOtpTimer(0);
+        setDeliveryOtpError("");
+    };
+
+    // Confirm & complete Tech→Recycler pickup (calls /complete/{id} after technician OTP verified)
+    const handleConfirmCompleteTechPickup = async () => {
+        if (!completeTechPickupTarget || !deliveryOtpVerified) return;
+        const assignmentId = completeTechPickupTarget.collectionAssignmentId;
+        try {
+            setProcessingId(assignmentId);
+            const token = localStorage.getItem("token");
+            await axios.post(
+                `https://localhost:7102/api/Pickup/complete/${assignmentId}`,
+                { agentNotes: "Tech-to-Recycler pickup completed via technician OTP verification." },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setPickups(prev =>
+                prev.map(p => (p.collectionAssignmentId === assignmentId ? { ...p, status: "Completed", deliveryStatus: "Pending" } : p))
+            );
+            setCompleteTechPickupTarget(null);
+            setToastNotice({ type: "success", message: `Pickup #${assignmentId} completed! Device collected from technician.` });
+            setTimeout(() => setToastNotice(null), 4500);
+        } catch (err) {
+            console.warn("API complete notice (tech pickup):", err);
+            // Apply optimistic update even if API partially fails
+            setPickups(prev =>
+                prev.map(p => (p.collectionAssignmentId === assignmentId ? { ...p, status: "Completed", deliveryStatus: "Pending" } : p))
+            );
+            setCompleteTechPickupTarget(null);
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    // Verify QR code for Tech→Recycler delivery to Recycling Center
+    const handleVerifyDeliveryQr = () => {
+        setDeliveryQrError("");
+        const val = deliveryQrInput.trim();
+        if (!val) {
+            setDeliveryQrError("Please scan or enter the device Barcode / QR token.");
+            setDeliveryQrVerified(false);
+            return;
+        }
+        if (/[^a-zA-Z0-9-]/.test(val)) {
+            setDeliveryQrError("Special characters are not allowed in device barcode/QR code.");
+            setDeliveryQrVerified(false);
+            return;
+        }
+        if (val.length <= 10) {
+            setDeliveryQrError("Device barcode/QR code length must be greater than 10 characters.");
+            setDeliveryQrVerified(false);
+            return;
+        }
+        if (!completeDeliveryTarget) return;
+        const devId = String(completeDeliveryTarget.deviceId || "").trim();
+        const actualToken = String(completeDeliveryTarget.deviceQrToken || "").trim();
+        const inputLower = val.toLowerCase();
+        const isMatch = (
+            (actualToken && inputLower === actualToken.toLowerCase()) ||
+            inputLower === `ecoqr-dev-${devId.toLowerCase()}` ||
+            inputLower === `#dev-${devId.toLowerCase()}` ||
+            inputLower === `dev-${devId.toLowerCase()}` ||
+            inputLower === devId.toLowerCase()
+        );
+        if (isMatch) {
+            setDeliveryQrVerified(true);
+            setDeliveryQrError("");
+        } else {
+            setDeliveryQrVerified(false);
+            setDeliveryQrError("Invalid Barcode / QR code. Please scan the exact device QR tag.");
+        }
+    };
+
+    // Confirm delivery to Recycling Center for Tech→Recycler (after QR scan)
+    const handleConfirmTechDeliveryToCenter = async () => {
+        if (!completeDeliveryTarget || !deliveryQrVerified) return;
+        const assignmentId = completeDeliveryTarget.collectionAssignmentId;
+        await handleDeliverToCenter(assignmentId);
+        setCompleteDeliveryTarget(null);
     };
 
     const handleConfirmCompleteDelivery = async () => {
@@ -428,6 +543,39 @@ function Pickups() {
         const assignmentId = completeDeliveryTarget.collectionAssignmentId;
         await handleDeliverToCenter(assignmentId);
         setCompleteDeliveryTarget(null);
+        setToastNotice({
+            type: "success",
+            message: `Delivery for assignment #${assignmentId} completed successfully!`
+        });
+        setTimeout(() => setToastNotice(null), 4500);
+    };
+
+    const handleRequestTechnicianVerification = async () => {
+        if (!completeDeliveryTarget) return;
+        const assignmentId = completeDeliveryTarget.collectionAssignmentId;
+        try {
+            setProcessingId("requesting-tech-verification");
+            const token = localStorage.getItem("token");
+            await axios.post(
+                `https://localhost:7102/api/Pickup/request-technician-verification/${assignmentId}`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            setToastNotice({
+                type: "success",
+                message: "Verification request sent to technician! Handover is now awaiting technician approval."
+            });
+            setTimeout(() => setToastNotice(null), 5000);
+            fetchMyPickups();
+            setCompleteDeliveryTarget(null);
+        } catch (err) {
+            console.error("Error requesting technician verification:", err);
+            const msg = err.response?.data?.message || "Failed to send verification request to technician.";
+            setDeliveryOtpError(msg);
+        } finally {
+            setProcessingId(null);
+        }
     };
 
     // Send OTP to Customer Email
@@ -501,14 +649,7 @@ function Pickups() {
         const cleanVal = e.target.value.replace(/\D/g, "").slice(0, 4);
         setOtpInput(cleanVal);
         setOtpVerified(false);
-
-        if (!cleanVal) {
-            setOtpError("Customer OTP is required.");
-        } else if (cleanVal.length < 4) {
-            setOtpError(`Entering OTP (${cleanVal.length}/4 digits)`);
-        } else {
-            setOtpError("");
-        }
+        setOtpError("");
     };
 
     const handleVerifyOtp = async () => {
@@ -516,11 +657,6 @@ function Pickups() {
 
         if (!otpSent) {
             setOtpError("Please click 'Send OTP' first to email code to customer.");
-            return;
-        }
-
-        if (otpTimer <= 0) {
-            setOtpError("OTP has expired (valid for 30s). Please click 'Resend OTP'.");
             return;
         }
 
@@ -541,7 +677,6 @@ function Pickups() {
 
             setOtpVerified(true);
             setOtpError("");
-            setOtpTimer(0); // Stop timer on successful verification
         } catch (err) {
             console.error("Error verifying OTP:", err);
             const msg = err.response?.data?.message || "Invalid OTP code. Please check customer email.";
@@ -647,6 +782,13 @@ function Pickups() {
             }
         } catch (err) {
             console.error("Error starting delivery:", err);
+            console.error("Backend response:", err.response?.data);
+
+            alert(
+                err.response?.data?.error ||
+                err.response?.data?.message ||
+                "Failed to start delivery."
+            );
         } finally {
             setProcessingId(null);
         }
@@ -705,9 +847,11 @@ function Pickups() {
         } else if (activeTabLower === "en route" || activeTabLower === "in progress") {
             return statusLower === "pickupstarted" || statusLower === "en route";
         } else if (activeTabLower === "completed") {
-            return statusLower === "completed";
+            return statusLower === "completed" || statusLower === "pickedup" || statusLower === "awaitingtechnicianapproval" || statusLower === "deliveredtocenter" || statusLower === "delivered" || item.pickedUpAt != null;
         } else if (activeTabLower === "pending" || activeTabLower === "assigned") {
             return statusLower === "assigned" || statusLower === "pending";
+        } else if (activeTabLower === "expired" || activeTabLower === "uncompleted" || activeTabLower === "failed") {
+            return statusLower === "expired" || statusLower === "rejected" || statusLower === "declined" || statusLower === "failed" || statusLower === "cancelled";
         }
 
         return true; // "All" tab
@@ -739,20 +883,50 @@ function Pickups() {
         return dateFormatted;
     };
 
-    const getStatusBadge = (status) => {
-        switch ((status || "").toLowerCase()) {
-            case "completed":
-                return <span className="pro-badge badge-completed"><FiCheckCircle /> Completed</span>;
+    const getStatusBadge = (itemOrStatus) => {
+        let s = "";
+        let delStat = "";
+        let lcs = "";
+
+        if (typeof itemOrStatus === "object" && itemOrStatus !== null) {
+            s = String(itemOrStatus.status || "").toLowerCase();
+            delStat = String(itemOrStatus.deliveryStatus || "").toLowerCase();
+            lcs = String(itemOrStatus.lifecycleStatus || "").toLowerCase();
+        } else {
+            s = String(itemOrStatus || "").toLowerCase();
+        }
+
+        if (s === "handoverrejected" || delStat === "handoverrejected" || lcs === "handoverrejected") {
+            return (
+                <span className="pro-badge badge-declined" style={{ background: "#fef2f2", color: "#dc2626", border: "1.5px solid #fca5a5", fontWeight: 700 }}>
+                    <FiAlertTriangle /> Verification Rejected
+                </span>
+            );
+        }
+
+        if (s === "deliveredtocenter" || delStat === "delivered" || delStat === "completed") {
+            return <span className="pro-badge badge-completed"><FiCheckCircle /> Delivered to Hub</span>;
+        }
+
+        if (s === "awaitingtechnicianapproval" || delStat === "pendingverification" || lcs === "handoverpendingverification") {
+            return <span className="pro-badge badge-pending" style={{ background: "#fef3c7", color: "#b45309", border: "1px solid #fde68a" }}><FiClock /> Handover Verification</span>;
+        }
+
+        switch (s) {
+            case "pickedup":
+                return <span className="pro-badge badge-enroute" style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" }}><FiTruck /> Collected - In Transit</span>;
             case "pickupstarted":
             case "en route":
+            case "outfordelivery":
                 return <span className="pro-badge badge-enroute"><FiTruck /> En Route</span>;
             case "accepted":
                 return <span className="pro-badge badge-accepted"><FiCheck /> Accepted</span>;
             case "rejected":
             case "declined":
-                return <span className="pro-badge badge-declined"><FiX /> Declined</span>;
             case "expired":
-                return <span className="pro-badge badge-expired"><FiClock /> Expired</span>;
+            case "cancelled":
+            case "failed":
+                return <span className="pro-badge badge-expired"><FiAlertTriangle /> Expired</span>;
             case "assigned":
             case "pending":
             default:
@@ -767,10 +941,17 @@ function Pickups() {
         const s = (p.status || "").toLowerCase();
         return s === "pickupstarted" || s === "en route";
     }).length;
-    const completedCount = pickups.filter(p => (p.status || "").toLowerCase() === "completed").length;
+    const completedCount = pickups.filter(p => {
+        const s = (p.status || "").toLowerCase();
+        return s === "completed" || s === "pickedup" || s === "awaitingtechnicianapproval" || s === "deliveredtocenter" || s === "delivered" || p.pickedUpAt != null;
+    }).length;
     const pendingCount = pickups.filter(p => {
         const s = (p.status || "").toLowerCase();
         return s === "assigned" || s === "pending";
+    }).length;
+    const expiredCount = pickups.filter(p => {
+        const s = (p.status || "").toLowerCase();
+        return s === "expired" || s === "rejected" || s === "declined" || s === "failed" || s === "cancelled";
     }).length;
 
     return (
@@ -788,7 +969,8 @@ function Pickups() {
                     setIsOnDuty={setIsOnDuty}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
-                    onRefresh={() => fetchMyPickups()}
+                    onRefresh={() => { fetchMyPickups(); fetchNotifications(); }}
+                    unreadNotifCount={unreadNotifCount}
                 />
 
                 <div className="pro-pickups-container">
@@ -800,7 +982,8 @@ function Pickups() {
                                 { id: "Accepted", label: "Accepted", count: acceptedCount },
                                 { id: "En Route", label: "In Transit", count: inProgressCount },
                                 { id: "Completed", label: "Completed", count: completedCount },
-                                { id: "Pending", label: "Pending", count: pendingCount }
+                                { id: "Pending", label: "Pending", count: pendingCount },
+                                { id: "Expired", label: "Expired", count: expiredCount }
                             ].map((tab) => (
                                 <button
                                     key={tab.id}
@@ -884,17 +1067,27 @@ function Pickups() {
                         <div className="pro-cards-grid">
                             {filteredPickups.map((item) => {
                                 const statusLower = (item.status || "").toLowerCase();
-                                const isPending = statusLower === "assigned" || statusLower === "pending";
-                                const isAccepted = statusLower === "accepted";
-                                const isEnRoute = statusLower === "pickupstarted" || statusLower === "en route";
-                                const isCompleted = statusLower === "completed";
+                                const isExpired = statusLower === "expired" || statusLower === "rejected" || statusLower === "declined" || statusLower === "cancelled" || statusLower === "failed";
+                                const isPending = !isExpired && (statusLower === "assigned" || statusLower === "pending");
+                                const isAccepted = !isExpired && statusLower === "accepted";
+                                const isEnRoute = !isExpired && (statusLower === "pickupstarted" || statusLower === "en route");
+                                const isCompleted = !isExpired && statusLower === "completed";
 
                                 return (
-                                    <div key={item.collectionAssignmentId || item.id} className="pro-pickup-card">
+                                    <div key={item.collectionAssignmentId || item.id} className={`pro-pickup-card ${isExpired ? "pro-pickup-card--expired" : ""}`}>
                                         {/* Card Header Row */}
                                         <div className="pro-card-header">
-                                            <span className="card-task-num">#{item.collectionAssignmentId}</span>
-                                            {getStatusBadge(item.status)}
+                                            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                                                <span className="card-task-num">#{item.collectionAssignmentId}</span>
+                                                {item.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                    <span style={{ background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd", fontSize: "0.68rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>Tech ➔ Recycler</span>
+                                                ) : (item.assignmentType === "TechnicianToTechnician" || item.isReassignedFromTech || item.isReassignmentPickup) ? (
+                                                    <span style={{ background: "#fff7ed", color: "#c2410c", border: "1px solid #ffedd5", fontSize: "0.68rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>Tech ➔ Tech</span>
+                                                ) : (
+                                                    <span style={{ background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", fontSize: "0.68rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>Citizen ➔ Tech</span>
+                                                )}
+                                            </div>
+                                            {getStatusBadge(item)}
                                         </div>
 
                                         {/* Item Title & Tags */}
@@ -911,45 +1104,66 @@ function Pickups() {
                                             </div>
                                         </div>
 
-                                        {/* Customer Details - Clean & Simple Flat List */}
+                                        {/* Route Details - based on assignmentType */}
                                         <div className="pro-card-details">
-                                            <div className="pro-info-row">
-                                                <FiUser className="icn" />
-                                                <span className="bold-txt">{item.customerName || "Citizen Customer"}</span>
-                                            </div>
-
-                                            {item.customerPhone && (
-                                                <div className="pro-info-row">
-                                                    <FiPhoneCall className="icn" />
-                                                    <a href={`tel:${item.customerPhone}`} className="tel-link">
-                                                        {item.customerPhone}
-                                                    </a>
-                                                </div>
+                                            {item.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                <>
+                                                    <div className="pro-info-row">
+                                                        <FiUser className="icn" />
+                                                        <span className="bold-txt" style={{ color: "#0369a1" }}>Collect From: {item.technicianName || item.inspectionCenterName || "Technician Hub"}</span>
+                                                    </div>
+                                                    {item.technicianPhone && (
+                                                        <div className="pro-info-row">
+                                                            <FiPhoneCall className="icn" />
+                                                            <a href={`tel:${item.technicianPhone}`} className="tel-link">{item.technicianPhone}</a>
+                                                        </div>
+                                                    )}
+                                                    <div className="pro-info-row">
+                                                        <FiMapPin className="icn pin" />
+                                                        <span className="addr-txt">{item.deliveredAddress || item.technicianAddress || "Inspection Center Address"}</span>
+                                                    </div>
+                                                    <div className="pro-info-row delivery-row">
+                                                        <FiTruck className="icn delivery-icn" />
+                                                        <span className="delivery-txt"><strong>Deliver To:</strong> {item.recyclingCenterName || "Recycling Center"}</span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="pro-info-row">
+                                                        <FiUser className="icn" />
+                                                        <span className="bold-txt">{item.customerName || "Citizen Customer"}</span>
+                                                    </div>
+                                                    {item.customerPhone && (
+                                                        <div className="pro-info-row">
+                                                            <FiPhoneCall className="icn" />
+                                                            <a href={`tel:${item.customerPhone}`} className="tel-link">{item.customerPhone}</a>
+                                                        </div>
+                                                    )}
+                                                    <div className="pro-info-row">
+                                                        <FiMapPin className="icn pin" />
+                                                        <span className="addr-txt">{item.address || "Address N/A"}{item.city ? `, ${item.city}` : ""} {item.pincode ? `(${item.pincode})` : ""}</span>
+                                                    </div>
+                                                    {(item.technicianName || item.inspectionCenterName) && (
+                                                        <div className="pro-info-row delivery-row">
+                                                            <FiTruck className="icn delivery-icn" />
+                                                            <span className="delivery-txt"><strong>Deliver To:</strong> {item.technicianName || "Inspection Tech"} ({item.inspectionCenterName || item.technicianCenterName || "Hub"})</span>
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
-
-                                            <div className="pro-info-row">
-                                                <FiMapPin className="icn pin" />
-                                                <span className="addr-txt">{item.address || "Address N/A"}, {item.city} {item.pincode ? `(${item.pincode})` : ""}</span>
-                                            </div>
-
                                             <div className="pro-info-row">
                                                 <FiCalendar className="icn" />
                                                 <span>Pickup: {formatScheduleTime(item)}</span>
                                             </div>
-
-                                            {(item.technicianName || item.inspectionCenterName) && (
-                                                <div className="pro-info-row delivery-row">
-                                                    <FiTruck className="icn delivery-icn" />
-                                                    <span className="delivery-txt">
-                                                        <strong>Deliver:</strong> {item.technicianName || "Inspection Tech"} ({item.inspectionCenterName || item.technicianCenterName || "Hub"})
-                                                    </span>
-                                                </div>
-                                            )}
                                         </div>
 
                                         {/* Properly Aligned Action Buttons */}
                                         <div className="pro-card-actions">
-                                            {isPending ? (
+                                            {isExpired ? (
+                                                <div className="status-expired-pill" style={{ flex: "1 1 auto" }}>
+                                                    <FiAlertTriangle /> Pickup Expired / Cancelled
+                                                </div>
+                                            ) : isPending ? (
                                                 <button
                                                     className="btn-pro-accept"
                                                     disabled={processingId === item.collectionAssignmentId}
@@ -969,7 +1183,9 @@ function Pickups() {
                                                 <button
                                                     className="btn-pro-complete"
                                                     disabled={processingId === item.collectionAssignmentId}
-                                                    onClick={() => handleOpenCompletePickupModal(item)}
+                                                    onClick={() => item.assignmentType === "TechnicianToRecyclingCenter"
+                                                        ? handleOpenCompleteTechPickupModal(item)
+                                                        : handleOpenCompletePickupModal(item)}
                                                 >
                                                     <FiCheckCircle /> Complete Pickup
                                                 </button>
@@ -989,6 +1205,20 @@ function Pickups() {
                                                 >
                                                     <FiCheckCircle /> Deliver to Center
                                                 </button>
+                                            ) : statusLower === "awaitingtechnicianapproval" || item.deliveryStatus === "PendingVerification" ? (
+                                                <div className="status-completed-pill" style={{ background: "#fffbeb", color: "#b45309", border: "1px solid #fde68a", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.35rem", padding: "0 8px", borderRadius: "9px", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap", height: "38px", boxSizing: "border-box", flex: "1 1 auto", minWidth: 0 }}>
+                                                    <FiClock style={{ flexShrink: 0, fontSize: "0.85rem" }} />
+                                                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Awaiting Tech Verification</span>
+                                                </div>
+                                            ) : statusLower === "handoverrejected" || item.deliveryStatus === "HandoverRejected" || item.lifecycleStatus === "HandoverRejected" ? (
+                                                <button
+                                                    className="btn-pro-complete-delivery"
+                                                    style={{ background: "#dc2626", borderColor: "#b91c1c", color: "#ffffff" }}
+                                                    disabled={processingId === `deliver-${item.collectionAssignmentId}`}
+                                                    onClick={() => handleOpenCompleteDeliveryModal(item)}
+                                                >
+                                                    <FiRefreshCw /> Resend Verification Request
+                                                </button>
                                             ) : statusLower === "deliveredtocenter" || item.deliveryStatus === "Delivered" ? (
                                                 <div className="status-completed-pill">
                                                     <FiCheckCircle /> Delivered to Center
@@ -1002,7 +1232,7 @@ function Pickups() {
                                                 <FiInfo /> Details
                                             </button>
 
-                                            {item.customerPhone && (
+                                            {!isExpired && item.customerPhone && (
                                                 <a
                                                     href={`tel:${item.customerPhone}`}
                                                     className="btn-pro-call"
@@ -1033,31 +1263,60 @@ function Pickups() {
                                 <tbody>
                                     {filteredPickups.map((item) => {
                                         const statusLower = (item.status || "").toLowerCase();
-                                        const isPending = statusLower === "assigned" || statusLower === "pending";
-                                        const isAccepted = statusLower === "accepted";
-                                        const isEnRoute = statusLower === "pickupstarted" || statusLower === "en route";
-                                        const isCompleted = statusLower === "completed";
+                                        const isExpired = statusLower === "expired" || statusLower === "rejected" || statusLower === "declined" || statusLower === "cancelled" || statusLower === "failed";
+                                        const isPending = !isExpired && (statusLower === "assigned" || statusLower === "pending");
+                                        const isAccepted = !isExpired && statusLower === "accepted";
+                                        const isEnRoute = !isExpired && (statusLower === "pickupstarted" || statusLower === "en route");
+                                        const isCompleted = !isExpired && statusLower === "completed";
 
                                         return (
-                                            <tr key={item.collectionAssignmentId || item.id}>
-                                                <td className="t-task-id">#{item.collectionAssignmentId}</td>
+                                            <tr key={item.collectionAssignmentId || item.id} className={isExpired ? "table-row-expired" : ""}>
+                                                <td className="t-task-id">
+                                                    <div>#{item.collectionAssignmentId}</div>
+                                                    {item.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                        <span style={{ background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd", fontSize: "0.65rem", fontWeight: 700, padding: "0.08rem 0.4rem", borderRadius: "10px", whiteSpace: "nowrap" }}>Tech ➔ Recycler</span>
+                                                    ) : (item.assignmentType === "TechnicianToTechnician" || item.isReassignedFromTech || item.isReassignmentPickup) ? (
+                                                        <span style={{ background: "#fff7ed", color: "#c2410c", border: "1px solid #ffedd5", fontSize: "0.65rem", fontWeight: 700, padding: "0.08rem 0.4rem", borderRadius: "10px", whiteSpace: "nowrap" }}>Tech ➔ Tech</span>
+                                                    ) : (
+                                                        <span style={{ background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", fontSize: "0.65rem", fontWeight: 700, padding: "0.08rem 0.4rem", borderRadius: "10px", whiteSpace: "nowrap" }}>Citizen ➔ Tech</span>
+                                                    )}
+                                                </td>
                                                 <td>
                                                     <div className="t-item-title">{item.brand} {item.model}</div>
                                                     <div className="t-item-sub">{item.categoryName} &bull; Qty: {item.quantity || 1}</div>
+                                                    <div style={{ marginTop: "4px" }}>{getStatusBadge(item)}</div>
                                                 </td>
                                                 <td>
-                                                    <div className="t-cust-name">{item.customerName || "Citizen"}</div>
-                                                    {item.customerPhone && <div className="t-cust-phone"><FiPhoneCall /> {item.customerPhone}</div>}
+                                                    {item.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                        <>
+                                                            <div className="t-cust-name" style={{ color: "#0369a1" }}>{item.technicianName || item.inspectionCenterName || "Technician Hub"}</div>
+                                                            {item.technicianPhone && <div className="t-cust-phone"><FiPhoneCall /> {item.technicianPhone}</div>}
+                                                            <div style={{ fontSize: "0.72rem", color: "#64748b", marginTop: "2px" }}>→ {item.recyclingCenterName || "Recycling Center"}</div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="t-cust-name">{item.customerName || "Citizen"}</div>
+                                                            {item.customerPhone && <div className="t-cust-phone"><FiPhoneCall /> {item.customerPhone}</div>}
+                                                        </>
+                                                    )}
                                                 </td>
                                                 <td>
-                                                    <div className="t-address"><FiMapPin /> {item.address}, {item.city}</div>
+                                                    {item.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                        <div className="t-address"><FiMapPin /> {item.deliveredAddress || item.technicianAddress || "Inspection Center"}</div>
+                                                    ) : (
+                                                        <div className="t-address"><FiMapPin /> {item.address}{item.city ? `, ${item.city}` : ""}</div>
+                                                    )}
                                                 </td>
                                                 <td>
                                                     <div className="t-date"><FiCalendar /> {formatScheduleTime(item)}</div>
                                                 </td>
                                                 <td>
                                                     <div className="t-actions">
-                                                        {isPending ? (
+                                                        {isExpired ? (
+                                                            <span className="status-expired-pill" style={{ height: "auto", padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}>
+                                                                <FiAlertTriangle /> Expired
+                                                            </span>
+                                                        ) : isPending ? (
                                                             <button
                                                                 className="btn-pro-accept sm"
                                                                 disabled={processingId === item.collectionAssignmentId}
@@ -1077,7 +1336,9 @@ function Pickups() {
                                                             <button
                                                                 className="btn-pro-complete sm"
                                                                 disabled={processingId === item.collectionAssignmentId}
-                                                                onClick={() => handleOpenCompletePickupModal(item)}
+                                                                onClick={() => item.assignmentType === "TechnicianToRecyclingCenter"
+                                                                    ? handleOpenCompleteTechPickupModal(item)
+                                                                    : handleOpenCompletePickupModal(item)}
                                                             >
                                                                 <FiCheckCircle /> Complete
                                                             </button>
@@ -1096,6 +1357,19 @@ function Pickups() {
                                                                 onClick={() => handleOpenCompleteDeliveryModal(item)}
                                                             >
                                                                 <FiCheckCircle /> Deliver
+                                                            </button>
+                                                        ) : statusLower === "awaitingtechnicianapproval" || item.deliveryStatus === "PendingVerification" ? (
+                                                            <span className="pro-badge" style={{ background: "#fffbeb", color: "#b45309", border: "1px solid #fde68a", display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.3rem 0.65rem", borderRadius: "8px", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap" }}>
+                                                                <FiClock style={{ flexShrink: 0 }} /> Awaiting Tech Verification
+                                                            </span>
+                                                        ) : statusLower === "handoverrejected" || item.deliveryStatus === "HandoverRejected" || item.lifecycleStatus === "HandoverRejected" ? (
+                                                            <button
+                                                                className="btn-pro-complete-delivery sm"
+                                                                style={{ background: "#dc2626", borderColor: "#b91c1c", color: "#ffffff" }}
+                                                                disabled={processingId === `deliver-${item.collectionAssignmentId}`}
+                                                                onClick={() => handleOpenCompleteDeliveryModal(item)}
+                                                            >
+                                                                <FiRefreshCw /> Resend Request
                                                             </button>
                                                         ) : statusLower === "deliveredtocenter" || item.deliveryStatus === "Delivered" ? (
                                                             <span className="pro-badge badge-completed"><FiCheckCircle /> Delivered</span>
@@ -1263,7 +1537,7 @@ function Pickups() {
                                                 value={otpInput}
                                                 onChange={handleOtpChange}
                                                 disabled={otpVerified || !otpSent}
-                                                className={otpVerified ? "is-valid" : ""}
+                                                className={otpError ? "is-invalid" : otpVerified ? "is-valid" : ""}
                                             />
                                             <button
                                                 type="button"
@@ -1274,6 +1548,18 @@ function Pickups() {
                                                 {processingId === "verifying-otp" ? "Verifying..." : otpVerified ? "Verified" : <><FiLock /> Verify OTP</>}
                                             </button>
                                         </div>
+
+                                        {otpError && (
+                                            <div className="live-validation-msg error" style={{ marginTop: "8px", color: "#dc2626", fontSize: "0.825rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+                                                <FiAlertTriangle /> {otpError}
+                                            </div>
+                                        )}
+
+                                        {otpVerified && (
+                                            <div className="live-validation-msg success" style={{ marginTop: "8px", color: "#059669", fontSize: "0.825rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+                                                <FiCheckCircle /> Customer OTP verified successfully!
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1307,14 +1593,22 @@ function Pickups() {
                 </div>
             )}
 
-            {/* Professional Delivery Completion Modal Dialog */}
+            {/* Delivery Completion Modal — branches on assignmentType */}
             {completeDeliveryTarget && (
                 <div className="pro-modal-overlay" onClick={() => setCompleteDeliveryTarget(null)}>
                     <div className="pro-modal-dialog" onClick={(e) => e.stopPropagation()}>
                         <div className="pro-modal-header">
                             <div>
-                                <h2>Complete Center Delivery</h2>
-                                <span className="sub-txt">Assignment #{completeDeliveryTarget.collectionAssignmentId} &bull; Handover to Inspection Center</span>
+                                <h2>
+                                    {completeDeliveryTarget.assignmentType === "TechnicianToRecyclingCenter"
+                                        ? <><FiCheckCircle className="complete-icn-hdr" /> Deliver to Recycling Center</>
+                                        : "Complete Center Delivery"}
+                                </h2>
+                                <span className="sub-txt">
+                                    {completeDeliveryTarget.assignmentType === "TechnicianToRecyclingCenter"
+                                        ? `${completeDeliveryTarget.brand} ${completeDeliveryTarget.model} → ${completeDeliveryTarget.recyclingCenterName || "Recycling Center"}`
+                                        : `Assignment #${completeDeliveryTarget.collectionAssignmentId} • Handover to Inspection Center`}
+                                </span>
                             </div>
                             <button className="pro-close-btn" onClick={() => setCompleteDeliveryTarget(null)}>
                                 <FiX />
@@ -1322,17 +1616,238 @@ function Pickups() {
                         </div>
 
                         <div className="pro-modal-body">
-                            <div className="field-steps-container">
-                                <h4 className="sec-heading"><FiShield /> Technician Handover Verification</h4>
+                            {completeDeliveryTarget.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                /* ── Tech→Recycler delivery: QR scan + packing warning ── */
+                                <>
+                                    {/* Packing Cover Warning */}
+                                    <div style={{ background: "#fef3c7", border: "1.5px solid #fcd34d", borderRadius: "12px", padding: "0.9rem 1rem", marginBottom: "1.25rem", display: "flex", gap: "0.65rem", alignItems: "flex-start" }}>
+                                        <FiAlertTriangle style={{ color: "#b45309", fontSize: "1.2rem", flexShrink: 0, marginTop: "0.1rem" }} />
+                                        <div>
+                                            <div style={{ fontWeight: 800, color: "#92400e", fontSize: "0.875rem", marginBottom: "0.25rem" }}>⚠ Packing Cover Reminder</div>
+                                            <div style={{ color: "#78350f", fontSize: "0.82rem", lineHeight: 1.55 }}>
+                                                <strong>Ask the technician to NOT destroy or remove the original device packing cover.</strong> The recycling center will need the intact packaging for safe processing. If the cover is missing or damaged, note it during handover.
+                                            </div>
+                                        </div>
+                                    </div>
 
+                                    <div className="field-steps-container">
+                                        <h4 className="sec-heading"><FiShield /> Recycling Center Delivery Verification</h4>
+
+                                        {/* Step 1: Scan Device QR / Barcode */}
+                                        <div className={`step-action-card ${deliveryQrVerified ? "completed" : ""}`} style={{ marginBottom: "1rem" }}>
+                                            <div className="step-card-header">
+                                                <div className="step-card-title">
+                                                    <span className="step-num">1</span>
+                                                    <FaQrcode className="step-icn" />
+                                                    <div>
+                                                        <h5>Scan Device Barcode / QR Code</h5>
+                                                        <p>Scan the device QR tag before handing over to the recycling center</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="step-card-body">
+                                                <div className="inline-input-group" style={{ display: "flex", gap: "0.5rem" }}>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Scan or enter Device Barcode / QR Token"
+                                                        value={deliveryQrInput}
+                                                        onChange={(e) => {
+                                                            setDeliveryQrInput(e.target.value);
+                                                            setDeliveryQrVerified(false);
+                                                            if (deliveryQrError) setDeliveryQrError("");
+                                                        }}
+                                                        style={{ flex: 1, padding: "0.55rem 0.8rem", fontSize: "0.85rem", borderRadius: "8px", border: deliveryQrVerified ? "1.5px solid #10b981" : deliveryQrError ? "1.5px solid #ef4444" : "1px solid #cbd5e1" }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className={`btn-step-action ${deliveryQrVerified ? "verified" : ""}`}
+                                                        onClick={handleVerifyDeliveryQr}
+                                                        style={{ whiteSpace: "nowrap", padding: "0.55rem 1rem", background: deliveryQrVerified ? "#10b981" : "#2563eb", color: "#ffffff", border: "none", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}
+                                                    >
+                                                        {deliveryQrVerified ? "✓ Verified" : <><FiMaximize /> Scan & Verify</>}
+                                                    </button>
+                                                </div>
+                                                {deliveryQrError && (
+                                                    <div style={{ marginTop: "0.4rem", fontSize: "0.775rem", color: "#dc2626", fontWeight: 600 }}>
+                                                        {deliveryQrError}
+                                                    </div>
+                                                )}
+                                                {deliveryQrVerified && (
+                                                    <div style={{ marginTop: "0.4rem", fontSize: "0.775rem", color: "#047857", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                                                        <FiCheckCircle /> Device QR Code Verified
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="important-warning-box">
+                                        <div className="warning-heading"><FiAlertTriangle /> Important Guidelines</div>
+                                        <ul className="warning-list">
+                                            <li>Verify the device QR tag matches the assignment before handing over.</li>
+                                            <li>Ensure the packing cover is intact — remind the technician if needed.</li>
+                                            <li>Confirm you are at the correct recycling center ({completeDeliveryTarget.recyclingCenterName || "Recycling Center"}) before completing.</li>
+                                        </ul>
+                                    </div>
+                                </>
+                            ) : (
+                                /* ── Citizen→Tech delivery: existing technician OTP flow ── */
+                                <>
+                                    {(completeDeliveryTarget.status === "HandoverRejected" || completeDeliveryTarget.deliveryStatus === "HandoverRejected" || completeDeliveryTarget.lifecycleStatus === "HandoverRejected") && (
+                                        <div style={{ background: "#fef2f2", border: "1.5px solid #fca5a5", borderRadius: "12px", padding: "0.85rem", marginBottom: "1.25rem", color: "#b91c1c", fontSize: "0.825rem" }}>
+                                            <div style={{ fontWeight: 800, fontSize: "0.875rem", marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                                                <FiAlertTriangle /> Verification Previously Rejected by Technician
+                                            </div>
+                                            <div><strong>Reason:</strong> {completeDeliveryTarget.rejectionReason || completeDeliveryTarget.failureReason || "Device / Serial Mismatch"}</div>
+                                            <div style={{ marginTop: "0.3rem", color: "#7f1d1d", fontSize: "0.775rem" }}>Verify the device barcode & details with the technician, then send the verification request again below.</div>
+                                        </div>
+                                    )}
+
+                                    <div className="field-steps-container">
+                                        <h4 className="sec-heading"><FiShield /> Technician Handover Verification</h4>
+                                        <div className={`step-action-card ${deliveryOtpVerified ? "completed" : ""}`}>
+                                            <div className="step-card-header">
+                                                <div className="step-card-title">
+                                                    <span className="step-num">1</span>
+                                                    <FiLock className="step-icn" />
+                                                    <div>
+                                                        <h5>Technician Handover OTP (Email &amp; Notification)</h5>
+                                                        <p>Send OTP to assigned technician via Email &amp; Notification &bull; Valid for 30 seconds</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="step-card-body">
+                                                {!deliveryOtpVerified && (
+                                                    <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                                                        <button
+                                                            type="button"
+                                                            className="btn-upload-photo"
+                                                            onClick={handleSendDeliveryOtp}
+                                                            disabled={sendingDeliveryOtp || deliveryOtpTimer > 0}
+                                                            style={{ borderColor: "#10b981", color: "#047857", background: "#f0fdf4" }}
+                                                        >
+                                                            <FiMail /> {sendingDeliveryOtp ? "Sending OTP Email..." : deliveryOtpTimer > 0 ? `Resend OTP in ${deliveryOtpTimer}s` : deliveryOtpSent ? "Resend OTP Email" : "Send OTP to Technician Email"}
+                                                        </button>
+                                                        {deliveryOtpTimer > 0 && (
+                                                            <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "#047857", display: "inline-flex", alignItems: "center", gap: "4px", background: "#ecfdf5", padding: "4px 10px", borderRadius: "20px", border: "1px solid #a7f3d0" }}>
+                                                                <FiClock /> {deliveryOtpTimer}s remaining
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                <div className="inline-input-group">
+                                                    <input
+                                                        type="text"
+                                                        maxLength="4"
+                                                        placeholder="Enter 4-digit OTP from technician email / notification"
+                                                        value={deliveryOtpInput}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value.replace(/\D/g, "").slice(0, 4);
+                                                            setDeliveryOtpInput(val);
+                                                            setDeliveryOtpVerified(false);
+                                                            setDeliveryOtpError("");
+                                                        }}
+                                                        disabled={deliveryOtpVerified || !deliveryOtpSent}
+                                                        className={deliveryOtpVerified ? "is-valid" : ""}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className={`btn-step-action ${deliveryOtpVerified ? "verified" : ""}`}
+                                                        onClick={handleVerifyDeliveryOtp}
+                                                        disabled={deliveryOtpVerified || !deliveryOtpSent || deliveryOtpInput.length < 4 || processingId === "verifying-delivery-otp"}
+                                                    >
+                                                        {processingId === "verifying-delivery-otp" ? "Verifying..." : deliveryOtpVerified ? "Verified" : <><FiLock /> Verify OTP</>}
+                                                    </button>
+                                                </div>
+                                                {deliveryOtpError && (
+                                                    <div className="step-err-msg" style={{ marginTop: "8px", color: "#dc2626", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "5px" }}>
+                                                        <FiAlertTriangle /> {deliveryOtpError}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="important-warning-box">
+                                        <div className="warning-heading"><FiAlertTriangle /> Important Guidelines</div>
+                                        <ul className="warning-list">
+                                            <li>Do not complete delivery if the e-waste device specs do not match.</li>
+                                            <li>Do not complete delivery without valid technician OTP verification.</li>
+                                            <li>Verify the inspection center location before confirming handover.</li>
+                                        </ul>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="pro-modal-footer">
+                            <button className="btn-close-modal" onClick={() => setCompleteDeliveryTarget(null)}>
+                                Cancel
+                            </button>
+                            {completeDeliveryTarget.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                <button
+                                    className="btn-confirm-complete"
+                                    disabled={!deliveryQrVerified || processingId === `deliver-${completeDeliveryTarget.collectionAssignmentId}`}
+                                    onClick={handleConfirmTechDeliveryToCenter}
+                                    style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#ffffff", fontWeight: 700 }}
+                                >
+                                    {processingId === `deliver-${completeDeliveryTarget.collectionAssignmentId}` ? "Processing..." : <><FiCheckCircle /> Confirm Delivery to Recycling Center</>}
+                                </button>
+                            ) : (
+                                <button
+                                    className="btn-confirm-complete"
+                                    disabled={processingId === "requesting-tech-verification"}
+                                    onClick={handleRequestTechnicianVerification}
+                                    style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#ffffff", fontWeight: 700 }}
+                                >
+                                    {processingId === "requesting-tech-verification"
+                                        ? "Sending Verification Request..."
+                                        : (completeDeliveryTarget.status === "HandoverRejected" || completeDeliveryTarget.deliveryStatus === "HandoverRejected")
+                                            ? "Resend Verification Request to Technician"
+                                            : "Send Verification Request to Technician"}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Tech→Recycler Complete Pickup Modal (Technician OTP only, no QR/photo) */}
+            {completeTechPickupTarget && (
+                <div className="pro-modal-overlay" onClick={() => setCompleteTechPickupTarget(null)}>
+                    <div className="pro-modal-dialog start-pickup-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="pro-modal-header start-header">
+                            <div>
+                                <h2><FiCheckCircle className="complete-icn-hdr" /> Complete Pickup from Technician</h2>
+                                <span className="sub-txt">{completeTechPickupTarget.brand} {completeTechPickupTarget.model} &bull; {completeTechPickupTarget.technicianName || completeTechPickupTarget.inspectionCenterName || "Technician Hub"}</span>
+                            </div>
+                            <button className="pro-close-btn" onClick={() => setCompleteTechPickupTarget(null)}><FiX /></button>
+                        </div>
+
+                        <div className="pro-modal-body">
+                            {/* Packing Cover Warning */}
+                            <div style={{ background: "#fef3c7", border: "1.5px solid #fcd34d", borderRadius: "12px", padding: "0.9rem 1rem", marginBottom: "1.25rem", display: "flex", gap: "0.65rem", alignItems: "flex-start" }}>
+                                <FiAlertTriangle style={{ color: "#b45309", fontSize: "1.2rem", flexShrink: 0, marginTop: "0.1rem" }} />
+                                <div>
+                                    <div style={{ fontWeight: 800, color: "#92400e", fontSize: "0.875rem", marginBottom: "0.25rem" }}>⚠ Important: Packing Cover</div>
+                                    <div style={{ color: "#78350f", fontSize: "0.82rem", lineHeight: 1.55 }}>
+                                        <strong>Remind the technician to NOT destroy or remove the device's original packing cover</strong> before handing over. The recycling center requires intact packaging for safe processing and traceability.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="field-steps-container">
+                                <h4 className="sec-heading"><FiShield /> Technician Pickup Verification</h4>
+
+                                {/* Step 1: Send OTP to Technician & Verify */}
                                 <div className={`step-action-card ${deliveryOtpVerified ? "completed" : ""}`}>
                                     <div className="step-card-header">
                                         <div className="step-card-title">
                                             <span className="step-num">1</span>
                                             <FiLock className="step-icn" />
                                             <div>
-                                                <h5>Technician Handover OTP (Email Verification)</h5>
-                                                <p>Send OTP to assigned technician email &bull; Valid for 30 seconds</p>
+                                                <h5>Technician Handover OTP (Email &amp; Notification)</h5>
+                                                <p>Send OTP to technician via Email &amp; Notification to confirm device handover</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1348,7 +1863,6 @@ function Pickups() {
                                                 >
                                                     <FiMail /> {sendingDeliveryOtp ? "Sending OTP Email..." : deliveryOtpTimer > 0 ? `Resend OTP in ${deliveryOtpTimer}s` : deliveryOtpSent ? "Resend OTP Email" : "Send OTP to Technician Email"}
                                                 </button>
-
                                                 {deliveryOtpTimer > 0 && (
                                                     <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "#047857", display: "inline-flex", alignItems: "center", gap: "4px", background: "#ecfdf5", padding: "4px 10px", borderRadius: "20px", border: "1px solid #a7f3d0" }}>
                                                         <FiClock /> {deliveryOtpTimer}s remaining
@@ -1356,12 +1870,11 @@ function Pickups() {
                                                 )}
                                             </div>
                                         )}
-
                                         <div className="inline-input-group">
                                             <input
                                                 type="text"
                                                 maxLength="4"
-                                                placeholder="Enter 4-digit OTP from technician email"
+                                                placeholder="Enter 4-digit OTP from technician email / notification"
                                                 value={deliveryOtpInput}
                                                 onChange={(e) => {
                                                     const val = e.target.value.replace(/\D/g, "").slice(0, 4);
@@ -1381,10 +1894,14 @@ function Pickups() {
                                                 {processingId === "verifying-delivery-otp" ? "Verifying..." : deliveryOtpVerified ? "Verified" : <><FiLock /> Verify OTP</>}
                                             </button>
                                         </div>
-
                                         {deliveryOtpError && (
                                             <div className="step-err-msg" style={{ marginTop: "8px", color: "#dc2626", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "5px" }}>
                                                 <FiAlertTriangle /> {deliveryOtpError}
+                                            </div>
+                                        )}
+                                        {deliveryOtpVerified && (
+                                            <div style={{ marginTop: "8px", color: "#059669", fontSize: "0.825rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+                                                <FiCheckCircle /> Technician OTP verified successfully!
                                             </div>
                                         )}
                                     </div>
@@ -1392,27 +1909,23 @@ function Pickups() {
                             </div>
 
                             <div className="important-warning-box">
-                                <div className="warning-heading">
-                                    <FiAlertTriangle /> Important Guidelines
-                                </div>
+                                <div className="warning-heading"><FiAlertTriangle /> Important Guidelines</div>
                                 <ul className="warning-list">
-                                    <li>Do not complete delivery if the e-waste device specs do not match.</li>
-                                    <li>Do not complete delivery without valid technician OTP verification.</li>
-                                    <li>Verify the inspection center location before confirming handover.</li>
+                                    <li>Verify the device matches the assignment before accepting from technician.</li>
+                                    <li>Do not complete pickup without a verified technician OTP.</li>
+                                    <li><strong>Ask the technician to keep the device packing cover intact</strong> — it will be needed at the recycling center.</li>
                                 </ul>
                             </div>
                         </div>
 
                         <div className="pro-modal-footer">
-                            <button className="btn-close-modal" onClick={() => setCompleteDeliveryTarget(null)}>
-                                Cancel
-                            </button>
+                            <button className="btn-close-modal" onClick={() => setCompleteTechPickupTarget(null)}>Cancel</button>
                             <button
                                 className="btn-confirm-complete"
-                                disabled={!deliveryOtpVerified || processingId === `deliver-${completeDeliveryTarget.collectionAssignmentId}`}
-                                onClick={handleConfirmCompleteDelivery}
+                                disabled={!deliveryOtpVerified || processingId === completeTechPickupTarget.collectionAssignmentId}
+                                onClick={handleConfirmCompleteTechPickup}
                             >
-                                <FiCheckCircle /> Confirm & Complete Delivery
+                                <FiCheckCircle /> Confirm Pickup from Technician
                             </button>
                         </div>
                     </div>
@@ -1436,39 +1949,111 @@ function Pickups() {
                         <div className="pro-modal-body">
                             {/* COLLECT FROM -> DELIVER TO ROUTING FLOW */}
                             <div style={{ background: "#f8fafc", padding: "1rem", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "1rem" }}>
-                                <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.85rem", borderRadius: "10px" }}>
-                                    <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#047857", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                                        COLLECT FROM
-                                    </div>
-                                    <div style={{ fontWeight: 700, color: "#065f46", fontSize: "0.9rem", marginTop: "0.2rem" }}>
-                                        Customer: {selectedPickup.customerName || "Citizen"} (Ph: {selectedPickup.customerPhone || "N/A"})
-                                    </div>
-                                    <div style={{ color: "#047857", fontSize: "0.825rem", marginTop: "0.2rem" }}>
-                                        <strong>Customer pickup address:</strong> {selectedPickup.address}
-                                        {selectedPickup.landmark && ` (Landmark: ${selectedPickup.landmark})`}
-                                        {[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).length > 0 &&
-                                            `, ${[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).join(", ")}`}
-                                    </div>
-                                    <div style={{ color: "#059669", fontSize: "0.8rem", marginTop: "0.2rem" }}>
-                                        <strong>Pickup date / time slot:</strong> {formatScheduleTime(selectedPickup)}
-                                    </div>
-                                </div>
+                                {selectedPickup.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                    <>
+                                        <div style={{ background: "#e0f2fe", border: "1px solid #bae6fd", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#0369a1", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                COLLECT FROM (TECHNICIAN HUB)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#0c4a6e", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Technician / Hub: {selectedPickup.technicianName || selectedPickup.inspectionCenterName || "Inspection Technician"} {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
+                                            </div>
+                                            <div style={{ color: "#0369a1", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Inspection Center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central Inspection Center"}
+                                            </div>
+                                            <div style={{ color: "#0284c7", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                                                <strong>Pickup date / time slot:</strong> {selectedPickup.pickupDate ? new Date(selectedPickup.pickupDate).toLocaleDateString() : "Scheduled"} • {selectedPickup.timeSlot || "Standard Slot"}
+                                            </div>
+                                        </div>
 
-                                <div style={{ textAlign: "center", fontSize: "1.35rem", fontWeight: 800, color: "#059669", margin: "0.35rem 0" }}>
-                                    ↓
-                                </div>
+                                        <div style={{ textAlign: "center", fontSize: "1.35rem", fontWeight: 800, color: "#0284c7", margin: "0.35rem 0" }}>↓</div>
 
-                                <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.85rem", borderRadius: "10px" }}>
-                                    <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                                        DELIVER TO
-                                    </div>
-                                    <div style={{ fontWeight: 700, color: "#1e40af", fontSize: "0.9rem", marginTop: "0.2rem" }}>
-                                        Technician / Inspection Center: {selectedPickup.technicianName || "Inspection Technician"} ({selectedPickup.inspectionCenterName || selectedPickup.technicianCenterName || "EcoCycle Central Inspection Hub"}) {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
-                                    </div>
-                                    <div style={{ color: "#1e3a8a", fontSize: "0.825rem", marginTop: "0.2rem" }}>
-                                        <strong>Technician/center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central E-Waste Facility & Inspection Hub"}
-                                    </div>
-                                </div>
+                                        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#15803d", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                DELIVER TO (RECYCLING CENTER)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#14532d", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Facility: {selectedPickup.recyclingCenterName || "Recycling Facility"} {selectedPickup.recyclingCenterPhone ? `(Ph: ${selectedPickup.recyclingCenterPhone})` : ""}
+                                            </div>
+                                            {selectedPickup.recyclingCenterOwner && (
+                                                <div style={{ color: "#166534", fontSize: "0.825rem", marginTop: "0.1rem" }}>
+                                                    <strong>Contact Person:</strong> {selectedPickup.recyclingCenterOwner}
+                                                </div>
+                                            )}
+                                            <div style={{ color: "#15803d", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Recycling Center address:</strong> {selectedPickup.recyclingCenterAddress || "Recycling Facility Address"}
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (selectedPickup.assignmentType === "TechnicianToTechnician" || selectedPickup.isReassignedFromTech || selectedPickup.isReassignmentPickup) ? (
+                                    <>
+                                        <div style={{ background: "#fff7ed", border: "1px solid #ffedd5", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#c2410c", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                COLLECT FROM (PENALIZED TECHNICIAN CENTER)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#9a3412", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Technician / Hub: {selectedPickup.customerName || selectedPickup.priorTechnicianName || "Penalized Hub"} {selectedPickup.customerPhone ? `(Ph: ${selectedPickup.customerPhone})` : ""}
+                                            </div>
+                                            <div style={{ color: "#c2410c", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Penalized Center address:</strong> {selectedPickup.address}
+                                                {selectedPickup.landmark && ` (Landmark: ${selectedPickup.landmark})`}
+                                                {[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).length > 0 &&
+                                                    `, ${[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).join(", ")}`}
+                                            </div>
+                                            <div style={{ color: "#ea580c", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                                                <strong>Pickup date / time slot:</strong> {formatScheduleTime(selectedPickup)}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ textAlign: "center", fontSize: "1.35rem", fontWeight: 800, color: "#ea580c", margin: "0.35rem 0" }}>↓</div>
+
+                                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                DELIVER TO (NEW INSPECTION HUB)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#1e40af", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Technician / Inspection Center: {selectedPickup.technicianName || "Inspection Technician"} ({selectedPickup.inspectionCenterName || selectedPickup.technicianCenterName || "EcoCycle Central Inspection Hub"}) {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
+                                            </div>
+                                            <div style={{ color: "#1e3a8a", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Technician/center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central E-Waste Facility & Inspection Hub"}
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#047857", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                COLLECT FROM (CITIZEN)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#065f46", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Customer: {selectedPickup.customerName || "Citizen"} (Ph: {selectedPickup.customerPhone || "N/A"})
+                                            </div>
+                                            <div style={{ color: "#047857", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Customer pickup address:</strong> {selectedPickup.address}
+                                                {selectedPickup.landmark && ` (Landmark: ${selectedPickup.landmark})`}
+                                                {[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).length > 0 &&
+                                                    `, ${[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).join(", ")}`}
+                                            </div>
+                                            <div style={{ color: "#059669", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                                                <strong>Pickup date / time slot:</strong> {formatScheduleTime(selectedPickup)}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ textAlign: "center", fontSize: "1.35rem", fontWeight: 800, color: "#059669", margin: "0.35rem 0" }}>↓</div>
+
+                                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.85rem", borderRadius: "10px" }}>
+                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                DELIVER TO (INSPECTION HUB)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#1e40af", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                                Technician / Inspection Center: {selectedPickup.technicianName || "Inspection Technician"} ({selectedPickup.inspectionCenterName || selectedPickup.technicianCenterName || "EcoCycle Central Inspection Hub"}) {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
+                                            </div>
+                                            <div style={{ color: "#1e3a8a", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                                <strong>Technician/center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central E-Waste Facility & Inspection Hub"}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
                             </div>
 
                             {/* Device Info */}
@@ -1502,62 +2087,70 @@ function Pickups() {
                         </div>
 
                         <div className="pro-modal-footer">
-                            {(selectedPickup.status || "").toLowerCase() === "accepted" && (
-                                <button
-                                    className="btn-pro-start"
-                                    disabled={processingId === selectedPickup.collectionAssignmentId}
-                                    onClick={() => {
-                                        const target = selectedPickup;
-                                        setSelectedPickup(null);
-                                        handleStartPickup(target.collectionAssignmentId);
-                                    }}
-                                >
-                                    <FiTruck /> Start Pickup
-                                </button>
-                            )}
-                            {((selectedPickup.status || "").toLowerCase() === "pickupstarted" || (selectedPickup.status || "").toLowerCase() === "en route") && (
-                                <button
-                                    className="btn-pro-complete"
-                                    disabled={processingId === selectedPickup.collectionAssignmentId}
-                                    onClick={() => {
-                                        const target = selectedPickup;
-                                        setSelectedPickup(null);
-                                        handleOpenCompletePickupModal(target);
-                                    }}
-                                >
-                                    <FiCheckCircle /> Complete Pickup
-                                </button>
-                            )}
-                            {((selectedPickup.status || "").toLowerCase() === "completed" || selectedPickup.deliveryStatus === "Pending") && (
-                                <button
-                                    className="btn-pro-start-delivery"
-                                    disabled={processingId === `delivery-${selectedPickup.collectionAssignmentId}`}
-                                    onClick={() => {
-                                        const target = selectedPickup;
-                                        setSelectedPickup(null);
-                                        handleStartDelivery(target.collectionAssignmentId);
-                                    }}
-                                >
-                                    <FiTruck /> Start Delivery
-                                </button>
-                            )}
-                            {((selectedPickup.status || "").toLowerCase() === "outfordelivery" || selectedPickup.deliveryStatus === "InTransit") && (
-                                <button
-                                    className="btn-pro-complete-delivery"
-                                    disabled={processingId === `deliver-${selectedPickup.collectionAssignmentId}`}
-                                    onClick={() => {
-                                        const target = selectedPickup;
-                                        setSelectedPickup(null);
-                                        handleOpenCompleteDeliveryModal(target);
-                                    }}
-                                >
-                                    <FiCheckCircle /> Deliver to Center
-                                </button>
-                            )}
-                            {selectedPickup.customerPhone && (
-                                <a href={`tel:${selectedPickup.customerPhone}`} className="btn-call-modal">
-                                    <FiPhoneCall /> Call Customer
-                                </a>
+                            {["expired", "rejected", "declined", "cancelled", "failed"].includes(String(selectedPickup.status || "").toLowerCase()) ? (
+                                <span className="status-expired-pill" style={{ flex: "1 1 auto", height: "42px", justifyContent: "center" }}>
+                                    <FiAlertTriangle /> Pickup Expired / Cancelled (No Actions Allowed)
+                                </span>
+                            ) : (
+                                <>
+                                    {(selectedPickup.status || "").toLowerCase() === "accepted" && (
+                                        <button
+                                            className="btn-pro-start"
+                                            disabled={processingId === selectedPickup.collectionAssignmentId}
+                                            onClick={() => {
+                                                const target = selectedPickup;
+                                                setSelectedPickup(null);
+                                                handleStartPickup(target.collectionAssignmentId);
+                                            }}
+                                        >
+                                            <FiTruck /> Start Pickup
+                                        </button>
+                                    )}
+                                    {((selectedPickup.status || "").toLowerCase() === "pickupstarted" || (selectedPickup.status || "").toLowerCase() === "en route") && (
+                                        <button
+                                            className="btn-pro-complete"
+                                            disabled={processingId === selectedPickup.collectionAssignmentId}
+                                            onClick={() => {
+                                                const target = selectedPickup;
+                                                setSelectedPickup(null);
+                                                handleOpenCompletePickupModal(target);
+                                            }}
+                                        >
+                                            <FiCheckCircle /> Complete Pickup
+                                        </button>
+                                    )}
+                                    {(((selectedPickup.status || "").toLowerCase() === "completed" || selectedPickup.status === "PickedUp") && selectedPickup.deliveryStatus === "Pending") && (
+                                        <button
+                                            className="btn-pro-start-delivery"
+                                            disabled={processingId === `delivery-${selectedPickup.collectionAssignmentId}`}
+                                            onClick={() => {
+                                                const target = selectedPickup;
+                                                setSelectedPickup(null);
+                                                handleStartDelivery(target.collectionAssignmentId);
+                                            }}
+                                        >
+                                            <FiTruck /> Start Delivery
+                                        </button>
+                                    )}
+                                    {((selectedPickup.status || "").toLowerCase() === "outfordelivery" || selectedPickup.deliveryStatus === "InTransit") && (
+                                        <button
+                                            className="btn-pro-complete-delivery"
+                                            disabled={processingId === `deliver-${selectedPickup.collectionAssignmentId}`}
+                                            onClick={() => {
+                                                const target = selectedPickup;
+                                                setSelectedPickup(null);
+                                                handleOpenCompleteDeliveryModal(target);
+                                            }}
+                                        >
+                                            <FiCheckCircle /> Deliver to Center
+                                        </button>
+                                    )}
+                                    {selectedPickup.customerPhone && (
+                                        <a href={`tel:${selectedPickup.customerPhone}`} className="btn-call-modal">
+                                            <FiPhoneCall /> Call Customer
+                                        </a>
+                                    )}
+                                </>
                             )}
                             <button className="btn-close-modal" onClick={() => setSelectedPickup(null)}>
                                 Close

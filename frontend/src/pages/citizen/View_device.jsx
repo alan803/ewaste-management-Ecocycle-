@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import {
     FiSearch,
@@ -25,11 +25,14 @@ import {
     FiShield,
     FiTrash2,
     FiRotateCcw,
-    FiXCircle
+    FiXCircle,
+    FiPrinter,
+    FiTag
 } from "react-icons/fi";
 import "./View_device.css";
 
 function View_device() {
+    const navigate = useNavigate();
     const [devices, setDevices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -41,12 +44,14 @@ function View_device() {
     const [confirmDeleteDevice, setConfirmDeleteDevice] = useState(null);
     const [cancelPickupDevice, setCancelPickupDevice] = useState(null);
     const [requestAgainDevice, setRequestAgainDevice] = useState(null);
+    const [stickerModalDevice, setStickerModalDevice] = useState(null);
     const [actionSuccessMessage, setActionSuccessMessage] = useState("");
     const [isDeleting, setIsDeleting] = useState(false);
     const [userProfile, setUserProfile] = useState(null);
     const [profileImage, setProfileImage] = useState(null);
     const [allocationModalDevice, setAllocationModalDevice] = useState(null);
     const [submittingAllocationId, setSubmittingAllocationId] = useState(null);
+    const [notifications, setNotifications] = useState([]);
 
     const triggerToastMessage = (msg) => {
         setActionSuccessMessage(msg);
@@ -57,9 +62,115 @@ function View_device() {
         setAllocationModalDevice(device);
     };
 
+    const handlePrintSticker = (device) => {
+        if (!device) return;
+        const printWindow = window.open("", "_blank", "width=650,height=650");
+        if (!printWindow) {
+            alert("Please allow popup windows to print your device pickup tag sticker.");
+            return;
+        }
+
+        const deviceIdVal = device.deviceId || device.id;
+        const deviceCode = `#EC-${deviceIdVal}`;
+        const devQrToken = device.deviceQrToken || device.DeviceQrToken || `ECOQR-DEV-${deviceIdVal}`;
+        const serialNo = device.serialNumber || `EC-SN-${deviceIdVal}`;
+        const userCityVal = device.userCity || device.city || "Kochi";
+        const userPinVal = device.userPincode || device.pincode || "682001";
+        const techPinVal = device.techPincode || "682030";
+        
+        const fromAddress = `${device.address || device.landmark || "Citizen Pickup Location"}, ${userCityVal} - PIN: ${userPinVal}`;
+        const toAddress = device.assignedTechnicianCenter 
+            ? `${device.assignedTechnicianCenter} - PIN: ${techPinVal}`
+            : `${device.assignedTechnicianCenterName || "EcoCycle Regional Inspection Center"}, ${device.assignedTechnicianCenterAddress || "Industrial Facility Hub"} - PIN: ${techPinVal}`;
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(devQrToken)}`;
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>EcoCycle Shipping Tag Sticker - ${deviceCode}</title>
+                <style>
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 20px; background: #ffffff; text-align: center; color: #0f172a; }
+                    .sticker-box { border: 2px solid #0f172a; border-radius: 12px; padding: 18px; max-width: 480px; margin: 0 auto; text-align: left; background: #ffffff; box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
+                    .sticker-header { border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+                    .sticker-brand { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #0f172a; }
+                    .sticker-code { font-size: 22px; font-weight: 900; color: #059669; font-family: monospace; }
+                    .badge { background: #0f172a; color: #ffffff; font-size: 10px; font-weight: 800; padding: 5px 10px; border-radius: 4px; letter-spacing: 0.5px; }
+                    .grid { display: flex; gap: 16px; align-items: center; margin-bottom: 14px; }
+                    .qr-box { border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px; background: #ffffff; text-align: center; width: 120px; flex-shrink: 0; }
+                    .qr-img { width: 110px; height: 110px; display: block; margin: 0 auto; }
+                    .qr-label { font-size: 9px; font-weight: 800; color: #64748b; margin-top: 4px; letter-spacing: 0.5px; }
+                    .details { font-size: 13px; color: #334155; line-height: 1.6; flex-grow: 1; }
+                    .details-row { display: flex; margin-bottom: 3px; }
+                    .details-label { width: 95px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; }
+                    .details-val { font-weight: 700; color: #0f172a; }
+                    .manifest-section { border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
+                    .manifest-block { padding: 8px 12px; font-size: 12px; }
+                    .from-block { background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+                    .to-block { background: #f0fdf4; }
+                    .block-title { font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+                    .from-title { color: #475569; }
+                    .to-title { color: #059669; }
+                    .block-text { font-weight: 700; color: #0f172a; line-height: 1.4; }
+                    .footer { border-top: 1.5px solid #0f172a; padding-top: 8px; font-size: 11px; color: #64748b; display: flex; justify-content: space-between; font-weight: 600; }
+                    .notice { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; margin-top: 12px; font-size: 11px; color: #475569; text-align: center; }
+                </style>
+            </head>
+            <body>
+                <div class="sticker-box">
+                    <div class="sticker-header">
+                        <div>
+                            <div class="sticker-brand">EcoCycle Logistics Manifest</div>
+                            <div class="sticker-code">${deviceCode}</div>
+                        </div>
+                    </div>
+
+                    <div class="grid">
+                        <div class="qr-box">
+                            <img src="${qrUrl}" class="qr-img" alt="Scan QR Code" />
+                            <div class="qr-label">SCAN HANDOVER</div>
+                        </div>
+                        <div class="details">
+                            <div class="details-row"><span class="details-label">Item:</span><span class="details-val">${device.brand} ${device.model}</span></div>
+                            <div class="details-row"><span class="details-label">Serial No:</span><span class="details-val" style="font-family: monospace; color: #2563eb;">${serialNo}</span></div>
+                            <div class="details-row"><span class="details-label">Condition:</span><span class="details-val">${device.condition || "Declared"} (${device.working || "N/A"})</span></div>
+                        </div>
+                    </div>
+
+                    <div class="manifest-section">
+                        <div class="manifest-block from-block">
+                            <div class="block-title from-title">SHIP FROM (ORIGIN):</div>
+                            <div class="block-text">${fromAddress}</div>
+                        </div>
+                        <div class="manifest-block to-block">
+                            <div class="block-title to-title">SHIP TO (DESTINATION):</div>
+                            <div class="block-text">${toAddress}</div>
+                        </div>
+                    </div>
+
+                    <div class="footer">
+                        <div>Manifest Tag ID: <strong>${deviceCode}</strong></div>
+                        <div>EcoCycle Logistics System</div>
+                    </div>
+                    <div class="notice">
+                        Official E-Waste Tag: Attach securely to physical device prior to collection agent pickup.
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() {
+                        window.print();
+                    };
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
     const executeAllocationRequest = async () => {
         if (!allocationModalDevice) return;
         const deviceId = allocationModalDevice.deviceId || allocationModalDevice.id;
+        const targetDev = allocationModalDevice;
         const token = localStorage.getItem("token");
         try {
             setSubmittingAllocationId(deviceId);
@@ -75,8 +186,9 @@ function View_device() {
                 )
             );
 
-            triggerToastMessage("Allocation request submitted successfully!");
+            triggerToastMessage("Allocation request submitted! Print your device tag sticker below.");
             setAllocationModalDevice(null);
+            setStickerModalDevice({ ...targetDev, allocationRequested: true, AllocationRequested: true });
         } catch (err) {
             console.error("Error requesting allocation:", err);
             const msg = err.response?.data?.message || "Failed to submit allocation request.";
@@ -89,7 +201,23 @@ function View_device() {
     useEffect(() => {
         loadMyDevices();
         fetchUserProfile();
+        fetchNotifications();
     }, []);
+
+    const fetchNotifications = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setNotifications(response.data || []);
+        } catch (err) {
+            console.error("Error fetching notifications:", err);
+        }
+    };
+
+    const totalNotifCount = notifications.filter(n => !n.isRead && !n.isread).length;
 
     const fetchUserProfile = async () => {
         try {
@@ -211,6 +339,11 @@ function View_device() {
           localStorage.getItem("name") ||
           "Citizen Champion";
 
+    const isAcceptedStatus = (status) => {
+        const s = (status || "").toLowerCase();
+        return s === "accepted" || s === "approved" || s === "active";
+    };
+
     const getStatusStyle = (status, item = null) => {
         const statusLower = (status || "pending").toLowerCase();
         
@@ -238,72 +371,13 @@ function View_device() {
                 label: "Pending Review"
             };
         }
-
-        // Check detailed lifecycle status and due date if item object is available
-        if (item) {
-            const lcs = (item.lifecycleStatus || "").toLowerCase();
-            
-            if (lcs === "pickupcancelled") {
-                return {
-                    bg: "#fef2f2",
-                    color: "#dc2626",
-                    dot: "#ef4444",
-                    label: "Pickup Cancelled"
-                };
-            }
-
-            // Check if pickup date has passed and request is not completed
-            if (item.pickupDate && lcs !== "completed" && lcs !== "delivered" && lcs !== "recycled") {
-                try {
-                    const pDate = new Date(item.pickupDate);
-                    pDate.setHours(0, 0, 0, 0);
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    if (pDate < today) {
-                        return {
-                            bg: "#fff1f2",
-                            color: "#dc2626",
-                            dot: "#e11d48",
-                            label: "Due Date Passed"
-                        };
-                    }
-                } catch (e) {
-                    console.error("Date check error:", e);
-                }
-            }
-
-            if (lcs === "collectionassigned") {
-                return {
-                    bg: "#e0f2fe",
-                    color: "#0369a1",
-                    dot: "#0284c7",
-                    label: "Agent Assigned"
-                };
-            }
-            if (lcs === "pickupstarted") {
-                return {
-                    bg: "#f5f3ff",
-                    color: "#6d28d9",
-                    dot: "#8b5cf6",
-                    label: "Pickup Started"
-                };
-            }
-            if (lcs === "collectionpending") {
-                return {
-                    bg: "#fffbeb",
-                    color: "#b45309",
-                    dot: "#f59e0b",
-                    label: "Collection Pending"
-                };
-            }
-            if (lcs === "completed" || lcs === "recycled" || lcs === "delivered") {
-                return {
-                    bg: "#eff6ff",
-                    color: "#1d4ed8",
-                    dot: "#3b82f6",
-                    label: "Completed"
-                };
-            }
+        if (statusLower === "completed" || statusLower === "recycled" || statusLower === "delivered") {
+            return {
+                bg: "#eff6ff",
+                color: "#1d4ed8",
+                dot: "#3b82f6",
+                label: "Completed"
+            };
         }
 
         return {
@@ -419,13 +493,44 @@ function View_device() {
             {/* Main Content Area */}
             <main className="vd-main-content">
                 {/* Title & User Header Ribbon */}
-                <div className="vd-ribbon">
-                    <h1 className="vd-page-heading">My Registered Devices</h1>
+                <div className="vd-ribbon" style={{ marginBottom: "1.75rem" }}>
+                    <div>
+                        <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a202c", margin: "0 0 0.25rem 0", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.025em" }}>
+                            My Registered Devices
+                        </h1>
+                        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0, fontWeight: 500 }}>
+                            View, manage, and track all electronic devices registered in your account.
+                        </p>
+                    </div>
 
                     <div className="vd-top-actions">
-                        <button className="vd-circle-btn" title="Notifications" style={{ position: "relative" }}>
+                        <button 
+                            type="button" 
+                            className="vd-circle-btn" 
+                            title={`Notifications ${totalNotifCount > 0 ? `(${totalNotifCount} unread)` : ""}`} 
+                            onClick={() => navigate("/technician-notification")}
+                            style={{ position: "relative" }}
+                        >
                             <FiBell />
-                            <span style={{ position: "absolute", top: "10px", right: "10px", width: "7px", height: "7px", borderRadius: "50%", background: "#ef4444" }}></span>
+                            {totalNotifCount > 0 && (
+                                <span className="vd-notif-badge-pill" style={{
+                                    position: "absolute",
+                                    top: "-4px",
+                                    right: "-4px",
+                                    background: "#ef4444",
+                                    color: "#ffffff",
+                                    fontSize: "0.65rem",
+                                    fontWeight: 800,
+                                    width: "18px",
+                                    height: "18px",
+                                    borderRadius: "50%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center"
+                                }}>
+                                    {totalNotifCount > 9 ? "9+" : totalNotifCount}
+                                </span>
+                            )}
                         </button>
 
                         <Link 
@@ -479,17 +584,17 @@ function View_device() {
                             ))}
                         </div>
 
-                        <div className="vd-view-mode">
+                        <div className="pk-view-toggle">
                             <button
                                 onClick={() => setViewMode("grid")}
-                                className={`vd-mode-btn ${viewMode === "grid" ? "active" : ""}`}
+                                className={`pk-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
                                 title="Grid View"
                             >
                                 <FiGrid />
                             </button>
                             <button
                                 onClick={() => setViewMode("table")}
-                                className={`vd-mode-btn ${viewMode === "table" ? "active" : ""}`}
+                                className={`pk-toggle-btn ${viewMode === "table" ? "active" : ""}`}
                                 title="Table View"
                             >
                                 <FiList />
@@ -587,32 +692,6 @@ function View_device() {
                                                 {item.weight && <span className="vd-chip">Weight: <strong>{item.weight} kg</strong></span>}
                                                 {item.quantity && <span className="vd-chip">Qty: <strong>{item.quantity}</strong></span>}
                                             </div>
-
-                                            {item.pickupDate && (
-                                                <div className="vd-pickup-strip">
-                                                    <FiCalendar style={{ color: "#137333" }} />
-                                                    <span>Scheduled Pickup: <strong>{formatDate(item.pickupDate)}</strong></span>
-                                                </div>
-                                            )}
-
-                                            {(item.allocationRequested || item.AllocationRequested) && (
-                                                <div style={{
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: "0.45rem",
-                                                    background: "#f0fdf4",
-                                                    color: "#15803d",
-                                                    border: "1px solid #bbf7d0",
-                                                    padding: "0.45rem 0.75rem",
-                                                    borderRadius: "8px",
-                                                    fontSize: "0.8rem",
-                                                    fontWeight: 700,
-                                                    marginTop: "0.65rem"
-                                                }}>
-                                                    <FiCheckCircle style={{ color: "#16a34a", fontSize: "0.95rem" }} />
-                                                    <span>Allocation Requested</span>
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
 
@@ -621,7 +700,29 @@ function View_device() {
                                         <button onClick={() => setSelectedDevice(item)} className="vd-btn-inspect">
                                             <FiEye className="vd-btn-inspect-icon" /> Inspect
                                         </button>
-                                        {!item.allocationRequested && !item.AllocationRequested && (item.status || "").toLowerCase() !== "inactive" && (item.status || "").toLowerCase() !== "deleted" && (
+                                        {(item.allocationRequested || item.AllocationRequested) && (
+                                            <button
+                                                onClick={() => setStickerModalDevice(item)}
+                                                style={{
+                                                    background: "#059669",
+                                                    color: "#ffffff",
+                                                    border: "none",
+                                                    padding: "0.45rem 0.85rem",
+                                                    borderRadius: "8px",
+                                                    fontWeight: 700,
+                                                    fontSize: "0.8rem",
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    gap: "0.35rem",
+                                                    cursor: "pointer",
+                                                    boxShadow: "0 2px 4px rgba(5, 150, 105, 0.25)"
+                                                }}
+                                                title="Print Pickup Tag Sticker"
+                                            >
+                                                <FiPrinter /> Pickup Sticker
+                                            </button>
+                                        )}
+                                        {!item.allocationRequested && !item.AllocationRequested && isAcceptedStatus(item.status) && (
                                             <button
                                                 onClick={() => handleRequestAllocation(item)}
                                                 style={{
@@ -675,7 +776,6 @@ function View_device() {
                                     <th>Brand & Model</th>
                                     <th>Weight</th>
                                     <th>Condition</th>
-                                    <th>Logistics Slot</th>
                                     <th>Status</th>
                                     <th>Action</th>
                                 </tr>
@@ -703,27 +803,10 @@ function View_device() {
                                                 <div style={{ fontSize: "0.75rem", color: "#718096" }}>{item.working ? `Working: ${item.working}` : ""}</div>
                                             </td>
                                             <td>
-                                                {item.pickupDate ? (
-                                                    <div>
-                                                        <div style={{ fontWeight: 600, color: "#1a202c" }}>{formatDate(item.pickupDate)}</div>
-                                                        <div style={{ fontSize: "0.75rem", color: "#718096" }}>{item.timeSlot || "Standard slot"}</div>
-                                                    </div>
-                                                ) : (
-                                                    <span style={{ color: "#a0aec0" }}>Not scheduled</span>
-                                                )}
-                                            </td>
-                                            <td>
-                                                 <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", alignItems: "flex-start" }}>
-                                                     <span className="vd-card-status-badge" style={{ position: "static", display: "inline-flex", background: status.bg, color: status.color }}>
-                                                         <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: status.dot }}></span>
-                                                         {status.label}
-                                                     </span>
-                                                     {(item.allocationRequested || item.AllocationRequested) && (
-                                                         <span style={{ fontSize: "0.725rem", color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.2rem 0.5rem", borderRadius: "6px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
-                                                             <FiCheckCircle /> Allocation Requested
-                                                         </span>
-                                                     )}
-                                                 </div>
+                                                 <span className="vd-card-status-badge" style={{ position: "static", display: "inline-flex", background: status.bg, color: status.color }}>
+                                                     <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: status.dot }}></span>
+                                                     {status.label}
+                                                 </span>
                                             </td>
                                             <td>
                                                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
@@ -733,7 +816,7 @@ function View_device() {
                                                      >
                                                          <FiEye /> Inspect
                                                      </button>
-                                                     {!item.allocationRequested && !item.AllocationRequested && (item.status || "").toLowerCase() !== "inactive" && (item.status || "").toLowerCase() !== "deleted" && (
+                                                     {!item.allocationRequested && !item.AllocationRequested && isAcceptedStatus(item.status) && (
                                                          <button
                                                              onClick={() => handleRequestAllocation(item)}
                                                              style={{
@@ -834,10 +917,7 @@ function View_device() {
                             </div>
                         </div>
 
-                        <div style={{ background: "#f7fafc", padding: "0.85rem", borderRadius: "10px", marginBottom: "1.25rem" }}>
-                            <span style={{ color: "#718096", fontSize: "0.75rem", display: "block", fontWeight: 700 }}>PICKUP ADDRESS</span>
-                            <strong>{selectedDevice.address || "N/A"}</strong>
-                        </div>
+                        
 
                         {/* Photos */}
                         {(selectedDevice.frontPhoto || selectedDevice.backPhoto || selectedDevice.damagePhoto || selectedDevice.labelPhoto) && (
@@ -873,7 +953,47 @@ function View_device() {
                         )}
 
                         {/* Modal Action Bar */}
-                        <div style={{ marginTop: "1.5rem", borderTop: "1px solid #e2e8f0", paddingTop: "1rem", display: "flex", justifyContent: "flex-end" }}>
+                        <div style={{ marginTop: "1.5rem", borderTop: "1px solid #e2e8f0", paddingTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            {(selectedDevice.allocationRequested || selectedDevice.AllocationRequested) ? (
+                                <button
+                                    onClick={() => setStickerModalDevice(selectedDevice)}
+                                    style={{
+                                        background: "#059669",
+                                        color: "#ffffff",
+                                        border: "none",
+                                        padding: "0.6rem 1.15rem",
+                                        borderRadius: "8px",
+                                        fontWeight: 700,
+                                        fontSize: "0.85rem",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "0.4rem",
+                                        cursor: "pointer"
+                                    }}
+                                >
+                                    <FiPrinter /> Pickup Tag Sticker
+                                </button>
+                            ) : isAcceptedStatus(selectedDevice.status) ? (
+                                <button
+                                    onClick={() => handleRequestAllocation(selectedDevice)}
+                                    style={{
+                                        background: "#635bff",
+                                        color: "#ffffff",
+                                        border: "none",
+                                        padding: "0.6rem 1.15rem",
+                                        borderRadius: "8px",
+                                        fontWeight: 700,
+                                        fontSize: "0.85rem",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "0.4rem",
+                                        cursor: "pointer"
+                                    }}
+                                >
+                                    <FiCpu /> Request Allocation
+                                </button>
+                            ) : <div></div>}
+
                             {(selectedDevice.status || "").toLowerCase() === "inactive" || (selectedDevice.status || "").toLowerCase() === "deleted" ? (
                                 <button
                                     onClick={() => restoreDevice(selectedDevice)}
@@ -1027,6 +1147,122 @@ function View_device() {
                                 style={{ background: "#635bff", color: "#ffffff", border: "none", padding: "0.6rem 1.5rem", borderRadius: "8px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
                             >
                                 {submittingAllocationId === (allocationModalDevice.deviceId || allocationModalDevice.id) ? "Submitting..." : "Request Allocation"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Official Printable Pickup Tag Sticker Modal */}
+            {stickerModalDevice && (
+                <div className="vd-modal-overlay" onClick={() => setStickerModalDevice(null)}>
+                    <div className="vd-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "540px", width: "95%", padding: "1.5rem", borderRadius: "20px", background: "#ffffff" }}>
+                        
+                        {/* Header Ribbon */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.75rem", marginBottom: "1rem" }}>
+                            <h3 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0f172a", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                <span style={{ color: "#059669" }}>🏷️</span> Official E-Waste Pickup Tag Sticker
+                            </h3>
+                            <button onClick={() => setStickerModalDevice(null)} style={{ background: "none", border: "none", fontSize: "1.2rem", color: "#64748b", cursor: "pointer" }}>
+                                <FiX />
+                            </button>
+                        </div>
+
+                        {/* Instruction Notice */}
+                        <div style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", borderRadius: "12px", padding: "0.85rem 1rem", marginBottom: "1.25rem", textAlign: "left" }}>
+                            <div style={{ fontSize: "0.85rem", fontWeight: 800, color: "#065f46", display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.25rem" }}>
+                                📌 Important Pickup Preparation Instruction
+                            </div>
+                            <div style={{ fontSize: "0.8rem", color: "#047857", lineHeight: 1.45 }}>
+                                Please print or write down this official pickup tag and <strong>stick it securely onto your e-waste device surface</strong> before the Collection Agent arrives. The agent will scan this QR tag during physical handover.
+                            </div>
+                        </div>
+
+                        {/* Printable Sticker Box Container */}
+                        <div style={{ border: "2px solid #0f172a", borderRadius: "14px", padding: "1.25rem", background: "#ffffff", textAlign: "left", boxShadow: "0 4px 12px rgba(0,0,0,0.04)" }}>
+                            
+                            {/* Sticker Header */}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "2px solid #0f172a", paddingBottom: "0.6rem", marginBottom: "0.85rem" }}>
+                                <div>
+                                    <div style={{ fontSize: "0.75rem", fontWeight: 800, color: "#0f172a", letterSpacing: "1.2px", textTransform: "uppercase" }}>ECOCYCLE LOGISTICS MANIFEST</div>
+                                    <div style={{ fontSize: "1.3rem", fontWeight: 900, color: "#059669", fontFamily: "monospace" }}>
+                                        #EC-{stickerModalDevice.deviceId || stickerModalDevice.id}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sticker Content Grid: QR Code + Details */}
+                            {(() => {
+                                const tokenVal = stickerModalDevice.deviceQrToken || stickerModalDevice.DeviceQrToken || `ECOQR-DEV-${stickerModalDevice.deviceId || stickerModalDevice.id}`;
+                                const uCity = stickerModalDevice.userCity || stickerModalDevice.city || "Kochi";
+                                const uPin = stickerModalDevice.userPincode || stickerModalDevice.pincode || "682001";
+                                const tPin = stickerModalDevice.techPincode || "682030";
+
+                                const fromAddrStr = `${stickerModalDevice.address || stickerModalDevice.landmark || "Citizen Pickup Location"}, ${uCity} - PIN: ${uPin}`;
+                                const toAddrStr = stickerModalDevice.assignedTechnicianCenter 
+                                    ? `${stickerModalDevice.assignedTechnicianCenter} - PIN: ${tPin}`
+                                    : `${stickerModalDevice.assignedTechnicianCenterName || "EcoCycle Regional Inspection Center"}, ${stickerModalDevice.assignedTechnicianCenterAddress || "Industrial Facility Hub"} - PIN: ${tPin}`;
+
+                                return (
+                                    <>
+                                        <div style={{ display: "grid", gridTemplateColumns: "125px 1fr", gap: "1rem", alignItems: "center", marginBottom: "0.85rem" }}>
+                                            
+                                            {/* QR Code */}
+                                            <div style={{ background: "#ffffff", padding: "0.4rem", border: "1px solid #cbd5e1", borderRadius: "8px", textAlign: "center" }}>
+                                                <img
+                                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(tokenVal)}`}
+                                                    alt="Pickup QR Code"
+                                                    style={{ width: "100%", height: "105px", objectFit: "contain" }}
+                                                />
+                                                <div style={{ fontSize: "0.6rem", fontWeight: 800, color: "#64748b", marginTop: "2px", letterSpacing: "0.5px" }}>SCAN HANDOVER</div>
+                                            </div>
+
+                                            {/* Details List */}
+                                            <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", fontSize: "0.825rem", color: "#334155" }}>
+                                                <div style={{ display: "flex" }}><span style={{ width: "90px", fontSize: "0.7rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>ITEM:</span><span style={{ color: "#0f172a", fontWeight: 700 }}>{stickerModalDevice.brand} {stickerModalDevice.model}</span></div>
+                                                <div style={{ display: "flex" }}><span style={{ width: "90px", fontSize: "0.7rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>SERIAL NO:</span><span style={{ fontFamily: "monospace", fontWeight: 700, color: "#2563eb" }}>{stickerModalDevice.serialNumber || `EC-SN-${stickerModalDevice.deviceId || stickerModalDevice.id}`}</span></div>
+                                                <div style={{ display: "flex" }}><span style={{ width: "90px", fontSize: "0.7rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>CONDITION:</span><span style={{ color: "#0f172a", fontWeight: 700 }}>{stickerModalDevice.condition || "Declared"} ({stickerModalDevice.working || "N/A"})</span></div>
+                                            </div>
+                                        </div>
+
+                                        {/* FROM & TO Addresses */}
+                                        <div style={{ border: "1px solid #cbd5e1", borderRadius: "8px", overflow: "hidden", marginBottom: "0.85rem" }}>
+                                            <div style={{ background: "#f8fafc", padding: "0.55rem 0.75rem", borderBottom: "1px solid #e2e8f0", fontSize: "0.775rem" }}>
+                                                <div style={{ fontSize: "0.68rem", fontWeight: 800, color: "#475569", letterSpacing: "0.8px", textTransform: "uppercase" }}>FROM:</div>
+                                                <div style={{ color: "#0f172a", fontWeight: 700, marginTop: "0.15rem" }}>{fromAddrStr}</div>
+                                            </div>
+
+                                            <div style={{ background: "#f0fdf4", padding: "0.55rem 0.75rem", fontSize: "0.775rem" }}>
+                                                <div style={{ fontSize: "0.68rem", fontWeight: 800, color: "#059669", letterSpacing: "0.8px", textTransform: "uppercase" }}>TO:</div>
+                                                <div style={{ color: "#065f46", fontWeight: 700, marginTop: "0.15rem" }}>{toAddrStr}</div>
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+
+                            {/* Sticker Footer Notice */}
+                            <div style={{ borderTop: "1.5px solid #0f172a", paddingTop: "0.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.725rem", color: "#64748b", fontWeight: 600 }}>
+                                <div>Manifest Tag ID: <strong>#EC-{stickerModalDevice.deviceId || stickerModalDevice.id}</strong></div>
+                                <div>EcoCycle Logistics System</div>
+                            </div>
+                        </div>
+
+                        {/* Print & Download Actions */}
+                        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+                            <button
+                                type="button"
+                                style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "0.6rem 1rem", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.85rem" }}
+                                onClick={() => setStickerModalDevice(null)}
+                            >
+                                Close
+                            </button>
+                            <button
+                                type="button"
+                                style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#ffffff", border: "none", padding: "0.6rem 1.25rem", borderRadius: "8px", fontWeight: 700, cursor: "pointer", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.4rem" }}
+                                onClick={() => handlePrintSticker(stickerModalDevice)}
+                            >
+                                <FiPrinter /> Print / Download Tag Sticker
                             </button>
                         </div>
                     </div>

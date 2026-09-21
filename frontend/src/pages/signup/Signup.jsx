@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FaEye, FaEyeSlash, FaClock } from "react-icons/fa";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 import "./Signup.css";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -87,7 +87,6 @@ function Signup() {
 
     const [pincodeLoading, setPincodeLoading] = useState(false);
     const [pincodeError, setPincodeError] = useState("");
-    const [isSubmitted, setIsSubmitted] = useState(false);
     const [form_dta, set_form_dta] = useState({
         firstName: "",
         lastName: "",
@@ -360,7 +359,7 @@ function Signup() {
                 "https://localhost:7102/api/User/Register",
                 form_dta
             );
-            setIsSubmitted(true);
+            navigate("/login");
         } catch (error) {
             if (error.response) {
                 const { field, message } = error.response.data;
@@ -370,7 +369,7 @@ function Signup() {
                     [field]: message
                 }));
             } else {
-                setIsSubmitted(true);
+                navigate("/login");
             }
         }
     }
@@ -397,55 +396,7 @@ function Signup() {
             {/* Form Side */}
             <div className="refurbishmentcenter-panel">
                 <div className="refurbishmentcenter-card">
-                    {isSubmitted ? (
-                        <div className="registration-success-container" style={{ textAlign: "center", padding: "2rem 1rem" }}>
-                            <div className="success-icon-wrapper" style={{
-                                width: "76px",
-                                height: "76px",
-                                borderRadius: "50%",
-                                background: "linear-gradient(135deg, rgba(234, 179, 8, 0.18), rgba(245, 158, 11, 0.08))",
-                                border: "2px solid #eab308",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                margin: "0 auto 1.25rem auto",
-                                color: "#eab308",
-                                fontSize: "2.25rem"
-                            }}>
-                                <FaClock />
-                            </div>
-                            <h2 style={{ fontSize: "1.6rem", fontWeight: 700, color: "#0f172a", marginBottom: "0.75rem", fontFamily: "'Space Grotesk', sans-serif" }}>
-                                Application Submitted Successfully!
-                            </h2>
-                            <div style={{
-                                background: "rgba(234, 179, 8, 0.08)",
-                                border: "1px solid rgba(234, 179, 8, 0.3)",
-                                borderRadius: "12px",
-                                padding: "1.25rem 1.5rem",
-                                marginBottom: "1.5rem",
-                                textAlign: "left"
-                            }}>
-                                <p style={{ margin: 0, fontWeight: 700, fontSize: "0.95rem", color: "#a16207", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                                    <span>⏳</span> Account Verification Pending
-                                </p>
-                                <p style={{ margin: "0.5rem 0 0 0", color: "#475569", fontSize: "0.9rem", lineHeight: 1.6 }}>
-                                    Your Citizen / Individual account has been created. <strong>Please note that your account needs to be verified and approved by the Administrator before you can log in.</strong>
-                                </p>
-                            </div>
-                            <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: "2rem", lineHeight: 1.5 }}>
-                                Thank you for registering with EcoCycle. Please wait for admin approval. You can return to the login page to sign in once approved.
-                            </p>
-                            <button
-                                type="button"
-                                className="refurbishmentcenter-btn"
-                                onClick={() => navigate("/login")}
-                                style={{ maxWidth: "220px", margin: "0 auto", display: "block", textTransform: "none" }}
-                            >
-                                Back to Login
-                            </button>
-                        </div>
-                    ) : (
-                        <>
+
                     <div className="refurbishmentcenter-header">
                         <div className="refurbishmentcenter-eyebrow">CREATE ACCOUNT</div>
                         <h1>Sign Up</h1>
@@ -727,8 +678,6 @@ function Signup() {
                         <p>Already have an account? <a href="/login">Sign in</a></p>
                         <p><a href="/" style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>← Back to home</a></p>
                     </div>
-                        </>
-                    )}
                 </div>
             </div>
         </div>

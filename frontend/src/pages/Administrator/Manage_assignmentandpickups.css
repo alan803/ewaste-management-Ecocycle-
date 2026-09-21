@@ -244,3 +244,103 @@
   transform: translateY(-1px);
 }
 
+/* Filter Placement & Styling Matching Manage_delivery.css */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.filter-pill-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  background: transparent;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.pill-btn {
+  padding: 0.4rem 0.85rem;
+  border-radius: 20px;
+  font-size: 0.775rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.pill-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.pill-btn--active {
+  background: #10b981;
+  color: #ffffff;
+  border-color: #10b981;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+}
+
+/* Modal Header Title Visibility Fix */
+.device-modal-card .modal-header {
+  background: #ffffff !important;
+  padding: 0 0 1rem 0 !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  margin-bottom: 1.25rem !important;
+}
+
+.device-modal-card .modal-header h2 {
+  color: #0f172a !important;
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+  line-height: 1.3 !important;
+}
+
+.device-modal-card .modal-header .panel-subtitle {
+  color: #64748b !important;
+  font-size: 0.85rem !important;
+  margin: 0.25rem 0 0 0 !important;
+}
+
+.device-modal-card .modal-close-btn {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  font-size: 1.2rem !important;
+  color: #64748b !important;
+  transition: all 0.2s ease !important;
+}
+
+.device-modal-card .modal-close-btn:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+
+

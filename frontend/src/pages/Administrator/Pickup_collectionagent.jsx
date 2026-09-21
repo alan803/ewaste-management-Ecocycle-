@@ -18,7 +18,9 @@ import {
     FiTruck,
     FiCpu,
     FiUserCheck,
-    FiRotateCcw
+    FiRotateCcw,
+    FiGrid,
+    FiList
 } from "react-icons/fi";
 import "./Pickup_collectionagent.css";
 
@@ -29,6 +31,7 @@ function Pickup_collectionagent() {
     const [error, setError] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [activeFilter, setActiveFilter] = useState("All");
+    const [viewMode, setViewMode] = useState("table");
     const [selectedAssignment, setSelectedAssignment] = useState(null);
     const [locationModalTarget, setLocationModalTarget] = useState(null);
 
@@ -36,6 +39,8 @@ function Pickup_collectionagent() {
     const [reassigningAssignment, setReassigningAssignment] = useState(null);
     const [selectedAgentId, setSelectedAgentId] = useState("");
     const [reassigningLoading, setReassigningLoading] = useState(false);
+    const [reassigningLoadingId, setReassigningLoadingId] = useState(null);
+    const [failedAutoAllocations, setFailedAutoAllocations] = useState([]);
     const [reassignMessage, setReassignMessage] = useState("");
     const [agentSearchQuery, setAgentSearchQuery] = useState("");
 
@@ -53,7 +58,7 @@ function Pickup_collectionagent() {
             const token = localStorage.getItem("token");
 
             const collectionRes = await axios.get(
-                "https://localhost:7102/api/CollectionAssignment/admin/all-assignments",
+                "https://localhost:7102/api/CollectionAssignment/admin/all-assignments?assignmentType=all",
                 {
                     headers: { Authorization: `Bearer ${token}` }
                 }
@@ -83,6 +88,7 @@ function Pickup_collectionagent() {
     const handleAutoReassign = async (assignmentId) => {
         try {
             setReassigningLoading(true);
+            setReassigningLoadingId(assignmentId);
             setReassignMessage("");
             const token = localStorage.getItem("token");
             const response = await axios.post(
@@ -91,17 +97,31 @@ function Pickup_collectionagent() {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            setReassignMessage(response.data?.message || "Reassigned successfully.");
-            setTimeout(() => {
-                setReassigningAssignment(null);
-                setReassignMessage("");
-                fetchAllData();
-            }, 1200);
+            const isWaiting = response.data?.status === "Waiting" ||
+                (response.data?.message && (
+                    response.data.message.includes("No alternative") ||
+                    response.data.message.includes("waiting") ||
+                    response.data.message.includes("No available")
+                ));
+
+            if (isWaiting) {
+                setFailedAutoAllocations(prev => [...new Set([...prev, assignmentId])]);
+                fetchActiveAgents();
+            } else {
+                setReassignMessage(response.data?.message || "Reassigned successfully.");
+                setTimeout(() => {
+                    setReassigningAssignment(null);
+                    setReassignMessage("");
+                    fetchAllData();
+                }, 1200);
+            }
         } catch (err) {
             console.error("Error auto-reassigning agent:", err);
-            setReassignMessage(err.response?.data?.message || "Failed to auto-reassign agent.");
+            setFailedAutoAllocations(prev => [...new Set([...prev, assignmentId])]);
+            fetchActiveAgents();
         } finally {
             setReassigningLoading(false);
+            setReassigningLoadingId(null);
         }
     };
 
@@ -202,10 +222,18 @@ function Pickup_collectionagent() {
             case "pickedup":
             case "delivered":
             case "completed":
+            case "deliveredtocenter":
                 return (
                     <span className="status-pill status-pill--completed">
                         <span className="status-beacon"></span>
                         Completed
+                    </span>
+                );
+            case "expired":
+                return (
+                    <span className="status-pill" style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5" }}>
+                        <span className="status-beacon" style={{ background: "#dc2626" }}></span>
+                        Expired
                     </span>
                 );
             case "rejected":
@@ -239,8 +267,9 @@ function Pickup_collectionagent() {
         const statusLower = (item.status || "").toLowerCase();
         const matchesStatus =
             activeFilter === "All" ||
-            statusLower === activeFilter.toLowerCase() ||
-            (activeFilter === "Rejected" && (statusLower === "rejected" || statusLower === "declined"));
+            (activeFilter === "Completed" && (statusLower === "completed" || statusLower === "delivered" || statusLower === "deliveredtocenter" || statusLower === "pickedup")) ||
+            (activeFilter === "Rejected" && (statusLower === "rejected" || statusLower === "declined")) ||
+            statusLower === activeFilter.toLowerCase();
 
         return matchesSearch && matchesStatus;
     });
@@ -289,11 +318,6 @@ function Pickup_collectionagent() {
                                     <span className="role">Super Admin</span>
                                 </div>
                             </div>
-
-                            <Link to="/logout" className="logout-btn-v2" title="Logout">
-                                <FiLogOut />
-                                <span>Exit</span>
-                            </Link>
                         </div>
                     </div>
                 </header>
@@ -315,7 +339,9 @@ function Pickup_collectionagent() {
                                             ? collectionAssignments.length
                                             : collectionAssignments.filter(c => {
                                                 const s = (c.status || "").toLowerCase();
-                                                return tab === "Rejected" ? (s === "rejected" || s === "declined") : s === tab.toLowerCase();
+                                                if (tab === "Completed") return s === "completed" || s === "delivered" || s === "deliveredtocenter" || s === "pickedup";
+                                                if (tab === "Rejected") return s === "rejected" || s === "declined";
+                                                return s === tab.toLowerCase();
                                             }).length;
 
                                         return (
@@ -328,6 +354,22 @@ function Pickup_collectionagent() {
                                             </button>
                                         );
                                     })}
+                                </div>
+                                <div className="admin-view-toggle">
+                                    <button
+                                        className={`admin-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+                                        onClick={() => setViewMode("grid")}
+                                        title="Grid View"
+                                    >
+                                        <FiGrid />
+                                    </button>
+                                    <button
+                                        className={`admin-toggle-btn ${viewMode === "table" ? "active" : ""}`}
+                                        onClick={() => setViewMode("table")}
+                                        title="Table View"
+                                    >
+                                        <FiList />
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -346,25 +388,25 @@ function Pickup_collectionagent() {
                                 <FiFilter className="no-data-icon" />
                                 <p>No collection agent pickups matching "{activeFilter}".</p>
                             </div>
-                        ) : (
+                        ) : viewMode === "table" ? (
                             <div className="glass-table-wrapper">
-                                 <table className="glass-table">
-                                    <thead>
-                                        <tr>
-                                            <th style={{ width: "40px" }}>#</th>
-                                            <th style={{ minWidth: "160px" }}>Device Details</th>
-                                            <th style={{ minWidth: "160px" }}>Citizen / Owner</th>
-                                            <th style={{ minWidth: "170px" }}>Collection Agent</th>
-                                            <th style={{ minWidth: "145px" }}>Pickup Schedule</th>
-                                            <th style={{ minWidth: "160px" }}>Status & Rejection</th>
-                                            <th style={{ minWidth: "150px", whiteSpace: "nowrap" }}>Actions</th>
-                                            <th style={{ width: "80px", textAlign: "center", whiteSpace: "nowrap" }}>Details</th>
+                                <table className="glass-table">
+                                     <thead>
+                                         <tr>
+                                            <th className="col-num">#</th>
+                                            <th className="col-device">Device Details</th>
+                                            <th className="col-sender">Sender / Origin</th>
+                                            <th className="col-agent">Collection Agent</th>
+                                            <th className="col-schedule">Pickup Schedule</th>
+                                            <th className="col-status">Status</th>
+                                            <th className="col-actions">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {filteredCollection.map((item, index) => {
-                                            // Find highest collection assignment ID for this device to check if this item is the latest assignment
-                                            const deviceAssignments = collectionAssignments.filter(ca => ca.deviceId === item.deviceId);
+                                            // Find highest collection assignment ID for this device & journey type
+                                            const itemJourney = item.assignmentType || "CustomerToTechnician";
+                                            const deviceAssignments = collectionAssignments.filter(ca => ca.deviceId === item.deviceId && (ca.assignmentType || "CustomerToTechnician") === itemJourney);
                                             const latestAssignmentId = deviceAssignments.length > 0 
                                                 ? Math.max(...deviceAssignments.map(ca => ca.collectionAssignmentId || 0))
                                                 : item.collectionAssignmentId;
@@ -374,45 +416,82 @@ function Pickup_collectionagent() {
                                             const statusLower = (item.status || "").toLowerCase();
                                             const isRejected = statusLower === "rejected" || statusLower === "declined";
                                             const isCancelled = statusLower === "cancelled";
+                                            const isExpired = statusLower === "expired";
                                             const isWaiting = statusLower === "waiting" || !item.collectionAgentId || item.collectionAgentName === "Unassigned";
-                                            const isCompletedOrDelivered = statusLower === "completed" || statusLower === "delivered";
+                                            const isCompletedOrDelivered = statusLower === "completed" || statusLower === "delivered" || statusLower === "deliveredtocenter" || statusLower === "pickedup";
+                                            const isAccepted = statusLower.includes("accept") || statusLower === "pickupstarted" || statusLower === "intransit" || statusLower === "outfordelivery" || statusLower === "atinspectioncenter";
 
-                                            // Can allocate if this is the LATEST assignment for the device and is unassigned/rejected/cancelled
-                                            const canAllocate = isLatestAssignment && (isWaiting || isRejected || isCancelled) && !isCompletedOrDelivered;
-                                            const canReassign = isLatestAssignment && !canAllocate && !isCompletedOrDelivered;
+                                            // Can allocate if this is the LATEST assignment for the device and is unassigned/rejected/cancelled/expired
+                                            const canAllocate = isLatestAssignment && (isWaiting || isRejected || isCancelled || isExpired) && !isCompletedOrDelivered && !isAccepted;
+                                            const canReassign = isLatestAssignment && !canAllocate && !isCompletedOrDelivered && !isAccepted;
 
                                             return (
                                                 <tr
                                                     key={item.collectionAssignmentId || index}
-                                                    className="table-row-hover"
-                                                    style={{ background: isRejected ? "rgba(254, 226, 226, 0.3)" : "inherit" }}
+                                                    className={`table-row-hover ${isExpired ? "table-row-expired" : ""}`}
+                                                    style={{ background: isExpired ? "#fff8f8" : isRejected ? "rgba(254, 226, 226, 0.3)" : "inherit" }}
                                                 >
-                                                    <td style={{ fontWeight: "700", color: "var(--text-muted)", fontSize: "0.875rem" }}>
+                                                    <td className="col-num" style={{ fontWeight: "700", color: "var(--text-muted)", fontSize: "0.875rem" }}>
                                                         {index + 1}
                                                     </td>
-                                                    <td>
+                                                    <td className="col-device">
                                                         <div className="user-info">
-                                                            <span className="user-name">
-                                                                {item.brand} {item.model}
-                                                            </span>
+                                                            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.2rem" }}>
+                                                                <span className="user-name">
+                                                                    {item.brand} {item.model}
+                                                                </span>
+                                                                {item.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                                    <span style={{ background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd", fontSize: "0.7rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>
+                                                                        Tech ➔ Recycler
+                                                                    </span>
+                                                                ) : (item.assignmentType === "TechnicianToTechnician" || item.isReassignedFromTech || item.isReassignmentPickup) ? (
+                                                                    <span style={{ background: "#fff7ed", color: "#c2410c", border: "1px solid #ffedd5", fontSize: "0.7rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>
+                                                                        Tech ➔ Tech
+                                                                    </span>
+                                                                ) : (
+                                                                    <span style={{ background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", fontSize: "0.7rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>
+                                                                        Citizen ➔ Tech
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             <span className="user-email">
                                                                 Cat: {item.categoryName || "E-Waste"} | Assign #{item.collectionAssignmentId}
                                                             </span>
                                                         </div>
                                                     </td>
-                                                    <td className="contact-cell">
-                                                        <div className="user-info">
-                                                            <span className="user-name">{item.customerName || "Citizen"}</span>
-                                                            <span className="user-email">Device #{item.deviceId} • Ph: {item.customerPhone || "N/A"}</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="contact-cell">
-                                                        {item.collectionAgentName && item.collectionAgentName !== "Unassigned" ? (
+                                                    <td className="col-sender contact-cell">
+                                                        {item.assignmentType === "TechnicianToRecyclingCenter" ? (
                                                             <div className="user-info">
-                                                                <span className="user-name" style={{ color: isRejected ? "#dc2626" : "inherit" }}>
-                                                                    {item.collectionAgentName}
+                                                                <span className="user-name" style={{ color: "#0369a1", fontWeight: 700 }}>
+                                                                    Tech: {item.technicianName || item.inspectionCenterName || "Technician Hub"}
                                                                 </span>
                                                                 <span className="user-email">
+                                                                    To: {item.recyclingCenterName || "Recycling Center"} • Ph: {item.technicianPhone || "N/A"}
+                                                                </span>
+                                                            </div>
+                                                        ) : (item.assignmentType === "TechnicianToTechnician" || item.isReassignedFromTech || item.isReassignmentPickup) ? (
+                                                            <div className="user-info">
+                                                                <span className="user-name" style={{ color: "#c2410c", fontWeight: 700 }}>
+                                                                    Penalized Tech: {item.customerName || item.priorTechnicianName || "Technician Hub"}
+                                                                </span>
+                                                                <span className="user-email">
+                                                                    To Tech: {item.technicianName || "New Tech"} • Ph: {item.customerPhone || "N/A"}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="user-info">
+                                                                <span className="user-name">{item.customerName || "Citizen"}</span>
+                                                                <span className="user-email">Device #{item.deviceId} • Ph: {item.customerPhone || "N/A"}</span>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="col-agent contact-cell">
+                                                        {item.collectionAgentName && item.collectionAgentName !== "Unassigned" ? (
+                                                            <div className="user-info">
+                                                                <span className="user-name" title={item.collectionAgentName} style={{ color: isRejected ? "#dc2626" : "inherit" }}>
+                                                                    {item.collectionAgentName}
+                                                                </span>
+                                                                <span className="user-email" title={item.collectionAgentEmail || item.collectionAgentPhone || ""}>
                                                                     {item.collectionAgentEmail || `Ph: ${item.collectionAgentPhone || "N/A"}`}
                                                                 </span>
                                                             </div>
@@ -424,7 +503,7 @@ function Pickup_collectionagent() {
                                                         )}
                                                     </td>
 
-                                                    <td className="contact-cell">
+                                                    <td className="col-schedule contact-cell">
                                                         <div className="deadline-cell-group">
                                                             <div className="deadline-item">
                                                                 <FiCalendar style={{ color: "var(--primary-dark)", flexShrink: 0 }} />
@@ -435,7 +514,7 @@ function Pickup_collectionagent() {
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td>
+                                                    <td className="col-status">
                                                         <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
                                                             {getStatusBadge(item.status)}
                                                             {item.rejectionReason ? (
@@ -450,21 +529,18 @@ function Pickup_collectionagent() {
                                                             ) : null}
                                                         </div>
                                                     </td>
-                                                    <td style={{ whiteSpace: "nowrap" }}>
-                                                        <div className="action-buttons" style={{ display: "flex", flexDirection: "column", gap: "0.35rem", alignItems: "stretch", whiteSpace: "nowrap" }}>
-                                                            {canAllocate ? (
-                                                                <>
-                                                                    <button
-                                                                        className="action-btn action-btn--auto"
-                                                                        onClick={() => handleAutoReassign(item.collectionAssignmentId)}
-                                                                        disabled={reassigningLoading}
-                                                                        title="Automatically Allocate Best Available Agent"
-                                                                        style={{ background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", whiteSpace: "nowrap", width: "100%", justifyContent: "center" }}
-                                                                    >
-                                                                        <FiCpu className={reassigningLoading ? "spin-icon" : ""} />
-                                                                        <span>Auto Allocate</span>
-                                                                    </button>
+                                                    <td className="col-actions" style={{ whiteSpace: "nowrap" }}>
+                                                        <div className="action-buttons" style={{ display: "flex", alignItems: "center", gap: "0.4rem", justifyContent: "center", whiteSpace: "nowrap" }}>
+                                                            <button
+                                                                className="action-btn action-btn--view"
+                                                                onClick={() => setSelectedAssignment(item)}
+                                                                title="View Assignment Details"
+                                                            >
+                                                                <FiEye />
+                                                            </button>
 
+                                                            {canAllocate ? (
+                                                                failedAutoAllocations.includes(item.collectionAssignmentId) ? (
                                                                     <button
                                                                         className="action-btn action-btn--allocate-manual"
                                                                         onClick={() => {
@@ -472,12 +548,22 @@ function Pickup_collectionagent() {
                                                                             fetchActiveAgents();
                                                                         }}
                                                                         title="Manually Select Collection Agent"
-                                                                        style={{ whiteSpace: "nowrap", width: "100%", justifyContent: "center" }}
+                                                                        style={{ whiteSpace: "nowrap" }}
                                                                     >
                                                                         <FiUserCheck />
                                                                         <span>Allocate Manually</span>
                                                                     </button>
-                                                                </>
+                                                                ) : (
+                                                                    <button
+                                                                        className="action-btn action-btn--allocate-primary"
+                                                                        onClick={() => handleAutoReassign(item.collectionAssignmentId)}
+                                                                        disabled={reassigningLoadingId === item.collectionAssignmentId}
+                                                                        title="Allocate Collection Agent"
+                                                                    >
+                                                                        <FiCpu className={reassigningLoadingId === item.collectionAssignmentId ? "spin-icon" : ""} style={{ fontSize: "1rem" }} />
+                                                                        <span>Allocate</span>
+                                                                    </button>
+                                                                )
                                                             ) : canReassign ? (
                                                                 <button
                                                                     className="action-btn action-btn--allocate-manual"
@@ -486,30 +572,145 @@ function Pickup_collectionagent() {
                                                                         fetchActiveAgents();
                                                                     }}
                                                                     title="Reassign Collection Agent"
-                                                                    style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", whiteSpace: "nowrap", width: "100%", justifyContent: "center" }}
+                                                                    style={{ whiteSpace: "nowrap" }}
                                                                 >
-                                                                    <FiRotateCcw />
-                                                                    <span>Reassign</span>
+                                                                    <FiUserCheck />
+                                                                    <span>Reassign Agent</span>
                                                                 </button>
-                                                            ) : (
-                                                                <span style={{ fontSize: "0.8rem", color: "#94a3b8", fontWeight: 500 }}>-</span>
-                                                            )}
+                                                            ) : null}
                                                         </div>
-                                                    </td>
-                                                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
-                                                        <button
-                                                            className="action-btn action-btn--view"
-                                                            onClick={() => setSelectedAssignment(item)}
-                                                            title="View Assignment Details"
-                                                        >
-                                                            <FiEye />
-                                                        </button>
                                                     </td>
                                                 </tr>
                                             );
                                         })}
                                     </tbody>
                                 </table>
+                            </div>
+                        ) : (
+                            <div className="admin-cards-grid">
+                                {filteredCollection.map((item, index) => {
+                                    const itemJourney = item.assignmentType || "CustomerToTechnician";
+                                    const deviceAssignments = collectionAssignments.filter(ca => ca.deviceId === item.deviceId && (ca.assignmentType || "CustomerToTechnician") === itemJourney);
+                                    const latestAssignmentId = deviceAssignments.length > 0 
+                                        ? Math.max(...deviceAssignments.map(ca => ca.collectionAssignmentId || 0))
+                                        : item.collectionAssignmentId;
+                                    
+                                    const isLatestAssignment = (item.collectionAssignmentId || 0) === latestAssignmentId;
+
+                                    const statusLower = (item.status || "").toLowerCase();
+                                    const isRejected = statusLower === "rejected" || statusLower === "declined";
+                                    const isCancelled = statusLower === "cancelled";
+                                    const isExpired = statusLower === "expired";
+                                    const isWaiting = statusLower === "waiting" || !item.collectionAgentId || item.collectionAgentName === "Unassigned";
+                                    const isCompletedOrDelivered = statusLower === "completed" || statusLower === "delivered" || statusLower === "deliveredtocenter" || statusLower === "pickedup";
+                                    const isAccepted = statusLower.includes("accept") || statusLower === "pickupstarted" || statusLower === "intransit" || statusLower === "outfordelivery" || statusLower === "atinspectioncenter";
+
+                                    const canAllocate = isLatestAssignment && (isWaiting || isRejected || isCancelled || isExpired) && !isCompletedOrDelivered && !isAccepted;
+                                    const canReassign = isLatestAssignment && !canAllocate && !isCompletedOrDelivered && !isAccepted;
+
+                                    return (
+                                        <div key={item.collectionAssignmentId || index} className="admin-pickup-card">
+                                            <div>
+                                                <div className="admin-card-header">
+                                                    <div className="admin-card-top-row">
+                                                        <div className="admin-cat-icon-box">
+                                                            <FiTruck />
+                                                        </div>
+                                                        {getStatusBadge(item.status)}
+                                                    </div>
+                                                    <div className="admin-card-title-group">
+                                                        <span className="admin-card-brand-name">{item.brand} {item.model}</span>
+                                                        <span className="admin-card-sub-info">
+                                                            Assign #{item.collectionAssignmentId} • Device #{item.deviceId}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="admin-card-body-details">
+                                                    <div className="admin-detail-row">
+                                                        <FiPackage className="detail-icon" />
+                                                        <div>
+                                                            <div className="detail-label">Journey Type</div>
+                                                            <div className="detail-val" style={{ fontWeight: 700 }}>
+                                                                {item.assignmentType === "TechnicianToRecyclingCenter" ? "Tech ➔ Recycler" : (item.assignmentType === "TechnicianToTechnician" || item.isReassignedFromTech || item.isReassignmentPickup) ? "Tech ➔ Tech" : "Citizen ➔ Tech"}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="admin-detail-row">
+                                                        <FiMapPin className="detail-icon" />
+                                                        <div>
+                                                            <div className="detail-label">Sender / Origin</div>
+                                                            <div className="detail-val" style={{ fontWeight: 700 }}>{item.customerName || item.technicianName || "Citizen"}</div>
+                                                            <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Ph: {item.customerPhone || item.technicianPhone || "N/A"}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="admin-detail-row">
+                                                        <FiUserCheck className="detail-icon" />
+                                                        <div>
+                                                            <div className="detail-label">Collection Agent</div>
+                                                            <div className="detail-val" style={{ fontWeight: 700 }}>{item.collectionAgentName || "Waiting for Agent"}</div>
+                                                            <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{item.collectionAgentEmail || "N/A"}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="admin-detail-row">
+                                                        <FiCalendar className="detail-icon" />
+                                                        <div>
+                                                            <div className="detail-label">Pickup Schedule</div>
+                                                            <div className="detail-val">{formatShortDate(item.pickupDate)} ({item.timeSlot || "Standard"})</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="admin-card-actions" style={{ display: "flex", gap: "0.4rem", marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px dashed #e2e8f0" }}>
+                                                <button
+                                                    className="action-btn action-btn--view"
+                                                    onClick={() => setSelectedAssignment(item)}
+                                                >
+                                                    <FiEye />
+                                                    <span>View</span>
+                                                </button>
+                                                {canAllocate ? (
+                                                    failedAutoAllocations.includes(item.collectionAssignmentId) ? (
+                                                        <button
+                                                            className="action-btn action-btn--allocate-manual"
+                                                            onClick={() => {
+                                                                setReassigningAssignment(item);
+                                                                fetchActiveAgents();
+                                                            }}
+                                                        >
+                                                            <FiUserCheck />
+                                                            <span>Allocate Manually</span>
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            className="action-btn action-btn--allocate"
+                                                            onClick={() => handleAutoReassign(item.collectionAssignmentId)}
+                                                            disabled={reassigningLoadingId === item.collectionAssignmentId}
+                                                        >
+                                                            <FiRefreshCw className={reassigningLoadingId === item.collectionAssignmentId ? "spin-icon" : ""} />
+                                                            <span>Allocate</span>
+                                                        </button>
+                                                    )
+                                                ) : canReassign ? (
+                                                    <button
+                                                        className="action-btn action-btn--allocate-manual"
+                                                        onClick={() => {
+                                                            setReassigningAssignment(item);
+                                                            fetchActiveAgents();
+                                                        }}
+                                                    >
+                                                        <FiUserCheck />
+                                                        <span>Reassign</span>
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -519,10 +720,10 @@ function Pickup_collectionagent() {
                 {selectedAssignment && (
                     <div className="modal-overlay" onClick={() => setSelectedAssignment(null)}>
                         <div className="device-modal-card" style={{ maxWidth: "700px", width: "92%" }} onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
+                            <div className="modal-header" style={{ background: "#ffffff", padding: "0 0 1rem 0", borderBottom: "1px solid #f1f5f9", marginBottom: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                                 <div>
-                                    <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#0f172a", margin: 0 }}>
-                                        {selectedAssignment.brand} {selectedAssignment.model}
+                                    <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#0f172a", margin: 0, lineHeight: 1.3 }}>
+                                        {[selectedAssignment.brand, selectedAssignment.model].filter(Boolean).join(" ") || selectedAssignment.categoryName || "Collection Pickup Request"}
                                     </h2>
                                     <p className="panel-subtitle" style={{ fontSize: "0.85rem", color: "#64748b", margin: "0.25rem 0 0 0" }}>
                                         Collection Assignment ID: #{selectedAssignment.collectionAssignmentId} | Device ID: #{selectedAssignment.deviceId}
@@ -559,6 +760,12 @@ function Pickup_collectionagent() {
                                     <span>{selectedAssignment.status || "Assigned"}</span>
                                 </div>
                                 <div className="detail-item">
+                                    <label>PROCESSING LIFECYCLE</label>
+                                    <span style={{ color: "#0284c7", fontWeight: 700 }}>
+                                        {selectedAssignment.processingLifecycleStatus || "Center Allocation / Dispatch Pending"}
+                                    </span>
+                                </div>
+                                <div className="detail-item">
                                     <label>QUANTITY & CONDITION</label>
                                     <span>{selectedAssignment.quantity} Unit(s) • {selectedAssignment.condition || "Standard"}</span>
                                 </div>
@@ -574,39 +781,76 @@ function Pickup_collectionagent() {
                                 {/* COLLECT FROM & DELIVER TO ROUTING FLOW */}
                                 <div style={{ gridColumn: "1 / -1", display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "0.5rem" }}>
                                     {/* COLLECT FROM */}
-                                    <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "1.1rem 1.25rem", borderRadius: "14px" }}>
-                                        <div style={{ fontSize: "0.75rem", fontWeight: 800, color: "#047857", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.4rem" }}>
-                                            <FiMapPin style={{ fontSize: "0.95rem" }} /> COLLECT FROM
+                                    <div style={{ background: (selectedAssignment.assignmentType === "TechnicianToTechnician" || selectedAssignment.isReassignedFromTech || selectedAssignment.isReassignmentPickup) ? "#fff7ed" : "#f0fdf4", border: (selectedAssignment.assignmentType === "TechnicianToTechnician" || selectedAssignment.isReassignedFromTech || selectedAssignment.isReassignmentPickup) ? "1px solid #ffedd5" : "1px solid #bbf7d0", padding: "1.1rem 1.25rem", borderRadius: "14px" }}>
+                                        <div style={{ fontSize: "0.75rem", fontWeight: 800, color: (selectedAssignment.assignmentType === "TechnicianToTechnician" || selectedAssignment.isReassignedFromTech || selectedAssignment.isReassignmentPickup) ? "#c2410c" : "#047857", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.4rem" }}>
+                                            <FiMapPin style={{ fontSize: "0.95rem" }} /> COLLECT FROM ({selectedAssignment.assignmentType === "TechnicianToRecyclingCenter" ? "TECHNICIAN" : (selectedAssignment.assignmentType === "TechnicianToTechnician" || selectedAssignment.isReassignedFromTech || selectedAssignment.isReassignmentPickup) ? "PENALIZED TECHNICIAN HUB" : "CITIZEN"})
                                         </div>
-                                        <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#065f46" }}>
-                                            Customer: {selectedAssignment.customerName || "Citizen"} {selectedAssignment.customerPhone ? `(Ph: ${selectedAssignment.customerPhone})` : ""}
-                                        </div>
-                                        <div style={{ fontSize: "0.875rem", color: "#047857", marginTop: "0.25rem", lineHeight: 1.45, fontWeight: 500 }}>
-                                            <strong>Customer pickup address:</strong> {selectedAssignment.address}
-                                            {selectedAssignment.landmark ? ` (Landmark: ${selectedAssignment.landmark})` : ""}
-                                            {[selectedAssignment.city, selectedAssignment.district, selectedAssignment.state, selectedAssignment.pincode].filter(Boolean).length > 0 ? `, ${[selectedAssignment.city, selectedAssignment.district, selectedAssignment.state, selectedAssignment.pincode].filter(Boolean).join(", ")}` : ""}
-                                        </div>
+                                        {selectedAssignment.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                            <>
+                                                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#065f46" }}>
+                                                    Technician: {selectedAssignment.technicianName || selectedAssignment.inspectionCenterName || "Inspection Hub"} {selectedAssignment.technicianPhone ? `(Ph: ${selectedAssignment.technicianPhone})` : ""}
+                                                </div>
+                                                <div style={{ fontSize: "0.875rem", color: "#047857", marginTop: "0.25rem", lineHeight: 1.45, fontWeight: 500 }}>
+                                                    <strong>Inspection center address:</strong> {selectedAssignment.deliveredAddress || (selectedAssignment.technicianAddress ? `${selectedAssignment.technicianAddress}, ${selectedAssignment.technicianCity || ""} ${selectedAssignment.technicianDistrict || ""} ${selectedAssignment.technicianState || ""}` : "EcoCycle Inspection Facility")}
+                                                </div>
+                                            </>
+                                        ) : (selectedAssignment.assignmentType === "TechnicianToTechnician" || selectedAssignment.isReassignedFromTech || selectedAssignment.isReassignmentPickup) ? (
+                                            <>
+                                                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#9a3412" }}>
+                                                    Penalized Technician / Hub: {selectedAssignment.customerName || selectedAssignment.priorTechnicianName || "Inspection Hub"} {selectedAssignment.customerPhone ? `(Ph: ${selectedAssignment.customerPhone})` : ""}
+                                                </div>
+                                                <div style={{ fontSize: "0.875rem", color: "#c2410c", marginTop: "0.25rem", lineHeight: 1.45, fontWeight: 500 }}>
+                                                    <strong>Penalized center address:</strong> {selectedAssignment.address}
+                                                    {selectedAssignment.landmark ? ` (Landmark: ${selectedAssignment.landmark})` : ""}
+                                                    {[selectedAssignment.city, selectedAssignment.district, selectedAssignment.state, selectedAssignment.pincode].filter(Boolean).length > 0 ? `, ${[selectedAssignment.city, selectedAssignment.district, selectedAssignment.state, selectedAssignment.pincode].filter(Boolean).join(", ")}` : ""}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#065f46" }}>
+                                                    Customer: {selectedAssignment.customerName || "Citizen"} {selectedAssignment.customerPhone ? `(Ph: ${selectedAssignment.customerPhone})` : ""}
+                                                </div>
+                                                <div style={{ fontSize: "0.875rem", color: "#047857", marginTop: "0.25rem", lineHeight: 1.45, fontWeight: 500 }}>
+                                                    <strong>Customer pickup address:</strong> {selectedAssignment.address}
+                                                    {selectedAssignment.landmark ? ` (Landmark: ${selectedAssignment.landmark})` : ""}
+                                                    {[selectedAssignment.city, selectedAssignment.district, selectedAssignment.state, selectedAssignment.pincode].filter(Boolean).length > 0 ? `, ${[selectedAssignment.city, selectedAssignment.district, selectedAssignment.state, selectedAssignment.pincode].filter(Boolean).join(", ")}` : ""}
+                                                </div>
+                                            </>
+                                        )}
                                         <div style={{ fontSize: "0.825rem", color: "#059669", marginTop: "0.35rem", fontWeight: 600 }}>
                                             <strong>Pickup date / time slot:</strong> {formatDate(selectedAssignment.pickupDate)} • {selectedAssignment.timeSlot || "Standard Slot"}
                                         </div>
                                     </div>
 
                                     {/* ROUTING ARROW */}
-                                    <div style={{ textAlign: "center", color: "#059669", fontSize: "1.5rem", fontWeight: 800, margin: "-0.3rem 0" }}>
+                                    <div style={{ textAlign: "center", color: (selectedAssignment.assignmentType === "TechnicianToTechnician" || selectedAssignment.isReassignedFromTech || selectedAssignment.isReassignmentPickup) ? "#ea580c" : "#059669", fontSize: "1.5rem", fontWeight: 800, margin: "-0.3rem 0" }}>
                                         ↓
                                     </div>
 
                                     {/* DELIVER TO */}
                                     <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "1.1rem 1.25rem", borderRadius: "14px" }}>
                                         <div style={{ fontSize: "0.75rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.06em", display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "0.4rem" }}>
-                                            <FiTruck style={{ fontSize: "0.95rem" }} /> DELIVER TO
+                                            <FiTruck style={{ fontSize: "0.95rem" }} /> DELIVER TO ({selectedAssignment.assignmentType === "TechnicianToRecyclingCenter" ? "RECYCLING CENTER" : (selectedAssignment.assignmentType === "TechnicianToTechnician" || selectedAssignment.isReassignedFromTech || selectedAssignment.isReassignmentPickup) ? "NEW INSPECTION HUB" : "INSPECTION HUB"})
                                         </div>
-                                        <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e40af" }}>
-                                            Technician / Inspection Center: {selectedAssignment.technicianName ? selectedAssignment.technicianName : "EcoCycle Inspection Team"} {selectedAssignment.inspectionCenterName ? `(${selectedAssignment.inspectionCenterName})` : "(Central Processing Hub)"} {selectedAssignment.technicianPhone ? `• Ph: ${selectedAssignment.technicianPhone}` : ""}
-                                        </div>
-                                        <div style={{ fontSize: "0.875rem", color: "#1e3a8a", marginTop: "0.25rem", lineHeight: 1.45, fontWeight: 500 }}>
-                                            <strong>Technician/center address:</strong> {selectedAssignment.deliveredAddress || (selectedAssignment.technicianAddress ? `${selectedAssignment.technicianAddress}, ${selectedAssignment.technicianCity || ""} ${selectedAssignment.technicianDistrict || ""} ${selectedAssignment.technicianState || ""} ${selectedAssignment.technicianPincode || ""}` : "EcoCycle Central E-Waste Processing Facility & Inspection Center")}
-                                        </div>
+                                        {selectedAssignment.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                            <>
+                                                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e40af" }}>
+                                                    Recycling Center: {selectedAssignment.recyclingCenterName || "Recycling Facility"} {selectedAssignment.recyclingCenterOwner ? `(${selectedAssignment.recyclingCenterOwner})` : ""} {selectedAssignment.recyclingCenterPhone ? `• Ph: ${selectedAssignment.recyclingCenterPhone}` : ""}
+                                                </div>
+                                                <div style={{ fontSize: "0.875rem", color: "#1e3a8a", marginTop: "0.25rem", lineHeight: 1.45, fontWeight: 500 }}>
+                                                    <strong>Recycling center address:</strong> {selectedAssignment.recyclingCenterAddress || "Designated Recycling Facility"}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e40af" }}>
+                                                    Technician / Inspection Center: {selectedAssignment.technicianName ? selectedAssignment.technicianName : "EcoCycle Inspection Team"} {selectedAssignment.inspectionCenterName ? `(${selectedAssignment.inspectionCenterName})` : "(Central Processing Hub)"} {selectedAssignment.technicianPhone ? `• Ph: ${selectedAssignment.technicianPhone}` : ""}
+                                                </div>
+                                                <div style={{ fontSize: "0.875rem", color: "#1e3a8a", marginTop: "0.25rem", lineHeight: 1.45, fontWeight: 500 }}>
+                                                    <strong>Technician/center address:</strong> {selectedAssignment.deliveredAddress || (selectedAssignment.technicianAddress ? `${selectedAssignment.technicianAddress}, ${selectedAssignment.technicianCity || ""} ${selectedAssignment.technicianDistrict || ""} ${selectedAssignment.technicianState || ""} ${selectedAssignment.technicianPincode || ""}` : "EcoCycle Central E-Waste Processing Facility & Inspection Center")}
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
 

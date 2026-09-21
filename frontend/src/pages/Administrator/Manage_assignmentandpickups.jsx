@@ -17,7 +17,9 @@ import {
     FiAlertTriangle,
     FiCheckSquare,
     FiUserCheck,
-    FiCpu
+    FiCpu,
+    FiGrid,
+    FiList
 } from "react-icons/fi";
 import "./Manage_assignmentandpickups.css";
 
@@ -27,6 +29,7 @@ function Manage_assignmentandpickups() {
     const [error, setError] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [activeFilter, setActiveFilter] = useState("All");
+    const [viewMode, setViewMode] = useState("table");
     const [selectedAssignment, setSelectedAssignment] = useState(null);
 
     // Allocation States
@@ -59,16 +62,25 @@ function Manage_assignmentandpickups() {
             );
             console.log("Allocation response:", response.data);
 
-            const isWaiting = response.data?.status === "Waiting" || (response.data?.message && response.data.message.includes("no suitable technician"));
+            const isWaiting = response.data?.status === "Waiting" ||
+                !response.data?.technicianId ||
+                (response.data?.message && (
+                    response.data.message.includes("no suitable") ||
+                    response.data.message.includes("waiting") ||
+                    response.data.message.includes("No available")
+                ));
+
+            const updatedAssignments = await fetchAllData();
+
             if (isWaiting) {
-                const targetAssignment = technicianAssignments.find(a => (a.deviceId || a.DeviceId) === deviceId);
+                const list = (updatedAssignments && updatedAssignments.length > 0) ? updatedAssignments : technicianAssignments;
+                const targetAssignment = list.find(a => (a.deviceId || a.DeviceId) === deviceId);
                 if (targetAssignment) {
                     setManualAllocatingDevice(targetAssignment);
                     fetchActiveTechnicians();
+                    setManualAllocatingMessage("No technician could be automatically allocated. Please select one manually.");
                 }
             }
-
-            await fetchAllData();
         } catch (err) {
             console.error("Error allocating technician:", err);
             alert(err.response?.data?.message || "Failed to allocate technician.");
@@ -155,10 +167,13 @@ function Manage_assignmentandpickups() {
                     headers: { Authorization: `Bearer ${token}` }
                 }
             );
-            setTechnicianAssignments(techRes.data || []);
+            const data = techRes.data || [];
+            setTechnicianAssignments(data);
+            return data;
         } catch (err) {
             console.error("Error fetching technician assignments:", err);
             setError("Failed to load technician assignment details.");
+            return [];
         } finally {
             setLoading(false);
         }
@@ -195,6 +210,13 @@ function Manage_assignmentandpickups() {
         } catch {
             return "N/A";
         }
+    };
+
+    const isInspectionCompleted = (item) => {
+        if (!item) return false;
+        const s = (item.status || item.Status || "").toLowerCase().trim();
+        const lcs = (item.lifecycleStatus || item.LifecycleStatus || "").toLowerCase().trim();
+        return s === "completed" || s === "inspectioncompleted" || lcs === "completed" || lcs === "inspectioncompleted" || lcs === "inspected";
     };
 
     const getStatusBadge = (status) => {
@@ -324,9 +346,6 @@ function Manage_assignmentandpickups() {
                 <header className="admin-topbar">
                     <div className="topbar-left">
                         <div className="command-brand">
-                            <span className="command-badge">
-                                <span className="live-dot"></span> SYSTEM ONLINE
-                            </span>
                             <h1>Technician Assignments & Inspections</h1>
                         </div>
                         <p className="command-subtitle">
@@ -359,11 +378,6 @@ function Manage_assignmentandpickups() {
                                     <span className="role">Super Admin</span>
                                 </div>
                             </div>
-
-                            <Link to="/logout" className="logout-btn-v2" title="Logout">
-                                <FiLogOut />
-                                <span>Exit</span>
-                            </Link>
                         </div>
                     </div>
                 </header>
@@ -403,6 +417,23 @@ function Manage_assignmentandpickups() {
                                         );
                                     })}
                                 </div>
+
+                                <div className="admin-view-toggle">
+                                    <button
+                                        className={`admin-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+                                        onClick={() => setViewMode("grid")}
+                                        title="Grid View"
+                                    >
+                                        <FiGrid />
+                                    </button>
+                                    <button
+                                        className={`admin-toggle-btn ${viewMode === "table" ? "active" : ""}`}
+                                        onClick={() => setViewMode("table")}
+                                        title="Table View"
+                                    >
+                                        <FiList />
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -420,7 +451,7 @@ function Manage_assignmentandpickups() {
                                 <FiFilter className="no-data-icon" />
                                 <p>No technician inspection assignments matching "{activeFilter}".</p>
                             </div>
-                        ) : (
+                        ) : viewMode === "table" ? (
                             <div className="glass-table-wrapper">
                                 <table className="glass-table">
                                     <thead>
@@ -508,7 +539,7 @@ function Manage_assignmentandpickups() {
                                                                 <span>Resp. Deadline: {formatShortDate(item.responseDeadline || item.ResponseDeadline)}</span>
                                                             </div>
                                                             <div className="deadline-item-sub">
-                                                                <span>Insp. Deadline: {formatShortDate(item.inspectionDeadline || item.InspectionDeadline)}</span>
+                                                                <span>Insp. Deadline: {isInspectionCompleted(item) ? "N/A (Completed)" : formatShortDate(item.inspectionDeadline || item.InspectionDeadline)}</span>
                                                             </div>
                                                         </div>
                                                     </td>
@@ -537,7 +568,10 @@ function Manage_assignmentandpickups() {
                                                                 <FiEye />
                                                             </button>
 
-                                                            {!hasActiveOrNewerAssignment && (item.status || item.Status || "").toLowerCase() === "waiting" ? (
+                                                            {!hasActiveOrNewerAssignment && (
+                                                                (item.status || item.Status || "").toLowerCase() === "waiting" ||
+                                                                (!(item.technicianId || item.TechnicianId) && !["completed", "accepted", "rejected", "declined"].includes((item.status || item.Status || "").toLowerCase()))
+                                                            ) ? (
                                                                 <button
                                                                     className="action-btn action-btn--allocate"
                                                                     style={{ background: "#fffbebf0", color: "#b45309", border: "1px solid #fde68a", padding: "0.4rem 0.75rem", borderRadius: "8px", fontWeight: 700, fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "0.35rem", cursor: "pointer" }}
@@ -546,22 +580,37 @@ function Manage_assignmentandpickups() {
                                                                         fetchActiveTechnicians();
                                                                     }}
                                                                     disabled={allocatingId === (item.deviceId || item.DeviceId)}
-                                                                    title="Manually Allocate Technician"
+                                                                    title="Manually Allocate Agent / Technician"
                                                                 >
                                                                     <FiCpu className={allocatingId === (item.deviceId || item.DeviceId) ? "spin-icon" : ""} />
                                                                     <span>{allocatingId === (item.deviceId || item.DeviceId) ? "Allocating..." : "Allocate Manually"}</span>
                                                                 </button>
                                                             ) : !hasActiveOrNewerAssignment && (item.status || item.Status || "").toLowerCase() === "expired" ? (
-                                                                <button
-                                                                    className="action-btn action-btn--allocate"
-                                                                    onClick={() => allocateTechnician(item.deviceId || item.DeviceId)}
-                                                                    disabled={allocatingId === (item.deviceId || item.DeviceId)}
-                                                                    title="Auto Allocate Technician"
-                                                                    style={{ background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0", padding: "0.4rem 0.75rem", borderRadius: "8px", fontWeight: 700, fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "0.35rem", cursor: "pointer" }}
-                                                                >
-                                                                    <FiCpu className={allocatingId === (item.deviceId || item.DeviceId) ? "spin-icon" : ""} />
-                                                                    <span>{allocatingId === (item.deviceId || item.DeviceId) ? "Allocating..." : "Allocate"}</span>
-                                                                </button>
+                                                                <div style={{ display: "flex", gap: "0.4rem" }}>
+                                                                    <button
+                                                                        className="action-btn action-btn--allocate"
+                                                                        onClick={() => allocateTechnician(item.deviceId || item.DeviceId)}
+                                                                        disabled={allocatingId === (item.deviceId || item.DeviceId)}
+                                                                        title="Auto Allocate Agent / Technician"
+                                                                        style={{ background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0", padding: "0.4rem 0.75rem", borderRadius: "8px", fontWeight: 700, fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "0.35rem", cursor: "pointer" }}
+                                                                    >
+                                                                        <FiCpu className={allocatingId === (item.deviceId || item.DeviceId) ? "spin-icon" : ""} />
+                                                                        <span>{allocatingId === (item.deviceId || item.DeviceId) ? "Allocating..." : "Auto Allocate"}</span>
+                                                                    </button>
+                                                                    <button
+                                                                        className="action-btn action-btn--allocate"
+                                                                        style={{ background: "#fffbebf0", color: "#b45309", border: "1px solid #fde68a", padding: "0.4rem 0.75rem", borderRadius: "8px", fontWeight: 700, fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "0.35rem", cursor: "pointer" }}
+                                                                        onClick={() => {
+                                                                            setManualAllocatingDevice(item);
+                                                                            fetchActiveTechnicians();
+                                                                        }}
+                                                                        disabled={allocatingId === (item.deviceId || item.DeviceId)}
+                                                                        title="Manually Allocate Agent / Technician"
+                                                                    >
+                                                                        <FiCpu className={allocatingId === (item.deviceId || item.DeviceId) ? "spin-icon" : ""} />
+                                                                        <span>Allocate Manually</span>
+                                                                    </button>
+                                                                </div>
                                                             ) : null}
                                                         </div>
                                                     </td>
@@ -571,6 +620,95 @@ function Manage_assignmentandpickups() {
                                     </tbody>
                                 </table>
                             </div>
+                        ) : (
+                            <div className="admin-cards-grid">
+                                {filteredTechnician.map((item, index) => {
+                                    const lifecycle = getLifecycleInfo(item.lifecycleStatus || item.LifecycleStatus);
+                                    const rawStatus = (item.status || item.Status || "").toLowerCase();
+                                    const isWaiting = rawStatus === "waiting" || !(item.technicianId || item.TechnicianId);
+
+                                    return (
+                                        <div key={item.inspectionRequestId || item.InspectionRequestId || index} className="admin-pickup-card">
+                                            <div>
+                                                <div className="admin-card-header">
+                                                    <div className="admin-card-top-row">
+                                                        <div className="admin-cat-icon-box">
+                                                            <FiCpu />
+                                                        </div>
+                                                        {getStatusBadge(item.status || item.Status, item.technicianId || item.TechnicianId)}
+                                                    </div>
+                                                    <div className="admin-card-title-group">
+                                                        <span className="admin-card-brand-name">
+                                                            {item.brand || item.Brand} {item.model || item.Model}
+                                                        </span>
+                                                        <span className="admin-card-sub-info">
+                                                            Req #{item.inspectionRequestId || item.InspectionRequestId} &bull; Device #{item.deviceId || item.DeviceId}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="admin-card-body-details">
+                                                    <div className="admin-detail-row">
+                                                        <FiPackage className="detail-icon" />
+                                                        <div>
+                                                            <div className="detail-label">Citizen / Owner</div>
+                                                            <div className="detail-val">{item.userName || item.UserName || "Citizen"}</div>
+                                                            <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Category: {item.category || item.Category || "E-Waste"}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="admin-detail-row">
+                                                        <FiUserCheck className="detail-icon" />
+                                                        <div>
+                                                            <div className="detail-label">Assigned Technician</div>
+                                                            <div className="detail-val">{item.technicianName || item.TechnicianName || "Unassigned"}</div>
+                                                            <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{item.technicianEmail || item.TechnicianEmail || "N/A"}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="admin-detail-row">
+                                                        <FiClock className="detail-icon" />
+                                                        <div>
+                                                            <div className="detail-label">Lifecycle Status</div>
+                                                            <div style={{ marginTop: "0.25rem" }}>
+                                                                <button className={`action-btn action-btn--lifecycle ${lifecycle.className}`} disabled style={{ cursor: "default" }}>
+                                                                    {lifecycle.icon}
+                                                                    <span>{lifecycle.label}</span>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="admin-card-actions" style={{ display: "flex", gap: "0.4rem", marginTop: "1rem", paddingTop: "0.75rem", borderTop: "1px dashed #e2e8f0" }}>
+                                                <button
+                                                    className="action-btn action-btn--view"
+                                                    style={{ flex: 1 }}
+                                                    onClick={() => setSelectedAssignment(item)}
+                                                >
+                                                    <FiEye />
+                                                    <span>View</span>
+                                                </button>
+                                                {isWaiting ? (
+                                                    <button
+                                                        className="action-btn action-btn--allocate"
+                                                        style={{ flex: 1, background: "#fffbebf0", color: "#b45309", border: "1px solid #fde68a" }}
+                                                        onClick={() => {
+                                                            setManualAllocatingDevice(item);
+                                                            fetchActiveTechnicians();
+                                                        }}
+                                                        disabled={allocatingId === (item.deviceId || item.DeviceId)}
+                                                    >
+                                                        <FiCpu className={allocatingId === (item.deviceId || item.DeviceId) ? "spin-icon" : ""} />
+                                                        <span>Allocate Manually</span>
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         )}
                     </div>
                 </section>
@@ -579,11 +717,10 @@ function Manage_assignmentandpickups() {
                 {selectedAssignment && (
                     <div className="modal-overlay" onClick={() => setSelectedAssignment(null)}>
                         <div className="device-modal-card" style={{ maxWidth: "680px", width: "90%" }} onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
+                            <div className="modal-header" style={{ background: "#ffffff", padding: "0 0 1rem 0", borderBottom: "1px solid #f1f5f9", marginBottom: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                                 <div>
-                                    <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#0f172a", margin: 0 }}>
-                                        {selectedAssignment.brand || selectedAssignment.Brand}{" "}
-                                        {selectedAssignment.model || selectedAssignment.Model}
+                                    <h2 style={{ fontSize: "1.35rem", fontWeight: 700, color: "#0f172a", margin: 0, lineHeight: 1.3 }}>
+                                        {[selectedAssignment.brand || selectedAssignment.Brand, selectedAssignment.model || selectedAssignment.Model].filter(Boolean).join(" ") || selectedAssignment.category || selectedAssignment.Category || "Device Inspection Request"}
                                     </h2>
                                     <p className="panel-subtitle" style={{ fontSize: "0.85rem", color: "#64748b", margin: "0.25rem 0 0 0" }}>
                                         Inspection Request ID: #{selectedAssignment.inspectionRequestId || selectedAssignment.InspectionRequestId} | Device ID: #{selectedAssignment.deviceId || selectedAssignment.DeviceId}
@@ -630,6 +767,12 @@ function Manage_assignmentandpickups() {
                                     </span>
                                 </div>
                                 <div className="detail-item">
+                                    <label>PROCESSING LIFECYCLE</label>
+                                    <span style={{ color: "#0284c7", fontWeight: 700 }}>
+                                        {selectedAssignment.processingLifecycleStatus || selectedAssignment.ProcessingLifecycleStatus || "Pending Center Allocation"}
+                                    </span>
+                                </div>
+                                <div className="detail-item">
                                     <label>REASSIGNMENT COUNT</label>
                                     <span>{selectedAssignment.reassignmentCount ?? selectedAssignment.ReassignmentCount ?? 0}</span>
                                 </div>
@@ -643,7 +786,7 @@ function Manage_assignmentandpickups() {
                                 </div>
                                 <div className="detail-item">
                                     <label>INSPECTION DEADLINE</label>
-                                    <span>{formatDate(selectedAssignment.inspectionDeadline || selectedAssignment.InspectionDeadline)}</span>
+                                    <span>{isInspectionCompleted(selectedAssignment) ? "N/A (Completed)" : formatDate(selectedAssignment.inspectionDeadline || selectedAssignment.InspectionDeadline)}</span>
                                 </div>
                             </div>
 

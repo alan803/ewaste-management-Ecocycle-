@@ -22,9 +22,6 @@ namespace EcoCycle.API.Models
         public DateTime? RespondedAt { get; set; }
         [StringLength(500)]
         public string? RejectionReason { get; set; }
-        public DateTime? InspectionStartedAt { get; set; }
-        public DateTime? InspectionDeadline { get; set; }
-        public DateTime? InspectionCompletedAt { get; set; }
         public int ReassignmentCount { get; set; } = 0;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? UpdatedAt { get; set; }

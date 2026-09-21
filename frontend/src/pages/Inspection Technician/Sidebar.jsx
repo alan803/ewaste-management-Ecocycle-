@@ -11,7 +11,10 @@ import {
     FiMenu,
     FiX,
     FiCheckCircle,
-    FiTruck
+    FiTruck,
+    FiCheckSquare,
+    FiBell,
+    FiAlertTriangle
 } from "react-icons/fi";
 import "./Sidebar.css";
 
@@ -19,27 +22,58 @@ function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
-    const [userName, setUserName] = useState("Technician");
-    const [userInitial, setUserInitial] = useState("T");
+    const [userName, setUserName] = useState(() => {
+        return localStorage.getItem("firstName") ||
+               localStorage.getItem("userName") ||
+               localStorage.getItem("username") ||
+               localStorage.getItem("name") ||
+               "Technician";
+    });
+    const [profilePhoto, setProfilePhoto] = useState(() => {
+        return localStorage.getItem("profilePhoto") || localStorage.getItem("userPhoto") || null;
+    });
+
+    const userInitial = (userName || "T").charAt(0).toUpperCase();
+
+    const getMediaUrl = (filename, folderName = "ProfilePhotos") => {
+        if (!filename) return null;
+        if (filename.startsWith("data:") || filename.startsWith("blob:") || filename.startsWith("http://") || filename.startsWith("https://")) {
+            return filename;
+        }
+        const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
+        if (cleanName.includes("/") || cleanName.includes("\\")) {
+            return `https://localhost:7102/uploads/${cleanName.replace("\\", "/")}`;
+        }
+        return `https://localhost:7102/uploads/technicians/${folderName}/${cleanName}`;
+    };
 
     React.useEffect(() => {
-        const userStr = localStorage.getItem("user") || localStorage.getItem("userInfo");
-        if (userStr) {
-            try {
-                const u = JSON.parse(userStr);
-                const name = `${u.firstName || u.name || "Technician"} ${u.lastName || ""}`.trim();
-                if (name) {
-                    setUserName(name);
-                    setUserInitial(name.charAt(0).toUpperCase());
+        const token = localStorage.getItem("token");
+        if (token) {
+            fetch("https://localhost:7102/api/Technician/myprofile", {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    const fName = data.firstName || data.FirstName || "";
+                    const lName = data.lastName || data.LastName || "";
+                    const fullName = `${fName} ${lName}`.trim() || data.name || data.Name;
+                    const photo = data.photo || data.Photo || data.profilePhoto || data.ProfilePhoto || data.photoPath;
+
+                    if (fullName) setUserName(fullName);
+                    if (photo) {
+                        setProfilePhoto(photo);
+                        localStorage.setItem("profilePhoto", photo);
+                    }
                 }
-            } catch (e) {
-                console.error("Error parsing user info in Sidebar", e);
-            }
+            })
+            .catch(() => {});
         }
     }, []);
 
     const isActive = (path) => {
-        if (path === "/technician_dashboard" && location.pathname === "/technician_dashboard") return true;
+        if (path === "/technician_dashboard" && (location.pathname === "/technician_dashboard" || location.pathname === "/technician/inspect")) return true;
         if (path !== "/technician_dashboard" && location.pathname.startsWith(path)) return true;
         return false;
     };
@@ -49,14 +83,19 @@ function Sidebar() {
         navigate("/login");
     };
 
-    const menuItems = [
-        { path: "/technician_dashboard", label: "Dashboard", icon: <FiHome /> },
+    const mainMenuItems = [
+        { path: "/technician_dashboard", label: "Dashboard", icon: <FiHome /> }
+    ];
+
+    const inspectionItems = [
+        { path: "/technician/device-inspection", label: "Device Inspection", icon: <FiCheckSquare /> },
         { path: "/technician/deliveries", label: "Track Deliveries", icon: <FiTruck /> },
-        { path: "/technician/reports", label: "Inspection Reports", icon: <FiFileText /> }
+        { path: "/technician/reports", label: "Inspection Reports", icon: <FiFileText /> },
+        { path: "/technician/penalties", label: "My Penalties", icon: <FiAlertTriangle /> }
     ];
 
     const accountItems = [
-        { path: "/technician/profile", label: "My Profile", icon: <FiUser /> },
+        { path: "/technician/profile", label: "My Profile", icon: <FiUser /> }
     ];
 
     return (
@@ -86,19 +125,31 @@ function Sidebar() {
                         </Link>
                     </div>
 
-                    {/* Active Status Badge */}
-                    <div className="status-badge-chip">
-                        <span className="status-dot"></span>
-                        <span>Active Technician</span>
-                        <FiCheckCircle className="verified-icon" />
-                    </div>
-
                     {/* Main Navigation */}
                     <nav className="sidebar-nav">
                         <div className="nav-section">
                             <span className="nav-section-title">Menu</span>
                             <ul className="nav-menu">
-                                {menuItems.map((item) => (
+                                {mainMenuItems.map((item) => (
+                                    <li key={item.path}>
+                                        <Link
+                                            to={item.path}
+                                            className={`nav-link ${isActive(item.path) ? "active" : ""}`}
+                                            onClick={() => setIsMobileOpen(false)}
+                                        >
+                                            <span className="nav-icon">{item.icon}</span>
+                                            <span>{item.label}</span>
+                                        </Link>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+
+                        {/* Device Inspection Section */}
+                        <div className="nav-section">
+                            <span className="nav-section-title">Device Inspection</span>
+                            <ul className="nav-menu">
+                                {inspectionItems.map((item) => (
                                     <li key={item.path}>
                                         <Link
                                             to={item.path}
@@ -136,9 +187,23 @@ function Sidebar() {
                 {/* Footer User Info & Logout */}
                 <div className="sidebar-footer">
                     <div className="user-profile">
-                        <div className="user-avatar">{userInitial}</div>
+                        <div className="user-avatar" style={{ overflow: "hidden", borderRadius: "50%" }}>
+                            {profilePhoto ? (
+                                <img
+                                    src={getMediaUrl(profilePhoto, "ProfilePhotos")}
+                                    alt={userName}
+                                    style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+                                    onError={(e) => {
+                                        e.target.onerror = null;
+                                        setProfilePhoto(null);
+                                    }}
+                                />
+                            ) : (
+                                userInitial
+                            )}
+                        </div>
                         <div className="user-info">
-                            <span className="user-name">{userName}</span>
+                            <span className="user-name" title={userName}>{userName}</span>
                             <span className="user-role">Certified Inspector</span>
                         </div>
                     </div>

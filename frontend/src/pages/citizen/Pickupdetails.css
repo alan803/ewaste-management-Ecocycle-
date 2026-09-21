@@ -376,6 +376,10 @@
   z-index: 0;
 }
 
+.pk-timeline-step.completed:not(:last-child)::before {
+  background: #059669;
+}
+
 .pk-timeline-dot {
   position: absolute;
   left: -1.5rem;

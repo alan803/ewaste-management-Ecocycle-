@@ -14,20 +14,61 @@ import {
     FiMenu,
     FiX,
     FiUserCheck,
-    FiUserPlus,
     FiChevronRight,
     FiChevronDown,
     FiUser,
     FiCpu,
     FiTool,
     FiRefreshCw,
-    FiClipboard 
+    FiClipboard,
+    FiList,
+    FiCheckCircle,
+    FiClock,
+    FiShare2,
+    FiActivity,
+    FiDollarSign,
+    FiAward,
+    FiLayers,
+    FiBell,
+    FiPieChart,
+    FiBox
 } from "react-icons/fi";
 import "./Navbar.css";
+import "./AdminCommon.css";
 
 function Navbar() {
     const location = useLocation();
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [pickupDropdownOpen, setPickupDropdownOpen] = useState(false);
+    const [deliveryDropdownOpen, setDeliveryDropdownOpen] = useState(false);
+    const [allocationsDropdownOpen, setAllocationsDropdownOpen] = useState(false);
+    const [centerAllocationsDropdownOpen, setCenterAllocationsDropdownOpen] = useState(false);
+    const [processingCenterDropdownOpen, setProcessingCenterDropdownOpen] = useState(false);
+
+    const handleOptionClick = () => {
+        setPickupDropdownOpen(false);
+        closeMobileMenu();
+    };
+
+    const handleDeliveryOptionClick = () => {
+        setDeliveryDropdownOpen(false);
+        closeMobileMenu();
+    };
+
+    const handleAllocationsOptionClick = () => {
+        setAllocationsDropdownOpen(false);
+        closeMobileMenu();
+    };
+
+    const handleCenterAllocationsOptionClick = () => {
+        setCenterAllocationsDropdownOpen(false);
+        closeMobileMenu();
+    };
+
+    const handleProcessingCenterOptionClick = () => {
+        setProcessingCenterDropdownOpen(false);
+        closeMobileMenu();
+    };
 
     const isActive = (path) => {
         if (path === "/admin") {
@@ -36,40 +77,12 @@ function Navbar() {
         return location.pathname === path || location.pathname.startsWith(path + "/");
     };
 
-    const isUserMgmtActive =
-        isActive("/usermanagement") ||
-        isActive("/manage-collectionagent") ||
-        isActive("/manage-refurbishmentcenter") ||
-        isActive("/manage-technicians") ||
-        isActive("/manage-recyclingcenter") ||
-        location.pathname.startsWith("/view-");
-
-    const isManageAccountsActive =
-        isActive("/manage-users") ||
-        isActive("/manage-collectionagents") ||
-        isActive("/manage-refurbishmentcenters") ||
-        isActive("/manage-recyclingcenters") ||
-        isActive("/manage-technicians-list");
-
-    const [userMgmtOpen, setUserMgmtOpen] = useState(false);
-    const [manageAccountsOpen, setManageAccountsOpen] = useState(false);
-
     const toggleMobileMenu = () => {
         setMobileOpen(!mobileOpen);
     };
 
     const closeMobileMenu = () => {
         setMobileOpen(false);
-    };
-
-    const handleSublinkClick = () => {
-        setUserMgmtOpen(false);
-        closeMobileMenu();
-    };
-
-    const handleManageAccountsSublinkClick = () => {
-        setManageAccountsOpen(false);
-        closeMobileMenu();
     };
 
     return (
@@ -98,8 +111,8 @@ function Navbar() {
 
                 {/* Navigation Links */}
                 <nav className="admin-sb-nav">
+                    {/* Dashboard Top Level */}
                     <div className="admin-sb-section">
-                        <span className="admin-sb-section-title">Main Control</span>
                         <ul className="admin-sb-menu">
                             <li className="admin-sb-item">
                                 <Link
@@ -114,249 +127,453 @@ function Navbar() {
                                     {isActive("/admin") && <FiChevronRight className="admin-sb-chevron" />}
                                 </Link>
                             </li>
+                        </ul>
+                    </div>
 
-                            {/* User Management Collapsible Section */}
-                            <li className={`admin-sb-item admin-sb-has-submenu ${userMgmtOpen ? "expanded" : ""}`}>
-                                <div
-                                    className={`admin-sb-link ${isUserMgmtActive ? "active" : ""}`}
-                                    onClick={() => setUserMgmtOpen(!userMgmtOpen)}
-                                    style={{ cursor: "pointer" }}
-                                >
-                                    <div className="admin-sb-icon-box icon-box--blue">
-                                        <FiUserCheck />
-                                    </div>
-                                    <span className="admin-sb-link-text">Account Approvals</span>
-                                    <button
-                                        type="button"
-                                        className="admin-sb-chevron-btn"
-                                        aria-label="Toggle User Management sub-menu"
-                                    >
-                                        <FiChevronDown className={`admin-sb-chevron-icon ${userMgmtOpen ? "rotate" : ""}`} />
-                                    </button>
-                                </div>
-
-                                {userMgmtOpen && (
-                                    <div className="admin-sb-submenu-wrapper">
-                                        {/* Submenu Items List */}
-                                        <ul className="admin-sb-submenu">
-                                            <li>
-                                                <Link
-                                                    to="/manage-collectionagent"
-                                                    className={`admin-sb-sublink ${isActive("/manage-collectionagent") || location.pathname.startsWith("/view-collectionagent") ? "active" : ""}`}
-                                                    onClick={handleSublinkClick}
-                                                >
-                                                    <FiTruck className="sublink-icon icon--amber" />
-                                                    <span>Collection Agent</span>
-                                                </Link>
-                                            </li>
-                                            <li>
-                                                <Link
-                                                    to="/manage-technicians"
-                                                    className={`admin-sb-sublink ${isActive("/manage-technicians") || location.pathname.startsWith("/view-technician") ? "active" : ""}`}
-                                                    onClick={handleSublinkClick}
-                                                >
-                                                    <FiTool className="sublink-icon icon--cyan" />
-                                                    <span>Technician</span>
-                                                </Link>
-                                            </li>
-                                             <li>
-                                                <Link
-                                                    to="/manage-recyclingcenter"
-                                                    className={`admin-sb-sublink ${isActive("/manage-recyclingcenter") || location.pathname.startsWith("/view-recycling") ? "active" : ""}`}
-                                                    onClick={handleSublinkClick}
-                                                >
-                                                    <FiRefreshCw className="sublink-icon icon--teal" />
-                                                    <span>Recycling Center</span>
-                                                </Link>
-                                            </li>
-                                            <li>
-                                                <Link
-                                                    to="/manage-refurbishmentcenter"
-                                                    className={`admin-sb-sublink ${isActive("/manage-refurbishmentcenter") || location.pathname.startsWith("/view-refurbishmentcenter") ? "active" : ""}`}
-                                                    onClick={handleSublinkClick}
-                                                >
-                                                    <FiCpu className="sublink-icon icon--purple" />
-                                                    <span>Refurbishment Center</span>
-                                                </Link>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                )}
-                            </li>
-
-                            {/* Manage Accounts Collapsible Section */}
-                            <li className={`admin-sb-item admin-sb-has-submenu ${manageAccountsOpen ? "expanded" : ""}`}>
-                                <div
-                                    className={`admin-sb-link ${isManageAccountsActive ? "active" : ""}`}
-                                    onClick={() => setManageAccountsOpen(!manageAccountsOpen)}
-                                    style={{ cursor: "pointer" }}
-                                >
-                                    <div className="admin-sb-icon-box icon-box--indigo">
-                                        <FiUsers />
-                                    </div>
-                                    <span className="admin-sb-link-text">Manage Accounts</span>
-                                    <button
-                                        type="button"
-                                        className="admin-sb-chevron-btn"
-                                        aria-label="Toggle Manage Accounts sub-menu"
-                                    >
-                                        <FiChevronDown className={`admin-sb-chevron-icon ${manageAccountsOpen ? "rotate" : ""}`} />
-                                    </button>
-                                </div>
-
-                                {manageAccountsOpen && (
-                                    <div className="admin-sb-submenu-wrapper">
-                                        <ul className="admin-sb-submenu">
-                                            <li>
-                                                <Link
-                                                    to="/manage-users"
-                                                    className={`admin-sb-sublink ${isActive("/manage-users") ? "active" : ""}`}
-                                                    onClick={handleManageAccountsSublinkClick}
-                                                >
-                                                    <FiUser className="sublink-icon icon--emerald" />
-                                                    <span>Citizen</span>
-                                                </Link>
-                                            </li>
-                                            <li>
-                                                <Link
-                                                    to="/managetechnicians"
-                                                    className={`admin-sb-sublink ${isActive("/managetechnicians") ? "active" : ""}`}
-                                                    onClick={handleManageAccountsSublinkClick}
-                                                >
-                                                    <FiTool className="sublink-icon icon--cyan" />
-                                                    <span>Technician</span>
-                                                </Link>
-                                            </li>
-                                            <li>
-                                                <Link
-                                                    to="/manage-collectionagents"
-                                                    className={`admin-sb-sublink ${isActive("/manage-collectionagents") ? "active" : ""}`}
-                                                    onClick={handleManageAccountsSublinkClick}
-                                                >
-                                                    <FiTruck className="sublink-icon icon--amber" />
-                                                    <span>Collection Agent</span>
-                                                </Link>
-                                            </li>
-                                            <li>
-                                                <Link
-                                                    to="/manage-recyclingcenters"
-                                                    className={`admin-sb-sublink ${isActive("/manage-recyclingcenters") ? "active" : ""}`}
-                                                    onClick={handleManageAccountsSublinkClick}
-                                                >
-                                                    <FiRefreshCw className="sublink-icon icon--teal" />
-                                                    <span>Recycling Center</span>
-                                                </Link>
-                                            </li>
-                                            <li>
-                                                <Link
-                                                    to="/manage-refurbishment"
-                                                    className={`admin-sb-sublink ${isActive("/manage-refurbishment") ? "active" : ""}`}
-                                                    onClick={handleManageAccountsSublinkClick}
-                                                >
-                                                    <FiCpu className="sublink-icon icon--purple" />
-                                                    <span>Refurbishment Center</span>
-                                                </Link>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                )}
-                            </li>
+                    {/* PART 1: COLLECTION & INSPECTION */}
+                    <div className="admin-sb-section">
+                        <span className="admin-sb-section-title">PART 1 &bull; COLLECTION &amp; INSPECTION</span>
+                        <ul className="admin-sb-menu">
                             <li className="admin-sb-item">
                                 <Link
                                     to="/manage-device"
-                                    className={`admin-sb-link ${isActive("/manage-device") || isActive("/admin/device") ? "active" : ""}`}
+                                    className={`admin-sb-link ${isActive("/manage-device") ? "active" : ""}`}
                                     onClick={closeMobileMenu}
                                 >
-                                    <div className="admin-sb-icon-box icon-box--purple">
-                                        <FaLaptop />
+                                    <div className="admin-sb-icon-box icon-box--blue">
+                                        <FiBox />
                                     </div>
-                                    <span className="admin-sb-link-text">Manage Device</span>
-                                    {(isActive("/manage-device") || isActive("/admin/device")) && <FiChevronRight className="admin-sb-chevron" />}
-                                </Link>
-                            </li>
-                        </ul>
-                    </div>
-
-                    <div className="admin-sb-section">
-                        <span className="admin-sb-section-title">Pickup & Delivery Ops</span>
-                        <ul className="admin-sb-menu">
-                            <li className="admin-sb-item">
-                                <Link
-                                    to="/manage-pickup"
-                                    className={`admin-sb-link ${isActive("/manage-pickup") || isActive("/manage-pickups") || isActive("/manage_pickup") ? "active" : ""}`}
-                                    onClick={closeMobileMenu}
-                                >
-                                    <div className="admin-sb-icon-box icon-box--purple">
-                                        <FiMapPin />
-                                    </div>
-                                    <span className="admin-sb-link-text">Manage Pickup</span>
-                                    {isActive("/manage-pickup") || isActive("/manage-pickups") || isActive("/manage_pickup") && <FiChevronRight className="admin-sb-chevron" />}
+                                    <span className="admin-sb-link-text">Device Requests</span>
                                 </Link>
                             </li>
                             <li className="admin-sb-item">
+                                <button
+                                    type="button"
+                                    className={`admin-sb-link ${isActive("/manage-assignmentandpickups") || isActive("/collectionagent-pickup") || isActive("/admin/pickups") ? "active" : ""}`}
+                                    onClick={() => setAllocationsDropdownOpen(!allocationsDropdownOpen)}
+                                    style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--cyan">
+                                        <FiUserCheck />
+                                    </div>
+                                    <span className="admin-sb-link-text">Allocations</span>
+                                    <FiChevronDown className={`admin-sb-chevron-icon ${allocationsDropdownOpen ? "rotate" : ""}`} />
+                                </button>
+                                {allocationsDropdownOpen && (
+                                    <div className="admin-sb-submenu-wrapper">
+                                        <ul className="admin-sb-submenu">
+                                            <li>
+                                                <Link
+                                                    to="/manage-assignmentandpickups"
+                                                    className={`admin-sb-sublink ${isActive("/manage-assignmentandpickups") ? "active" : ""}`}
+                                                    onClick={handleAllocationsOptionClick}
+                                                >
+                                                    <FiUserCheck className="sublink-icon icon--cyan" />
+                                                    <span>Technician Allocation</span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    to="/collectionagent-pickup"
+                                                    className={`admin-sb-sublink ${isActive("/collectionagent-pickup") || isActive("/admin/pickups") ? "active" : ""}`}
+                                                    onClick={handleAllocationsOptionClick}
+                                                >
+                                                    <FiClipboard className="sublink-icon icon--amber" />
+                                                    <span>Collection Agent Allocation</span>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </li>
+                            <li className="admin-sb-item">
                                 <Link
-                                    to="/manage-delivery"
-                                    className={`admin-sb-link ${isActive("/manage-delivery") || isActive("/manage-deliveries") || isActive("/manage_delivery") ? "active" : ""}`}
+                                    to="/manage-inspection"
+                                    className={`admin-sb-link ${isActive("/manage-inspection") ? "active" : ""}`}
                                     onClick={closeMobileMenu}
                                 >
                                     <div className="admin-sb-icon-box icon-box--emerald">
-                                        <FiTruck />
+                                        <FiCheckCircle />
                                     </div>
-                                    <span className="admin-sb-link-text">Manage Deliveries</span>
-                                    {(isActive("/manage-delivery") || isActive("/manage-deliveries")) && <FiChevronRight className="admin-sb-chevron" />}
+                                    <span className="admin-sb-link-text">Inspection Monitoring</span>
                                 </Link>
                             </li>
                             <li className="admin-sb-item">
                                 <Link
-                                    to="/collectionagent-pickup"
-                                    className={`admin-sb-link ${isActive("/collectionagent-pickup") || isActive("/admin/pickups") ? "active" : ""}`}
+                                    to="/manage-penalties"
+                                    className={`admin-sb-link ${isActive("/manage-penalties") || isActive("/manage-technician-penalties") ? "active" : ""}`}
                                     onClick={closeMobileMenu}
                                 >
-                                    <div className="admin-sb-icon-box icon-box--amber">
-                                        <FiPackage />
+                                    <div className="admin-sb-icon-box icon-box--rose" style={{ background: "rgba(225, 29, 72, 0.1)", color: "#e11d48" }}>
+                                        <FiDollarSign />
                                     </div>
-                                    <span className="admin-sb-link-text">Pickup Requests</span>
-                                    {(isActive("/collectionagent-pickup") || isActive("/admin/pickups")) && <FiChevronRight className="admin-sb-chevron" />}
-                                </Link>
-                            </li>
-                            <li className="admin-sb-item">
-                                <Link
-                                    to="/manage-assignmentandpickups"
-                                    className={`admin-sb-link ${
-                                        isActive("/manage-assignmentandpickups") ? "active" : ""
-                                    }`}
-                                    onClick={closeMobileMenu}
-                                >
-                                    <div className="admin-sb-icon-box icon-box--cyan">
-                                        <FiClipboard />
-                                    </div>
-
-                                    <span className="admin-sb-link-text">
-                                        Manage Assignments
-                                    </span>
-
-                                    {isActive("/manage-assignmentandpickups") && (
-                                        <FiChevronRight className="admin-sb-chevron" />
-                                    )}
+                                    <span className="admin-sb-link-text">Penalty Management</span>
                                 </Link>
                             </li>
                         </ul>
                     </div>
 
+                    {/* COMMON LOGISTICS & TRANSPORTATION */}
                     <div className="admin-sb-section">
-                        <span className="admin-sb-section-title">Analytics &amp; Security</span>
+                        <span className="admin-sb-section-title">LOGISTICS &amp; TRANSPORTATION</span>
+                        <ul className="admin-sb-menu">
+                            {/* PICKUPS (Both Journeys) */}
+                            <li className="admin-sb-item">
+                                <button
+                                    type="button"
+                                    className={`admin-sb-link ${isActive("/manage-pickup") ? "active" : ""}`}
+                                    onClick={() => setPickupDropdownOpen(!pickupDropdownOpen)}
+                                    style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--purple">
+                                        <FiTruck />
+                                    </div>
+                                    <span className="admin-sb-link-text">Pickup Logistics</span>
+                                    <FiChevronDown className={`admin-sb-chevron-icon ${pickupDropdownOpen ? "rotate" : ""}`} />
+                                </button>
+                                {pickupDropdownOpen && (
+                                    <div className="admin-sb-submenu-wrapper">
+                                        <ul className="admin-sb-submenu">
+                                            <li>
+                                                <Link
+                                                    to="/manage-pickup?type=CustomerToTechnician"
+                                                    className={`admin-sb-sublink ${isActive("/manage-pickup") && (!location.search || location.search.includes("CustomerToTechnician")) ? "active" : ""}`}
+                                                    onClick={handleOptionClick}
+                                                >
+                                                    <FiUserCheck className="sublink-icon icon--cyan" />
+                                                    <span>Customer ➔ Technician</span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    to="/manage-pickup?type=TechnicianToRecyclingCenter"
+                                                    className={`admin-sb-sublink ${isActive("/manage-pickup") && location.search.includes("TechnicianToRecyclingCenter") ? "active" : ""}`}
+                                                    onClick={handleOptionClick}
+                                                >
+                                                    <FiRefreshCw className="sublink-icon icon--teal" />
+                                                    <span>Technician ➔ Center</span>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </li>
+
+                            {/* DELIVERIES (Both Journeys) */}
+                            <li className="admin-sb-item">
+                                <button
+                                    type="button"
+                                    className={`admin-sb-link ${isActive("/manage-delivery") ? "active" : ""}`}
+                                    onClick={() => setDeliveryDropdownOpen(!deliveryDropdownOpen)}
+                                    style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--teal">
+                                        <FiMapPin />
+                                    </div>
+                                    <span className="admin-sb-link-text">Delivery Logistics</span>
+                                    <FiChevronDown className={`admin-sb-chevron-icon ${deliveryDropdownOpen ? "rotate" : ""}`} />
+                                </button>
+                                {deliveryDropdownOpen && (
+                                    <div className="admin-sb-submenu-wrapper">
+                                        <ul className="admin-sb-submenu">
+                                            <li>
+                                                <Link
+                                                    to="/manage-delivery?type=CustomerToTechnician"
+                                                    className={`admin-sb-sublink ${isActive("/manage-delivery") && location.search.includes("CustomerToTechnician") ? "active" : ""}`}
+                                                    onClick={handleDeliveryOptionClick}
+                                                >
+                                                    <FiUserCheck className="sublink-icon icon--cyan" />
+                                                    <span>Customer ➔ Technician</span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    to="/manage-delivery?type=TechnicianToRecyclingCenter"
+                                                    className={`admin-sb-sublink ${isActive("/manage-delivery") && (!location.search || location.search.includes("TechnicianToRecyclingCenter")) ? "active" : ""}`}
+                                                    onClick={handleDeliveryOptionClick}
+                                                >
+                                                    <FiRefreshCw className="sublink-icon icon--teal" />
+                                                    <span>Technician ➔ Center</span>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </li>
+                        </ul>
+                    </div>
+
+                    {/* PART 2: PROCESSING & RECOVERY */}
+                    <div className="admin-sb-section">
+                        <span className="admin-sb-section-title">PART 2 &bull; PROCESSING &amp; RECOVERY</span>
+                        <ul className="admin-sb-menu">
+                            <li className="admin-sb-item">
+                                <button
+                                    type="button"
+                                    className={`admin-sb-link ${isActive("/allocate-recycling") || isActive("/admin/refurbishment-devices") || isActive("/manage-centerallocation") ? "active" : ""}`}
+                                    onClick={() => setProcessingCenterDropdownOpen(!processingCenterDropdownOpen)}
+                                    style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--teal">
+                                        <FiShare2 />
+                                    </div>
+                                    <span className="admin-sb-link-text">Processing Center Allocations</span>
+                                    <FiChevronDown className={`admin-sb-chevron-icon ${processingCenterDropdownOpen ? "rotate" : ""}`} />
+                                </button>
+                                {processingCenterDropdownOpen && (
+                                    <div className="admin-sb-submenu-wrapper">
+                                        <ul className="admin-sb-submenu">
+                                            <li>
+                                                <Link
+                                                    to="/allocate-recycling"
+                                                    className={`admin-sb-sublink ${isActive("/allocate-recycling") ? "active" : ""}`}
+                                                    onClick={handleProcessingCenterOptionClick}
+                                                >
+                                                    <FiRefreshCw className="sublink-icon icon--teal" />
+                                                    <span>Recycling Center</span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    to="/admin/refurbishment-devices"
+                                                    className={`admin-sb-sublink ${isActive("/admin/refurbishment-devices") || isActive("/allocate-refurbishment") ? "active" : ""}`}
+                                                    onClick={handleProcessingCenterOptionClick}
+                                                >
+                                                    <FiCpu className="sublink-icon icon--purple" />
+                                                    <span>Refurbishment Center</span>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </li>
+                            <li className="admin-sb-item">
+                                <button
+                                    type="button"
+                                    className={`admin-sb-link ${isActive("/allocate-refurbishment") || isActive("/manage-recyclingallocation") ? "active" : ""}`}
+                                    onClick={() => setCenterAllocationsDropdownOpen(!centerAllocationsDropdownOpen)}
+                                    style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--purple">
+                                        <FiCpu />
+                                    </div>
+                                    <span className="admin-sb-link-text">Center Allocations</span>
+                                    <FiChevronDown className={`admin-sb-chevron-icon ${centerAllocationsDropdownOpen ? "rotate" : ""}`} />
+                                </button>
+                                {centerAllocationsDropdownOpen && (
+                                    <div className="admin-sb-submenu-wrapper">
+                                        <ul className="admin-sb-submenu">
+                                            <li>
+                                                <Link
+                                                    to="/manage-recyclingallocation"
+                                                    className={`admin-sb-sublink ${isActive("/manage-recyclingallocation") ? "active" : ""}`}
+                                                    onClick={handleCenterAllocationsOptionClick}
+                                                >
+                                                    <FiRefreshCw className="sublink-icon icon--teal" />
+                                                    <span>Recycling Allocations</span>
+                                                </Link>
+                                            </li>
+                                            <li>
+                                                <Link
+                                                    to="/allocate-refurbishment"
+                                                    className={`admin-sb-sublink ${isActive("/allocate-refurbishment") ? "active" : ""}`}
+                                                    onClick={handleCenterAllocationsOptionClick}
+                                                >
+                                                    <FiCpu className="sublink-icon icon--purple" />
+                                                    <span>Refurbishment Allocations</span>
+                                                </Link>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                )}
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/recyclingcenter_dashboard"
+                                    className={`admin-sb-link ${isActive("/recyclingcenter_dashboard") || isActive("/refurbishmentcenter_dashboard") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--emerald">
+                                        <FiActivity />
+                                    </div>
+                                    <span className="admin-sb-link-text">Processing Monitoring</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/recycling_perform"
+                                    className={`admin-sb-link ${isActive("/recycling_perform") || isActive("/recycling/perform") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--cyan">
+                                        <FiDollarSign />
+                                    </div>
+                                    <span className="admin-sb-link-text">Material Recovery</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/manage-device?status=Completed"
+                                    className={`admin-sb-link ${location.search.includes("status=Completed") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--slate">
+                                        <FiAward />
+                                    </div>
+                                    <span className="admin-sb-link-text">Completed Devices</span>
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+
+                    {/* MANAGEMENT */}
+                    <div className="admin-sb-section">
+                        <span className="admin-sb-section-title">MANAGEMENT</span>
                         <ul className="admin-sb-menu">
                             <li className="admin-sb-item">
                                 <Link
+                                    to="/manage-users"
+                                    className={`admin-sb-link ${isActive("/manage-users") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--emerald">
+                                        <FiUser />
+                                    </div>
+                                    <span className="admin-sb-link-text">Citizens</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/manage-collectionagents"
+                                    className={`admin-sb-link ${isActive("/manage-collectionagents") || isActive("/manage-collectionagent") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--amber">
+                                        <FiTruck />
+                                    </div>
+                                    <span className="admin-sb-link-text">Collection Agents</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/managetechnicians"
+                                    className={`admin-sb-link ${isActive("/managetechnicians") || isActive("/manage-technicians") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--cyan">
+                                        <FiTool />
+                                    </div>
+                                    <span className="admin-sb-link-text">Technicians</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/manage-refurbishment"
+                                    className={`admin-sb-link ${isActive("/manage-refurbishment") || isActive("/manage-refurbishmentcenter") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--purple">
+                                        <FiCpu />
+                                    </div>
+                                    <span className="admin-sb-link-text">Refurbishment Centers</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/manage-recyclingcenters"
+                                    className={`admin-sb-link ${isActive("/manage-recyclingcenters") || isActive("/manage-recyclingcenter") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--teal">
+                                        <FiRefreshCw />
+                                    </div>
+                                    <span className="admin-sb-link-text">Recycling Centers</span>
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+
+                    {/* REPORTS */}
+                    <div className="admin-sb-section">
+                        <span className="admin-sb-section-title">REPORTS</span>
+                        <ul className="admin-sb-menu">
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/citizen-reports"
+                                    className={`admin-sb-link ${isActive("/citizen-reports") || isActive("/citizen/reports") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--blue">
+                                        <FiActivity />
+                                    </div>
+                                    <span className="admin-sb-link-text">Lifecycle Tracking</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
                                     to="/admin/reports"
-                                    className={`admin-sb-link ${isActive("/admin/reports") ? "active" : ""}`}
+                                    className={`admin-sb-link ${isActive("/admin/reports") && !location.search ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--emerald">
+                                        <FiPieChart />
+                                    </div>
+                                    <span className="admin-sb-link-text">Environmental Impact</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/admin/reports?tab=analytics"
+                                    className={`admin-sb-link ${location.search.includes("tab=analytics") ? "active" : ""}`}
                                     onClick={closeMobileMenu}
                                 >
                                     <div className="admin-sb-icon-box icon-box--teal">
                                         <FiBarChart2 />
                                     </div>
-                                    <span className="admin-sb-link-text">Reports &amp; Analytics</span>
-                                    {isActive("/admin/reports") && <FiChevronRight className="admin-sb-chevron" />}
+                                    <span className="admin-sb-link-text">Recovery Analytics</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/admin/reports?tab=financial"
+                                    className={`admin-sb-link ${location.search.includes("tab=financial") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--amber">
+                                        <FiDollarSign />
+                                    </div>
+                                    <span className="admin-sb-link-text">Financial Reports</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/admin/reports?tab=certificates"
+                                    className={`admin-sb-link ${location.search.includes("tab=certificates") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--purple">
+                                        <FiAward />
+                                    </div>
+                                    <span className="admin-sb-link-text">Certificates</span>
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+
+                    {/* SYSTEM */}
+                    <div className="admin-sb-section">
+                        <span className="admin-sb-section-title">SYSTEM</span>
+                        <ul className="admin-sb-menu">
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/technician-notification"
+                                    className={`admin-sb-link ${isActive("/technician-notification") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--blue">
+                                        <FiBell />
+                                    </div>
+                                    <span className="admin-sb-link-text">Notifications</span>
                                 </Link>
                             </li>
                             <li className="admin-sb-item">
@@ -369,7 +586,6 @@ function Navbar() {
                                         <FiShield />
                                     </div>
                                     <span className="admin-sb-link-text">Audit Logs</span>
-                                    {isActive("/admin/audit") && <FiChevronRight className="admin-sb-chevron" />}
                                 </Link>
                             </li>
                             <li className="admin-sb-item">
@@ -382,7 +598,6 @@ function Navbar() {
                                         <FiSettings />
                                     </div>
                                     <span className="admin-sb-link-text">Settings</span>
-                                    {isActive("/admin/settings") && <FiChevronRight className="admin-sb-chevron" />}
                                 </Link>
                             </li>
                         </ul>
@@ -391,12 +606,7 @@ function Navbar() {
 
                 {/* Footer Section */}
                 <div className="admin-sb-footer">
-                    <div className="admin-sb-health-pill">
-                        <span className="admin-sb-health-dot"></span>
-                        <span className="admin-sb-health-text">v2.4 • System Normal</span>
-                    </div>
-
-                    <Link to="/logout" className="admin-sb-link admin-sb-link--logout">
+                    <Link to="/logout" className="admin-sb-link admin-sb-link--logout" onClick={closeMobileMenu}>
                         <div className="admin-sb-icon-box icon-box--rose">
                             <FiLogOut />
                         </div>

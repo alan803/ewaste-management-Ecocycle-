@@ -12,7 +12,8 @@ import {
     FiBox,
     FiCheckCircle,
     FiZap,
-    FiBell
+    FiBell,
+    FiAlertTriangle
 } from "react-icons/fi";
 import "./Sidebar.css";
 

@@ -2,6 +2,16 @@ import "./Login.css";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import {
+  FiAlertTriangle,
+  FiCreditCard,
+  FiMail,
+  FiArrowLeft,
+  FiCheckCircle,
+  FiRefreshCw,
+  FiCheck,
+  FiLogIn
+} from "react-icons/fi";
 import { useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
 
@@ -85,6 +95,9 @@ function LoginIllustration() {
 
 function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const [penaltyInfo, setPenaltyInfo] = useState(null);
+  const [payingPenalty, setPayingPenalty] = useState(false);
+  const [paySuccessMsg, setPaySuccessMsg] = useState("");
   const navigate = useNavigate();
 
   const togglePasswordVisibility = () => {
@@ -101,6 +114,79 @@ function Login() {
     password_er: "",
     status_er: ""
   });
+
+  const handlePayPenalty = async () => {
+    if (!penaltyInfo?.penaltyId) return;
+    setPayingPenalty(true);
+    const createUrl = `https://localhost:7102/api/TechnicianPenaltyPayment/create-order/${penaltyInfo.penaltyId}`;
+    const verifyUrl = "https://localhost:7102/api/TechnicianPenaltyPayment/verify";
+
+    try {
+      // 1. Create Razorpay order on backend
+      const res = await axios.post(createUrl);
+
+      const data = res.data;
+
+      // 2. Open Razorpay Checkout modal
+      const options = {
+        key: data.keyId,
+        amount: data.amount,
+        currency: data.currency || "INR",
+        name: "EcoCycle",
+        description: data.description || (isAgent ? "Collection Agent Penalty Fine (₹50)" : "Technician Policy Violation Fine"),
+        order_id: data.orderId,
+        handler: async function (response) {
+          try {
+            setPayingPenalty(true);
+            // 3. Verify Razorpay payment signature on backend
+            const verifyRes = await axios.post(
+              verifyUrl,
+              {
+                paymentId: data.paymentId,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature
+              }
+            );
+
+            setPaySuccessMsg(
+              verifyRes.data?.message || "Fine paid successfully! You may now sign in."
+            );
+          } catch (verifyErr) {
+            console.error("Payment verification failed:", verifyErr);
+            alert(
+              verifyErr.response?.data?.message || "Payment verification failed. Please contact support."
+            );
+          } finally {
+            setPayingPenalty(false);
+          }
+        },
+        theme: {
+          color: "#10b981"
+        },
+        modal: {
+          ondismiss: function () {
+            setPayingPenalty(false);
+          }
+        }
+      };
+
+      if (!window.Razorpay) {
+        alert("Razorpay SDK failed to load. Please refresh and try again.");
+        setPayingPenalty(false);
+        return;
+      }
+
+      const razorpayInstance = new window.Razorpay(options);
+      razorpayInstance.open();
+    } catch (err) {
+      console.error("Error creating payment order:", err);
+      alert(
+        err.response?.data?.message || err.response?.data || "Failed to initialize Razorpay payment. Please try again."
+      );
+      setPayingPenalty(false);
+    }
+  };
   function handleInputChange(e) {
     const { name, value } = e.target;
 
@@ -176,6 +262,7 @@ function Login() {
           navigate("/collectionagent/dashboard");
           break;
         case "Inspection Officer":
+          sessionStorage.setItem("justLoggedInInspectionTechnician", "true");
           navigate("/technician_dashboard");
           break;
         case "Refurbishment Center":
@@ -192,7 +279,16 @@ function Login() {
     }
     catch (error) {
       if (error.response?.data) {
-        const { field, message } = error.response.data;
+        const { field, message, penaltyData } = error.response.data;
+
+        if (field === "penalty_blocked" || penaltyData) {
+          setPenaltyInfo(penaltyData || {
+            penaltyId: 1,
+            penaltyAmount: 100,
+            reason: message || "Overdue inspection fine pending."
+          });
+          return;
+        }
 
         if (field) {
           setErrors(prev => ({
@@ -235,178 +331,299 @@ function Login() {
       {/* Form Side */}
       <div className="login-panel">
         <div className="login-card">
-          <div className="login-header">
-            <div className="login-eyebrow">WELCOME BACK</div>
-            <h1>Sign in</h1>
-            <p>Access your e-waste management dashboard</p>
-          </div>
+          {penaltyInfo ? (
+            <div className="penalty-restriction-card">
+              {paySuccessMsg ? (
+                <div className="penalty-success-wrapper">
+                  <div className="penalty-badge-icon penalty-badge-icon--success">
+                    <FiCheckCircle />
+                  </div>
+                  <span className="penalty-status-tag penalty-status-tag--success">
+                    ACCOUNT RESTORED • FINE PAID
+                  </span>
+                  <h2>Payment Verified!</h2>
+                  <p className="penalty-sub-desc">
+                    {paySuccessMsg}
+                  </p>
 
-          <form className="login-form" onSubmit={login_validation}>
-            <div className="login-field">
-              <label>Username or email</label>
-              <input
-                type="text"
-                placeholder="Username or email"
-                name="email"
-                value={form_dta.email}
-                onChange={handleInputChange}
-                className={errors.email || errors.email_er ? "input-error" : ""}
-              />
-              {(errors.email || errors.email_er) && (
-                <div className="error-message">
-                  {errors.email || errors.email_er}
+                  <div className="penalty-details-box penalty-details-box--success">
+                    <div className="penalty-detail-item">
+                      <span className="p-label">Penalty Reference</span>
+                      <span className="p-val bold">#PEN-{penaltyInfo.penaltyId}</span>
+                    </div>
+                    <div className="penalty-detail-item">
+                      <span className="p-label">Payment Status</span>
+                      <span className="p-val fine-amount fine-amount--paid">
+                        <FiCheck /> PAID
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="penalty-actions-group">
+                    <button
+                      type="button"
+                      className="penalty-btn penalty-btn--pay"
+                      onClick={() => {
+                        setPenaltyInfo(null);
+                        setPaySuccessMsg("");
+                      }}
+                    >
+                      <FiLogIn /> Sign In to Your Account
+                    </button>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div className="penalty-restriction-header">
+                    <div className="penalty-badge-icon">
+                      <FiAlertTriangle />
+                    </div>
+                    <span className="penalty-status-tag">Access Restricted • Unpaid Fine</span>
+                    <h2>Inspection Policy Violation</h2>
+                    <p className="penalty-sub-desc">
+                      Your account access is temporarily suspended due to an unfulfilled inspection deadline fine. Please clear your fine below to restore login access.
+                    </p>
+                  </div>
+
+                  <div className="penalty-details-box">
+                    <div className="penalty-detail-item">
+                      <span className="p-label">Penalty Reference</span>
+                      <span className="p-val bold">#PEN-{penaltyInfo.penaltyId}</span>
+                    </div>
+                    {penaltyInfo.deviceId && (
+                      <div className="penalty-detail-item">
+                        <span className="p-label">Associated Device</span>
+                        <span className="p-val bold">#DEV-{String(penaltyInfo.deviceId).padStart(3, "0")}</span>
+                      </div>
+                    )}
+                    <div className="penalty-detail-item">
+                      <span className="p-label">Fine Amount Due</span>
+                      <span className="p-val fine-amount">₹{penaltyInfo.penaltyAmount || 100}</span>
+                    </div>
+                    <div className="penalty-detail-item reason-item">
+                      <span className="p-label">Violation Reason</span>
+                      <span className="p-val reason-text">{penaltyInfo.reason || "Failure to complete device inspection within 24-hour extended timeframe."}</span>
+                    </div>
+                  </div>
+
+                  <div className="penalty-actions-group">
+                    <button
+                      type="button"
+                      className="penalty-btn penalty-btn--pay"
+                      onClick={handlePayPenalty}
+                      disabled={payingPenalty}
+                    >
+                      {payingPenalty ? (
+                        <>
+                          <FiRefreshCw className="spin-icon" /> Processing Payment...
+                        </>
+                      ) : (
+                        <>
+                          <FiCreditCard /> Pay Fine Now (₹{penaltyInfo.penaltyAmount || 100})
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="penalty-btn penalty-btn--back"
+                      onClick={() => {
+                        setPenaltyInfo(null);
+                        setPaySuccessMsg("");
+                      }}
+                    >
+                      <FiArrowLeft /> Back to Sign In
+                    </button>
+                  </div>
+                </>
               )}
             </div>
+          ) : (
+            <>
+              <div className="login-header">
+                <div className="login-eyebrow">WELCOME BACK</div>
+                <h1>Sign in</h1>
+                <p>Access your e-waste management dashboard</p>
+              </div>
 
-            <div className="login-field">
-              <label>Password</label>
-              <div className="password-input-wrapper">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password"
-                  name="password"
-                  value={form_dta.password}
-                  onChange={handleInputChange}
-                  className={errors.password || errors.password_er ? "input-error" : ""}
-                />
-                <button
-                  type="button"
-                  className="password-toggle-btn"
-                  onClick={togglePasswordVisibility}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+              <form className="login-form" onSubmit={login_validation}>
+                <div className="login-field">
+                  <label>Username or email</label>
+                  <input
+                    type="text"
+                    placeholder="Username or email"
+                    name="email"
+                    value={form_dta.email}
+                    onChange={handleInputChange}
+                    className={errors.email || errors.email_er ? "input-error" : ""}
+                  />
+                  {(errors.email || errors.email_er) && (
+                    <div className="error-message">
+                      {errors.email || errors.email_er}
+                    </div>
+                  )}
+                </div>
+
+                <div className="login-field">
+                  <label>Password</label>
+                  <div className="password-input-wrapper">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      name="password"
+                      value={form_dta.password}
+                      onChange={handleInputChange}
+                      className={errors.password || errors.password_er ? "input-error" : ""}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle-btn"
+                      onClick={togglePasswordVisibility}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
+                  {(errors.password || errors.password_er) && (
+                    <div className="error-message">
+                      {errors.password || errors.password_er}
+                    </div>
+                  )}
+                </div>
+                {errors.status_er && (
+                  <div className="error-message status-error">
+                    {errors.status_er}
+                  </div>
+                )}
+                <button type="submit" className="login-btn">
+                  Login
                 </button>
+              </form>
+
+              <div className="google-divider">
+                <span>or</span>
               </div>
-              {(errors.password || errors.password_er) && (
-                <div className="error-message">
-                  {errors.password || errors.password_er}
-                </div>
-              )}
-            </div>
-            {errors.status_er && (
-              <div className="error-message status-error">
-                {errors.status_er}
-              </div>
-            )}
-            <button type="submit" className="login-btn">
-              Login
-            </button>
-          </form>
 
-          <div className="google-divider">
-            <span>or</span>
-          </div>
-
-          <GoogleLogin
-            onSuccess={async (credentialResponse) => {
-                try {
-                    const response = await axios.post(
-                        "https://localhost:7102/api/Login/GoogleLogin",
-                        {
-                            credential: credentialResponse.credential
-                        }
-                    );
-
-                    console.log("Google login successful:", response.data);
-
-                    localStorage.setItem("token", response.data.token);
-                    localStorage.setItem("loginId", response.data.loginId);
-
-                    if (response.data.technicianId) {
-                        localStorage.setItem(
-                            "technicianId",
-                            response.data.technicianId
+              <GoogleLogin
+                onSuccess={async (credentialResponse) => {
+                    try {
+                        const response = await axios.post(
+                            "https://localhost:7102/api/Login/GoogleLogin",
+                            {
+                                credential: credentialResponse.credential
+                            }
                         );
-                    }
 
-                    localStorage.setItem(
-                        "firstName",
-                        response.data.firstName
-                    );
+                        console.log("Google login successful:", response.data);
 
-                    localStorage.setItem(
-                        "roleId",
-                        response.data.roleId
-                    );
+                        localStorage.setItem("token", response.data.token);
+                        localStorage.setItem("loginId", response.data.loginId);
 
-                    localStorage.setItem(
-                        "role",
-                        response.data.role
-                    );
-
-                    switch (response.data.role) {
-                        case "Citizen":
-                            navigate("/citizen");
-                            break;
-
-                        case "Administrator":
-                            navigate("/admin");
-                            break;
-
-                        case "Collection Agent":
-                            sessionStorage.setItem("justLoggedInCollectionAgent", "true");
-                            navigate("/collectionagent/dashboard");
-                            break;
-
-                        case "Inspection Officer":
-                            navigate("/technician_dashboard");
-                            break;
-
-                        case "Refurbishment Center":
-                            navigate("/refurbishmententer_dashboard");
-                            break;
-
-                        case "Recycling Center":
-                            navigate("/recyclingenter_dashboard");
-                            break;
-
-                        default:
-                            console.log(
-                                "Invalid role:",
-                                response.data.role
+                        if (response.data.technicianId) {
+                            localStorage.setItem(
+                                "technicianId",
+                                response.data.technicianId
                             );
-                            navigate("/");
-                            break;
+                        }
+
+                        localStorage.setItem(
+                            "firstName",
+                            response.data.firstName
+                        );
+
+                        localStorage.setItem(
+                            "roleId",
+                            response.data.roleId
+                        );
+
+                        localStorage.setItem(
+                            "role",
+                            response.data.role
+                        );
+
+                        switch (response.data.role) {
+                            case "Citizen":
+                                navigate("/citizen");
+                                break;
+
+                            case "Administrator":
+                                navigate("/admin");
+                                break;
+
+                            case "Collection Agent":
+                                sessionStorage.setItem("justLoggedInCollectionAgent", "true");
+                                navigate("/collectionagent/dashboard");
+                                break;
+
+                            case "Inspection Officer":
+                                sessionStorage.setItem("justLoggedInInspectionTechnician", "true");
+                                navigate("/technician_dashboard");
+                                break;
+
+                            case "Refurbishment Center":
+                                navigate("/refurbishmententer_dashboard");
+                                break;
+
+                            case "Recycling Center":
+                                navigate("/recyclingenter_dashboard");
+                                break;
+
+                            default:
+                                console.log(
+                                    "Invalid role:",
+                                    response.data.role
+                                );
+                                navigate("/");
+                                break;
+                        }
+
+                    } catch (error) {
+                        console.error("Google login error:", error);
+
+                        if (error.response?.data?.field === "penalty_blocked" || error.response?.data?.penaltyData) {
+                            setPenaltyInfo(error.response.data.penaltyData || {
+                                penaltyId: 1,
+                                penaltyAmount: 100,
+                                reason: error.response.data.message || "Overdue inspection fine pending."
+                            });
+                            return;
+                        }
+
+                        const message =
+                            error.response?.data?.message ||
+                            "Google login failed.";
+
+                        setErrors(prev => ({
+                            ...prev,
+                            status_er: message
+                        }));
                     }
+                }}
 
-                } catch (error) {
-                    console.error("Google login error:", error);
-
-                    const message =
-                        error.response?.data?.message ||
-                        "Google login failed.";
+                onError={() => {
+                    console.error("Google login failed.");
 
                     setErrors(prev => ({
                         ...prev,
-                        status_er: message
+                        status_er: "Google login failed. Please try again."
                     }));
-                }
-            }}
+                }}
+            />
 
-            onError={() => {
-                console.error("Google login failed.");
-
-                setErrors(prev => ({
-                    ...prev,
-                    status_er: "Google login failed. Please try again."
-                }));
-            }}
-        />
-
-          <div className="login-links">
-            <p>
-              <a href="/forgot-password">Forgot password?</a>
-            </p>
-            <p>
-              Don't have an account?{" "}
-              <a href="/signup">Sign up</a>
-            </p>
-            <p>
-              <a href="/" className="login-back">← Back to home</a>
-            </p>
-          </div>
+              <div className="login-links">
+                <p>
+                  <a href="/forgot-password">Forgot password?</a>
+                </p>
+                <p>
+                  Don't have an account?{" "}
+                  <a href="/signup">Sign up</a>
+                </p>
+                <p>
+                  <a href="/" className="login-back">← Back to home</a>
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -13,6 +13,7 @@ import {
   FiX,
   FiClock,
   FiAlertCircle,
+  FiAlertTriangle,
   FiSearch,
   FiRefreshCw,
   FiTrash2,
@@ -233,6 +234,68 @@ function Technician_notification() {
     return d.toLocaleString([], { dateStyle: "full", timeStyle: "short" });
   };
 
+  const renderProfessionalMessage = (message) => {
+    if (!message) return null;
+
+    const isExtensionNotif = message.includes("Extension Count") || message.includes("Inspection Deadline Policy") || message.includes("deadline extension");
+
+    if (isExtensionNotif) {
+      const deviceMatch = message.match(/\(([^)]+)\)/);
+      const deadlineMatch = message.match(/New inspection deadline:\s*([^.\n]+)/i) || message.match(/New Deadline:\s*([^.\n]+)/i);
+      const countMatch = message.match(/Extension Count:\s*(\d+\/\d+)/i) || message.match(/Extensions Used:\s*([^\n]+)/i);
+
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+          <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "12px", padding: "1.15rem" }}>
+            <p style={{ margin: "0 0 0.85rem 0", fontSize: "0.95rem", color: "#1e293b", lineHeight: "1.5" }}>
+              The Administrator has granted a <strong>24-hour deadline extension</strong> for device inspection {deviceMatch ? `(${deviceMatch[1]})` : ""}.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "10px", padding: "0.85rem" }}>
+              <div>
+                <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>New Inspection Deadline</div>
+                <div style={{ fontSize: "0.9rem", fontWeight: 800, color: "#059669", marginTop: "0.2rem" }}>
+                  {deadlineMatch ? deadlineMatch[1] : "Extended Deadline Active"}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Extension Usage</div>
+                <div style={{ fontSize: "0.9rem", fontWeight: 800, color: "#d97706", marginTop: "0.2rem" }}>
+                  {countMatch ? countMatch[1] : "1 / 2 Max Extensions"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ background: "#fffbe6", border: "1px solid #fde68a", borderRadius: "12px", padding: "1.15rem" }}>
+            <h4 style={{ margin: "0 0 0.65rem 0", color: "#92400e", fontSize: "0.925rem", fontWeight: 800, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <FiAlertTriangle style={{ color: "#d97706" }} /> Technician Inspection Deadline &amp; Penalty Guidelines
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: "1.2rem", fontSize: "0.825rem", color: "#78350f", lineHeight: "1.6" }}>
+              <li style={{ marginBottom: "0.4rem" }}>
+                <strong>Inspection Timeframe:</strong> Once assigned, you are responsible for completing the inspection within the specified deadline.
+              </li>
+              <li style={{ marginBottom: "0.4rem" }}>
+                <strong>Permitted Extensions:</strong> A maximum of <strong>two 24-hour extensions</strong> will be permitted per device task.
+              </li>
+              <li style={{ marginBottom: "0.4rem" }}>
+                <strong>Overdue Penalty:</strong> Failure to complete the inspection after the second 24-hour extension will incur a technician performance penalty.
+              </li>
+              <li>
+                <strong>Performance Record:</strong> Repeated overdue inspections may impact your technician evaluation score and future assignments.
+              </li>
+            </ul>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ whiteSpace: "pre-line", lineHeight: "1.6", color: "#334155", fontSize: "0.925rem" }}>
+        {message}
+      </div>
+    );
+  };
+
   // Unread count
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
@@ -305,36 +368,42 @@ function Technician_notification() {
         </header>
 
         {/* Toolbar Controls */}
-        <div className="inbox-toolbar">
-          <div className="inbox-tabs">
-            <button
-              className={`tab-item ${activeTab === "all" ? "active" : ""}`}
-              onClick={() => setActiveTab("all")}
-            >
-              All Inbox
-              <span className="tab-badge">{notifications.length}</span>
-            </button>
-
-            <button
-              className={`tab-item ${activeTab === "unread" ? "active" : ""}`}
-              onClick={() => setActiveTab("unread")}
-            >
-              Unread
-              <span className="tab-badge">{unreadCount}</span>
-            </button>
-
-            {!isCitizen && (
-              <button
-                className={`tab-item ${activeTab === "assignments" ? "active" : ""}`}
-                onClick={() => setActiveTab("assignments")}
-              >
-                Assignments
-                <span className="tab-badge">
-                  {notifications.filter((n) => getCategory(n.title, n.message).key === "assignments").length}
-                </span>
-              </button>
-            )}
+        <div className="inbox-toolbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", gap: "1rem", flexWrap: "wrap" }}>
+          <div>
+            <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "1.15rem", fontWeight: 700, margin: "0 0 0.2rem", color: "#0f172a" }}>Filter Messages</h3>
+            <p style={{ margin: 0, fontSize: "0.775rem", color: "#64748b" }}>Filter notifications by status or assignment category</p>
           </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", flexWrap: "wrap", marginLeft: "auto" }}>
+            <div className="filter-pills">
+              <button
+                className={`pill-btn ${activeTab === "all" ? "active" : ""}`}
+                onClick={() => setActiveTab("all")}
+              >
+                All Inbox
+                <span className="tab-badge">{notifications.length}</span>
+              </button>
+
+              <button
+                className={`pill-btn ${activeTab === "unread" ? "active" : ""}`}
+                onClick={() => setActiveTab("unread")}
+              >
+                Unread
+                <span className="tab-badge">{unreadCount}</span>
+              </button>
+
+              {!isCitizen && (
+                <button
+                  className={`pill-btn ${activeTab === "assignments" ? "active" : ""}`}
+                  onClick={() => setActiveTab("assignments")}
+                >
+                  Assignments
+                  <span className="tab-badge">
+                    {notifications.filter((n) => getCategory(n.title, n.message).key === "assignments").length}
+                  </span>
+                </button>
+              )}
+            </div>
 
           <div className="inbox-search-wrap">
             <FiSearch className="search-icon" />
@@ -355,6 +424,7 @@ function Technician_notification() {
             )}
           </div>
         </div>
+      </div>
 
         {/* Main Split View: Left List + Right Reader */}
         <div className="inbox-split-view">
@@ -457,7 +527,7 @@ function Technician_notification() {
                 </div>
 
                 <div className="reader-body">
-                  <div className="reader-message-content">{activeNotification.message}</div>
+                  <div className="reader-message-content">{renderProfessionalMessage(activeNotification.message)}</div>
                 </div>
 
                 <div className="reader-actions">
