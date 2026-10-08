@@ -17,8 +17,8 @@ import Inspectiontechnician_dashboard from "./pages/Inspection Technician/Inspec
 import DeviceInspection from "./pages/Inspection Technician/Device_inspection";
 import InspectionReport from "./pages/Inspection Technician/Inspection_report";
 import RefurbishmentCenter_signup from "./pages/signup/refurbishmentcenter_signup";
-import Refurbishment_dashboard from "./pages/refurbishment center/Refurbishmentcenter_dashboard"
-import RefurbishmentPerform from "./pages/refurbishment center/Refurbishment_perform";
+import Refurbishment_dashboard from "./pages/Refurbishment Center/Refurbishmentcenter_dashboard";
+import RefurbishmentPerform from "./pages/Refurbishment Center/Refurbishment_perform";
 import RecyclingCenter_signup from "./pages/signup/recyclingcenter_signup";
 import Recycling_dashboard from "./pages/Recycling Center/Recyclingcenter_dashboard";
 import RecyclingPerform from "./pages/Recycling Center/Recycling_perform";
@@ -48,10 +48,10 @@ import Manage_userprofile from "./pages/citizen/Manage_userprofile";
 import Technician_notification from "./pages/Inspection Technician/Technician_notification";
 import TechnicianPenalties from "./pages/Inspection Technician/Technician_penalties";
 import Recyclingcenter_notification from "./pages/Recycling Center/Recyclingcenter_notification";
-import Refurbishmentcenter_notification from "./pages/refurbishment center/Refurbishmentcenter_notification";
+import Refurbishmentcenter_notification from "./pages/Refurbishment Center/Refurbishmentcenter_notification";
 import Profile from "./pages/Collection Agent/Profile";
 import Insp_profile from "./pages/Inspection Technician/Insp_profile";
-import RefurbishmentProfile from "./pages/refurbishment center/refurbishment_profile";
+import RefurbishmentProfile from "./pages/Refurbishment Center/refurbishment_profile";
 import RecycleProfile from "./pages/Recycling Center/recycle_profile";
 import Pickup_collectionagent from "./pages/Administrator/Pickup_collectionagent";
 import Pickupdetails from "./pages/citizen/Pickupdetails";
