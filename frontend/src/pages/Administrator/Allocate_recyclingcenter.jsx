@@ -312,9 +312,9 @@ function AllocateRecyclingCenter() {
             const headers = { Authorization: `Bearer ${token}` };
 
             const [devRes, centerRes, allocRes] = await Promise.all([
-                axios.get("https://localhost:7102/api/Device/All", { headers }).catch(() => ({ data: [] })),
-                axios.get("https://localhost:7102/api/RecyclingCenter/alluser", { headers }).catch(() => ({ data: [] })),
-                axios.get("https://localhost:7102/api/AllocateRecyclingCenter/admin/requests", { headers }).catch(() => ({ data: [] }))
+                axios.get("https://ecocycle.runasp.net/api/Device/All", { headers }).catch(() => ({ data: [] })),
+                axios.get("https://ecocycle.runasp.net/api/RecyclingCenter/alluser", { headers }).catch(() => ({ data: [] })),
+                axios.get("https://ecocycle.runasp.net/api/AllocateRecyclingCenter/admin/requests", { headers }).catch(() => ({ data: [] }))
             ]);
 
             // Filter ONLY devices where inspection was completed by technician AND decision is Recycling
@@ -401,7 +401,7 @@ function AllocateRecyclingCenter() {
             setAllocatingId(deviceId);
             const token = localStorage.getItem("token");
             await axios.post(
-                `https://localhost:7102/api/AllocateRecyclingCenter/allocate/${deviceId}`,
+                `https://ecocycle.runasp.net/api/AllocateRecyclingCenter/allocate/${deviceId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -420,8 +420,8 @@ function AllocateRecyclingCenter() {
         try {
             const token = localStorage.getItem("token");
             const endpoint = selectedCenterId === "auto"
-                ? `https://localhost:7102/api/AllocateRecyclingCenter/allocate/${allocatingDevice.deviceId}`
-                : `https://localhost:7102/api/AllocateRecyclingCenter/manual-allocate/${allocatingDevice.deviceId}/${selectedCenterId}`;
+                ? `https://ecocycle.runasp.net/api/AllocateRecyclingCenter/allocate/${allocatingDevice.deviceId}`
+                : `https://ecocycle.runasp.net/api/AllocateRecyclingCenter/manual-allocate/${allocatingDevice.deviceId}/${selectedCenterId}`;
 
             await axios.post(endpoint, {}, { headers: { Authorization: `Bearer ${token}` } });
             setAllocatingDevice(null);
@@ -996,7 +996,7 @@ function AllocateRecyclingCenter() {
                                         {selectedDevice.frontPhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/FrontPhotos/${selectedDevice.frontPhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/FrontPhotos/${selectedDevice.frontPhoto}`}
                                                     alt="Front"
                                                 />
                                                 <span>Front</span>
@@ -1005,7 +1005,7 @@ function AllocateRecyclingCenter() {
                                         {selectedDevice.backPhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/BackPhotos/${selectedDevice.backPhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/BackPhotos/${selectedDevice.backPhoto}`}
                                                     alt="Back"
                                                 />
                                                 <span>Back</span>
@@ -1015,7 +1015,7 @@ function AllocateRecyclingCenter() {
                                         {selectedDevice.damagePhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/DamagePhotos/${selectedDevice.damagePhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/DamagePhotos/${selectedDevice.damagePhoto}`}
                                                     alt="Damage"
                                                 />
                                                 <span>Damage</span>
@@ -1025,7 +1025,7 @@ function AllocateRecyclingCenter() {
                                         {selectedDevice.labelPhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/LabelPhotos/${selectedDevice.labelPhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/LabelPhotos/${selectedDevice.labelPhoto}`}
                                                     alt="Label"
                                                 />
                                                 <span>Label</span>

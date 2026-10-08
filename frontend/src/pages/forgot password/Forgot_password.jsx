@@ -52,7 +52,7 @@ function Forgot_password() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/Login/ForgotPassword",
+                "https://ecocycle.runasp.net/api/Login/ForgotPassword",
                 {
                     email: form_dta.email
                 },

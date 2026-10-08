@@ -81,10 +81,10 @@ function ManageModelPrices() {
         setLoading(true);
         try {
             const [modelsRes, catsRes] = await Promise.all([
-                axios.get("https://localhost:7102/api/DeviceModel/GetAdminAll", getHeaders()).catch(() =>
-                    axios.get("https://localhost:7102/api/DeviceModel/GetAll")
+                axios.get("https://ecocycle.runasp.net/api/DeviceModel/GetAdminAll", getHeaders()).catch(() =>
+                    axios.get("https://ecocycle.runasp.net/api/DeviceModel/GetAll")
                 ),
-                axios.get("https://localhost:7102/api/DeviceCategory/GetAll")
+                axios.get("https://ecocycle.runasp.net/api/DeviceCategory/GetAll")
             ]);
 
             setModels(modelsRes.data || []);
@@ -191,7 +191,7 @@ function ManageModelPrices() {
                 referenceMarketPrice: parseFloat(newRecord.referenceMarketPrice) || 0
             };
 
-            await axios.post("https://localhost:7102/api/DeviceModel/Create", payload, getHeaders());
+            await axios.post("https://ecocycle.runasp.net/api/DeviceModel/Create", payload, getHeaders());
 
             setShowAddForm(false);
             fetchData();
@@ -247,9 +247,9 @@ function ManageModelPrices() {
             };
 
             if (editingItem) {
-                await axios.put(`https://localhost:7102/api/DeviceModel/Update/${formData.deviceModelId}`, payload, getHeaders());
+                await axios.put(`https://ecocycle.runasp.net/api/DeviceModel/Update/${formData.deviceModelId}`, payload, getHeaders());
             } else {
-                await axios.post("https://localhost:7102/api/DeviceModel/Create", payload, getHeaders());
+                await axios.post("https://ecocycle.runasp.net/api/DeviceModel/Create", payload, getHeaders());
             }
 
             setShowModal(false);
@@ -274,10 +274,10 @@ function ManageModelPrices() {
         try {
             setSaving(true);
             try {
-                await axios.delete(`https://localhost:7102/api/DeviceModel/Delete/${item.deviceModelId}`, getHeaders());
+                await axios.delete(`https://ecocycle.runasp.net/api/DeviceModel/Delete/${item.deviceModelId}`, getHeaders());
             } catch {
                 try {
-                    await axios.delete(`https://localhost:7102/api/DeviceModel/${item.deviceModelId}`, getHeaders());
+                    await axios.delete(`https://ecocycle.runasp.net/api/DeviceModel/${item.deviceModelId}`, getHeaders());
                 } catch {
                     // Fallback
                 }
@@ -298,10 +298,10 @@ function ManageModelPrices() {
         try {
             setSaving(true);
             try {
-                await axios.put(`https://localhost:7102/api/DeviceModel/Restore/${item.deviceModelId}`, {}, getHeaders());
+                await axios.put(`https://ecocycle.runasp.net/api/DeviceModel/Restore/${item.deviceModelId}`, {}, getHeaders());
             } catch {
                 try {
-                    await axios.put(`https://localhost:7102/api/DeviceModel/ToggleStatus/${item.deviceModelId}`, {}, getHeaders());
+                    await axios.put(`https://ecocycle.runasp.net/api/DeviceModel/ToggleStatus/${item.deviceModelId}`, {}, getHeaders());
                 } catch {
                     // Fallback
                 }
@@ -320,7 +320,7 @@ function ManageModelPrices() {
         const updatedStatus = !item.isActive;
         try {
             try {
-                await axios.put(`https://localhost:7102/api/DeviceModel/ToggleStatus/${item.deviceModelId}`, {}, getHeaders());
+                await axios.put(`https://ecocycle.runasp.net/api/DeviceModel/ToggleStatus/${item.deviceModelId}`, {}, getHeaders());
             } catch {
                 // Fallback
             }

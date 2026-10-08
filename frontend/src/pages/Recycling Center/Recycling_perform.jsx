@@ -626,7 +626,7 @@ function RecyclingPerform() {
 
     const fetchMasterComponentTypes = async (token) => {
         try {
-            const res = await axios.get("https://localhost:7102/api/ComponentType", {
+            const res = await axios.get("https://ecocycle.runasp.net/api/ComponentType", {
                 headers: { Authorization: `Bearer ${token || localStorage.getItem("token")}` }
             });
             if (res.data && Array.isArray(res.data)) {
@@ -639,7 +639,7 @@ function RecyclingPerform() {
 
     const fetchUnreadNotifCount = async (token) => {
         try {
-            const res = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const res = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${token || localStorage.getItem("token")}` }
             });
             const list = Array.isArray(res.data) ? res.data : [];
@@ -652,7 +652,7 @@ function RecyclingPerform() {
     const fetchMaterialPrices = async () => {
         try {
             const token = localStorage.getItem("token");
-            const res = await axios.get("https://localhost:7102/api/MaterialPrice", {
+            const res = await axios.get("https://ecocycle.runasp.net/api/MaterialPrice", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.data && Array.isArray(res.data) && res.data.length > 0) {
@@ -677,7 +677,7 @@ function RecyclingPerform() {
                 }
             }
 
-            const fallbackRes = await axios.get("https://localhost:7102/api/RecyclingProcess/material-prices");
+            const fallbackRes = await axios.get("https://ecocycle.runasp.net/api/RecyclingProcess/material-prices");
             if (fallbackRes.data && fallbackRes.data.length > 0) {
                 setActivePrices(fallbackRes.data);
             } else {
@@ -685,7 +685,7 @@ function RecyclingPerform() {
             }
         } catch {
             try {
-                const fallbackRes = await axios.get("https://localhost:7102/api/RecyclingProcess/material-prices");
+                const fallbackRes = await axios.get("https://ecocycle.runasp.net/api/RecyclingProcess/material-prices");
                 if (fallbackRes.data && fallbackRes.data.length > 0) {
                     setActivePrices(fallbackRes.data);
                 } else {
@@ -717,13 +717,13 @@ function RecyclingPerform() {
             let list = [];
 
             try {
-                const res = await axios.get("https://localhost:7102/api/AllocateRecyclingCenter/my-requests", {
+                const res = await axios.get("https://ecocycle.runasp.net/api/AllocateRecyclingCenter/my-requests", {
                     headers: { Authorization: `Bearer ${authToken}` }
                 });
                 list = res.data || [];
             } catch {
                 try {
-                    const adminRes = await axios.get("https://localhost:7102/api/AllocateRecyclingCenter/admin/requests", {
+                    const adminRes = await axios.get("https://ecocycle.runasp.net/api/AllocateRecyclingCenter/admin/requests", {
                         headers: { Authorization: `Bearer ${authToken}` }
                     });
                     list = adminRes.data || [];
@@ -833,7 +833,7 @@ function RecyclingPerform() {
         const token = localStorage.getItem("token");
 
         try {
-            const compRes = await axios.get(`https://localhost:7102/api/RecyclingProcess/components/${req.deviceId}`, {
+            const compRes = await axios.get(`https://ecocycle.runasp.net/api/RecyclingProcess/components/${req.deviceId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (compRes.data && Array.isArray(compRes.data.components) && compRes.data.components.length > 0) {
@@ -940,7 +940,7 @@ function RecyclingPerform() {
 
         // Fetch & restore saved progress / process details from backend
         try {
-            const res = await axios.get(`https://localhost:7102/api/RecyclingProcess/process-details/${req.id}`, {
+            const res = await axios.get(`https://ecocycle.runasp.net/api/RecyclingProcess/process-details/${req.id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.data) {
@@ -1043,7 +1043,7 @@ function RecyclingPerform() {
             setIsStartingProcess(true);
             const token = localStorage.getItem("token");
 
-            const res = await axios.post(`https://localhost:7102/api/RecyclingProcess/start/${currentReqId}`, {}, {
+            const res = await axios.post(`https://ecocycle.runasp.net/api/RecyclingProcess/start/${currentReqId}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -1442,7 +1442,7 @@ function RecyclingPerform() {
             if (isQuickSimulation) {
                 const simTxnId = `pay_test_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
                 const simOrderId = `order_test_${Date.now()}`;
-                await axios.post("https://localhost:7102/api/Settlement/center-pay-settlement", {
+                await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
                     deviceId: selectedRequest?.deviceId || selectedRequest?.id,
                     finalRealizableValue: finalVal,
                     paymentMethod: "Razorpay (Test Sandbox)",
@@ -1461,7 +1461,7 @@ function RecyclingPerform() {
             }
 
             // Option 2: Razorpay Interactive Test Checkout Modal
-            const orderRes = await axios.post("https://localhost:7102/api/Settlement/create-center-order", {
+            const orderRes = await axios.post("https://ecocycle.runasp.net/api/Settlement/create-center-order", {
                 deviceId: selectedRequest?.deviceId || selectedRequest?.id,
                 amount: finalVal,
                 notes: paymentNotes || `[TEST MODE] Recycling buyout settlement for Device #${selectedRequest?.deviceId || selectedRequest?.id}`
@@ -1471,7 +1471,7 @@ function RecyclingPerform() {
 
             if (!window.Razorpay) {
                 const simTxnId = `pay_test_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
-                await axios.post("https://localhost:7102/api/Settlement/center-pay-settlement", {
+                await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
                     deviceId: selectedRequest?.deviceId || selectedRequest?.id,
                     finalRealizableValue: finalVal,
                     paymentMethod: "Razorpay (Test Sandbox)",
@@ -1498,7 +1498,7 @@ function RecyclingPerform() {
                 handler: async function (response) {
                     try {
                         setIsPayingSettlement(true);
-                        await axios.post("https://localhost:7102/api/Settlement/center-pay-settlement", {
+                        await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
                             deviceId: selectedRequest?.deviceId || selectedRequest?.id,
                             finalRealizableValue: finalVal,
                             paymentMethod: "Razorpay (Test Sandbox)",
@@ -1593,13 +1593,13 @@ function RecyclingPerform() {
                 }))
             };
 
-            const res = await axios.post("https://localhost:7102/api/RecyclingProcess/complete", payload, {
+            const res = await axios.post("https://ecocycle.runasp.net/api/RecyclingProcess/complete", payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             // Ensure settlement payment transaction is recorded on backend if not already done
             const finalVal = totals.totalValue > 0 ? totals.totalValue : (totals.netValue > 0 ? totals.netValue : 500);
-            await axios.post("https://localhost:7102/api/Settlement/center-pay-settlement", {
+            await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
                 deviceId: selectedRequest.deviceId || selectedRequest.id,
                 finalRealizableValue: finalVal,
                 paymentMethod: paymentMethod || "Razorpay (Test Sandbox)",

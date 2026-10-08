@@ -177,7 +177,7 @@ function Profile() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/CollectionAgent/verify-password",
+                "https://ecocycle.runasp.net/api/CollectionAgent/verify-password",
                 { currentPassword: currentPasswordInput },
                 {
                     headers: {
@@ -225,7 +225,7 @@ function Profile() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/CollectionAgent/change-password",
+                "https://ecocycle.runasp.net/api/CollectionAgent/change-password",
                 {
                     currentPassword: currentPasswordInput,
                     newPassword: newPasswordInput,
@@ -265,7 +265,7 @@ function Profile() {
     const fetchUnreadNotificationsCount = async (token) => {
         try {
             const response = await axios.get(
-                "https://localhost:7102/api/Notificationcon/my_notifications",
+                "https://ecocycle.runasp.net/api/Notificationcon/my_notifications",
                 {
                     headers: { Authorization: `Bearer ${token}` }
                 }
@@ -286,11 +286,11 @@ function Profile() {
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://localhost:7102/uploads/${cleanName.replace(/\\/g, "/")}`;
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace(/\\/g, "/")}`;
         }
         return folderName
-            ? `https://localhost:7102/uploads/${folderName}/${cleanName}`
-            : `https://localhost:7102/uploads/${cleanName}`;
+            ? `https://ecocycle.runasp.net/uploads/${folderName}/${cleanName}`
+            : `https://ecocycle.runasp.net/uploads/${cleanName}`;
     };
 
     const loadProfile = async (tokenOverride) => {
@@ -306,7 +306,7 @@ function Profile() {
             }
 
             const response = await axios.get(
-                "https://localhost:7102/api/CollectionAgent/myprofile",
+                "https://ecocycle.runasp.net/api/CollectionAgent/myprofile",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -448,7 +448,7 @@ function Profile() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/CollectionAgent/update-profile",
+                "https://ecocycle.runasp.net/api/CollectionAgent/update-profile",
                 formData,
                 {
                     headers: {

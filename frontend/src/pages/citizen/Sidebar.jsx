@@ -50,7 +50,7 @@ function Sidebar() {
             const token = localStorage.getItem("token");
             if (!token) return;
             try {
-                const response = await axios.get("https://localhost:7102/api/User/profile", {
+                const response = await axios.get("https://ecocycle.runasp.net/api/User/profile", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 const data = response.data || {};
@@ -63,7 +63,7 @@ function Sidebar() {
                 if (img) {
                     const fullImgUrl = (img.startsWith("http") || img.startsWith("data:"))
                         ? img
-                        : `https://localhost:7102/uploads/profile/${img}`;
+                        : `https://ecocycle.runasp.net/uploads/profile/${img}`;
                     setUserImage(fullImgUrl);
                     localStorage.setItem("citizen_profile_image", fullImgUrl);
                 }
@@ -76,7 +76,7 @@ function Sidebar() {
             const token = localStorage.getItem("token");
             if (!token) return;
             try {
-                const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+                const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 const notifs = response.data || [];

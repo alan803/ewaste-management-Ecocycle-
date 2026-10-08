@@ -158,7 +158,7 @@ function RefurbishmentProfile() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/RefurbishmentCenter/verify-password",
+                "https://ecocycle.runasp.net/api/RefurbishmentCenter/verify-password",
                 { currentPassword: currentPasswordInput },
                 {
                     headers: {
@@ -208,7 +208,7 @@ function RefurbishmentProfile() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/RefurbishmentCenter/change-password",
+                "https://ecocycle.runasp.net/api/RefurbishmentCenter/change-password",
                 {
                     currentPassword: currentPasswordInput,
                     newPassword: newPasswordInput,
@@ -251,11 +251,11 @@ function RefurbishmentProfile() {
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://localhost:7102/uploads/${cleanName.replace("\\", "/")}`;
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace("\\", "/")}`;
         }
         return folderName
-            ? `https://localhost:7102/uploads/refurbishment/${folderName}/${cleanName}`
-            : `https://localhost:7102/uploads/${cleanName}`;
+            ? `https://ecocycle.runasp.net/uploads/refurbishment/${folderName}/${cleanName}`
+            : `https://ecocycle.runasp.net/uploads/${cleanName}`;
     };
 
     const loadProfile = async (tokenOverride) => {
@@ -271,7 +271,7 @@ function RefurbishmentProfile() {
             }
 
             const response = await axios.get(
-                "https://localhost:7102/api/RefurbishmentCenter/myprofile",
+                "https://ecocycle.runasp.net/api/RefurbishmentCenter/myprofile",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -386,7 +386,7 @@ function RefurbishmentProfile() {
 
         try {
             await axios.post(
-                "https://localhost:7102/api/RefurbishmentCenter/update-profile",
+                "https://ecocycle.runasp.net/api/RefurbishmentCenter/update-profile",
                 formData,
                 {
                     headers: {

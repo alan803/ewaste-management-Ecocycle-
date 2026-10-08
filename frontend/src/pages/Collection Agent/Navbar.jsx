@@ -45,7 +45,7 @@ function Navbar({
 
     const fetchNotifications = async (token) => {
         try {
-            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const notificationsData = Array.isArray(response.data) ? response.data : [];
@@ -53,7 +53,7 @@ function Navbar({
             setFetchedUnreadCount(unread);
         } catch (err) {
             try {
-                const response = await axios.get("https://localhost:7102/api/Notification/mynotifications", {
+                const response = await axios.get("https://ecocycle.runasp.net/api/Notification/mynotifications", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 const notificationsData = Array.isArray(response.data) ? response.data : [];
@@ -71,7 +71,7 @@ function Navbar({
 
     const fetchProfile = async (token) => {
         try {
-            const response = await axios.get("https://localhost:7102/api/CollectionAgent/myprofile", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/CollectionAgent/myprofile", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setProfile(response.data || {});
@@ -87,11 +87,11 @@ function Navbar({
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://localhost:7102/uploads/${cleanName.replace(/\\/g, "/")}`;
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace(/\\/g, "/")}`;
         }
         return folderName
-            ? `https://localhost:7102/uploads/${folderName}/${cleanName}`
-            : `https://localhost:7102/uploads/${cleanName}`;
+            ? `https://ecocycle.runasp.net/uploads/${folderName}/${cleanName}`
+            : `https://ecocycle.runasp.net/uploads/${cleanName}`;
     };
 
     const rawPic = profile?.Profilepicture || profile?.profilepicture || profile?.profilePicture || profile?.profile_picture;

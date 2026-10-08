@@ -621,7 +621,7 @@ function Technician_signup()
         try 
         {
             const response =await axios.post(
-                "https://localhost:7102/api/Technician/Register",
+                "https://ecocycle.runasp.net/api/Technician/Register",
                 formData
             );
             if (response.status === 200 || response.status === 201) {

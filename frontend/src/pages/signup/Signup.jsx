@@ -356,7 +356,7 @@ function Signup() {
         }
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/User/Register",
+                "https://ecocycle.runasp.net/api/User/Register",
                 form_dta
             );
             navigate("/login");

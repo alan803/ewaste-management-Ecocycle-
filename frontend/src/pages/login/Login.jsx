@@ -118,8 +118,8 @@ function Login() {
   const handlePayPenalty = async () => {
     if (!penaltyInfo?.penaltyId) return;
     setPayingPenalty(true);
-    const createUrl = `https://localhost:7102/api/TechnicianPenaltyPayment/create-order/${penaltyInfo.penaltyId}`;
-    const verifyUrl = "https://localhost:7102/api/TechnicianPenaltyPayment/verify";
+    const createUrl = `https://ecocycle.runasp.net/api/TechnicianPenaltyPayment/create-order/${penaltyInfo.penaltyId}`;
+    const verifyUrl = "https://ecocycle.runasp.net/api/TechnicianPenaltyPayment/verify";
 
     try {
       // 1. Create Razorpay order on backend
@@ -236,7 +236,7 @@ function Login() {
     }
     try {
       const response = await axios.post(
-        "https://localhost:7102/api/Login/Login",
+        "https://ecocycle.runasp.net/api/Login/Login",
         form_dta
       );
       localStorage.setItem("token", response.data.token);
@@ -515,7 +515,7 @@ function Login() {
                   onSuccess={async (credentialResponse) => {
                     try {
                         const response = await axios.post(
-                            "https://localhost:7102/api/Login/GoogleLogin",
+                            "https://ecocycle.runasp.net/api/Login/GoogleLogin",
                             {
                                 credential: credentialResponse.credential
                             }

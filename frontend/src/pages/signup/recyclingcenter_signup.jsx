@@ -795,7 +795,7 @@ function RecyclingCenter_signup() {
         try
         {
             await axios.post(
-                "https://localhost:7102/api/RecyclingCenter/Register",
+                "https://ecocycle.runasp.net/api/RecyclingCenter/Register",
                 formData,
                 {
                     headers: {

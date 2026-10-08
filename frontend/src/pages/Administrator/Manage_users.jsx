@@ -48,7 +48,7 @@ function Manage_users() {
         setLoading(true);
         try {
             const response = await axios.get(
-                "https://localhost:7102/api/User/alluser"
+                "https://ecocycle.runasp.net/api/User/alluser"
             );
             setUsers(response.data || []);
         } catch (error) {
@@ -106,7 +106,7 @@ function Manage_users() {
         setDeactivating(true);
         try {
             const response = await axios.post(
-                `https://localhost:7102/api/User/deactivate/${selectedUser.userId}`,
+                `https://ecocycle.runasp.net/api/User/deactivate/${selectedUser.userId}`,
                 null,
                 {
                     params: {
@@ -135,7 +135,7 @@ function Manage_users() {
     const activateuser = async (id) => {
         try {
             const response = await axios.post(
-                `https://localhost:7102/api/User/activate/${id}`
+                `https://ecocycle.runasp.net/api/User/activate/${id}`
             );
 
             // alert(response.data.message || "User activated successfully.");
@@ -176,9 +176,9 @@ function Manage_users() {
             return pic;
         }
         if (pic.startsWith("/uploads/")) {
-            return `https://localhost:7102${pic}`;
+            return `https://ecocycle.runasp.net${pic}`;
         }
-        return `https://localhost:7102/uploads/profile/${pic}`;
+        return `https://ecocycle.runasp.net/uploads/profile/${pic}`;
     };
 
     const getInitials = (firstName, lastName) => {

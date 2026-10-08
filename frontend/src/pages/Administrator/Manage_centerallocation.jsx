@@ -49,7 +49,7 @@ function ManageCenterAllocation() {
         const token = authToken || localStorage.getItem("token");
         try {
             setLoading(true);
-            const reqRes = await axios.get("https://localhost:7102/api/AllocateRecyclingCenter/admin/requests", {
+            const reqRes = await axios.get("https://ecocycle.runasp.net/api/AllocateRecyclingCenter/admin/requests", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setRequests(reqRes.data || []);
@@ -66,7 +66,7 @@ function ManageCenterAllocation() {
         const token = localStorage.getItem("token");
         try {
             setReallocatingId(item.deviceId);
-            const url = `https://localhost:7102/api/AllocateRecyclingCenter/manual-allocate/${item.deviceId}`;
+            const url = `https://ecocycle.runasp.net/api/AllocateRecyclingCenter/manual-allocate/${item.deviceId}`;
 
             await axios.post(url, {}, {
                 headers: { Authorization: `Bearer ${token}` }

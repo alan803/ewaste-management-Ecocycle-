@@ -50,7 +50,7 @@ function Refurbishmentcenter_notification() {
       }
 
       const response = await axios.get(
-        "https://localhost:7102/api/Notificationcon/my_notifications",
+        "https://ecocycle.runasp.net/api/Notificationcon/my_notifications",
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -92,7 +92,7 @@ function Refurbishmentcenter_notification() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `https://localhost:7102/api/Notificationcon/mark_asread/${notificationId}`,
+        `https://ecocycle.runasp.net/api/Notificationcon/mark_asread/${notificationId}`,
         {},
         {
           headers: {
@@ -120,7 +120,7 @@ function Refurbishmentcenter_notification() {
     try {
       const token = localStorage.getItem("token");
       await axios.get(
-        "https://localhost:7102/api/Notificationcon/mark_asread",
+        "https://ecocycle.runasp.net/api/Notificationcon/mark_asread",
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -143,7 +143,7 @@ function Refurbishmentcenter_notification() {
     try {
       const token = localStorage.getItem("token");
       await axios.get(
-        "https://localhost:7102/api/Notificationcon/clearall",
+        "https://ecocycle.runasp.net/api/Notificationcon/clearall",
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -174,7 +174,7 @@ function Refurbishmentcenter_notification() {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `https://localhost:7102/api/Notificationcon/delete_selected/${notificationId}`,
+        `https://ecocycle.runasp.net/api/Notificationcon/delete_selected/${notificationId}`,
         {},
         {
           headers: {

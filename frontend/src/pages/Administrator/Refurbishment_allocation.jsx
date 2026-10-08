@@ -321,9 +321,9 @@ function RefurbishmentAllocation() {
             const headers = { Authorization: `Bearer ${token}` };
 
             const [devRes, centerRes, allocRes] = await Promise.all([
-                axios.get("https://localhost:7102/api/Device/All", { headers }).catch(() => ({ data: [] })),
-                axios.get("https://localhost:7102/api/RefurbishmentCenter/alluser", { headers }).catch(() => ({ data: [] })),
-                axios.get("https://localhost:7102/api/AllocateRefurbishmentCenter/admin/requests", { headers }).catch(() => ({ data: [] }))
+                axios.get("https://ecocycle.runasp.net/api/Device/All", { headers }).catch(() => ({ data: [] })),
+                axios.get("https://ecocycle.runasp.net/api/RefurbishmentCenter/alluser", { headers }).catch(() => ({ data: [] })),
+                axios.get("https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/admin/requests", { headers }).catch(() => ({ data: [] }))
             ]);
 
             // Filter ONLY devices where inspection was completed by technician AND decision is Refurbishment
@@ -411,7 +411,7 @@ function RefurbishmentAllocation() {
             setAllocatingId(deviceId);
             const token = localStorage.getItem("token");
             await axios.post(
-                `https://localhost:7102/api/AllocateRefurbishmentCenter/allocate/${deviceId}`,
+                `https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/allocate/${deviceId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -430,8 +430,8 @@ function RefurbishmentAllocation() {
         try {
             const token = localStorage.getItem("token");
             const endpoint = selectedCenterId === "auto"
-                ? `https://localhost:7102/api/AllocateRefurbishmentCenter/allocate/${allocatingDevice.deviceId}`
-                : `https://localhost:7102/api/AllocateRefurbishmentCenter/manual-allocate/${allocatingDevice.deviceId}/${selectedCenterId}`;
+                ? `https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/allocate/${allocatingDevice.deviceId}`
+                : `https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/manual-allocate/${allocatingDevice.deviceId}/${selectedCenterId}`;
 
             await axios.post(endpoint, {}, { headers: { Authorization: `Bearer ${token}` } });
             setAllocatingDevice(null);
@@ -1005,7 +1005,7 @@ function RefurbishmentAllocation() {
                                         {selectedDevice.frontPhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/FrontPhotos/${selectedDevice.frontPhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/FrontPhotos/${selectedDevice.frontPhoto}`}
                                                     alt="Front"
                                                 />
                                                 <span>Front</span>
@@ -1014,7 +1014,7 @@ function RefurbishmentAllocation() {
                                         {selectedDevice.backPhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/BackPhotos/${selectedDevice.backPhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/BackPhotos/${selectedDevice.backPhoto}`}
                                                     alt="Back"
                                                 />
                                                 <span>Back</span>
@@ -1024,7 +1024,7 @@ function RefurbishmentAllocation() {
                                         {selectedDevice.damagePhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/DamagePhotos/${selectedDevice.damagePhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/DamagePhotos/${selectedDevice.damagePhoto}`}
                                                     alt="Damage"
                                                 />
                                                 <span>Damage</span>
@@ -1034,7 +1034,7 @@ function RefurbishmentAllocation() {
                                         {selectedDevice.labelPhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/LabelPhotos/${selectedDevice.labelPhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/LabelPhotos/${selectedDevice.labelPhoto}`}
                                                     alt="Label"
                                                 />
                                                 <span>Label</span>

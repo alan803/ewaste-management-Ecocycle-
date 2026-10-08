@@ -160,7 +160,7 @@ function RecycleProfile() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/RecyclingCenter/verify-password",
+                "https://ecocycle.runasp.net/api/RecyclingCenter/verify-password",
                 { currentPassword: currentPasswordInput },
                 {
                     headers: {
@@ -210,7 +210,7 @@ function RecycleProfile() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/RecyclingCenter/change-password",
+                "https://ecocycle.runasp.net/api/RecyclingCenter/change-password",
                 {
                     currentPassword: currentPasswordInput,
                     newPassword: newPasswordInput,
@@ -249,7 +249,7 @@ function RecycleProfile() {
 
     const fetchUnreadNotifCount = async (token) => {
         try {
-            const res = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const res = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${token || localStorage.getItem("token")}` }
             });
             const list = Array.isArray(res.data) ? res.data : [];
@@ -266,11 +266,11 @@ function RecycleProfile() {
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://localhost:7102/uploads/${cleanName.replace("\\", "/")}`;
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace("\\", "/")}`;
         }
         return folderName
-            ? `https://localhost:7102/uploads/recycling/${folderName}/${cleanName}`
-            : `https://localhost:7102/uploads/${cleanName}`;
+            ? `https://ecocycle.runasp.net/uploads/recycling/${folderName}/${cleanName}`
+            : `https://ecocycle.runasp.net/uploads/${cleanName}`;
     };
 
     const loadProfile = async (tokenOverride) => {
@@ -286,7 +286,7 @@ function RecycleProfile() {
             }
 
             const response = await axios.get(
-                "https://localhost:7102/api/RecyclingCenter/myprofile",
+                "https://ecocycle.runasp.net/api/RecyclingCenter/myprofile",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -405,7 +405,7 @@ function RecycleProfile() {
 
         try {
             await axios.post(
-                "https://localhost:7102/api/RecyclingCenter/update-profile",
+                "https://ecocycle.runasp.net/api/RecyclingCenter/update-profile",
                 formData,
                 {
                     headers: {

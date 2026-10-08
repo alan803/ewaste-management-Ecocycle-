@@ -49,7 +49,7 @@ function ManageCollectionAgent() {
     const fetchPendingAgents = async () => {
         try {
             const response = await axios.get(
-                "https://localhost:7102/api/CollectionAgent/All"
+                "https://ecocycle.runasp.net/api/CollectionAgent/All"
             );
 
             setAgents(response.data || []);
@@ -122,7 +122,7 @@ function ManageCollectionAgent() {
         setSelectedAgent(agent);
         try {
             const response = await axios.get(
-                `https://localhost:7102/api/CollectionAgent/${agentId}`
+                `https://ecocycle.runasp.net/api/CollectionAgent/${agentId}`
             );
             if (response.data) {
                 setSelectedAgent(response.data);
@@ -136,7 +136,7 @@ function ManageCollectionAgent() {
         setActionLoadingId(agentId);
         try {
             await axios.post(
-                `https://localhost:7102/api/CollectionAgent/Accept/${agentId}`
+                `https://ecocycle.runasp.net/api/CollectionAgent/Accept/${agentId}`
             );
 
             setAgents(prevAgents =>
@@ -170,7 +170,7 @@ function ManageCollectionAgent() {
 
         try {
             await axios.post(
-                `https://localhost:7102/api/CollectionAgent/deactivate/${agentId}`,
+                `https://ecocycle.runasp.net/api/CollectionAgent/deactivate/${agentId}`,
                 null,
                 {
                     params: { reason: deactivateReason.trim() }
@@ -201,7 +201,7 @@ function ManageCollectionAgent() {
     const reactivateAgent = async (agentId) => {
         setActionLoadingId(agentId);
         try {
-            await axios.post(`https://localhost:7102/api/CollectionAgent/activate/${agentId}`);
+            await axios.post(`https://ecocycle.runasp.net/api/CollectionAgent/activate/${agentId}`);
             setAgents(prevAgents =>
                 prevAgents.map(agent =>
                     (agent.collectionAgentId || agent.id) === agentId
@@ -235,7 +235,7 @@ function ManageCollectionAgent() {
 
         try {
             await axios.post(
-                `https://localhost:7102/api/CollectionAgent/Reject/${agentId}`,
+                `https://ecocycle.runasp.net/api/CollectionAgent/Reject/${agentId}`,
                 null,
                 {
                     params: { reason: rejectReason.trim() }
@@ -283,31 +283,31 @@ function ManageCollectionAgent() {
     const getPhotoSrc = (agent) => {
         if (!agent?.profilePicture) return null;
         if (agent.profilePicture.startsWith("http")) return agent.profilePicture;
-        return `https://localhost:7102/uploads/profile/${agent.profilePicture}`;
+        return `https://ecocycle.runasp.net/uploads/profile/${agent.profilePicture}`;
     };
 
     const getAadhaarProofPath = (agent) => {
         if (!agent?.adhaarProof) return null;
         if (agent.adhaarProof.startsWith("http")) return agent.adhaarProof;
-        return `https://localhost:7102/uploads/aadhaar/${agent.adhaarProof}`;
+        return `https://ecocycle.runasp.net/uploads/aadhaar/${agent.adhaarProof}`;
     };
 
     const getInsurancePath = (agent) => {
         if (!agent?.vehicleInsurance) return null;
         if (agent.vehicleInsurance.startsWith("http")) return agent.vehicleInsurance;
-        return `https://localhost:7102/uploads/insurance/${agent.vehicleInsurance}`;
+        return `https://ecocycle.runasp.net/uploads/insurance/${agent.vehicleInsurance}`;
     };
 
     const getPollutionPath = (agent) => {
         if (!agent?.vehiclePollution) return null;
         if (agent.vehiclePollution.startsWith("http")) return agent.vehiclePollution;
-        return `https://localhost:7102/uploads/pollution/${agent.vehiclePollution}`;
+        return `https://ecocycle.runasp.net/uploads/pollution/${agent.vehiclePollution}`;
     };
 
     const getVehiclePhotoPath = (agent) => {
         if (!agent?.vehiclePhoto) return null;
         if (agent.vehiclePhoto.startsWith("http")) return agent.vehiclePhoto;
-        return `https://localhost:7102/uploads/vehicle/${agent.vehiclePhoto}`;
+        return `https://ecocycle.runasp.net/uploads/vehicle/${agent.vehiclePhoto}`;
     };
 
     const isImageFile = (filename) => {

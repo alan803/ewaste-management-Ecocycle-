@@ -116,7 +116,7 @@ function Pickups() {
         const authToken = token || localStorage.getItem("token");
         if (!authToken) return;
         try {
-            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             const notificationsData = Array.isArray(response.data) ? response.data : [];
@@ -130,7 +130,7 @@ function Pickups() {
     // Fetch logged-in agent profile info
     const fetchAgentProfile = async (token) => {
         try {
-            const res = await axios.get("https://localhost:7102/api/CollectionAgent/myprofile", {
+            const res = await axios.get("https://ecocycle.runasp.net/api/CollectionAgent/myprofile", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.data) {
@@ -158,7 +158,7 @@ function Pickups() {
         setError("");
 
         try {
-            const response = await axios.get("https://localhost:7102/api/CollectionAssignment/my-assignments", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/CollectionAssignment/my-assignments", {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             console.log("My Collection Agent Assignments:", response.data);
@@ -196,7 +196,7 @@ function Pickups() {
             setProcessingId(assignmentId);
             const token = localStorage.getItem("token");
             const res = await axios.post(
-                `https://localhost:7102/api/CollectionAssignment/accept/${assignmentId}`,
+                `https://ecocycle.runasp.net/api/CollectionAssignment/accept/${assignmentId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -238,7 +238,7 @@ function Pickups() {
 
             // Exclusively use api/Pickup/start/{assignmentId} via Pickup.cs controller
             await axios.post(
-                `https://localhost:7102/api/Pickup/start/${assignmentId}`,
+                `https://ecocycle.runasp.net/api/Pickup/start/${assignmentId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -392,7 +392,7 @@ function Pickups() {
         try {
             const token = localStorage.getItem("token");
             const res = await axios.post(
-                `https://localhost:7102/api/Pickup/send-otp/${targetObj.collectionAssignmentId}?target=technician`,
+                `https://ecocycle.runasp.net/api/Pickup/send-otp/${targetObj.collectionAssignmentId}?target=technician`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -430,7 +430,7 @@ function Pickups() {
             const token = localStorage.getItem("token");
 
             const res = await axios.post(
-                `https://localhost:7102/api/Pickup/verify-otp/${targetObj.collectionAssignmentId}`,
+                `https://ecocycle.runasp.net/api/Pickup/verify-otp/${targetObj.collectionAssignmentId}`,
                 { otp: deliveryOtpInput.trim() },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -484,7 +484,7 @@ function Pickups() {
             setProcessingId(assignmentId);
             const token = localStorage.getItem("token");
             await axios.post(
-                `https://localhost:7102/api/Pickup/complete/${assignmentId}`,
+                `https://ecocycle.runasp.net/api/Pickup/complete/${assignmentId}`,
                 { agentNotes: "Tech-to-Recycler pickup completed via technician OTP verification." },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -572,7 +572,7 @@ function Pickups() {
             setProcessingId("requesting-tech-verification");
             const token = localStorage.getItem("token");
             await axios.post(
-                `https://localhost:7102/api/Pickup/request-technician-verification/${assignmentId}`,
+                `https://ecocycle.runasp.net/api/Pickup/request-technician-verification/${assignmentId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -602,7 +602,7 @@ function Pickups() {
         try {
             const token = localStorage.getItem("token");
             const res = await axios.post(
-                `https://localhost:7102/api/Pickup/send-otp/${completePickupTarget.collectionAssignmentId}`,
+                `https://ecocycle.runasp.net/api/Pickup/send-otp/${completePickupTarget.collectionAssignmentId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -685,7 +685,7 @@ function Pickups() {
             const token = localStorage.getItem("token");
 
             await axios.post(
-                `https://localhost:7102/api/Pickup/verify-otp/${completePickupTarget.collectionAssignmentId}`,
+                `https://ecocycle.runasp.net/api/Pickup/verify-otp/${completePickupTarget.collectionAssignmentId}`,
                 { otp: otpInput.trim() },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -746,7 +746,7 @@ function Pickups() {
             const token = localStorage.getItem("token");
 
             await axios.post(
-                `https://localhost:7102/api/Pickup/complete/${assignmentId}`,
+                `https://ecocycle.runasp.net/api/Pickup/complete/${assignmentId}`,
                 {
                     proofPhotoBase64: photoPreview,
                     agentNotes: agentNotes.trim(),
@@ -784,7 +784,7 @@ function Pickups() {
             const token = localStorage.getItem("token");
 
             await axios.post(
-                `https://localhost:7102/api/Pickup/start-delivery/${assignmentId}`,
+                `https://ecocycle.runasp.net/api/Pickup/start-delivery/${assignmentId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -816,7 +816,7 @@ function Pickups() {
             const token = localStorage.getItem("token");
 
             await axios.post(
-                `https://localhost:7102/api/Pickup/deliver/${assignmentId}`,
+                `https://ecocycle.runasp.net/api/Pickup/deliver/${assignmentId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );

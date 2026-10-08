@@ -120,7 +120,7 @@ function Manage_device() {
         try {
             const token = localStorage.getItem("token");
             const response = await axios.get(
-                "https://localhost:7102/api/Device/Pending",
+                "https://ecocycle.runasp.net/api/Device/Pending",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -144,7 +144,7 @@ function Manage_device() {
             const token = localStorage.getItem("token");
 
             const response = await axios.get(
-                "https://localhost:7102/api/Device/All",
+                "https://ecocycle.runasp.net/api/Device/All",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -168,7 +168,7 @@ function Manage_device() {
         try {
             const token = localStorage.getItem("token");
             await axios.post(
-                `https://localhost:7102/api/Device/accept/${deviceId}`,
+                `https://ecocycle.runasp.net/api/Device/accept/${deviceId}`,
                 {},
                 {
                     headers: {
@@ -193,7 +193,7 @@ function Manage_device() {
         try {
             const token = localStorage.getItem("token");
             await axios.post(
-                `https://localhost:7102/api/Device/reject/${deviceId}`,
+                `https://ecocycle.runasp.net/api/Device/reject/${deviceId}`,
                 {},
                 {
                     headers: {
@@ -219,7 +219,7 @@ function Manage_device() {
             setAllocatingId(deviceId);
             const token = localStorage.getItem("token");
             const response = await axios.post(
-                `https://localhost:7102/api/Inspection/create/${deviceId}`,
+                `https://ecocycle.runasp.net/api/Inspection/create/${deviceId}`,
                 {},
                 {
                     headers: {
@@ -241,7 +241,7 @@ function Manage_device() {
             setAllocatingId(deviceId);
             const token = localStorage.getItem("token");
             const response = await axios.post(
-                `https://localhost:7102/api/AllocateRecyclingCenter/allocate/${deviceId}`,
+                `https://ecocycle.runasp.net/api/AllocateRecyclingCenter/allocate/${deviceId}`,
                 {},
                 {
                     headers: {
@@ -261,7 +261,7 @@ function Manage_device() {
     const fetchActiveTechnicians = async () => {
         try {
             const token = localStorage.getItem("token");
-            const response = await axios.get("https://localhost:7102/api/Technician/All", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Technician/All", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const activeOnly = (response.data || []).filter(t => (t.status || t.Status) === "Active");
@@ -279,8 +279,8 @@ function Manage_device() {
             const token = localStorage.getItem("token");
 
             const url = techId 
-                ? `https://localhost:7102/api/Inspection/manual-allocate/${deviceId}/${techId}`
-                : `https://localhost:7102/api/Inspection/manual-allocate/${deviceId}`;
+                ? `https://ecocycle.runasp.net/api/Inspection/manual-allocate/${deviceId}/${techId}`
+                : `https://ecocycle.runasp.net/api/Inspection/manual-allocate/${deviceId}`;
 
             const response = await axios.post(
                 url,
@@ -1241,7 +1241,7 @@ function Manage_device() {
                                         {selectedDevice.frontPhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/FrontPhotos/${selectedDevice.frontPhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/FrontPhotos/${selectedDevice.frontPhoto}`}
                                                     alt="Front"
                                                 />
                                                 <span>Front</span>
@@ -1250,7 +1250,7 @@ function Manage_device() {
                                         {selectedDevice.backPhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/BackPhotos/${selectedDevice.backPhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/BackPhotos/${selectedDevice.backPhoto}`}
                                                     alt="Back"
                                                 />
                                                 <span>Back</span>
@@ -1260,7 +1260,7 @@ function Manage_device() {
                                         {selectedDevice.damagePhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/DamagePhotos/${selectedDevice.damagePhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/DamagePhotos/${selectedDevice.damagePhoto}`}
                                                     alt="Damage"
                                                 />
                                                 <span>Damage</span>
@@ -1270,7 +1270,7 @@ function Manage_device() {
                                         {selectedDevice.labelPhoto && (
                                             <div className="photo-card">
                                                 <img
-                                                    src={`https://localhost:7102/uploads/devices/LabelPhotos/${selectedDevice.labelPhoto}`}
+                                                    src={`https://ecocycle.runasp.net/uploads/devices/LabelPhotos/${selectedDevice.labelPhoto}`}
                                                     alt="Label"
                                                 />
                                                 <span>Label</span>

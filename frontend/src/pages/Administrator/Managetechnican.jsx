@@ -58,7 +58,7 @@ function Managetechnician() {
         setFetchError("");
         try {
             const response = await axios.get(
-                "https://localhost:7102/api/Technician/alluser"
+                "https://ecocycle.runasp.net/api/Technician/alluser"
             );
             setTechnicians(response.data || []);
         } catch (error) {
@@ -116,7 +116,7 @@ function Managetechnician() {
         setDeactivating(true);
         try {
             await axios.post(
-                `https://localhost:7102/api/Technician/deactivate/${selectedTech.technicianId}`,
+                `https://ecocycle.runasp.net/api/Technician/deactivate/${selectedTech.technicianId}`,
                 null,
                 {
                     params: {
@@ -141,7 +141,7 @@ function Managetechnician() {
     const activateTechnician = async (id) => {
         try {
             await axios.post(
-                `https://localhost:7102/api/Technician/activate/${id}`
+                `https://ecocycle.runasp.net/api/Technician/activate/${id}`
             );
             fetchTechnicians();
         } catch (error) {
@@ -152,7 +152,7 @@ function Managetechnician() {
     const acceptTechnician = async (id) => {
         try {
             await axios.post(
-                `https://localhost:7102/api/Technician/Accept/${id}`
+                `https://ecocycle.runasp.net/api/Technician/Accept/${id}`
             );
             fetchTechnicians();
         } catch (error) {
@@ -206,7 +206,7 @@ function Managetechnician() {
         const techId = rejectModalTech.technicianId || rejectModalTech.id;
         try {
             await axios.post(
-                `https://localhost:7102/api/Technician/Reject/${techId}`,
+                `https://ecocycle.runasp.net/api/Technician/Reject/${techId}`,
                 null,
                 { params: { reason: rejectReason.trim() } }
             );
@@ -261,7 +261,7 @@ function Managetechnician() {
     const getPhotoSrc = (tech) => {
         if (!tech?.profilePhoto) return null;
         if (tech.profilePhoto.startsWith("http")) return tech.profilePhoto;
-        return `https://localhost:7102/uploads/technicians/ProfilePhotos/${tech.profilePhoto}`;
+        return `https://ecocycle.runasp.net/uploads/technicians/ProfilePhotos/${tech.profilePhoto}`;
     };
 
     const getGovernmentIdPath = (tech) => {
@@ -272,25 +272,25 @@ function Managetechnician() {
         else if (tech.governmentIdType === "PAN") folder = "GovernmentIds/PAN";
         else if (tech.governmentIdType === "Driving Licence") folder = "GovernmentIds/DrivingLicence";
         else if (tech.governmentIdType === "Passport") folder = "GovernmentIds/Passport";
-        return `https://localhost:7102/uploads/technicians/${folder}/${tech.governmentIdFile}`;
+        return `https://ecocycle.runasp.net/uploads/technicians/${folder}/${tech.governmentIdFile}`;
     };
 
     const getEmployeeIdCardPath = (tech) => {
         if (!tech?.employeeIdCard) return null;
         if (tech.employeeIdCard.startsWith("http")) return tech.employeeIdCard;
-        return `https://localhost:7102/uploads/technicians/EmployeeIdCards/${tech.employeeIdCard}`;
+        return `https://ecocycle.runasp.net/uploads/technicians/EmployeeIdCards/${tech.employeeIdCard}`;
     };
 
     const getTechnicalCertificatePath = (tech) => {
         if (!tech?.technicalCertificate) return null;
         if (tech.technicalCertificate.startsWith("http")) return tech.technicalCertificate;
-        return `https://localhost:7102/uploads/technicians/TechnicalCertificates/${tech.technicalCertificate}`;
+        return `https://ecocycle.runasp.net/uploads/technicians/TechnicalCertificates/${tech.technicalCertificate}`;
     };
 
     const getResumePath = (tech) => {
         if (!tech?.resume) return null;
         if (tech.resume.startsWith("http")) return tech.resume;
-        return `https://localhost:7102/uploads/technicians/Resumes/${tech.resume}`;
+        return `https://ecocycle.runasp.net/uploads/technicians/Resumes/${tech.resume}`;
     };
 
     const getInitials = (firstName, lastName) => {

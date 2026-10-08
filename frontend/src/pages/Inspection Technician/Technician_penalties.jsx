@@ -59,7 +59,7 @@ function TechnicianPenalties() {
         const token = localStorage.getItem("token");
         if (!token) return;
         try {
-            const res = await axios.get("https://localhost:7102/api/Technician/myprofile", {
+            const res = await axios.get("https://ecocycle.runasp.net/api/Technician/myprofile", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = res.data || {};
@@ -74,7 +74,7 @@ function TechnicianPenalties() {
         const token = localStorage.getItem("token");
         if (!token) return;
         try {
-            const res = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const res = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const list = Array.isArray(res.data) ? res.data : [];
@@ -94,7 +94,7 @@ function TechnicianPenalties() {
                 return;
             }
 
-            const response = await axios.get("https://localhost:7102/api/TechnicianPenaltyPayment/my-penalties", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/TechnicianPenaltyPayment/my-penalties", {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -117,7 +117,7 @@ function TechnicianPenalties() {
             const token = localStorage.getItem("token");
             // 1. Create Razorpay payment order on backend
             const res = await axios.post(
-                `https://localhost:7102/api/TechnicianPenaltyPayment/create-order/${item.technicianPenaltyId}`,
+                `https://ecocycle.runasp.net/api/TechnicianPenaltyPayment/create-order/${item.technicianPenaltyId}`,
                 {},
                 { headers: token ? { Authorization: `Bearer ${token}` } : {} }
             );
@@ -137,7 +137,7 @@ function TechnicianPenalties() {
                         setPayingId(item.technicianPenaltyId);
                         // 3. Verify Razorpay payment signature on backend
                         const verifyRes = await axios.post(
-                            "https://localhost:7102/api/TechnicianPenaltyPayment/verify",
+                            "https://ecocycle.runasp.net/api/TechnicianPenaltyPayment/verify",
                             {
                                 paymentId: data.paymentId,
                                 razorpayPaymentId: response.razorpay_payment_id,
@@ -230,8 +230,8 @@ function TechnicianPenalties() {
         if (!photoPath) return null;
         if (photoPath.startsWith("data:") || photoPath.startsWith("blob:") || photoPath.startsWith("http://") || photoPath.startsWith("https://")) return photoPath;
         const clean = photoPath.replace(/\\/g, "/").replace(/^\/+/, "");
-        if (clean.includes("/")) return `https://localhost:7102/${clean}`;
-        return `https://localhost:7102/${defaultFolder}/${clean}`;
+        if (clean.includes("/")) return `https://ecocycle.runasp.net/${clean}`;
+        return `https://ecocycle.runasp.net/${defaultFolder}/${clean}`;
     };
 
     const getStatusBadge = (statusStr) => {

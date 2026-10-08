@@ -51,11 +51,11 @@ function AdminDashboard() {
 
         try {
             const [usersRes, agentsRes, devicesRes, assignmentsRes] = await Promise.allSettled([
-                axios.get("https://localhost:7102/api/Login/alluser", authHeader),
-                axios.get("https://localhost:7102/api/CollectionAgent/All", authHeader)
-                    .catch(() => axios.get("https://localhost:7102/api/CollectionAgent/alluser", authHeader)),
-                axios.get("https://localhost:7102/api/Device/All", authHeader),
-                axios.get("https://localhost:7102/api/CollectionAssignment/admin/all-assignments", authHeader)
+                axios.get("https://ecocycle.runasp.net/api/Login/alluser", authHeader),
+                axios.get("https://ecocycle.runasp.net/api/CollectionAgent/All", authHeader)
+                    .catch(() => axios.get("https://ecocycle.runasp.net/api/CollectionAgent/alluser", authHeader)),
+                axios.get("https://ecocycle.runasp.net/api/Device/All", authHeader),
+                axios.get("https://ecocycle.runasp.net/api/CollectionAssignment/admin/all-assignments", authHeader)
             ]);
 
             if (usersRes.status === "fulfilled") setUsers(usersRes.value.data || []);

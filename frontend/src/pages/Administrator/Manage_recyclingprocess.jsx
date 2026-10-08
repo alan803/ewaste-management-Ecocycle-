@@ -32,7 +32,7 @@ import {
 import { FaLeaf, FaQrcode } from "react-icons/fa";
 import "./Manage_recyclingprocess.css";
 
-const API_BASE = "https://localhost:7102/api";
+const API_BASE = "https://ecocycle.runasp.net/api";
 
 function ManageRecyclingProcess() {
     const [processes, setProcesses] = useState([]);

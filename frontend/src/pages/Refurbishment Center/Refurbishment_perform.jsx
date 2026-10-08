@@ -481,12 +481,12 @@ const resolvePhotoUrl = (rawPath, defaultFolder = "devices/FrontPhotos") => {
     }
     const clean = rawPath.replace(/^[\\/]+/, "");
     if (clean.startsWith("uploads/")) {
-        return `https://localhost:7102/${clean}`;
+        return `https://ecocycle.runasp.net/${clean}`;
     }
     if (clean.includes("/")) {
-        return `https://localhost:7102/uploads/${clean}`;
+        return `https://ecocycle.runasp.net/uploads/${clean}`;
     }
-    return `https://localhost:7102/uploads/${defaultFolder}/${clean}`;
+    return `https://ecocycle.runasp.net/uploads/${defaultFolder}/${clean}`;
 };
 
 function RefurbishmentPerform() {
@@ -562,7 +562,7 @@ function RefurbishmentPerform() {
     useEffect(() => {
         const fetchMasterModels = async () => {
             try {
-                const res = await axios.get("https://localhost:7102/api/DeviceModel/GetAll");
+                const res = await axios.get("https://ecocycle.runasp.net/api/DeviceModel/GetAll");
                 if (Array.isArray(res.data)) {
                     setMasterModels(res.data);
                 }
@@ -1159,7 +1159,7 @@ function RefurbishmentPerform() {
 
         if (!results || results.length === 0 || !techDetails) {
             try {
-                const res = await axios.get(`https://localhost:7102/api/DeviceInspection/results/${dev.deviceId}`);
+                const res = await axios.get(`https://ecocycle.runasp.net/api/DeviceInspection/results/${dev.deviceId}`);
                 const data = res.data;
                 if (Array.isArray(data)) {
                     results = data;
@@ -1575,13 +1575,13 @@ function RefurbishmentPerform() {
             const authToken = token || localStorage.getItem("token");
             let list = [];
             try {
-                const res = await axios.get("https://localhost:7102/api/AllocateRefurbishmentCenter/my-requests", {
+                const res = await axios.get("https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/my-requests", {
                     headers: { Authorization: `Bearer ${authToken}` }
                 });
                 list = res.data || [];
             } catch {
                 try {
-                    const adminRes = await axios.get("https://localhost:7102/api/AllocateRefurbishmentCenter/admin/requests", {
+                    const adminRes = await axios.get("https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/admin/requests", {
                         headers: { Authorization: `Bearer ${authToken}` }
                     });
                     list = adminRes.data || [];
@@ -1736,7 +1736,7 @@ function RefurbishmentPerform() {
         try {
             setLoading(true);
             const token = localStorage.getItem("token");
-            const res = await axios.get(`https://localhost:7102/api/RefurbishmentProcess/details/${reqId}`, {
+            const res = await axios.get(`https://ecocycle.runasp.net/api/RefurbishmentProcess/details/${reqId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -1744,7 +1744,7 @@ function RefurbishmentPerform() {
                 let currentInspection = res.data.inspection;
                 if (!currentInspection?.results || currentInspection.results.length === 0) {
                     try {
-                        const inspRes = await axios.get(`https://localhost:7102/api/DeviceInspection/results/${res.data.device.deviceId}`);
+                        const inspRes = await axios.get(`https://ecocycle.runasp.net/api/DeviceInspection/results/${res.data.device.deviceId}`);
                         if (inspRes.data) {
                             if (Array.isArray(inspRes.data)) {
                                 currentInspection = { ...(currentInspection || {}), results: inspRes.data };
@@ -1887,7 +1887,7 @@ function RefurbishmentPerform() {
         try {
             setLoading(true);
             const token = localStorage.getItem("token");
-            const res = await axios.get(`https://localhost:7102/api/RefurbishmentProcess/details/${targetReqId}`, {
+            const res = await axios.get(`https://ecocycle.runasp.net/api/RefurbishmentProcess/details/${targetReqId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.data) {
@@ -2261,7 +2261,7 @@ function RefurbishmentPerform() {
             setIsStartingProcess(true);
             const token = localStorage.getItem("token");
 
-            const res = await axios.post(`https://localhost:7102/api/RefurbishmentProcess/start/${currentReqId}`, {}, {
+            const res = await axios.post(`https://ecocycle.runasp.net/api/RefurbishmentProcess/start/${currentReqId}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -2604,7 +2604,7 @@ function RefurbishmentPerform() {
             if (isQuickSimulation) {
                 const simTxnId = `pay_test_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
                 const simOrderId = `order_test_${Date.now()}`;
-                await axios.post("https://localhost:7102/api/Settlement/center-pay-settlement", {
+                await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
                     deviceId: device?.deviceId || Number(id),
                     finalRealizableValue: finalVal,
                     paymentMethod: "Razorpay (Test Sandbox)",
@@ -2627,7 +2627,7 @@ function RefurbishmentPerform() {
 
             // Option 2: Razorpay Interactive Test Checkout Modal
             // 1. Create Razorpay payment order on backend
-            const orderRes = await axios.post("https://localhost:7102/api/Settlement/create-center-order", {
+            const orderRes = await axios.post("https://ecocycle.runasp.net/api/Settlement/create-center-order", {
                 deviceId: device?.deviceId || Number(id),
                 amount: finalVal,
                 notes: paymentNotes || `[TEST MODE] Refurbishment buyout settlement for Device #${device?.deviceId || id}`
@@ -2638,7 +2638,7 @@ function RefurbishmentPerform() {
             if (!window.Razorpay) {
                 // If script not loaded, offer direct simulation fallback
                 const simTxnId = `pay_test_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
-                await axios.post("https://localhost:7102/api/Settlement/center-pay-settlement", {
+                await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
                     deviceId: device?.deviceId || Number(id),
                     finalRealizableValue: finalVal,
                     paymentMethod: "Razorpay (Test Sandbox)",
@@ -2670,7 +2670,7 @@ function RefurbishmentPerform() {
                     try {
                         setIsPayingSettlement(true);
                         // 3. Record verified test payment on backend
-                        await axios.post("https://localhost:7102/api/Settlement/center-pay-settlement", {
+                        await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
                             deviceId: device?.deviceId || Number(id),
                             finalRealizableValue: finalVal,
                             paymentMethod: "Razorpay (Test Sandbox)",
@@ -2802,7 +2802,7 @@ function RefurbishmentPerform() {
                 transferReason: finalRemarks
             };
 
-            const res = await axios.post("https://localhost:7102/api/RefurbishmentProcess/submit", payload, {
+            const res = await axios.post("https://ecocycle.runasp.net/api/RefurbishmentProcess/submit", payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -2810,7 +2810,7 @@ function RefurbishmentPerform() {
             if (activeOutcome === "Refurbished") {
                 const finalVal = Number(refurbishedValue) || 5000;
                 const txnToUse = paymentTransactionId || `PAY_REF_${Date.now()}`;
-                await axios.post("https://localhost:7102/api/Settlement/center-pay-settlement", {
+                await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
                     deviceId: device?.deviceId || Number(id),
                     finalRealizableValue: finalVal,
                     paymentMethod: paymentMethod || "Razorpay",

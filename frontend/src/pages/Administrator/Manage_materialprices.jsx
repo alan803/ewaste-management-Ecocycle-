@@ -209,7 +209,7 @@ function ManageMaterialPrices() {
 
             let newCreatedId = Date.now();
             try {
-                const res = await axios.post("https://localhost:7102/api/MaterialPrice", payload, {
+                const res = await axios.post("https://ecocycle.runasp.net/api/MaterialPrice", payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 if (res.data && res.data.materialPriceId) {
@@ -260,7 +260,7 @@ function ManageMaterialPrices() {
             // Fetch Component Types
             let compList = [];
             try {
-                const compRes = await axios.get("https://localhost:7102/api/ComponentType", {
+                const compRes = await axios.get("https://ecocycle.runasp.net/api/ComponentType", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 compList = compRes.data || [];
@@ -271,7 +271,7 @@ function ManageMaterialPrices() {
 
             // Fetch Material Prices from Database
             try {
-                const priceRes = await axios.get("https://localhost:7102/api/MaterialPrice", {
+                const priceRes = await axios.get("https://ecocycle.runasp.net/api/MaterialPrice", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setPrices(priceRes.data || []);
@@ -334,7 +334,7 @@ function ManageMaterialPrices() {
             if (editingItem) {
                 // Update
                 try {
-                    await axios.put(`https://localhost:7102/api/MaterialPrice/${editingItem.materialPriceId}`, payload, {
+                    await axios.put(`https://ecocycle.runasp.net/api/MaterialPrice/${editingItem.materialPriceId}`, payload, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                 } catch {
@@ -363,7 +363,7 @@ function ManageMaterialPrices() {
                 // Create
                 let newCreatedId = Date.now();
                 try {
-                    const res = await axios.post("https://localhost:7102/api/MaterialPrice", payload, {
+                    const res = await axios.post("https://ecocycle.runasp.net/api/MaterialPrice", payload, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                     if (res.data && res.data.materialPriceId) {
@@ -421,7 +421,7 @@ function ManageMaterialPrices() {
             };
 
             try {
-                await axios.put(`https://localhost:7102/api/MaterialPrice/${id}`, payload, {
+                await axios.put(`https://ecocycle.runasp.net/api/MaterialPrice/${id}`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
             } catch {
@@ -452,7 +452,7 @@ function ManageMaterialPrices() {
             };
 
             try {
-                await axios.put(`https://localhost:7102/api/MaterialPrice/${item.materialPriceId}`, payload, {
+                await axios.put(`https://ecocycle.runasp.net/api/MaterialPrice/${item.materialPriceId}`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
             } catch {
@@ -474,7 +474,7 @@ function ManageMaterialPrices() {
         try {
             const token = localStorage.getItem("token");
             try {
-                await axios.put(`https://localhost:7102/api/MaterialPrice/${item.materialPriceId}`, {
+                await axios.put(`https://ecocycle.runasp.net/api/MaterialPrice/${item.materialPriceId}`, {
                     componentTypeId: item.componentTypeId,
                     pricePerKg: item.pricePerKg,
                     isActive: updatedStatus

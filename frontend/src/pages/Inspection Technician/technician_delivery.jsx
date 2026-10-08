@@ -73,9 +73,9 @@ function TechnicianDelivery() {
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://localhost:7102/uploads/${cleanName.replace("\\", "/")}`;
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace("\\", "/")}`;
         }
-        return `https://localhost:7102/uploads/technicians/${folderName}/${cleanName}`;
+        return `https://ecocycle.runasp.net/uploads/technicians/${folderName}/${cleanName}`;
     };
 
     // Profile info from localStorage & API
@@ -103,7 +103,7 @@ function TechnicianDelivery() {
         fetchNotifications(token);
 
         // Fetch Technician Profile for accurate avatar & photo
-        axios.get("https://localhost:7102/api/Technician/myprofile", {
+        axios.get("https://ecocycle.runasp.net/api/Technician/myprofile", {
             headers: { Authorization: `Bearer ${token}` }
         })
         .then((res) => {
@@ -130,7 +130,7 @@ function TechnicianDelivery() {
         if (!authToken) return;
         try {
             setLoading(true);
-            const response = await axios.get("https://localhost:7102/api/Inspection/my-deliveries", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Inspection/my-deliveries", {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             setDeliveries(response.data || []);
@@ -145,7 +145,7 @@ function TechnicianDelivery() {
         const authToken = token || localStorage.getItem("token");
         if (!authToken) return;
         try {
-            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             setNotifications(response.data || []);
@@ -165,14 +165,14 @@ function TechnicianDelivery() {
             let response;
             try {
                 response = await axios.post(
-                    `https://localhost:7102/api/Pickup/approve-technician-handover/${item.collectionAssignmentId}`,
+                    `https://ecocycle.runasp.net/api/Pickup/approve-technician-handover/${item.collectionAssignmentId}`,
                     {},
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
             } catch (pickupEx) {
                 console.log("Fallback to Inspection/confirm-receipt endpoint:", pickupEx.message);
                 response = await axios.post(
-                    `https://localhost:7102/api/Inspection/confirm-receipt/${item.collectionAssignmentId}`,
+                    `https://ecocycle.runasp.net/api/Inspection/confirm-receipt/${item.collectionAssignmentId}`,
                     { notes: "Device physically received and verified by Inspection Technician." },
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
@@ -236,7 +236,7 @@ function TechnicianDelivery() {
         try {
             const token = localStorage.getItem("token");
             await axios.post(
-                `https://localhost:7102/api/Inspection/reject-handover/${rejectModalItem.collectionAssignmentId}`,
+                `https://ecocycle.runasp.net/api/Inspection/reject-handover/${rejectModalItem.collectionAssignmentId}`,
                 {
                     reason: rejectionReason,
                     description: rejectionDescription
@@ -320,7 +320,7 @@ function TechnicianDelivery() {
     const markAllNotificationsAsRead = async () => {
         try {
             const token = localStorage.getItem("token");
-            await axios.get("https://localhost:7102/api/Notificationcon/mark_asread", {
+            await axios.get("https://ecocycle.runasp.net/api/Notificationcon/mark_asread", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications(prev => prev.map(n => ({ ...n, isRead: true, isread: true })));
@@ -490,12 +490,12 @@ function TechnicianDelivery() {
         }
         let clean = photoPath.replace(/\\/g, "/").replace(/^\/+/, "");
         if (clean.startsWith("uploads/")) {
-            return `https://localhost:7102/${clean}`;
+            return `https://ecocycle.runasp.net/${clean}`;
         }
         if (clean.startsWith("profile/")) {
-            return `https://localhost:7102/uploads/${clean}`;
+            return `https://ecocycle.runasp.net/uploads/${clean}`;
         }
-        return `https://localhost:7102/uploads/profile/${clean}`;
+        return `https://ecocycle.runasp.net/uploads/profile/${clean}`;
     };
 
     const getDeliveryTimelineSteps = (item) => {

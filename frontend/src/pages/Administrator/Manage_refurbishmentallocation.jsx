@@ -44,7 +44,7 @@ function ManageRefurbishmentAllocation() {
         const token = authToken || localStorage.getItem("token");
         try {
             setLoading(true);
-            const reqRes = await axios.get("https://localhost:7102/api/AllocateRefurbishmentCenter/admin/requests", {
+            const reqRes = await axios.get("https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/admin/requests", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setRequests(reqRes.data || []);
@@ -61,7 +61,7 @@ function ManageRefurbishmentAllocation() {
         const token = localStorage.getItem("token");
         try {
             setReallocatingId(item.deviceId);
-            const url = `https://localhost:7102/api/AllocateRefurbishmentCenter/manual-allocate/${item.deviceId}`;
+            const url = `https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/manual-allocate/${item.deviceId}`;
 
             await axios.post(url, {}, {
                 headers: { Authorization: `Bearer ${token}` }

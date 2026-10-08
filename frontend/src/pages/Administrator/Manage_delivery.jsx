@@ -61,7 +61,7 @@ function ManageDelivery() {
         const config = Object.keys(headers).length > 0 ? { headers } : {};
         try {
             setLoading(true);
-            const response = await axios.get("https://localhost:7102/api/CollectionAssignment/admin/all-assignments", config);
+            const response = await axios.get("https://ecocycle.runasp.net/api/CollectionAssignment/admin/all-assignments", config);
             setDeliveries(response.data || []);
         } catch (err) {
             console.error("Error fetching admin deliveries:", err);
@@ -196,19 +196,19 @@ function ManageDelivery() {
     const getAgentPhoto = (photoPath) => {
         if (!photoPath) return null;
         if (photoPath.startsWith("http://") || photoPath.startsWith("https://") || photoPath.startsWith("data:")) return photoPath;
-        if (photoPath.startsWith("/uploads/")) return `https://localhost:7102${photoPath}`;
-        if (photoPath.startsWith("uploads/")) return `https://localhost:7102/${photoPath}`;
+        if (photoPath.startsWith("/uploads/")) return `https://ecocycle.runasp.net${photoPath}`;
+        if (photoPath.startsWith("uploads/")) return `https://ecocycle.runasp.net/${photoPath}`;
         const cleanPath = photoPath.startsWith("/") ? photoPath : `/${photoPath}`;
-        return `https://localhost:7102/uploads/profile${cleanPath}`;
+        return `https://ecocycle.runasp.net/uploads/profile${cleanPath}`;
     };
 
     const getProofPhoto = (photoPath) => {
         if (!photoPath) return null;
         if (photoPath.startsWith("http://") || photoPath.startsWith("https://") || photoPath.startsWith("data:")) return photoPath;
-        if (photoPath.startsWith("/uploads/")) return `https://localhost:7102${photoPath}`;
-        if (photoPath.startsWith("uploads/")) return `https://localhost:7102/${photoPath}`;
+        if (photoPath.startsWith("/uploads/")) return `https://ecocycle.runasp.net${photoPath}`;
+        if (photoPath.startsWith("uploads/")) return `https://ecocycle.runasp.net/${photoPath}`;
         const cleanPath = photoPath.startsWith("/") ? photoPath : `/${photoPath}`;
-        return `https://localhost:7102/uploads/pickups${cleanPath}`;
+        return `https://ecocycle.runasp.net/uploads/pickups${cleanPath}`;
     };
 
     const formatDate = (dateStr) => {

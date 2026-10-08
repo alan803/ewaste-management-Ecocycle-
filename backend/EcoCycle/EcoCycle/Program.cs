@@ -18,9 +18,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReact", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.SetIsOriginAllowed(origin => true) // Allows localhost and any Vercel/production deployment
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
 builder.Services.AddControllers()
@@ -58,11 +59,12 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+app.MapGet("/", () => Results.Ok(new { status = "Online", message = "EcoCycle ASP.NET Core API is live!" }));
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
-app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 
@@ -76,9 +78,10 @@ app.UseAuthorization();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     try
     {
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        db.Database.Migrate();
         db.Database.ExecuteSqlRaw(@"
             IF EXISTS (
                 SELECT * FROM sys.columns 

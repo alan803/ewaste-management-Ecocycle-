@@ -34,7 +34,7 @@ import {
 import { FaLeaf, FaCoins, FaGem, FaRecycle, FaQrcode } from "react-icons/fa";
 import "./Manage_materialrecovery.css";
 
-const API_BASE = "https://localhost:7102/api";
+const API_BASE = "https://ecocycle.runasp.net/api";
 
 function ManageMaterialRecovery() {
     const [processes, setProcesses] = useState([]);

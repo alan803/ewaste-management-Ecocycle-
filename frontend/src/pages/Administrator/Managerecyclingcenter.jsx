@@ -73,11 +73,11 @@ function Managerecyclingcenter() {
             let response;
             try {
                 response = await axios.get(
-                    "https://localhost:7102/api/RecyclingCenter/All"
+                    "https://ecocycle.runasp.net/api/RecyclingCenter/All"
                 );
             } catch (e) {
                 response = await axios.get(
-                    "https://localhost:7102/api/RecyclingCenter/alluser"
+                    "https://ecocycle.runasp.net/api/RecyclingCenter/alluser"
                 );
             }
             setCenters(response.data || []);
@@ -136,7 +136,7 @@ function Managerecyclingcenter() {
         setDeactivating(true);
         try {
             await axios.post(
-                `https://localhost:7102/api/RecyclingCenter/deactivate/${selectedCenter.recyclingCenterId}`,
+                `https://ecocycle.runasp.net/api/RecyclingCenter/deactivate/${selectedCenter.recyclingCenterId}`,
                 null,
                 {
                     params: {
@@ -161,7 +161,7 @@ function Managerecyclingcenter() {
     const activateCenter = async (id) => {
         try {
             await axios.post(
-                `https://localhost:7102/api/RecyclingCenter/activate/${id}`
+                `https://ecocycle.runasp.net/api/RecyclingCenter/activate/${id}`
             );
             fetchCenters();
         } catch (error) {
@@ -172,7 +172,7 @@ function Managerecyclingcenter() {
     const acceptCenter = async (id) => {
         try {
             await axios.post(
-                `https://localhost:7102/api/RecyclingCenter/Accept/${id}`
+                `https://ecocycle.runasp.net/api/RecyclingCenter/Accept/${id}`
             );
             fetchCenters();
         } catch (error) {
@@ -226,7 +226,7 @@ function Managerecyclingcenter() {
         const centerId = rejectModalCenter.recyclingCenterId || rejectModalCenter.id;
         try {
             await axios.post(
-                `https://localhost:7102/api/RecyclingCenter/Reject/${centerId}`,
+                `https://ecocycle.runasp.net/api/RecyclingCenter/Reject/${centerId}`,
                 null,
                 { params: { reason: rejectReason.trim() } }
             );
@@ -271,7 +271,7 @@ function Managerecyclingcenter() {
     const getPhotoSrc = (center) => {
         if (!center?.centerPhoto) return null;
         if (center.centerPhoto.startsWith("http")) return center.centerPhoto;
-        return `https://localhost:7102/uploads/recycling/Center Photo/${center.centerPhoto}`;
+        return `https://ecocycle.runasp.net/uploads/recycling/Center Photo/${center.centerPhoto}`;
     };
 
     const getInitials = (centerName, ownerName) => {
@@ -1073,7 +1073,7 @@ function Managerecyclingcenter() {
                                                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
                                                     {viewCenter.businessRegistrationCertificate && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/recycling/buisness registration certificate/${viewCenter.businessRegistrationCertificate}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/recycling/buisness registration certificate/${viewCenter.businessRegistrationCertificate}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"
@@ -1084,7 +1084,7 @@ function Managerecyclingcenter() {
                                                     )}
                                                     {viewCenter.recyclerRegistrationCertificate && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/recycling/recycler registration certificate/${viewCenter.recyclerRegistrationCertificate}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/recycling/recycler registration certificate/${viewCenter.recyclerRegistrationCertificate}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"
@@ -1095,7 +1095,7 @@ function Managerecyclingcenter() {
                                                     )}
                                                     {viewCenter.consentToOperate && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/recycling/Consent To Operate/${viewCenter.consentToOperate}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/recycling/Consent To Operate/${viewCenter.consentToOperate}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"
@@ -1106,7 +1106,7 @@ function Managerecyclingcenter() {
                                                     )}
                                                     {viewCenter.hazardousWasteAuthorization && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/recycling/Hazardous Waste Authorization/${viewCenter.hazardousWasteAuthorization}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/recycling/Hazardous Waste Authorization/${viewCenter.hazardousWasteAuthorization}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"
@@ -1117,7 +1117,7 @@ function Managerecyclingcenter() {
                                                     )}
                                                     {viewCenter.addressProof && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/recycling/Address Proof/${viewCenter.addressProof}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/recycling/Address Proof/${viewCenter.addressProof}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"
@@ -1128,7 +1128,7 @@ function Managerecyclingcenter() {
                                                     )}
                                                     {viewCenter.authorizedPersonId && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/recycling/AuthorizedPersonId/${viewCenter.authorizedPersonId}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/recycling/AuthorizedPersonId/${viewCenter.authorizedPersonId}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"
@@ -1139,7 +1139,7 @@ function Managerecyclingcenter() {
                                                     )}
                                                     {viewCenter.centerPhoto && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/recycling/Center Photo/${viewCenter.centerPhoto}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/recycling/Center Photo/${viewCenter.centerPhoto}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"

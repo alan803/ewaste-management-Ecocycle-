@@ -42,15 +42,15 @@ function Sidebar() {
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://localhost:7102/uploads/${cleanName.replace("\\", "/")}`;
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace("\\", "/")}`;
         }
-        return `https://localhost:7102/uploads/technicians/${folderName}/${cleanName}`;
+        return `https://ecocycle.runasp.net/uploads/technicians/${folderName}/${cleanName}`;
     };
 
     React.useEffect(() => {
         const token = localStorage.getItem("token");
         if (token) {
-            fetch("https://localhost:7102/api/Technician/myprofile", {
+            fetch("https://ecocycle.runasp.net/api/Technician/myprofile", {
                 headers: { Authorization: `Bearer ${token}` }
             })
             .then(res => res.json())

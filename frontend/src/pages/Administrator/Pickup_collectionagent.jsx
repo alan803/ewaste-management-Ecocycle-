@@ -59,7 +59,7 @@ function Pickup_collectionagent() {
             const token = localStorage.getItem("token");
 
             const collectionRes = await axios.get(
-                "https://localhost:7102/api/CollectionAssignment/admin/all-assignments?assignmentType=all",
+                "https://ecocycle.runasp.net/api/CollectionAssignment/admin/all-assignments?assignmentType=all",
                 {
                     headers: { Authorization: `Bearer ${token}` }
                 }
@@ -76,7 +76,7 @@ function Pickup_collectionagent() {
     const fetchActiveAgents = async () => {
         try {
             const token = localStorage.getItem("token");
-            const response = await axios.get("https://localhost:7102/api/CollectionAgent/alluser", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/CollectionAgent/alluser", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const activeOnly = (response.data || []).filter(a => a.status === "Active" || a.Status === "Active");
@@ -93,7 +93,7 @@ function Pickup_collectionagent() {
             setReassignMessage("");
             const token = localStorage.getItem("token");
             const response = await axios.post(
-                `https://localhost:7102/api/CollectionAssignment/auto-reassign/${assignmentId}`,
+                `https://ecocycle.runasp.net/api/CollectionAssignment/auto-reassign/${assignmentId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -135,7 +135,7 @@ function Pickup_collectionagent() {
             setReassignMessage("");
             const token = localStorage.getItem("token");
             const response = await axios.post(
-                `https://localhost:7102/api/CollectionAssignment/reassign/${reassigningAssignment.collectionAssignmentId}/${selectedAgentId}`,
+                `https://ecocycle.runasp.net/api/CollectionAssignment/reassign/${reassigningAssignment.collectionAssignmentId}/${selectedAgentId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );

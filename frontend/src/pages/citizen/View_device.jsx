@@ -185,7 +185,7 @@ function View_device() {
         try {
             setSubmittingAllocationId(deviceId);
             await axios.post(
-                `https://localhost:7102/api/Device/request-allocation/${deviceId}`,
+                `https://ecocycle.runasp.net/api/Device/request-allocation/${deviceId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -218,7 +218,7 @@ function View_device() {
         try {
             const token = localStorage.getItem("token");
             if (!token) return;
-            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications(response.data || []);
@@ -233,7 +233,7 @@ function View_device() {
         try {
             const token = localStorage.getItem("token");
             if (!token) return;
-            const response = await axios.get("https://localhost:7102/api/User/profile", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/User/profile", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = response.data || {};
@@ -243,7 +243,7 @@ function View_device() {
                 if (img.startsWith("http") || img.startsWith("data:")) {
                     setProfileImage(img);
                 } else {
-                    setProfileImage(`https://localhost:7102/uploads/profile/${img}`);
+                    setProfileImage(`https://ecocycle.runasp.net/uploads/profile/${img}`);
                 }
             } else {
                 const savedImage = localStorage.getItem("citizen_profile_image");
@@ -261,13 +261,13 @@ function View_device() {
             const token = localStorage.getItem("token");
             let response;
             try {
-                response = await axios.get("https://localhost:7102/api/Device/MyDevices", {
+                response = await axios.get("https://ecocycle.runasp.net/api/Device/MyDevices", {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
                 });
             } catch (err) {
-                response = await axios.get("https://localhost:7102/api/Device/all", {
+                response = await axios.get("https://ecocycle.runasp.net/api/Device/all", {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
@@ -290,7 +290,7 @@ function View_device() {
 
         try {
             await axios.post(
-                `https://localhost:7102/api/Device/Delete/${deviceId}`,
+                `https://ecocycle.runasp.net/api/Device/Delete/${deviceId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -320,7 +320,7 @@ function View_device() {
 
         try {
             const response = await axios.post(
-                `https://localhost:7102/api/Device/Restore/${deviceId}`,
+                `https://ecocycle.runasp.net/api/Device/Restore/${deviceId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -496,7 +496,7 @@ function View_device() {
     const getPhotoUrl = (photoName, folderName) => {
         if (!photoName) return null;
         if (photoName.startsWith("http")) return photoName;
-        return `https://localhost:7102/uploads/devices/${folderName}/${photoName}`;
+        return `https://ecocycle.runasp.net/uploads/devices/${folderName}/${photoName}`;
     };
 
     const formatDate = (dateString) => {

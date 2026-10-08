@@ -604,7 +604,7 @@ function CollectionAgent_signup()
             try
             {
                 await axios.post(
-                    "https://localhost:7102/api/CollectionAgent/Register",
+                    "https://ecocycle.runasp.net/api/CollectionAgent/Register",
                     formData,
                     {
                         headers: {

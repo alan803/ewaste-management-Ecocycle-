@@ -74,7 +74,7 @@ function Reset_passwprd() {
 
         try {
             await axios.post(
-                "https://localhost:7102/api/Login/ResetPassword",
+                "https://ecocycle.runasp.net/api/Login/ResetPassword",
                 {
                     email: email,
                     otp: otp,

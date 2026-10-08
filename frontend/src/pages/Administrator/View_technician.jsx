@@ -34,7 +34,7 @@ function View_technician() {
     const fetchAgent = async () => {
         try {
             const response = await axios.get(
-                `https://localhost:7102/api/Technician/${id}`
+                `https://ecocycle.runasp.net/api/Technician/${id}`
             );
             console.log("Technician details:", response.data);
             setAgent(response.data);
@@ -50,7 +50,7 @@ function View_technician() {
         setActionLoading("accept");
         try {
             await axios.post(
-                `https://localhost:7102/api/Technician/Accept/${id}`
+                `https://ecocycle.runasp.net/api/Technician/Accept/${id}`
             );
             setAgent(prev => ({ ...prev, status: "Active" }));
             navigate("/manage-technicians");
@@ -65,7 +65,7 @@ function View_technician() {
         setActionLoading("reject");
         try {
             await axios.post(
-                `https://localhost:7102/api/Technician/Reject/${id}`
+                `https://ecocycle.runasp.net/api/Technician/Reject/${id}`
             );
             setAgent(prev => ({ ...prev, status: "Rejected" }));
             navigate("/manage-technicians");
@@ -140,7 +140,7 @@ function View_technician() {
     const photoUrl = photoName
         ? photoName.startsWith("http")
             ? photoName
-            : `https://localhost:7102/uploads/technicians/ProfilePhotos/${photoName}`
+            : `https://ecocycle.runasp.net/uploads/technicians/ProfilePhotos/${photoName}`
         : null;
 
     return (
@@ -411,7 +411,7 @@ function View_technician() {
                                         <h4>{agent.governmentIdType || "Government"} ID Document</h4>
                                         {agent.governmentIdFile ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/technicians/GovernmentIds/${
+                                                href={`https://ecocycle.runasp.net/uploads/technicians/GovernmentIds/${
                                                     agent.governmentIdType === "Driving Licence"
                                                         ? "DrivingLicence"
                                                         : agent.governmentIdType
@@ -437,7 +437,7 @@ function View_technician() {
                                         <h4>Employee ID Card</h4>
                                         {agent.employeeIdCard ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/technicians/EmployeeIdCards/${agent.employeeIdCard}`}
+                                                href={`https://ecocycle.runasp.net/uploads/technicians/EmployeeIdCards/${agent.employeeIdCard}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"
@@ -459,7 +459,7 @@ function View_technician() {
                                         <h4>Technical Certificate</h4>
                                         {agent.technicalCertificate ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/technicians/TechnicalCertificates/${agent.technicalCertificate}`}
+                                                href={`https://ecocycle.runasp.net/uploads/technicians/TechnicalCertificates/${agent.technicalCertificate}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"
@@ -481,7 +481,7 @@ function View_technician() {
                                         <h4>Resume / CV</h4>
                                         {agent.resume ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/technicians/Resumes/${agent.resume}`}
+                                                href={`https://ecocycle.runasp.net/uploads/technicians/Resumes/${agent.resume}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"

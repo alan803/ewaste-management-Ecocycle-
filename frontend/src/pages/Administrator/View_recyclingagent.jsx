@@ -39,7 +39,7 @@ function View_recyclingagent() {
     const fetchAgent = async () => {
         try {
             const response = await axios.get(
-                `https://localhost:7102/api/RecyclingCenter/${id}`
+                `https://ecocycle.runasp.net/api/RecyclingCenter/${id}`
             );
             console.log("Recycling center details:", response.data);
             setAgent(response.data);
@@ -55,7 +55,7 @@ function View_recyclingagent() {
         setActionLoading("accept");
         try {
             await axios.post(
-                `https://localhost:7102/api/RecyclingCenter/Accept/${id}`
+                `https://ecocycle.runasp.net/api/RecyclingCenter/Accept/${id}`
             );
             setAgent(prev => ({ ...prev, status: "Active" }));
             navigate("/manage-recyclingcenter");
@@ -70,7 +70,7 @@ function View_recyclingagent() {
         setActionLoading("reject");
         try {
             await axios.post(
-                `https://localhost:7102/api/RecyclingCenter/Reject/${id}`
+                `https://ecocycle.runasp.net/api/RecyclingCenter/Reject/${id}`
             );
             setAgent(prev => ({ ...prev, status: "Rejected" }));
             navigate("/manage-recyclingcenter");
@@ -145,7 +145,7 @@ function View_recyclingagent() {
     const photoUrl = photoName
         ? photoName.startsWith("http")
             ? photoName
-            : `https://localhost:7102/uploads/recycling/Center Photo/${photoName}`
+            : `https://ecocycle.runasp.net/uploads/recycling/Center Photo/${photoName}`
         : null;
 
     const fullAddress = [agent.buildingNumber, agent.street].filter(Boolean).join(", ");
@@ -394,7 +394,7 @@ function View_recyclingagent() {
                                         <h4>Business Registration Cert</h4>
                                         {agent.businessRegistrationCertificate ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/recycling/buisness registration certificate/${agent.businessRegistrationCertificate}`}
+                                                href={`https://ecocycle.runasp.net/uploads/recycling/buisness registration certificate/${agent.businessRegistrationCertificate}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"
@@ -416,7 +416,7 @@ function View_recyclingagent() {
                                         <h4>Recycler Registration Cert</h4>
                                         {agent.recyclerRegistrationCertificate ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/recycling/recycler registration certificate/${agent.recyclerRegistrationCertificate}`}
+                                                href={`https://ecocycle.runasp.net/uploads/recycling/recycler registration certificate/${agent.recyclerRegistrationCertificate}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"
@@ -438,7 +438,7 @@ function View_recyclingagent() {
                                         <h4>Consent to Operate</h4>
                                         {agent.consentToOperate ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/recycling/Consent To Operate/${agent.consentToOperate}`}
+                                                href={`https://ecocycle.runasp.net/uploads/recycling/Consent To Operate/${agent.consentToOperate}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"
@@ -460,7 +460,7 @@ function View_recyclingagent() {
                                         <h4>Hazardous Waste Authorization</h4>
                                         {agent.hazardousWasteAuthorization ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/recycling/Hazardous Waste Authorization/${agent.hazardousWasteAuthorization}`}
+                                                href={`https://ecocycle.runasp.net/uploads/recycling/Hazardous Waste Authorization/${agent.hazardousWasteAuthorization}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"
@@ -482,7 +482,7 @@ function View_recyclingagent() {
                                         <h4>Address Proof</h4>
                                         {agent.addressProof ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/recycling/Address Proof/${agent.addressProof}`}
+                                                href={`https://ecocycle.runasp.net/uploads/recycling/Address Proof/${agent.addressProof}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"
@@ -504,7 +504,7 @@ function View_recyclingagent() {
                                         <h4>Authorized Person ID</h4>
                                         {agent.authorizedPersonId ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/recycling/AuthorizedPersonId/${agent.authorizedPersonId}`}
+                                                href={`https://ecocycle.runasp.net/uploads/recycling/AuthorizedPersonId/${agent.authorizedPersonId}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"

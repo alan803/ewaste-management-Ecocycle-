@@ -65,7 +65,7 @@ function ManageInspection() {
             setAllocationFeedback(null);
 
             const response = await axios.post(
-                `https://localhost:7102/api/Inspection/manual-allocate/${item.deviceId}`,
+                `https://ecocycle.runasp.net/api/Inspection/manual-allocate/${item.deviceId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -102,13 +102,13 @@ function ManageInspection() {
         try {
             setLoading(true);
             const [assignRes, techRes, penRes] = await Promise.all([
-                axios.get("https://localhost:7102/api/Inspection/admin/assignments", {
+                axios.get("https://ecocycle.runasp.net/api/Inspection/admin/assignments", {
                     headers: { Authorization: `Bearer ${token}` }
                 }),
-                axios.get("https://localhost:7102/api/Technician/All", {
+                axios.get("https://ecocycle.runasp.net/api/Technician/All", {
                     headers: { Authorization: `Bearer ${token}` }
                 }).catch(() => ({ data: [] })),
-                axios.get("https://localhost:7102/api/Inspection/technician-penalties", {
+                axios.get("https://ecocycle.runasp.net/api/Inspection/technician-penalties", {
                     headers: { Authorization: `Bearer ${token}` }
                 }).catch(() => ({ data: [] }))
             ]);
@@ -129,7 +129,7 @@ function ManageInspection() {
         const token = localStorage.getItem("token");
         try {
             setExtendingId(deviceId);
-            await axios.post(`https://localhost:7102/api/Inspection/admin/extend-deadline/${deviceId}?hours=${hours}`, {}, {
+            await axios.post(`https://ecocycle.runasp.net/api/Inspection/admin/extend-deadline/${deviceId}?hours=${hours}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             fetchData(token);
@@ -148,7 +148,7 @@ function ManageInspection() {
         const token = localStorage.getItem("token");
         try {
             setReassigning(true);
-            let url = `https://localhost:7102/api/Inspection/manual-allocate/${reassignModalTarget.deviceId}`;
+            let url = `https://ecocycle.runasp.net/api/Inspection/manual-allocate/${reassignModalTarget.deviceId}`;
             if (targetTechId && targetTechId !== "auto") {
                 url += `/${targetTechId}`;
             }
@@ -174,7 +174,7 @@ function ManageInspection() {
 
         try {
             const token = localStorage.getItem("token");
-            const res = await axios.get(`https://localhost:7102/api/DeviceInspection/results/${item.deviceId}`, {
+            const res = await axios.get(`https://ecocycle.runasp.net/api/DeviceInspection/results/${item.deviceId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setInspectionDetails(res.data);
@@ -197,8 +197,8 @@ function ManageInspection() {
         if (photoPath.startsWith("data:") || photoPath.startsWith("blob:")) return photoPath;
         if (photoPath.startsWith("http://") || photoPath.startsWith("https://")) return photoPath;
         const clean = photoPath.replace(/\\/g, "/").replace(/^\/+/, "");
-        if (clean.includes("/")) return `https://localhost:7102/${clean}`;
-        return `https://localhost:7102/${defaultFolder}/${clean}`;
+        if (clean.includes("/")) return `https://ecocycle.runasp.net/${clean}`;
+        return `https://ecocycle.runasp.net/${defaultFolder}/${clean}`;
     };
 
     const handleDownloadReportPdf = async (item, existingResults = null, existingDetails = null) => {
@@ -210,7 +210,7 @@ function ManageInspection() {
         if (!details || !results) {
             try {
                 const token = localStorage.getItem("token");
-                const res = await axios.get(`https://localhost:7102/api/DeviceInspection/results/${item.deviceId}`, {
+                const res = await axios.get(`https://ecocycle.runasp.net/api/DeviceInspection/results/${item.deviceId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 details = res.data || {};

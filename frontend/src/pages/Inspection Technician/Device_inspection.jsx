@@ -398,11 +398,11 @@ function DeviceInspection() {
             recalculateSummary(initialTests);
 
             // Record InspectionStartedAt timestamp in backend when starting inspection
-            axios.post(`https://localhost:7102/api/DeviceInspection/start/${selectedDevice.deviceId}`)
+            axios.post(`https://ecocycle.runasp.net/api/DeviceInspection/start/${selectedDevice.deviceId}`)
                 .catch(() => {});
 
             // Fetch any previously saved backend InspectionResult items for this device
-            axios.get(`https://localhost:7102/api/DeviceInspection/results/${selectedDevice.deviceId}`)
+            axios.get(`https://ecocycle.runasp.net/api/DeviceInspection/results/${selectedDevice.deviceId}`)
                 .then((res) => {
                     if (res.data && Array.isArray(res.data) && res.data.length > 0) {
                         const savedMap = {};
@@ -423,7 +423,7 @@ function DeviceInspection() {
                                     photos: (match.photos || []).map((p, pIdx) => ({
                                         id: p.inspectionPhotoId || pIdx,
                                         dataUrl: p.photoPath?.startsWith("http") || p.photoPath?.startsWith("/uploads")
-                                            ? (p.photoPath.startsWith("http") ? p.photoPath : `https://localhost:7102${p.photoPath}`)
+                                            ? (p.photoPath.startsWith("http") ? p.photoPath : `https://ecocycle.runasp.net${p.photoPath}`)
                                             : p.photoPath,
                                         name: p.photoType || "Inspection Photo"
                                     }))
@@ -510,8 +510,8 @@ function DeviceInspection() {
         if (!photoPath) return null;
         if (photoPath.startsWith("http://") || photoPath.startsWith("https://")) return photoPath;
         const clean = photoPath.replace(/\\/g, "/").replace(/^\/+/, "");
-        if (clean.includes("/")) return `https://localhost:7102/${clean}`;
-        return `https://localhost:7102/${folder}/${clean}`;
+        if (clean.includes("/")) return `https://ecocycle.runasp.net/${clean}`;
+        return `https://ecocycle.runasp.net/${folder}/${clean}`;
     };
 
     const getRemainingTimeText = (deadlineStr) => {
@@ -554,7 +554,7 @@ function DeviceInspection() {
         fetchInspectionDevices(token);
         fetchNotifications(token);
 
-        axios.get("https://localhost:7102/api/Technician/myprofile", {
+        axios.get("https://ecocycle.runasp.net/api/Technician/myprofile", {
             headers: { Authorization: `Bearer ${token}` }
         })
         .then((res) => {
@@ -586,7 +586,7 @@ function DeviceInspection() {
         setErrorMsg("");
         try {
             // Fetch live deliveries & inspection items for technician
-            const response = await axios.get("https://localhost:7102/api/Inspection/my-deliveries", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Inspection/my-deliveries", {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             setDevices(response.data || []);
@@ -609,7 +609,7 @@ function DeviceInspection() {
         if (!authToken) return;
         try {
             setNotifLoading(true);
-            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             setNotifications(response.data || []);
@@ -628,7 +628,7 @@ function DeviceInspection() {
         if (e) e.stopPropagation();
         const token = localStorage.getItem("token");
         try {
-            await axios.put(`https://localhost:7102/api/Notificationcon/mark_asread/${notifId}`, {}, {
+            await axios.put(`https://ecocycle.runasp.net/api/Notificationcon/mark_asread/${notifId}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications((prev) =>
@@ -642,7 +642,7 @@ function DeviceInspection() {
     const handleMarkAllAsRead = async () => {
         const token = localStorage.getItem("token");
         try {
-            await axios.get("https://localhost:7102/api/Notificationcon/mark_asread", {
+            await axios.get("https://ecocycle.runasp.net/api/Notificationcon/mark_asread", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
@@ -654,7 +654,7 @@ function DeviceInspection() {
     const handleClearAllNotifications = async () => {
         const token = localStorage.getItem("token");
         try {
-            await axios.get("https://localhost:7102/api/Notificationcon/clearall", {
+            await axios.get("https://ecocycle.runasp.net/api/Notificationcon/clearall", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications([]);
@@ -766,14 +766,14 @@ function DeviceInspection() {
             };
 
             // Call DeviceInspection controller submit endpoint
-            await axios.post("https://localhost:7102/api/DeviceInspection/submit", payload, {
+            await axios.post("https://ecocycle.runasp.net/api/DeviceInspection/submit", payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             // Also trigger inspection accept status update if request ID exists
             if (reqId) {
                 try {
-                    await axios.post(`https://localhost:7102/api/Inspection/accept/${reqId}`, {}, {
+                    await axios.post(`https://ecocycle.runasp.net/api/Inspection/accept/${reqId}`, {}, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
                 } catch (e) {
@@ -817,7 +817,7 @@ function DeviceInspection() {
 
         setProcessingId(confirmModalItem.deviceId);
         try {
-            const response = await axios.post(`https://localhost:7102/api/Inspection/confirm-receipt/${caId}`, {
+            const response = await axios.post(`https://ecocycle.runasp.net/api/Inspection/confirm-receipt/${caId}`, {
                 notes: receiptNotes || "Handover verified & accepted by technician"
             }, {
                 headers: { Authorization: `Bearer ${token}` }

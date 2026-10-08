@@ -43,7 +43,7 @@ import {
 import { FaLeaf, FaBalanceScale, FaWarehouse, FaRupeeSign } from "react-icons/fa";
 import "./Manage_transactions.css";
 
-const API_BASE = "https://localhost:7102/api";
+const API_BASE = "https://ecocycle.runasp.net/api";
 
 // Helper for INR currency formatting
 const formatINR = (num) => {

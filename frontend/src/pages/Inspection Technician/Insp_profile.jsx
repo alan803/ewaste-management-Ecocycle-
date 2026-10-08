@@ -155,7 +155,7 @@ function Insp_profile() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/Technician/verify-password",
+                "https://ecocycle.runasp.net/api/Technician/verify-password",
                 { currentPassword: currentPasswordInput },
                 {
                     headers: {
@@ -205,7 +205,7 @@ function Insp_profile() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/Technician/change-password",
+                "https://ecocycle.runasp.net/api/Technician/change-password",
                 {
                     currentPassword: currentPasswordInput,
                     newPassword: newPasswordInput,
@@ -248,7 +248,7 @@ function Insp_profile() {
     const fetchUnreadNotificationsCount = async (token) => {
         try {
             const response = await axios.get(
-                "https://localhost:7102/api/Notificationcon/my_notifications",
+                "https://ecocycle.runasp.net/api/Notificationcon/my_notifications",
                 {
                     headers: { Authorization: `Bearer ${token}` }
                 }
@@ -269,13 +269,13 @@ function Insp_profile() {
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://localhost:7102/uploads/${cleanName.replace("\\", "/")}`;
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace("\\", "/")}`;
         }
 
         let folder = folderName;
         if (!folder || folder === "profile" || folder === "Profile") folder = "ProfilePhotos";
 
-        return `https://localhost:7102/uploads/technicians/${folder}/${cleanName}`;
+        return `https://ecocycle.runasp.net/uploads/technicians/${folder}/${cleanName}`;
     };
 
     const loadProfile = async (tokenOverride) => {
@@ -290,7 +290,7 @@ function Insp_profile() {
             }
 
             const response = await axios.get(
-                "https://localhost:7102/api/Technician/myprofile",
+                "https://ecocycle.runasp.net/api/Technician/myprofile",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -412,7 +412,7 @@ function Insp_profile() {
 
         try {
             await axios.post(
-                "https://localhost:7102/api/Technician/update-profile",
+                "https://ecocycle.runasp.net/api/Technician/update-profile",
                 formData,
                 {
                     headers: {

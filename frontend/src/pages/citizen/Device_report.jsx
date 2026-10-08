@@ -68,8 +68,8 @@ function CitizenDeviceReport() {
         if (photoPath.startsWith("data:") || photoPath.startsWith("blob:")) return photoPath;
         if (photoPath.startsWith("http://") || photoPath.startsWith("https://")) return photoPath;
         const clean = photoPath.replace(/\\/g, "/").replace(/^\/+/, "");
-        if (clean.includes("/")) return `https://localhost:7102/${clean}`;
-        return `https://localhost:7102/${defaultFolder}/${clean}`;
+        if (clean.includes("/")) return `https://ecocycle.runasp.net/${clean}`;
+        return `https://ecocycle.runasp.net/${defaultFolder}/${clean}`;
     };
 
     // Fetch Citizen Profile Info & Photo matching Citizendashboard.jsx
@@ -80,7 +80,7 @@ function CitizenDeviceReport() {
             return;
         }
 
-        axios.get("https://localhost:7102/api/User/profile", {
+        axios.get("https://ecocycle.runasp.net/api/User/profile", {
             headers: { Authorization: `Bearer ${token}` }
         })
         .then((res) => {
@@ -95,7 +95,7 @@ function CitizenDeviceReport() {
                     setUserPhoto(img);
                 } else {
                     const cleanImg = img.replace(/^uploads[\\/]/, "").replace(/^profile[\\/]/, "").replace(/^[\\/]/, "");
-                    setUserPhoto(`https://localhost:7102/uploads/profile/${cleanImg}`);
+                    setUserPhoto(`https://ecocycle.runasp.net/uploads/profile/${cleanImg}`);
                 }
             } else {
                 const savedImage = localStorage.getItem("citizen_profile_image") || localStorage.getItem("userPhoto");
@@ -120,7 +120,7 @@ function CitizenDeviceReport() {
         if (!token) return;
         setLoading(true);
         try {
-            const response = await axios.get("https://localhost:7102/api/Device/MyDevices", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Device/MyDevices", {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -152,7 +152,7 @@ function CitizenDeviceReport() {
         if (!token) return;
         try {
             setNotifLoading(true);
-            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications(response.data || []);
@@ -167,7 +167,7 @@ function CitizenDeviceReport() {
     useEffect(() => {
         if (selectedReport) {
             setResultsLoading(true);
-            axios.get(`https://localhost:7102/api/DeviceInspection/results/${selectedReport.deviceId}`)
+            axios.get(`https://ecocycle.runasp.net/api/DeviceInspection/results/${selectedReport.deviceId}`)
                 .then((res) => {
                     const data = res.data;
                     if (Array.isArray(data)) {
@@ -231,7 +231,7 @@ function CitizenDeviceReport() {
 
         if (!results || results.length === 0 || !techDetails) {
             try {
-                const res = await axios.get(`https://localhost:7102/api/DeviceInspection/results/${dev.deviceId}`);
+                const res = await axios.get(`https://ecocycle.runasp.net/api/DeviceInspection/results/${dev.deviceId}`);
                 const data = res.data;
                 if (Array.isArray(data)) {
                     results = data;

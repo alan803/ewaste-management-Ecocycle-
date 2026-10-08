@@ -740,7 +740,7 @@ const handleNext = () => {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/RefurbishmentCenter/Register",
+                "https://ecocycle.runasp.net/api/RefurbishmentCenter/Register",
                 formData
             );
 

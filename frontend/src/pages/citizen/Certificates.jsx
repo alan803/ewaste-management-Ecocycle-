@@ -59,7 +59,7 @@ function CitizenCertificates() {
             return;
         }
 
-        axios.get("https://localhost:7102/api/User/profile", {
+        axios.get("https://ecocycle.runasp.net/api/User/profile", {
             headers: { Authorization: `Bearer ${token}` }
         })
         .then((res) => {
@@ -74,7 +74,7 @@ function CitizenCertificates() {
                     setUserPhoto(img);
                 } else {
                     const cleanImg = img.replace(/^uploads[\\/]/, "").replace(/^profile[\\/]/, "").replace(/^[\\/]/, "");
-                    setUserPhoto(`https://localhost:7102/uploads/profile/${cleanImg}`);
+                    setUserPhoto(`https://ecocycle.runasp.net/uploads/profile/${cleanImg}`);
                 }
             } else {
                 const savedImage = localStorage.getItem("citizen_profile_image") || localStorage.getItem("userPhoto");
@@ -99,7 +99,7 @@ function CitizenCertificates() {
         if (!token) return;
         setLoading(true);
         try {
-            const response = await axios.get("https://localhost:7102/api/Device/MyDevices", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Device/MyDevices", {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -145,7 +145,7 @@ function CitizenCertificates() {
         const token = tokenOverride || localStorage.getItem("token");
         if (!token) return;
         try {
-            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications(response.data || []);

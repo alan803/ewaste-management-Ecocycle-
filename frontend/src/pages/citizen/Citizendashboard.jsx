@@ -85,7 +85,7 @@ function CitizenDashboard() {
         const authToken = token || localStorage.getItem("token");
         if (!authToken) return;
         try {
-            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             setNotifications(response.data || []);
@@ -96,7 +96,7 @@ function CitizenDashboard() {
 
     const fetchProfile = async (token) => {
         try {
-            const response = await axios.get("https://localhost:7102/api/User/profile", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/User/profile", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = response.data || {};
@@ -107,7 +107,7 @@ function CitizenDashboard() {
                 if (img.startsWith("http") || img.startsWith("data:")) {
                     setProfileImage(img);
                 } else {
-                    setProfileImage(`https://localhost:7102/uploads/profile/${img}`);
+                    setProfileImage(`https://ecocycle.runasp.net/uploads/profile/${img}`);
                 }
             } else {
                 const savedImage = localStorage.getItem("citizen_profile_image");
@@ -223,7 +223,7 @@ function CitizenDashboard() {
                 ifscCode: bankForm.ifscCode.trim().toUpperCase()
             };
 
-            await axios.post("https://localhost:7102/api/User/bank-details", payload, {
+            await axios.post("https://ecocycle.runasp.net/api/User/bank-details", payload, {
                 headers: {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json"
@@ -251,7 +251,7 @@ function CitizenDashboard() {
     const fetchMyPickupRequests = async (token) => {
         try {
             setLoadingRequests(true);
-            const response = await axios.get("https://localhost:7102/api/Inspection/my-pickup-requests", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Inspection/my-pickup-requests", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setInspectionRequests(response.data || []);
@@ -328,7 +328,7 @@ function CitizenDashboard() {
     const getAgentPhoto = (photoPath) => {
         if (!photoPath) return null;
         if (photoPath.startsWith("http") || photoPath.startsWith("data:")) return photoPath;
-        return `https://localhost:7102/uploads/profile/${photoPath}`;
+        return `https://ecocycle.runasp.net/uploads/profile/${photoPath}`;
     };
 
     const formatDate = (dateStr) => {

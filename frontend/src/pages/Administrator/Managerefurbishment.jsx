@@ -74,11 +74,11 @@ function Managerefurbishment() {
             let response;
             try {
                 response = await axios.get(
-                    "https://localhost:7102/api/RefurbishmentCenter/All"
+                    "https://ecocycle.runasp.net/api/RefurbishmentCenter/All"
                 );
             } catch (e) {
                 response = await axios.get(
-                    "https://localhost:7102/api/RefurbishmentCenter/alluser"
+                    "https://ecocycle.runasp.net/api/RefurbishmentCenter/alluser"
                 );
             }
             setCenters(response.data || []);
@@ -137,7 +137,7 @@ function Managerefurbishment() {
         setDeactivating(true);
         try {
             await axios.post(
-                `https://localhost:7102/api/RefurbishmentCenter/deactivate/${selectedCenter.refurbishmentCenterId}`,
+                `https://ecocycle.runasp.net/api/RefurbishmentCenter/deactivate/${selectedCenter.refurbishmentCenterId}`,
                 null,
                 {
                     params: {
@@ -162,7 +162,7 @@ function Managerefurbishment() {
     const activateCenter = async (id) => {
         try {
             await axios.post(
-                `https://localhost:7102/api/RefurbishmentCenter/activate/${id}`
+                `https://ecocycle.runasp.net/api/RefurbishmentCenter/activate/${id}`
             );
             fetchCenters();
         } catch (error) {
@@ -172,7 +172,7 @@ function Managerefurbishment() {
     const acceptCenter = async (id) => {
         try {
             await axios.post(
-                `https://localhost:7102/api/RefurbishmentCenter/Accept/${id}`
+                `https://ecocycle.runasp.net/api/RefurbishmentCenter/Accept/${id}`
             );
             fetchCenters();
         } catch (error) {
@@ -226,7 +226,7 @@ function Managerefurbishment() {
         const centerId = rejectModalCenter.refurbishmentCenterId || rejectModalCenter.id;
         try {
             await axios.post(
-                `https://localhost:7102/api/RefurbishmentCenter/Reject/${centerId}`,
+                `https://ecocycle.runasp.net/api/RefurbishmentCenter/Reject/${centerId}`,
                 null,
                 { params: { reason: rejectReason.trim() } }
             );
@@ -271,7 +271,7 @@ function Managerefurbishment() {
     const getPhotoSrc = (center) => {
         if (!center?.centerPhoto) return null;
         if (center.centerPhoto.startsWith("http")) return center.centerPhoto;
-        return `https://localhost:7102/uploads/refurbishment/center-photo/${center.centerPhoto}`;
+        return `https://ecocycle.runasp.net/uploads/refurbishment/center-photo/${center.centerPhoto}`;
     };
 
     const getInitials = (centerName, ownerName) => {
@@ -1047,7 +1047,7 @@ function Managerefurbishment() {
                                                 <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
                                                     {viewCenter.businessRegistrationCertificate && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/refurbishment/business-registration/${viewCenter.businessRegistrationCertificate}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/refurbishment/business-registration/${viewCenter.businessRegistrationCertificate}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"
@@ -1058,7 +1058,7 @@ function Managerefurbishment() {
                                                     )}
                                                     {viewCenter.tradeLicense && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/refurbishment/trade-license/${viewCenter.tradeLicense}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/refurbishment/trade-license/${viewCenter.tradeLicense}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"
@@ -1069,7 +1069,7 @@ function Managerefurbishment() {
                                                     )}
                                                     {viewCenter.addressProof && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/refurbishment/address-proof/${viewCenter.addressProof}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/refurbishment/address-proof/${viewCenter.addressProof}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"
@@ -1080,7 +1080,7 @@ function Managerefurbishment() {
                                                     )}
                                                     {viewCenter.authorizedPersonId && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/refurbishment/authorized-person-id/${viewCenter.authorizedPersonId}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/refurbishment/authorized-person-id/${viewCenter.authorizedPersonId}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"
@@ -1091,7 +1091,7 @@ function Managerefurbishment() {
                                                     )}
                                                     {viewCenter.centerPhoto && (
                                                         <a
-                                                            href={`https://localhost:7102/uploads/refurbishment/center-photo/${viewCenter.centerPhoto}`}
+                                                            href={`https://ecocycle.runasp.net/uploads/refurbishment/center-photo/${viewCenter.centerPhoto}`}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
                                                             className="document-link-btn"

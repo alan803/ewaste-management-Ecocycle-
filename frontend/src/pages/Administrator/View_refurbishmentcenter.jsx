@@ -38,7 +38,7 @@ function View_refurbishmentcenter() {
     const fetchAgent = async () => {
         try {
             const response = await axios.get(
-                `https://localhost:7102/api/RefurbishmentCenter/${id}`
+                `https://ecocycle.runasp.net/api/RefurbishmentCenter/${id}`
             );
             console.log("Refurbishment center details:", response.data);
             setAgent(response.data);
@@ -54,7 +54,7 @@ function View_refurbishmentcenter() {
         setActionLoading("accept");
         try {
             await axios.post(
-                `https://localhost:7102/api/RefurbishmentCenter/Accept/${id}`
+                `https://ecocycle.runasp.net/api/RefurbishmentCenter/Accept/${id}`
             );
             setAgent(prev => ({ ...prev, status: "Active" }));
             navigate("/manage-refurbishmentcenter");
@@ -69,7 +69,7 @@ function View_refurbishmentcenter() {
         setActionLoading("reject");
         try {
             await axios.post(
-                `https://localhost:7102/api/RefurbishmentCenter/Reject/${id}`
+                `https://ecocycle.runasp.net/api/RefurbishmentCenter/Reject/${id}`
             );
             setAgent(prev => ({ ...prev, status: "Rejected" }));
             navigate("/manage-refurbishmentcenter");
@@ -144,7 +144,7 @@ function View_refurbishmentcenter() {
     const photoUrl = photoName
         ? photoName.startsWith("http")
             ? photoName
-            : `https://localhost:7102/uploads/refurbishment/center-photo/${photoName}`
+            : `https://ecocycle.runasp.net/uploads/refurbishment/center-photo/${photoName}`
         : null;
 
     const fullAddress = [agent.buildingNumber, agent.street].filter(Boolean).join(", ");
@@ -385,7 +385,7 @@ function View_refurbishmentcenter() {
                                         <h4>Business Registration Cert</h4>
                                         {agent.businessRegistrationCertificate ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/refurbishment/business-registration/${agent.businessRegistrationCertificate}`}
+                                                href={`https://ecocycle.runasp.net/uploads/refurbishment/business-registration/${agent.businessRegistrationCertificate}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"
@@ -407,7 +407,7 @@ function View_refurbishmentcenter() {
                                         <h4>Trade License</h4>
                                         {agent.tradeLicense ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/refurbishment/trade-license/${agent.tradeLicense}`}
+                                                href={`https://ecocycle.runasp.net/uploads/refurbishment/trade-license/${agent.tradeLicense}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"
@@ -429,7 +429,7 @@ function View_refurbishmentcenter() {
                                         <h4>Address Proof</h4>
                                         {agent.addressProof ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/refurbishment/address-proof/${agent.addressProof}`}
+                                                href={`https://ecocycle.runasp.net/uploads/refurbishment/address-proof/${agent.addressProof}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"
@@ -451,7 +451,7 @@ function View_refurbishmentcenter() {
                                         <h4>Authorized Person ID</h4>
                                         {agent.authorizedPersonId ? (
                                             <a
-                                                href={`https://localhost:7102/uploads/refurbishment/authorized-person-id/${agent.authorizedPersonId}`}
+                                                href={`https://ecocycle.runasp.net/uploads/refurbishment/authorized-person-id/${agent.authorizedPersonId}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="document-view-btn"

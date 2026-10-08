@@ -118,7 +118,7 @@ function Manage_userprofile() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/User/verify-password",
+                "https://ecocycle.runasp.net/api/User/verify-password",
                 { currentPassword: currentPasswordInput },
                 {
                     headers: {
@@ -164,7 +164,7 @@ function Manage_userprofile() {
 
         try {
             const response = await axios.post(
-                "https://localhost:7102/api/User/change-password",
+                "https://ecocycle.runasp.net/api/User/change-password",
                 {
                     currentPassword: currentPasswordInput,
                     newPassword: newPasswordInput,
@@ -214,7 +214,7 @@ function Manage_userprofile() {
         try {
             const token = localStorage.getItem("token");
             if (!token) return;
-            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications(response.data || []);
@@ -230,7 +230,7 @@ function Manage_userprofile() {
 
         try {
             const response = await axios.get(
-                "https://localhost:7102/api/User/profile",
+                "https://ecocycle.runasp.net/api/User/profile",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -261,7 +261,7 @@ function Manage_userprofile() {
                 if (img.startsWith("http") || img.startsWith("data:")) {
                     setProfileImagePreview(img);
                 } else {
-                    setProfileImagePreview(`https://localhost:7102/uploads/profile/${img}`);
+                    setProfileImagePreview(`https://ecocycle.runasp.net/uploads/profile/${img}`);
                 }
             } else {
                 const savedImage = localStorage.getItem("citizen_profile_image");
@@ -446,7 +446,7 @@ function Manage_userprofile() {
 
         try {
             const response = await axios.put(
-                "https://localhost:7102/api/User/profile",
+                "https://ecocycle.runasp.net/api/User/profile",
                 formData,
                 {
                     headers: {
@@ -508,7 +508,7 @@ function Manage_userprofile() {
                 if (img.startsWith("http") || img.startsWith("data:")) {
                     setProfileImagePreview(img);
                 } else {
-                    setProfileImagePreview(`https://localhost:7102/uploads/profile/${img}`);
+                    setProfileImagePreview(`https://ecocycle.runasp.net/uploads/profile/${img}`);
                 }
             } else {
                 const savedImage = localStorage.getItem("citizen_profile_image");

@@ -53,7 +53,7 @@ function Manage_assignmentandpickups() {
             setAllocatingId(deviceId);
             const token = localStorage.getItem("token");
             const response = await axios.post(
-                `https://localhost:7102/api/Inspection/create/${deviceId}`,
+                `https://ecocycle.runasp.net/api/Inspection/create/${deviceId}`,
                 {},
                 {
                     headers: {
@@ -93,7 +93,7 @@ function Manage_assignmentandpickups() {
     const fetchActiveTechnicians = async () => {
         try {
             const token = localStorage.getItem("token");
-            const response = await axios.get("https://localhost:7102/api/Technician/All", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Technician/All", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const activeOnly = (response.data || []).filter(t => (t.status || t.Status) === "Active");
@@ -111,8 +111,8 @@ function Manage_assignmentandpickups() {
             const token = localStorage.getItem("token");
 
             const url = techId 
-                ? `https://localhost:7102/api/Inspection/manual-allocate/${deviceId}/${techId}`
-                : `https://localhost:7102/api/Inspection/manual-allocate/${deviceId}`;
+                ? `https://ecocycle.runasp.net/api/Inspection/manual-allocate/${deviceId}/${techId}`
+                : `https://ecocycle.runasp.net/api/Inspection/manual-allocate/${deviceId}`;
 
             const response = await axios.post(
                 url,
@@ -163,7 +163,7 @@ function Manage_assignmentandpickups() {
 
             // Fetch Technician Inspection Assignments
             const techRes = await axios.get(
-                "https://localhost:7102/api/Inspection/admin/assignments",
+                "https://ecocycle.runasp.net/api/Inspection/admin/assignments",
                 {
                     headers: { Authorization: `Bearer ${token}` }
                 }

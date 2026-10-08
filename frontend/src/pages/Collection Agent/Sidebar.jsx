@@ -24,7 +24,7 @@ function Sidebar() {
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (token) {
-            axios.get("https://localhost:7102/api/CollectionAgent/myprofile", {
+            axios.get("https://ecocycle.runasp.net/api/CollectionAgent/myprofile", {
                 headers: { Authorization: `Bearer ${token}` }
             })
             .then((res) => {
@@ -54,9 +54,9 @@ function Sidebar() {
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://localhost:7102/uploads/${cleanName.replace(/\\/g, "/")}`;
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace(/\\/g, "/")}`;
         }
-        return `https://localhost:7102/uploads/${cleanName}`;
+        return `https://ecocycle.runasp.net/uploads/${cleanName}`;
     };
 
     const isActive = (path) => {

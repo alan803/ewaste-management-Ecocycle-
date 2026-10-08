@@ -69,14 +69,14 @@ function RecyclingDelivery() {
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://localhost:7102/uploads/${cleanName.replace("\\", "/")}`;
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace("\\", "/")}`;
         }
-        return `https://localhost:7102/uploads/recyclingcenter/${folderName}/${cleanName}`;
+        return `https://ecocycle.runasp.net/uploads/recyclingcenter/${folderName}/${cleanName}`;
     };
 
     const fetchCenterProfile = async (token) => {
         try {
-            const res = await axios.get("https://localhost:7102/api/RecyclingCenter/myprofile", {
+            const res = await axios.get("https://ecocycle.runasp.net/api/RecyclingCenter/myprofile", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = res.data || {};
@@ -97,7 +97,7 @@ function RecyclingDelivery() {
 
     const fetchUnreadNotifCount = async (token) => {
         try {
-            const res = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const res = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${token || localStorage.getItem("token")}` }
             });
             const list = Array.isArray(res.data) ? res.data : [];
@@ -113,10 +113,10 @@ function RecyclingDelivery() {
         try {
             setLoading(true);
             const [allocRes, assignRes] = await Promise.all([
-                axios.get("https://localhost:7102/api/AllocateRecyclingCenter/my-requests", {
+                axios.get("https://ecocycle.runasp.net/api/AllocateRecyclingCenter/my-requests", {
                     headers: { Authorization: `Bearer ${authToken}` }
                 }).catch(() => ({ data: [] })),
-                axios.get("https://localhost:7102/api/CollectionAssignment/admin/all-assignments", {
+                axios.get("https://ecocycle.runasp.net/api/CollectionAssignment/admin/all-assignments", {
                     headers: { Authorization: `Bearer ${authToken}` }
                 }).catch(() => ({ data: [] }))
             ]);
@@ -308,9 +308,9 @@ function RecyclingDelivery() {
         }
         let clean = photoPath.replace(/\\/g, "/").replace(/^\/+/, "");
         if (clean.startsWith("uploads/")) {
-            return `https://localhost:7102/${clean}`;
+            return `https://ecocycle.runasp.net/${clean}`;
         }
-        return `https://localhost:7102/uploads/profile/${clean}`;
+        return `https://ecocycle.runasp.net/uploads/profile/${clean}`;
     };
 
     const getTimelineSteps = (item) => {

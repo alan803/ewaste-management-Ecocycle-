@@ -50,13 +50,13 @@ function ManagePenalties() {
         try {
             const token = localStorage.getItem("token");
             const [penRes, agentPenRes, techRes] = await Promise.all([
-                axios.get("https://localhost:7102/api/Inspection/technician-penalties", {
+                axios.get("https://ecocycle.runasp.net/api/Inspection/technician-penalties", {
                     headers: { Authorization: `Bearer ${token}` }
                 }),
-                axios.get("https://localhost:7102/api/CollectionAssignment/agent-penalties", {
+                axios.get("https://ecocycle.runasp.net/api/CollectionAssignment/agent-penalties", {
                     headers: { Authorization: `Bearer ${token}` }
                 }).catch(() => ({ data: [] })),
-                axios.get("https://localhost:7102/api/Technician/All", {
+                axios.get("https://ecocycle.runasp.net/api/Technician/All", {
                     headers: { Authorization: `Bearer ${token}` }
                 }).catch(() => ({ data: [] }))
             ]);
@@ -102,7 +102,7 @@ function ManagePenalties() {
         const token = localStorage.getItem("token");
         try {
             setReassigning(true);
-            let url = `https://localhost:7102/api/Inspection/manual-allocate/${reassignModalTarget.deviceId}`;
+            let url = `https://ecocycle.runasp.net/api/Inspection/manual-allocate/${reassignModalTarget.deviceId}`;
             if (targetTechId && targetTechId !== "auto") {
                 url += `/${targetTechId}`;
             }
@@ -129,8 +129,8 @@ function ManagePenalties() {
         try {
             const token = localStorage.getItem("token");
             const endpoint = item.isAgent
-                ? `https://localhost:7102/api/CollectionAssignment/agent-penalties/${targetId}/status`
-                : `https://localhost:7102/api/Inspection/technician-penalties/${targetId}/status`;
+                ? `https://ecocycle.runasp.net/api/CollectionAssignment/agent-penalties/${targetId}/status`
+                : `https://ecocycle.runasp.net/api/Inspection/technician-penalties/${targetId}/status`;
 
             await axios.put(
                 endpoint,
@@ -154,8 +154,8 @@ function ManagePenalties() {
             const token = localStorage.getItem("token");
             const targetId = cancelModalTarget.penaltyId || cancelModalTarget.technicianPenaltyId || cancelModalTarget.agentPenaltyId;
             const endpoint = cancelModalTarget.isAgent
-                ? `https://localhost:7102/api/CollectionAssignment/agent-penalties/${targetId}/cancel`
-                : `https://localhost:7102/api/Inspection/technician-penalties/${targetId}/cancel`;
+                ? `https://ecocycle.runasp.net/api/CollectionAssignment/agent-penalties/${targetId}/cancel`
+                : `https://ecocycle.runasp.net/api/Inspection/technician-penalties/${targetId}/cancel`;
 
             const res = await axios.post(
                 endpoint,

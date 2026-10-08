@@ -64,7 +64,7 @@ function CollectionAgentDashboard() {
         const authToken = token || localStorage.getItem("token");
         if (!authToken) return;
         try {
-            const response = await axios.get("https://localhost:7102/api/CollectionAgent/todays-pickup", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/CollectionAgent/todays-pickup", {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             console.log("Today's Pickups Reminder Data:", response.data);
@@ -94,7 +94,7 @@ function CollectionAgentDashboard() {
             const token = localStorage.getItem("token");
             if (!token) return;
             const response = await axios.get(
-                "https://localhost:7102/api/Notificationcon/my_notifications",
+                "https://ecocycle.runasp.net/api/Notificationcon/my_notifications",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -117,7 +117,7 @@ function CollectionAgentDashboard() {
         try {
             setLoading(true);
             setError("");
-            const response = await axios.get("https://localhost:7102/api/CollectionAssignment/my-assignments", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/CollectionAssignment/my-assignments", {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             console.log("Collection Agent Assignments:", response.data);
@@ -188,7 +188,7 @@ function CollectionAgentDashboard() {
             setProcessingId(assignmentId);
             const token = localStorage.getItem("token");
             const res = await axios.post(
-                `https://localhost:7102/api/CollectionAssignment/accept/${assignmentId}`,
+                `https://ecocycle.runasp.net/api/CollectionAssignment/accept/${assignmentId}`,
                 {},
                 {
                     headers: { Authorization: `Bearer ${token}` }
@@ -228,7 +228,7 @@ function CollectionAgentDashboard() {
             setProcessingId(assignmentId);
             const token = localStorage.getItem("token");
             await axios.post(
-                `https://localhost:7102/api/Pickup/start/${assignmentId}`,
+                `https://ecocycle.runasp.net/api/Pickup/start/${assignmentId}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -256,7 +256,7 @@ function CollectionAgentDashboard() {
             const token = localStorage.getItem("token");
 
             await axios.post(
-                `https://localhost:7102/api/CollectionAssignment/reject/${rejectionTarget.collectionAssignmentId}`,
+                `https://ecocycle.runasp.net/api/CollectionAssignment/reject/${rejectionTarget.collectionAssignmentId}`,
                 JSON.stringify(rejectionReason || "Unable to collect at this time."),
                 {
                     headers: {

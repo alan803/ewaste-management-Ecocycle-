@@ -65,7 +65,7 @@ function Add_device() {
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (token) {
-            axios.get("https://localhost:7102/api/User/profile", {
+            axios.get("https://ecocycle.runasp.net/api/User/profile", {
                 headers: { Authorization: `Bearer ${token}` }
             })
             .then(res => {
@@ -76,7 +76,7 @@ function Add_device() {
                     if (img.startsWith("http") || img.startsWith("data:")) {
                         setProfileImage(img);
                     } else {
-                        setProfileImage(`https://localhost:7102/uploads/profile/${img}`);
+                        setProfileImage(`https://ecocycle.runasp.net/uploads/profile/${img}`);
                     }
                 } else {
                     const savedImage = localStorage.getItem("citizen_profile_image");
@@ -85,7 +85,7 @@ function Add_device() {
             })
             .catch(err => console.error("Error fetching user profile:", err));
 
-            axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${token}` }
             })
             .then(res => setNotifications(res.data || []))
@@ -174,7 +174,7 @@ function Add_device() {
     const [selectedModelOption, setSelectedModelOption] = useState("");
 
     useEffect(() => {
-        axios.get("https://localhost:7102/api/DeviceCategory/GetAll")
+        axios.get("https://ecocycle.runasp.net/api/DeviceCategory/GetAll")
             .then((response) => {
                 setCategories(response.data);
             })
@@ -182,7 +182,7 @@ function Add_device() {
                 console.error("Error fetching categories", error);
             });
 
-        axios.get("https://localhost:7102/api/DeviceModel/GetAll")
+        axios.get("https://ecocycle.runasp.net/api/DeviceModel/GetAll")
             .then((response) => {
                 setDeviceModels(response.data || []);
             })
@@ -500,7 +500,7 @@ function Add_device() {
             const token = localStorage.getItem("token");
 
             const response = await axios.post(
-                "https://localhost:7102/api/Device/Register",
+                "https://ecocycle.runasp.net/api/Device/Register",
                 formData,
                 {
                     headers: {

@@ -36,7 +36,7 @@ function View_collectionagent() {
     const fetchAgent = async () => {
         try {
             const response = await axios.get(
-                `https://localhost:7102/api/CollectionAgent/${id}`
+                `https://ecocycle.runasp.net/api/CollectionAgent/${id}`
             );
 
             console.log("Agent details:", response.data);
@@ -55,7 +55,7 @@ function View_collectionagent() {
         setActionLoading("accept");
         try {
             const response = await axios.post(
-                `https://localhost:7102/api/CollectionAgent/Accept/${id}`
+                `https://ecocycle.runasp.net/api/CollectionAgent/Accept/${id}`
             );
 
             setAgent(prev => ({ ...prev, status: "Approved" }));
@@ -72,7 +72,7 @@ function View_collectionagent() {
         setActionLoading("reject");
         try {
             const response = await axios.post(
-                `https://localhost:7102/api/CollectionAgent/Reject/${id}`
+                `https://ecocycle.runasp.net/api/CollectionAgent/Reject/${id}`
             );
 
             setAgent(prev => ({ ...prev, status: "Rejected" }));
@@ -206,7 +206,7 @@ function View_collectionagent() {
                         <div className="profile-header">
                             {agent.profilePicture ? (
                                 <img
-                                    src={`https://localhost:7102/uploads/profile/${agent.profilePicture}`}
+                                    src={`https://ecocycle.runasp.net/uploads/profile/${agent.profilePicture}`}
                                     alt="Profile"
                                     className="profile-avatar-large"
                                 />
@@ -370,7 +370,7 @@ function View_collectionagent() {
                                     <h4>Aadhaar Proof</h4>
                                     {agent.adhaarProof ? (
                                         <a
-                                            href={`https://localhost:7102/uploads/aadhaar/${agent.adhaarProof}`}
+                                            href={`https://ecocycle.runasp.net/uploads/aadhaar/${agent.adhaarProof}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="document-view-btn"
@@ -394,7 +394,7 @@ function View_collectionagent() {
                                     <h4>Vehicle Insurance</h4>
                                     {agent.vehicleInsurance ? (
                                         <a
-                                            href={`https://localhost:7102/uploads/insurance/${agent.vehicleInsurance}`}
+                                            href={`https://ecocycle.runasp.net/uploads/insurance/${agent.vehicleInsurance}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="document-view-btn"
@@ -418,7 +418,7 @@ function View_collectionagent() {
                                     <h4>Pollution Certificate</h4>
                                     {agent.vehiclePollution ? (
                                         <a
-                                            href={`https://localhost:7102/uploads/pollution/${agent.vehiclePollution}`}
+                                            href={`https://ecocycle.runasp.net/uploads/pollution/${agent.vehiclePollution}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="document-view-btn"

@@ -52,7 +52,7 @@ function RecyclingCenterDashboard() {
     const fetchUnreadCount = async (token) => {
         try {
             const authToken = token || localStorage.getItem("token");
-            const res = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const res = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             const list = Array.isArray(res.data) ? res.data : [];
@@ -73,13 +73,13 @@ function RecyclingCenterDashboard() {
             
             let profileData = null;
             try {
-                const profileRes = await axios.get("https://localhost:7102/api/RecyclingCenter/myprofile", {
+                const profileRes = await axios.get("https://ecocycle.runasp.net/api/RecyclingCenter/myprofile", {
                     headers: { Authorization: `Bearer ${authToken}` }
                 });
                 profileData = profileRes.data;
             } catch {
                 try {
-                    const userProfileRes = await axios.get("https://localhost:7102/api/User/profile", {
+                    const userProfileRes = await axios.get("https://ecocycle.runasp.net/api/User/profile", {
                         headers: { Authorization: `Bearer ${authToken}` }
                     });
                     profileData = userProfileRes.data;
@@ -91,13 +91,13 @@ function RecyclingCenterDashboard() {
 
             let fetchedList = [];
             try {
-                const myReqRes = await axios.get("https://localhost:7102/api/AllocateRecyclingCenter/my-requests", {
+                const myReqRes = await axios.get("https://ecocycle.runasp.net/api/AllocateRecyclingCenter/my-requests", {
                     headers: { Authorization: `Bearer ${authToken}` }
                 });
                 fetchedList = myReqRes.data || [];
             } catch {
                 try {
-                    const adminReqRes = await axios.get("https://localhost:7102/api/AllocateRecyclingCenter/admin/requests", {
+                    const adminReqRes = await axios.get("https://ecocycle.runasp.net/api/AllocateRecyclingCenter/admin/requests", {
                         headers: { Authorization: `Bearer ${authToken}` }
                     });
                     fetchedList = adminReqRes.data || [];
@@ -162,7 +162,7 @@ function RecyclingCenterDashboard() {
         try {
             setProcessingId(requestId);
             const token = localStorage.getItem("token");
-            await axios.put(`https://localhost:7102/api/AllocateRecyclingCenter/accept/${requestId}`, {}, {
+            await axios.put(`https://ecocycle.runasp.net/api/AllocateRecyclingCenter/accept/${requestId}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const now = new Date();
@@ -190,7 +190,7 @@ function RecyclingCenterDashboard() {
             const reasonText = rejectionReason.trim() || "Unable to process device at this time.";
 
             await axios.put(
-                `https://localhost:7102/api/AllocateRecyclingCenter/reject/${rejectionTarget.id}?reason=${encodeURIComponent(reasonText)}`,
+                `https://ecocycle.runasp.net/api/AllocateRecyclingCenter/reject/${rejectionTarget.id}?reason=${encodeURIComponent(reasonText)}`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );

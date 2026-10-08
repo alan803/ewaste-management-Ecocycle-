@@ -78,7 +78,7 @@ function Pickupdetails() {
         const authToken = token || localStorage.getItem("token");
         if (!authToken) return;
         try {
-            const response = await axios.get("https://localhost:7102/api/Notificationcon/my_notifications", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             setNotifications(response.data || []);
@@ -90,7 +90,7 @@ function Pickupdetails() {
     const markAllNotificationsAsRead = async () => {
         try {
             const token = localStorage.getItem("token");
-            await axios.get("https://localhost:7102/api/Notificationcon/mark_asread", {
+            await axios.get("https://ecocycle.runasp.net/api/Notificationcon/mark_asread", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setNotifications(prev => prev.map(n => ({ ...n, isRead: true, isread: true })));
@@ -169,7 +169,7 @@ function Pickupdetails() {
             }
 
             const response = await axios.post(
-                `https://localhost:7102/api/Pickup/cancelpickup/${cancelPickupDevice.deviceId}`,
+                `https://ecocycle.runasp.net/api/Pickup/cancelpickup/${cancelPickupDevice.deviceId}`,
                 {},
                 {
                     headers: {
@@ -274,7 +274,7 @@ function Pickupdetails() {
             }
 
             await axios.post(
-                `https://localhost:7102/api/Pickup/request-again/${requestAgainDevice.deviceId}`,
+                `https://ecocycle.runasp.net/api/Pickup/request-again/${requestAgainDevice.deviceId}`,
                 {
                     pickupDate: newPickupDate,
                     timeSlot: newTimeSlot,
@@ -301,7 +301,7 @@ function Pickupdetails() {
     };
     const fetchProfile = async (token) => {
         try {
-            const response = await axios.get("https://localhost:7102/api/User/profile", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/User/profile", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = response.data || {};
@@ -312,7 +312,7 @@ function Pickupdetails() {
                 if (img.startsWith("http") || img.startsWith("data:")) {
                     setProfileImage(img);
                 } else {
-                    setProfileImage(`https://localhost:7102/uploads/profile/${img}`);
+                    setProfileImage(`https://ecocycle.runasp.net/uploads/profile/${img}`);
                 }
             } else {
                 const savedImage = localStorage.getItem("citizen_profile_image");
@@ -326,7 +326,7 @@ function Pickupdetails() {
     const fetchPickupRequests = async (token) => {
         try {
             setLoading(true);
-            const response = await axios.get("https://localhost:7102/api/Inspection/my-pickup-requests", {
+            const response = await axios.get("https://ecocycle.runasp.net/api/Inspection/my-pickup-requests", {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setPickupRequests(response.data || []);
@@ -494,7 +494,7 @@ function Pickupdetails() {
     const getAgentPhoto = (photoPath) => {
         if (!photoPath) return null;
         if (photoPath.startsWith("http") || photoPath.startsWith("data:")) return photoPath;
-        return `https://localhost:7102/uploads/profile/${photoPath}`;
+        return `https://ecocycle.runasp.net/uploads/profile/${photoPath}`;
     };
 
     return (

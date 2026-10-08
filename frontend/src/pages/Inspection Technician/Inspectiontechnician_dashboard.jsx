@@ -58,9 +58,9 @@ function Inspectiontechnician_dashboard() {
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://localhost:7102/uploads/${cleanName.replace("\\", "/")}`;
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace("\\", "/")}`;
         }
-        return `https://localhost:7102/uploads/technicians/${folderName}/${cleanName}`;
+        return `https://ecocycle.runasp.net/uploads/technicians/${folderName}/${cleanName}`;
     };
 
     const [techName, setTechName] = useState(() => {
@@ -87,7 +87,7 @@ function Inspectiontechnician_dashboard() {
         fetchUnreadNotificationsCount();
 
         // Fetch Technician Profile for accurate avatar & name
-        axios.get("https://localhost:7102/api/Technician/myprofile", {
+        axios.get("https://ecocycle.runasp.net/api/Technician/myprofile", {
             headers: { Authorization: `Bearer ${token}` }
         })
         .then((res) => {
@@ -114,7 +114,7 @@ function Inspectiontechnician_dashboard() {
             const token = localStorage.getItem("token");
             if (!token) return;
             const response = await axios.get(
-                "https://localhost:7102/api/Notificationcon/my_notifications",
+                "https://ecocycle.runasp.net/api/Notificationcon/my_notifications",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -140,7 +140,7 @@ function Inspectiontechnician_dashboard() {
                            localStorage.getItem("loginId") || 1;
             
             const response = await axios.get(
-                `https://localhost:7102/api/Inspection/technicain/${techId}`,
+                `https://ecocycle.runasp.net/api/Inspection/technicain/${techId}`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -171,7 +171,7 @@ response.data.forEach((req) => {
             // Also fetch live deliveries / inspection queue
             let liveDeliveries = [];
             try {
-                const delRes = await axios.get("https://localhost:7102/api/Inspection/my-deliveries", {
+                const delRes = await axios.get("https://ecocycle.runasp.net/api/Inspection/my-deliveries", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 liveDeliveries = delRes.data || [];
@@ -281,7 +281,7 @@ response.data.forEach((req) => {
             setError("");
             const token = localStorage.getItem("token");
             const response = await axios.post(
-                `https://localhost:7102/api/Inspection/accept/${requestId}`,
+                `https://ecocycle.runasp.net/api/Inspection/accept/${requestId}`,
                 {},
                 {
                     headers: {
@@ -315,7 +315,7 @@ response.data.forEach((req) => {
             const token = localStorage.getItem("token");
             
             const response = await axios.post(
-                `https://localhost:7102/api/Inspection/reject/${rejectionTarget.inspectionRequestId}`,
+                `https://ecocycle.runasp.net/api/Inspection/reject/${rejectionTarget.inspectionRequestId}`,
                 JSON.stringify(rejectionReason || "Unable to inspect at this time."),
                 {
                     headers: {
@@ -1150,25 +1150,25 @@ response.data.forEach((req) => {
                                     <div className="photos-grid">
                                         {selectedRequest.device?.frontPhoto && (
                                             <div className="photo-card">
-                                                <img src={`https://localhost:7102/uploads/devices/FrontPhotos/${selectedRequest.device.frontPhoto}`} alt="Front" />
+                                                <img src={`https://ecocycle.runasp.net/uploads/devices/FrontPhotos/${selectedRequest.device.frontPhoto}`} alt="Front" />
                                                 <span>Front View</span>
                                             </div>
                                         )}
                                         {selectedRequest.device?.backPhoto && (
                                             <div className="photo-card">
-                                                <img src={`https://localhost:7102/uploads/devices/BackPhotos/${selectedRequest.device.backPhoto}`} alt="Back" />
+                                                <img src={`https://ecocycle.runasp.net/uploads/devices/BackPhotos/${selectedRequest.device.backPhoto}`} alt="Back" />
                                                 <span>Back View</span>
                                             </div>
                                         )}
                                         {selectedRequest.device?.damagePhoto && (
                                             <div className="photo-card">
-                                                <img src={`https://localhost:7102/uploads/devices/DamagePhotos/${selectedRequest.device.damagePhoto}`} alt="Damage" />
+                                                <img src={`https://ecocycle.runasp.net/uploads/devices/DamagePhotos/${selectedRequest.device.damagePhoto}`} alt="Damage" />
                                                 <span>Damage Area</span>
                                             </div>
                                         )}
                                         {selectedRequest.device?.labelPhoto && (
                                             <div className="photo-card">
-                                                <img src={`https://localhost:7102/uploads/devices/LabelPhotos/${selectedRequest.device.labelPhoto}`} alt="Label" />
+                                                <img src={`https://ecocycle.runasp.net/uploads/devices/LabelPhotos/${selectedRequest.device.labelPhoto}`} alt="Label" />
                                                 <span>Serial Label</span>
                                             </div>
                                         )}
