@@ -1,0 +1,707 @@
+/* Manage_recyclingprocess.css - Matches Manage_inspection.css Architecture */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap");
+@import "./AdminCommon.css";
+@import "./Manage_inspection.css";
+
+/* Specific Enhancements for Recycling Process */
+.pulse-ping-inline {
+  width: 7px;
+  height: 7px;
+  background: #f59e0b;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulsePing 1.5s infinite;
+}
+
+@keyframes pulsePing {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.5; }
+}
+
+.category-pill-tag {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  border: 1px solid #bae6fd;
+}
+
+.device-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+}
+
+/* ==========================================================================
+   MODAL SPECIFIC ARCHITECTURE & SIZING
+   ========================================================================== */
+.admin-modal-card.mrp-audit-modal {
+  max-width: 980px !important;
+  width: 94vw !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 20px !important;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25) !important;
+  background: #ffffff !important;
+  overflow: hidden !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.mrp-audit-modal .admin-modal-header,
+.mrp-cert-modal .admin-modal-header {
+  flex-shrink: 0;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.mrp-audit-modal .admin-modal-body,
+.mrp-cert-modal .admin-modal-body {
+  padding: 1.5rem 1.75rem !important;
+  overflow-y: auto !important;
+  max-height: calc(90vh - 145px) !important;
+  flex: 1 1 auto !important;
+  background: #f8fafc;
+}
+
+/* Sleek Scrollbar for Modal Body */
+.mrp-audit-modal .admin-modal-body::-webkit-scrollbar,
+.mrp-cert-modal .admin-modal-body::-webkit-scrollbar {
+  width: 7px;
+}
+.mrp-audit-modal .admin-modal-body::-webkit-scrollbar-track,
+.mrp-cert-modal .admin-modal-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+.mrp-audit-modal .admin-modal-body::-webkit-scrollbar-thumb,
+.mrp-cert-modal .admin-modal-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.mrp-audit-modal .admin-modal-body::-webkit-scrollbar-thumb:hover,
+.mrp-cert-modal .admin-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.mrp-audit-modal .admin-modal-footer,
+.mrp-cert-modal .admin-modal-footer {
+  flex-shrink: 0;
+  padding: 1rem 1.75rem;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  z-index: 10;
+}
+
+/* Device & Facility Hero Card */
+.mrp-audit-hero {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  display: grid;
+  grid-template-columns: 1.25fr 1.25fr auto;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.hero-label {
+  font-size: 0.725rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+}
+
+.hero-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+}
+
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.tag-pill {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 0.725rem;
+  color: #334155;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tag-pill.qr-tag {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+  font-family: monospace;
+}
+
+.hero-status-col {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* Audit Grid & Cards */
+.mrp-audit-sections-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.audit-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.audit-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.audit-card-head {
+  background: #ffffff;
+  padding: 0.85rem 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.audit-card-head h4 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.head-icon {
+  font-size: 1.2rem;
+  color: #059669;
+}
+
+.icon-blue { color: #0284c7; }
+.icon-amber { color: #d97706; }
+.icon-emerald { color: #059669; }
+
+.audit-card-body {
+  padding: 1.15rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.audit-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.835rem;
+  padding: 0.6rem 0.85rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+}
+
+.info-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.info-value {
+  color: #0f172a;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* Hazardous Protection Grid */
+.hazardous-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.85rem;
+}
+
+.hazardous-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.75rem 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.hazardous-box.full-span {
+  grid-column: 1 / -1;
+}
+
+.h-label {
+  font-size: 0.725rem;
+  color: #64748b;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.h-val {
+  font-size: 0.88rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+/* Photo Evidence */
+.photo-evidence-wrap {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.photo-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.photo-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.evidence-photo-card {
+  width: 110px;
+  height: 110px;
+  border-radius: 10px;
+  border: 2px solid #cbd5e1;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  background: #0f172a;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.evidence-photo-card:hover {
+  transform: scale(1.04);
+  border-color: #10b981;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.evidence-photo-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 3px 6px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Materials Table in Modal */
+.mrp-materials-table-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.mrp-materials-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.mrp-materials-table th {
+  background: #f8fafc;
+  padding: 0.65rem 0.95rem;
+  font-weight: 700;
+  text-align: left;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mrp-materials-table td {
+  padding: 0.7rem 0.95rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+}
+
+.mrp-materials-table tfoot th {
+  background: #f8fafc;
+  border-top: 2px solid #e2e8f0;
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 0.84rem;
+  padding: 0.75rem 0.95rem;
+}
+
+/* ==========================================================================
+   OFFICIAL CERTIFICATE DESIGN (PRINTABLE)
+   ========================================================================== */
+.admin-modal-card.mrp-cert-modal {
+  max-width: 900px !important;
+  width: 94vw !important;
+  max-height: 90vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25) !important;
+}
+
+.cert-document-frame {
+  background: #ffffff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  color: #1e293b;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.cert-border-outer {
+  border: 4px double #059669;
+  padding: 6px;
+  border-radius: 4px;
+}
+
+.cert-border-inner {
+  border: 1px solid #a7f3d0;
+  padding: 2rem 2.25rem;
+  background: radial-gradient(circle at center, #ffffff 60%, #f0fdf4 100%);
+  position: relative;
+}
+
+.cert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #059669;
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.cert-brand {
+  display: flex;
+  flex-direction: column;
+}
+
+.cert-leaf {
+  color: #059669;
+  font-size: 1.8rem;
+  margin-bottom: 2px;
+}
+
+.cert-brand-title {
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #065f46;
+}
+
+.cert-brand-sub {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #059669;
+}
+
+.cert-id-tag {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+}
+
+.cert-id-tag span {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.05em;
+}
+
+.cert-id-tag strong {
+  font-size: 1.05rem;
+  font-family: monospace;
+  color: #0f172a;
+}
+
+.cert-title-section {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.cert-title-section h1 {
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.cert-subtitle {
+  font-size: 0.85rem;
+  color: #059669;
+  font-weight: 600;
+  margin: 0;
+}
+
+.cert-declaration {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: #334155;
+  text-align: justify;
+  margin-bottom: 1.5rem;
+}
+
+.cert-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.cert-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cert-field {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.field-lbl {
+  color: #64748b;
+}
+
+.field-val {
+  color: #0f172a;
+  text-align: right;
+}
+
+.cert-material-summary {
+  margin-bottom: 1.5rem;
+}
+
+.cert-material-summary h4 {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+  margin: 0 0 0.5rem 0;
+}
+
+.cert-mat-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cert-mat-badge {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.cert-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 1.5rem;
+  margin-top: 1rem;
+}
+
+.cert-qr-block {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cert-qr-icon {
+  font-size: 2.2rem;
+  color: #0f172a;
+}
+
+.cert-qr-block span {
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #475569;
+}
+
+.cert-stamp-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stamp-circle {
+  width: 84px;
+  height: 84px;
+  border: 3px dashed #059669;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #059669;
+  text-align: center;
+  transform: rotate(-12deg);
+}
+
+.stamp-circle span {
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.stamp-circle strong {
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.cert-sign-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.sign-line {
+  width: 140px;
+  height: 1px;
+  background: #0f172a;
+  margin-bottom: 6px;
+}
+
+.cert-sign-block strong {
+  font-size: 0.78rem;
+  color: #0f172a;
+}
+
+.cert-sign-block span {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+/* Lightbox Modal */
+.mrp-lightbox-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.mrp-lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.mrp-lightbox-content img {
+  max-width: 100%;
+  max-height: 85vh;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.mrp-lightbox-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #ffffff;
+  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .cert-document-frame, .cert-document-frame * {
+    visibility: visible;
+  }
+  .cert-document-frame {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

@@ -954,6 +954,10 @@ function DeviceInspection() {
                             <div class="info-val">${dev.serialNumber || "N/A"}</div>
                         </div>
                         <div class="info-card">
+                            <div class="info-label">Purchase Date</div>
+                            <div class="info-val">${dev.purchaseDate ? new Date(dev.purchaseDate).toLocaleDateString("en-IN") : "N/A"}</div>
+                        </div>
+                        <div class="info-card">
                             <div class="info-label">Device Category</div>
                             <div class="info-val">${dev.categoryName || "E-Waste"}</div>
                         </div>
@@ -1417,8 +1421,7 @@ function DeviceInspection() {
                                             return (
                                                 <button
                                                     className="action-btn action-btn--primary"
-                                                    onClick={() => setSelectedDevice(item)}
-                                                    style={{ width: "100%", justifyContent: "center" }}
+                                                    onClick={() => setSelectedDevice(item)} style={{ width: "100%", justifyContent: "center", background: "#0f172a", color: "#ffffff", border: "none", cursor: "pointer", boxShadow: "0 4px 12px rgba(15, 23, 42, 0.25)" }}
                                                 >
                                                     <FiActivity /> Start Technical Inspection
                                                 </button>
@@ -1568,14 +1571,11 @@ function DeviceInspection() {
             {selectedDevice && (
                 <div className="modal-backdrop">
                     <div className="inspection-modal-card">
-                        <div className="modal-header" style={{ background: "#ffffff", borderBottom: "1px solid #e2e8f0", padding: "1.25rem 1.5rem" }}>
+                        <div className="modal-header">
                             <div>
-                                <h3 style={{ color: "#0f172a", margin: 0, fontSize: "1.15rem", fontWeight: 700 }}>
+                                <h3 style={{ color: "#ffffff", margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>
                                     Inspect Device
                                 </h3>
-                                <p style={{ color: "#64748b", margin: "0.2rem 0 0", fontSize: "0.8rem" }}>
-                                    {selectedDevice.brand} {selectedDevice.model} — Listed by {selectedDevice.customerName}
-                                </p>
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                                 <button className="close-modal-btn" onClick={() => setSelectedDevice(null)}><FiX /></button>
@@ -1623,6 +1623,14 @@ function DeviceInspection() {
                                         <div className="detail-box">
                                             <span className="lbl">Brand &amp; Model</span>
                                             <span className="val">{selectedDevice.brand} {selectedDevice.model}</span>
+                                        </div>
+                                        <div className="detail-box">
+                                            <span className="lbl">Serial Number</span>
+                                            <span className="val">{selectedDevice.serialNumber || "N/A"}</span>
+                                        </div>
+                                        <div className="detail-box">
+                                            <span className="lbl">Purchase Date</span>
+                                            <span className="val">{selectedDevice.purchaseDate ? new Date(selectedDevice.purchaseDate).toLocaleDateString("en-IN") : "N/A"}</span>
                                         </div>
                                         <div className="detail-box">
                                             <span className="lbl">Category</span>
@@ -1936,10 +1944,10 @@ function DeviceInspection() {
             {confirmModalItem && (
                 <div className="modal-backdrop">
                     <div className="inspection-modal-card confirm-modal-card">
-                        <div className="modal-header" style={{ background: "#ffffff", borderBottom: "1px solid #e2e8f0", padding: "1.25rem 1.5rem" }}>
+                        <div className="modal-header">
                             <div>
-                                <h3 style={{ color: "#0f172a", margin: 0, fontSize: "1.15rem", fontWeight: 700 }}>Confirm Device Receipt</h3>
-                                <p style={{ color: "#64748b", margin: "0.2rem 0 0", fontSize: "0.8rem" }}>
+                                <h3 style={{ color: "#ffffff", margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>Confirm Device Receipt</h3>
+                                <p style={{ color: "rgba(255, 255, 255, 0.85)", margin: "0.2rem 0 0", fontSize: "0.8rem" }}>
                                     Verify physical handover for Device #{confirmModalItem.deviceId} ({confirmModalItem.brand} {confirmModalItem.model})
                                 </p>
                             </div>

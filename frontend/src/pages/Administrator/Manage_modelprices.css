@@ -1,0 +1,17 @@
+@import "./Manage_materialprices.css";
+
+/* Specific Device Model Pricing enhancements */
+.matprice-material-name {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.spin-icon {
+    animation: dmpSpin 0.8s linear infinite;
+}
+
+@keyframes dmpSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

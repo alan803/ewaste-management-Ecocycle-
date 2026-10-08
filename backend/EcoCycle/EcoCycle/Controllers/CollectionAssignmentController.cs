@@ -107,13 +107,20 @@ namespace EcoCycle.API.Controllers
                 .Include(x => x.Device)
                 .Where(x => (x.Status == "Assigned" || x.Status == "Waiting" || x.Status == "Pending" ||
                              x.Status == "assigned" || x.Status == "waiting" || x.Status == "pending" ||
-                             x.Status == "Accepted" || x.Status == "accepted") &&
+                             x.Status == "Accepted" || x.Status == "accepted" ||
+                             x.Status == "PickupStarted" || x.Status == "pickupstarted" ||
+                             x.Status == "En Route" || x.Status == "en route") &&
                             (
-                                (x.Device != null && x.Device.PickupDate != default(DateTime) && x.Device.PickupDate.Date.AddDays(1) <= now) ||
-                                ((x.Status != "Accepted" && x.Status != "accepted") &&
-                                 ((x.ResponseDeadline.HasValue && x.ResponseDeadline.Value < now) ||
+                                // Response deadline expired (for unaccepted assignments)
+                                ((x.Status == "Assigned" || x.Status == "assigned" || x.Status == "Pending" || x.Status == "pending" || x.Status == "Waiting" || x.Status == "waiting") &&
+                                 ((x.Device != null && x.Device.PickupDate != default(DateTime) && x.Device.PickupDate.Date.AddDays(1) <= now) ||
+                                  (x.ResponseDeadline.HasValue && x.ResponseDeadline.Value < now) ||
                                   (!x.ResponseDeadline.HasValue && x.AssignedAt.HasValue && x.AssignedAt.Value.AddHours(24) < now) ||
-                                  (!x.ResponseDeadline.HasValue && !x.AssignedAt.HasValue && x.CreatedAt.AddHours(24) < now)))
+                                  (!x.ResponseDeadline.HasValue && !x.AssignedAt.HasValue && x.CreatedAt.AddHours(24) < now))) ||
+                                // 5-day Completion deadline expired (for accepted logistics assignments)
+                                ((x.Status == "Accepted" || x.Status == "accepted" || x.Status == "PickupStarted" || x.Status == "pickupstarted" || x.Status == "En Route" || x.Status == "en route") &&
+                                 ((x.CompletionDeadline.HasValue && x.CompletionDeadline.Value < now) ||
+                                  (!x.CompletionDeadline.HasValue && x.AcceptedAt.HasValue && x.AcceptedAt.Value.AddDays(5) < now)))
                             ))
                 .ToListAsync();
 
@@ -743,7 +750,7 @@ namespace EcoCycle.API.Controllers
                     string pPincode = x.Device != null && x.Device.User != null ? x.Device.User.Pincode : "";
                     bool isReassignedFromTech = false;
 
-                    if (oldTech != null)
+                    if (oldTech != null && x.AssignmentType != "TechnicianToRecyclingCenter")
                     {
                         isReassignedFromTech = true;
                         pName = $"{oldTech.FirstName} {oldTech.LastName} ({oldTech.InspectionCenterName ?? "Penalized Center"})".Trim();
@@ -771,24 +778,73 @@ namespace EcoCycle.API.Controllers
                         // Fallback if Deliveries table is not created in DB yet
                     }
 
+                    RecyclingCenter? rc = x.RecyclingCenter;
+                    if (rc == null && x.DeviceId > 0 && x.AssignmentType == "TechnicianToRecyclingCenter")
+                    {
+                        var rcReq = await db.RecyclingCenterRequests
+                            .Include(r => r.RecyclingCenter)
+                            .Where(r => r.DeviceId == x.DeviceId && r.RecyclingCenter != null)
+                            .OrderByDescending(r => r.RecyclingCenterRequestId)
+                            .FirstOrDefaultAsync();
+                        rc = rcReq?.RecyclingCenter;
+                    }
+
                     string rcAddr = null;
-                    if (x.RecyclingCenter != null)
+                    if (rc != null)
                     {
                         var rcParts = new List<string>();
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.CenterName)) rcParts.Add(x.RecyclingCenter.CenterName);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.BuildingNumber)) rcParts.Add(x.RecyclingCenter.BuildingNumber);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.Street)) rcParts.Add(x.RecyclingCenter.Street);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.City)) rcParts.Add(x.RecyclingCenter.City);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.District)) rcParts.Add(x.RecyclingCenter.District);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.State)) rcParts.Add(x.RecyclingCenter.State);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.Pincode)) rcParts.Add(x.RecyclingCenter.Pincode);
+                        if (!string.IsNullOrWhiteSpace(rc.BuildingNumber)) rcParts.Add(rc.BuildingNumber);
+                        if (!string.IsNullOrWhiteSpace(rc.Street)) rcParts.Add(rc.Street);
+                        if (!string.IsNullOrWhiteSpace(rc.City)) rcParts.Add(rc.City);
+                        if (!string.IsNullOrWhiteSpace(rc.District)) rcParts.Add(rc.District);
+                        if (!string.IsNullOrWhiteSpace(rc.State)) rcParts.Add(rc.State);
+                        if (!string.IsNullOrWhiteSpace(rc.Pincode)) rcParts.Add(rc.Pincode);
+                        if (rcParts.Count == 0 && !string.IsNullOrWhiteSpace(rc.CenterName)) rcParts.Add(rc.CenterName);
                         rcAddr = string.Join(", ", rcParts);
+                    }
+
+                    RefurbishmentCenter? rfc = x.RefurbishmentCenter;
+                    if (rfc == null && x.DeviceId > 0 && x.AssignmentType == "TechnicianToRefurbishmentCenter")
+                    {
+                        var rfcReq = await db.RefurbishmentRequests
+                            .Include(r => r.RefurbishmentCenter)
+                            .Where(r => r.DeviceId == x.DeviceId && r.RefurbishmentCenter != null)
+                            .OrderByDescending(r => r.RefurbishmentRequestId)
+                            .FirstOrDefaultAsync();
+                        rfc = rfcReq?.RefurbishmentCenter;
+                    }
+
+                    string rfcAddr = null;
+                    if (rfc != null)
+                    {
+                        var rfcParts = new List<string>();
+                        if (!string.IsNullOrWhiteSpace(rfc.BuildingNumber)) rfcParts.Add(rfc.BuildingNumber);
+                        if (!string.IsNullOrWhiteSpace(rfc.Street)) rfcParts.Add(rfc.Street);
+                        if (!string.IsNullOrWhiteSpace(rfc.City)) rfcParts.Add(rfc.City);
+                        if (!string.IsNullOrWhiteSpace(rfc.District)) rfcParts.Add(rfc.District);
+                        if (!string.IsNullOrWhiteSpace(rfc.State)) rfcParts.Add(rfc.State);
+                        if (!string.IsNullOrWhiteSpace(rfc.Pincode)) rfcParts.Add(rfc.Pincode);
+                        if (rfcParts.Count == 0 && !string.IsNullOrWhiteSpace(rfc.CenterName)) rfcParts.Add(rfc.CenterName);
+                        rfcAddr = string.Join(", ", rfcParts);
+                    }
+
+                    bool isRefurbishmentPickup = x.AssignmentType == "TechnicianToRefurbishmentCenter";
+                    if (isRefurbishmentPickup)
+                    {
+                        pName = $"{techName} ({centerName})".Trim();
+                        pPhone = techPhone ?? "";
+                        pAddress = !string.IsNullOrWhiteSpace(delAddress) ? delAddress : (centerName ?? "Inspection Hub");
+                        pLandmark = centerName ?? "Inspection Center";
                     }
 
                     resultList.Add(new
                     {
                         collectionAssignmentId = x.CollectionAssignmentId,
-                        assignmentType = isReassignedFromTech ? "TechnicianToTechnician" : (x.AssignmentType ?? "CustomerToTechnician"),
+                        assignmentType = x.AssignmentType == "TechnicianToRecyclingCenter" 
+                            ? "TechnicianToRecyclingCenter" 
+                            : (x.AssignmentType == "TechnicianToRefurbishmentCenter" 
+                                ? "TechnicianToRefurbishmentCenter" 
+                                : (isReassignedFromTech ? "TechnicianToTechnician" : (x.AssignmentType ?? "CustomerToTechnician"))),
                         deviceId = x.DeviceId,
                         collectionAgentId = x.CollectionAgentId,
                         status = x.Status,
@@ -798,6 +854,8 @@ namespace EcoCycle.API.Controllers
                         responseDeadline = x.ResponseDeadline ?? (x.AssignedAt.HasValue ? x.AssignedAt.Value.AddHours(24) : x.CreatedAt.AddHours(24)),
                         extensionCount = x.ExtensionCount,
                         respondedAt = x.RespondedAt,
+                        acceptedAt = x.AcceptedAt,
+                        completionDeadline = x.CompletionDeadline ?? (x.AcceptedAt.HasValue ? x.AcceptedAt.Value.AddDays(5) : (x.Status == "Accepted" || x.Status == "PickupStarted" || x.Status == "PickedUp" || x.Status == "En Route" || x.Status == "en route" || x.Status == "pickupstarted" ? (x.UpdatedAt ?? x.CreatedAt).AddDays(5) : null)),
                         createdAt = x.CreatedAt,
                         categoryName = x.Device != null && x.Device.Category != null ? x.Device.Category.CategoryName : "E-Waste",
                         brand = x.Device?.Brand,
@@ -818,9 +876,11 @@ namespace EcoCycle.API.Controllers
                         priorTechnicianName = oldTech != null ? $"{oldTech.FirstName} {oldTech.LastName}" : null,
                         pickupDate = x.Device?.PickupDate,
                         timeSlot = x.Device?.TimeSlot,
-                        pickupInstructions = isReassignedFromTech 
-                            ? $"PICKUP FROM PENALIZED TECHNICIAN CENTER ({pName}). Transport device to new inspection center ({centerName})." 
-                            : x.Device?.PickupInstructions,
+                        pickupInstructions = isRefurbishmentPickup
+                            ? $"PICKUP FROM TECHNICIAN HUB ({centerName}). Transport and deliver device to Refurbishment Facility ({rfc?.CenterName ?? "Refurbishment Center"})."
+                            : (isReassignedFromTech 
+                                ? $"PICKUP FROM PENALIZED TECHNICIAN CENTER ({pName}). Transport device to new inspection center ({centerName})." 
+                                : x.Device?.PickupInstructions),
                         lifecycleStatus = x.Device?.LifecycleStatus,
                         technicianId = techId,
                         technicianName = techName,
@@ -829,11 +889,16 @@ namespace EcoCycle.API.Controllers
                         technicianCenterName = centerName,
                         deliveredAddress = delAddress,
                         technicianAddress = delAddress,
-                        recyclingCenterId = x.RecyclingCenterId,
-                        recyclingCenterName = x.RecyclingCenter?.CenterName,
-                        recyclingCenterPhone = x.RecyclingCenter?.PhoneNumber,
-                        recyclingCenterOwner = x.RecyclingCenter?.OwnerName,
+                        recyclingCenterId = x.RecyclingCenterId ?? rc?.RecyclingCenterId,
+                        recyclingCenterName = x.RecyclingCenter?.CenterName ?? rc?.CenterName,
+                        recyclingCenterPhone = x.RecyclingCenter?.PhoneNumber ?? rc?.PhoneNumber,
+                        recyclingCenterOwner = x.RecyclingCenter?.OwnerName ?? rc?.OwnerName,
                         recyclingCenterAddress = rcAddr,
+                        refurbishmentCenterId = x.RefurbishmentCenterId ?? rfc?.RefurbishmentCenterId,
+                        refurbishmentCenterName = x.RefurbishmentCenter?.CenterName ?? rfc?.CenterName,
+                        refurbishmentCenterPhone = x.RefurbishmentCenter?.PhoneNumber ?? rfc?.PhoneNumber,
+                        refurbishmentCenterOwner = x.RefurbishmentCenter?.OwnerName ?? rfc?.OwnerName,
+                        refurbishmentCenterAddress = rfcAddr,
                         deviceQrToken = x.Device != null && !string.IsNullOrEmpty(x.Device.DeviceQrToken) ? x.Device.DeviceQrToken : $"ECOQR-DEV-{x.DeviceId}"
                     });
                 }
@@ -898,13 +963,16 @@ namespace EcoCycle.API.Controllers
                 assignment.Status = "Accepted";
                 assignment.RespondedAt = DateTime.Now;
                 assignment.AcceptedAt = DateTime.Now;
+                assignment.CompletionDeadline = DateTime.Now.AddDays(5);
                 assignment.UpdatedAt = DateTime.Now;
                 await db.SaveChangesAsync();
 
                 return Ok(new
                 {
-                    message = "Collection assignment accepted successfully.",
-                    status = assignment.Status
+                    message = "Collection assignment accepted successfully. Logistics completion deadline set to 5 days.",
+                    status = assignment.Status,
+                    acceptedAt = assignment.AcceptedAt,
+                    completionDeadline = assignment.CompletionDeadline
                 });
             }
             catch (Exception ex)
@@ -1483,14 +1551,10 @@ namespace EcoCycle.API.Controllers
 
                 var query = db.CollectionAssignments.AsQueryable();
 
-                // If specific assignmentType is requested (e.g. CustomerToTechnician), filter it; otherwise default to CustomerToTechnician if not "all"
+                // If specific assignmentType is requested (e.g. CustomerToTechnician), filter it; otherwise return all
                 if (!string.IsNullOrWhiteSpace(assignmentType) && !assignmentType.Equals("all", StringComparison.OrdinalIgnoreCase))
                 {
                     query = query.Where(x => x.AssignmentType == assignmentType);
-                }
-                else if (string.IsNullOrWhiteSpace(assignmentType))
-                {
-                    query = query.Where(x => x.AssignmentType == "CustomerToTechnician" || string.IsNullOrEmpty(x.AssignmentType));
                 }
 
                 var rawAssignments = await query
@@ -1543,17 +1607,28 @@ namespace EcoCycle.API.Controllers
                         delAddr = string.Join(", ", parts);
                     }
 
+                    RecyclingCenter? rc = x.RecyclingCenter;
+                    if (rc == null && x.DeviceId > 0)
+                    {
+                        var rcReq = db.RecyclingCenterRequests
+                            .Include(r => r.RecyclingCenter)
+                            .Where(r => r.DeviceId == x.DeviceId && r.RecyclingCenter != null)
+                            .OrderByDescending(r => r.RecyclingCenterRequestId)
+                            .FirstOrDefault();
+                        rc = rcReq?.RecyclingCenter;
+                    }
+
                     string rcAddr = null;
-                    if (x.RecyclingCenter != null)
+                    if (rc != null)
                     {
                         var rcParts = new List<string>();
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.CenterName)) rcParts.Add(x.RecyclingCenter.CenterName);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.BuildingNumber)) rcParts.Add(x.RecyclingCenter.BuildingNumber);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.Street)) rcParts.Add(x.RecyclingCenter.Street);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.City)) rcParts.Add(x.RecyclingCenter.City);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.District)) rcParts.Add(x.RecyclingCenter.District);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.State)) rcParts.Add(x.RecyclingCenter.State);
-                        if (!string.IsNullOrWhiteSpace(x.RecyclingCenter.Pincode)) rcParts.Add(x.RecyclingCenter.Pincode);
+                        if (!string.IsNullOrWhiteSpace(rc.BuildingNumber)) rcParts.Add(rc.BuildingNumber);
+                        if (!string.IsNullOrWhiteSpace(rc.Street)) rcParts.Add(rc.Street);
+                        if (!string.IsNullOrWhiteSpace(rc.City)) rcParts.Add(rc.City);
+                        if (!string.IsNullOrWhiteSpace(rc.District)) rcParts.Add(rc.District);
+                        if (!string.IsNullOrWhiteSpace(rc.State)) rcParts.Add(rc.State);
+                        if (!string.IsNullOrWhiteSpace(rc.Pincode)) rcParts.Add(rc.Pincode);
+                        if (rcParts.Count == 0 && !string.IsNullOrWhiteSpace(rc.CenterName)) rcParts.Add(rc.CenterName);
                         rcAddr = string.Join(", ", rcParts);
                     }
 
@@ -1582,7 +1657,7 @@ namespace EcoCycle.API.Controllers
                         oldTech = penaltyRecord?.Technician;
                     }
 
-                    bool isReassignedFromTech = oldTech != null;
+                    bool isReassignedFromTech = oldTech != null && x.AssignmentType != "TechnicianToRecyclingCenter";
                     string pName = x.Device?.User != null ? $"{x.Device.User.FirstName} {x.Device.User.LastName}".Trim() : "Citizen Owner";
                     string pPhone = x.Device?.User != null ? x.Device.User.PhoneNumber : "";
                     string pAddress = x.Device != null ? x.Device.Address : "";
@@ -1592,7 +1667,7 @@ namespace EcoCycle.API.Controllers
                     string pState = x.Device?.User != null ? x.Device.User.State : "";
                     string pPincode = x.Device?.User != null ? x.Device.User.Pincode : "";
 
-                    if (oldTech != null)
+                    if (oldTech != null && x.AssignmentType != "TechnicianToRecyclingCenter")
                     {
                         pName = $"{oldTech.FirstName} {oldTech.LastName} ({oldTech.InspectionCenterName ?? "Penalized Center"})".Trim();
                         pPhone = oldTech.PhoneNumber ?? "";
@@ -1604,10 +1679,48 @@ namespace EcoCycle.API.Controllers
                         pPincode = oldTech.PinCode ?? "";
                     }
 
+                    RefurbishmentCenter? rfc = x.RefurbishmentCenter;
+                    if (rfc == null && x.DeviceId > 0 && x.AssignmentType == "TechnicianToRefurbishmentCenter")
+                    {
+                        var rfcReq = db.RefurbishmentRequests
+                            .Include(r => r.RefurbishmentCenter)
+                            .Where(r => r.DeviceId == x.DeviceId && r.RefurbishmentCenter != null)
+                            .OrderByDescending(r => r.RefurbishmentRequestId)
+                            .FirstOrDefault();
+                        rfc = rfcReq?.RefurbishmentCenter;
+                    }
+
+                    string rfcAddr = null;
+                    if (rfc != null)
+                    {
+                        var rfcParts = new List<string>();
+                        if (!string.IsNullOrWhiteSpace(rfc.BuildingNumber)) rfcParts.Add(rfc.BuildingNumber);
+                        if (!string.IsNullOrWhiteSpace(rfc.Street)) rfcParts.Add(rfc.Street);
+                        if (!string.IsNullOrWhiteSpace(rfc.City)) rfcParts.Add(rfc.City);
+                        if (!string.IsNullOrWhiteSpace(rfc.District)) rfcParts.Add(rfc.District);
+                        if (!string.IsNullOrWhiteSpace(rfc.State)) rfcParts.Add(rfc.State);
+                        if (!string.IsNullOrWhiteSpace(rfc.Pincode)) rfcParts.Add(rfc.Pincode);
+                        if (rfcParts.Count == 0 && !string.IsNullOrWhiteSpace(rfc.CenterName)) rfcParts.Add(rfc.CenterName);
+                        rfcAddr = string.Join(", ", rfcParts);
+                    }
+
+                    bool isRefurbishmentPickup = x.AssignmentType == "TechnicianToRefurbishmentCenter";
+                    if (isRefurbishmentPickup)
+                    {
+                        pName = $"{techName} ({centerName})".Trim();
+                        pPhone = techPhone ?? "";
+                        pAddress = !string.IsNullOrWhiteSpace(delAddr) ? delAddr : (centerName ?? "Inspection Hub");
+                        pLandmark = centerName ?? "Inspection Center";
+                    }
+
                     return new
                     {
                         collectionAssignmentId = x.CollectionAssignmentId,
-                        assignmentType = isReassignedFromTech ? "TechnicianToTechnician" : (x.AssignmentType ?? "CustomerToTechnician"),
+                        assignmentType = x.AssignmentType == "TechnicianToRecyclingCenter" 
+                            ? "TechnicianToRecyclingCenter" 
+                            : (x.AssignmentType == "TechnicianToRefurbishmentCenter" 
+                                ? "TechnicianToRefurbishmentCenter" 
+                                : (isReassignedFromTech ? "TechnicianToTechnician" : (x.AssignmentType ?? "CustomerToTechnician"))),
                         isReassignmentPickup = isReassignedFromTech,
                         isReassignedFromTech = isReassignedFromTech,
                         deviceId = x.DeviceId,
@@ -1639,6 +1752,7 @@ namespace EcoCycle.API.Controllers
                         extensionCount = x.ExtensionCount,
                         respondedAt = x.RespondedAt,
                         acceptedAt = x.AcceptedAt,
+                        completionDeadline = x.CompletionDeadline ?? (x.AcceptedAt.HasValue ? x.AcceptedAt.Value.AddDays(5) : (x.Status == "Accepted" || x.Status == "PickupStarted" || x.Status == "PickedUp" || x.Status == "En Route" || x.Status == "en route" || x.Status == "pickupstarted" ? (x.UpdatedAt ?? x.CreatedAt).AddDays(5) : null)),
                         pickupStartedAt = x.PickupStartedAt,
                         startedAt = x.PickupStartedAt,
                         pickedUpAt = x.PickedUpAt,
@@ -1648,16 +1762,25 @@ namespace EcoCycle.API.Controllers
                         createdAt = x.CreatedAt,
                         pickupDate = x.Device?.PickupDate,
                         timeSlot = x.Device?.TimeSlot,
-                        pickupInstructions = x.Device?.PickupInstructions,
+                        pickupInstructions = isRefurbishmentPickup
+                            ? $"PICKUP FROM TECHNICIAN HUB ({centerName}). Transport and deliver device to Refurbishment Facility ({rfc?.CenterName ?? "Refurbishment Center"})."
+                            : x.Device?.PickupInstructions,
                         lifecycleStatus = x.Device?.LifecycleStatus,
                         processingLifecycleStatus = x.Device?.ProcessingLifecycleStatus,
 
                         // Recycling Center Fields (for TechnicianToRecyclingCenter):
-                        recyclingCenterId = x.RecyclingCenterId,
-                        recyclingCenterName = x.RecyclingCenter?.CenterName,
-                        recyclingCenterPhone = x.RecyclingCenter?.PhoneNumber,
-                        recyclingCenterOwner = x.RecyclingCenter?.OwnerName,
+                        recyclingCenterId = x.RecyclingCenterId ?? rc?.RecyclingCenterId,
+                        recyclingCenterName = x.RecyclingCenter?.CenterName ?? rc?.CenterName,
+                        recyclingCenterPhone = x.RecyclingCenter?.PhoneNumber ?? rc?.PhoneNumber,
+                        recyclingCenterOwner = x.RecyclingCenter?.OwnerName ?? rc?.OwnerName,
                         recyclingCenterAddress = rcAddr,
+
+                        // Refurbishment Center Fields (for TechnicianToRefurbishmentCenter):
+                        refurbishmentCenterId = x.RefurbishmentCenterId ?? rfc?.RefurbishmentCenterId,
+                        refurbishmentCenterName = x.RefurbishmentCenter?.CenterName ?? rfc?.CenterName,
+                        refurbishmentCenterPhone = x.RefurbishmentCenter?.PhoneNumber ?? rfc?.PhoneNumber,
+                        refurbishmentCenterOwner = x.RefurbishmentCenter?.OwnerName ?? rfc?.OwnerName,
+                        refurbishmentCenterAddress = rfcAddr,
 
                         // Pickup Model Table Fields:
                         pickupId = pickupObj?.PickupId,

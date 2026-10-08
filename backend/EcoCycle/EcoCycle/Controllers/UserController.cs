@@ -323,7 +323,11 @@ namespace EcoCycle.API.Controllers
                     gender = user.Gender,
                     dateOfBirth = user.DateOfBirth,
                     profilePicture = user.ProfileImage,
-                    status = user.Status
+                    status = user.Status,
+                    accountHolder = user.AccountHolder ?? "",
+                    bankName = user.BankName ?? "",
+                    accountNumber = user.AccountNumber ?? "",
+                    ifscCode = user.IFSCCode ?? ""
                 });
             }
             catch (Exception ex)
@@ -452,6 +456,31 @@ namespace EcoCycle.API.Controllers
                     }
                 }
 
+                // 7. Bank Details update
+                if (!string.IsNullOrWhiteSpace(request.AccountHolder) && request.AccountHolder != user.AccountHolder)
+                {
+                    user.AccountHolder = request.AccountHolder.Trim();
+                    updatedAny = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.BankName) && request.BankName != user.BankName)
+                {
+                    user.BankName = request.BankName.Trim();
+                    updatedAny = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.AccountNumber) && request.AccountNumber != user.AccountNumber)
+                {
+                    user.AccountNumber = request.AccountNumber.Trim();
+                    updatedAny = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.IFSCCode) && request.IFSCCode != user.IFSCCode)
+                {
+                    user.IFSCCode = request.IFSCCode.Trim().ToUpper();
+                    updatedAny = true;
+                }
+
                 if (updatedAny)
                 {
                     await db.SaveChangesAsync();
@@ -460,7 +489,11 @@ namespace EcoCycle.API.Controllers
                 return Ok(new
                 {
                     message = "Profile updated successfully.",
-                    profilePicture = user.ProfileImage
+                    profilePicture = user.ProfileImage,
+                    accountHolder = user.AccountHolder,
+                    bankName = user.BankName,
+                    accountNumber = user.AccountNumber,
+                    ifscCode = user.IFSCCode
                 });
             }
             catch (Exception ex)
@@ -469,6 +502,54 @@ namespace EcoCycle.API.Controllers
                 {
                     message = ex.Message
                 });
+            }
+        }
+
+        [Authorize]
+        [HttpPost("bank-details")]
+        [HttpPut("bank-details")]
+        public async Task<IActionResult> UpdateBankDetails([FromBody] UpdateBankDetailsDto request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var loginIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+                if (loginIdClaim == null)
+                {
+                    return Unauthorized(new { message = "User identity not found." });
+                }
+
+                int loginId = int.Parse(loginIdClaim.Value);
+                var user = await db.Users.FirstOrDefaultAsync(x => x.LoginId == loginId);
+                if (user == null)
+                {
+                    return NotFound(new { message = "User record not found." });
+                }
+
+                user.AccountHolder = request.AccountHolder.Trim();
+                user.BankName = request.BankName.Trim();
+                user.AccountNumber = request.AccountNumber.Trim();
+                user.IFSCCode = request.IFSCCode.Trim().ToUpper();
+
+                await db.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Bank details updated successfully.",
+                    accountHolder = user.AccountHolder,
+                    bankName = user.BankName,
+                    accountNumber = user.AccountNumber,
+                    ifscCode = user.IFSCCode
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
             }
         }
 

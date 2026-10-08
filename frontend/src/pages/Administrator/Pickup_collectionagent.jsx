@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import {
     FiSearch,
+    FiBell,
     FiLogOut,
     FiEye,
     FiX,
@@ -306,8 +307,8 @@ function Pickup_collectionagent() {
                         </div>
 
                         <div className="topbar-actions">
-                            <button className="glass-btn notification-btn" title="Refresh Data" onClick={fetchAllData}>
-                                <FiRefreshCw className={loading ? "spin-icon" : ""} />
+                            <button className="glass-btn notification-btn" title="System Alerts">
+                                <FiBell />
                                 <span className="pulse-ping"></span>
                             </button>
 

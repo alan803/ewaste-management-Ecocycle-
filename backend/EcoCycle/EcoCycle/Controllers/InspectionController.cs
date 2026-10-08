@@ -638,13 +638,8 @@ namespace EcoCycle.API.Controllers
                 .Where(x =>
                     x.TechnicianId == targetTechId &&
                     x.Device.Status != "Inactive" &&
-                    x.Device.Status != "Deleted" &&
-                    (
-                        x.Status == "Assigned" ||
-                        x.Status == "Accepted" ||
-                        x.Status == "InProgress"
-                    ))
-                .OrderBy(x => x.CreatedAt)
+                    x.Device.Status != "Deleted")
+                .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync();
 
             var deviceIds = rawRequests.Select(r => r.DeviceId).ToList();
@@ -681,9 +676,6 @@ namespace EcoCycle.API.Controllers
             })
             .Where(r => !string.Equals(r.status, "Reassigned", StringComparison.OrdinalIgnoreCase) &&
                         !string.Equals(r.status, "Penalized", StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(r.status, "Completed", StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(r.status, "Expired", StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(r.status, "Rejected", StringComparison.OrdinalIgnoreCase) &&
                         !string.Equals(r.status, "Cancelled", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
@@ -754,8 +746,11 @@ namespace EcoCycle.API.Controllers
                     if (dev == null || processedDeviceIds.Contains(dev.DeviceId)) continue;
                     processedDeviceIds.Add(dev.DeviceId);
 
-                    var allCas = dev.CollectionAssignments.OrderByDescending(caItem => caItem.CreatedAt).ToList();
-                    var latestCa = allCas.FirstOrDefault();
+                    var allCas = dev.CollectionAssignments?.OrderByDescending(caItem => caItem.CreatedAt).ToList() ?? new List<CollectionAssignment>();
+                    // Pick the inbound assignment to the technician hub (CustomerToTechnician / TechnicianToTechnician)
+                    var inboundCa = allCas.FirstOrDefault(caItem => caItem.AssignmentType == "CustomerToTechnician" || caItem.AssignmentType == "TechnicianToTechnician" || caItem.AssignmentType == "CitizenToTechnician") 
+                                    ?? allCas.LastOrDefault();
+                    var latestCa = inboundCa ?? allCas.FirstOrDefault();
                     var prevCa = allCas.Skip(1).FirstOrDefault(p => p.Status == "Failed" || p.Status == "PickupFailed" || p.Status == "Cancelled" || p.Status == "Rejected" || p.Status == "Expired");
 
                     bool hasPreviousFailedPickup = prevCa != null;
@@ -772,8 +767,18 @@ namespace EcoCycle.API.Controllers
                         catch { }
                     }
 
+                    var inspObj = await db.Inspection.FirstOrDefaultAsync(i => i.DeviceId == dev.DeviceId || i.InspectionRequestId == x.InspectionRequestId);
+                    bool isInspected = inspObj != null && (inspObj.Status == "Completed" || inspObj.InspectionCompletedAt != null || !string.IsNullOrEmpty(inspObj.OverallCondition) || inspObj.OverallScore > 0);
+                    bool isInspectionInProgress = !isInspected && inspObj != null && (inspObj.Status == "InProgress" || inspObj.InspectionStartedAt != null);
+
                     string caStatus = latestCa?.Status ?? "Scheduled";
                     string delStatus = delObj != null ? delObj.Status : (caStatus == "Completed" ? "Pending" : caStatus == "OutForDelivery" ? "InTransit" : caStatus == "DeliveredToCenter" ? "Delivered" : "Pending");
+
+                    if (isInspected || dev.LifecycleStatus == "AtInspectionCenter" || dev.LifecycleStatus == "Inspected" || (dev.LifecycleStatus != null && (dev.LifecycleStatus.Contains("Refurbish") || dev.LifecycleStatus.Contains("Recycl"))))
+                    {
+                        caStatus = "DeliveredToCenter";
+                        delStatus = "Delivered";
+                    }
 
                     result.Add(new
                     {
@@ -785,6 +790,7 @@ namespace EcoCycle.API.Controllers
                         model = dev.Model,
                         modelNumber = dev.ModelNumber,
                         serialNumber = dev.SerialNumber,
+                        purchaseDate = dev.PurchaseDate,
                         deviceQrToken = !string.IsNullOrEmpty(dev.DeviceQrToken) ? dev.DeviceQrToken : $"ECOQR-DEV-{dev.DeviceId}",
                         categoryName = dev.Category?.CategoryName ?? "E-Waste",
                         quantity = dev.Quantity,
@@ -819,8 +825,15 @@ namespace EcoCycle.API.Controllers
 
                         status = caStatus,
                         deliveryStatus = delStatus,
-                        lifecycleStatus = dev.LifecycleStatus,
-                        requestStatus = x.Status,
+                        lifecycleStatus = isInspected ? "Inspected" : dev.LifecycleStatus,
+                        requestStatus = isInspected ? "Completed" : x.Status,
+
+                        isInspected = isInspected,
+                        inspectionCompleted = isInspected,
+                        qualityGrade = inspObj?.OverallCondition,
+                        overallScore = inspObj?.OverallScore,
+                        inspectionStartedAt = inspObj?.InspectionStartedAt ?? (isInspected ? (inspObj?.CreatedAt ?? x.CreatedAt) : null),
+                        inspectionCompletedAt = inspObj?.InspectionCompletedAt,
 
                         hasPreviousFailedPickup = hasPreviousFailedPickup,
                         previousFailureReason = previousFailureReason,
@@ -839,7 +852,7 @@ namespace EcoCycle.API.Controllers
                         assignedAt = latestCa?.AssignedAt ?? x.CreatedAt,
                         startedAt = latestCa?.AssignedAt,
                         deliveredAt = delObj?.DeliveredAt,
-                        inspectionDeadline = (await db.Inspection.FirstOrDefaultAsync(i => i.DeviceId == dev.DeviceId || i.InspectionRequestId == x.InspectionRequestId))?.InspectionDeadline ?? (delObj?.DeliveredAt?.AddDays(3) ?? (latestCa?.AssignedAt?.AddDays(3) ?? x.CreatedAt.AddDays(3))),
+                        inspectionDeadline = inspObj?.InspectionDeadline ?? (delObj?.DeliveredAt?.AddDays(3) ?? (latestCa?.AssignedAt?.AddDays(3) ?? x.CreatedAt.AddDays(3))),
                         createdAt = dev.CreatedAt
                     });
                 }
@@ -879,8 +892,18 @@ namespace EcoCycle.API.Controllers
                         }
                         catch { }
 
+                        var inspObj = await db.Inspection.FirstOrDefaultAsync(i => i.DeviceId == dev.DeviceId || i.InspectionRequestId == latestInspReq.InspectionRequestId);
+                        bool isInspected = inspObj != null && (inspObj.Status == "Completed" || inspObj.InspectionCompletedAt != null || !string.IsNullOrEmpty(inspObj.OverallCondition) || inspObj.OverallScore > 0);
+                        bool isInspectionInProgress = !isInspected && inspObj != null && (inspObj.Status == "InProgress" || inspObj.InspectionStartedAt != null);
+
                         string caStatus = ca.Status ?? "Scheduled";
                         string delStatus = delObj != null ? delObj.Status : (caStatus == "Completed" ? "Pending" : caStatus == "OutForDelivery" ? "InTransit" : caStatus == "DeliveredToCenter" ? "Delivered" : "Pending");
+
+                        if (isInspected || dev.LifecycleStatus == "AtInspectionCenter" || dev.LifecycleStatus == "Inspected" || (dev.LifecycleStatus != null && (dev.LifecycleStatus.Contains("Refurbish") || dev.LifecycleStatus.Contains("Recycl"))))
+                        {
+                            caStatus = "DeliveredToCenter";
+                            delStatus = "Delivered";
+                        }
 
                         var allCas = dev.CollectionAssignments?.OrderByDescending(caItem => caItem.CreatedAt).ToList() ?? new List<CollectionAssignment>();
                         var prevCa = allCas.Skip(1).FirstOrDefault(p => p.Status == "Failed" || p.Status == "PickupFailed" || p.Status == "Cancelled" || p.Status == "Rejected" || p.Status == "Expired");
@@ -892,13 +915,14 @@ namespace EcoCycle.API.Controllers
                         result.Add(new
                         {
                             deviceId = dev.DeviceId,
-                            inspectionRequestId = (int?)null,
+                            inspectionRequestId = (int?)latestInspReq.InspectionRequestId,
                             collectionAssignmentId = ca.CollectionAssignmentId,
 
                             brand = dev.Brand,
                             model = dev.Model,
                             modelNumber = dev.ModelNumber,
                             serialNumber = dev.SerialNumber,
+                            purchaseDate = dev.PurchaseDate,
                             deviceQrToken = !string.IsNullOrEmpty(dev.DeviceQrToken) ? dev.DeviceQrToken : $"ECOQR-DEV-{dev.DeviceId}",
                             categoryName = dev.Category?.CategoryName ?? "E-Waste",
                             quantity = dev.Quantity,
@@ -933,8 +957,15 @@ namespace EcoCycle.API.Controllers
 
                             status = caStatus,
                             deliveryStatus = delStatus,
-                            lifecycleStatus = dev.LifecycleStatus,
-                            requestStatus = caStatus,
+                            lifecycleStatus = isInspected ? "Inspected" : dev.LifecycleStatus,
+                            requestStatus = isInspected ? "Completed" : latestInspReq.Status,
+
+                            isInspected = isInspected,
+                            inspectionCompleted = isInspected,
+                            qualityGrade = inspObj?.OverallCondition,
+                            overallScore = inspObj?.OverallScore,
+                            inspectionStartedAt = inspObj?.InspectionStartedAt ?? (isInspected ? (inspObj?.CreatedAt ?? latestInspReq.CreatedAt) : null),
+                            inspectionCompletedAt = inspObj?.InspectionCompletedAt,
 
                             hasPreviousFailedPickup = hasPreviousFailedPickup,
                             previousFailureReason = previousFailureReason,
@@ -953,7 +984,7 @@ namespace EcoCycle.API.Controllers
                             assignedAt = ca.AssignedAt ?? ca.CreatedAt,
                             startedAt = ca.AssignedAt,
                             deliveredAt = delObj?.DeliveredAt,
-                            inspectionDeadline = (await db.Inspection.FirstOrDefaultAsync(i => i.DeviceId == dev.DeviceId))?.InspectionDeadline ?? (delObj?.DeliveredAt?.AddDays(3) ?? (ca.AssignedAt?.AddDays(3) ?? dev.CreatedAt.AddDays(3))),
+                            inspectionDeadline = inspObj?.InspectionDeadline ?? (delObj?.DeliveredAt?.AddDays(3) ?? (ca.AssignedAt?.AddDays(3) ?? dev.CreatedAt.AddDays(3))),
                             createdAt = dev.CreatedAt
                         });
                     }
@@ -2186,6 +2217,41 @@ namespace EcoCycle.API.Controllers
             await CheckAndUpdateExpiredInspectionRequests();
             await CollectionAssignmentController.CheckAndUpdateExpiredCollectionAssignments(db);
 
+            // Database sync for completed inspections
+            try
+            {
+                var completedInspections = await db.Inspection
+                    .Where(i => i.Status == "Completed" || i.InspectionCompletedAt != null)
+                    .ToListAsync();
+
+                if (completedInspections.Any())
+                {
+                    var reqIds = completedInspections.Select(ci => ci.InspectionRequestId).Where(id => id > 0).ToList();
+                    var devIds = completedInspections.Select(ci => ci.DeviceId).Where(id => id > 0).ToList();
+
+                    var reqsToUpdate = await db.InspectionRequest
+                        .Where(r => (reqIds.Contains(r.InspectionRequestId) || devIds.Contains(r.DeviceId)) && r.Status != "Completed" && r.Status != "Rejected" && r.Status != "Cancelled")
+                        .ToListAsync();
+
+                    bool changed = false;
+                    foreach (var req in reqsToUpdate)
+                    {
+                        req.Status = "Completed";
+                        req.UpdatedAt = DateTime.Now;
+                        changed = true;
+                    }
+
+                    if (changed)
+                    {
+                        await db.SaveChangesAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error syncing completed inspection requests: " + ex.Message);
+            }
+
             var rawAssignments = await db.InspectionRequest
                 .Include(x => x.Device)
                     .ThenInclude(d => d.Category)
@@ -2207,8 +2273,13 @@ namespace EcoCycle.API.Controllers
                 var insp = inspectionList.FirstOrDefault(i => i.InspectionRequestId == x.InspectionRequestId) ?? inspectionList.FirstOrDefault(i => i.InspectionRequestId == 0 && i.DeviceId == x.DeviceId);
                 DateTime? deadline = insp?.InspectionDeadline;
                 bool isCompleted = string.Equals(x.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
-                                   string.Equals(x.Device?.LifecycleStatus, "Inspected", StringComparison.OrdinalIgnoreCase);
+                                   string.Equals(x.Device?.LifecycleStatus, "Inspected", StringComparison.OrdinalIgnoreCase) ||
+                                   (insp != null && (string.Equals(insp.Status, "Completed", StringComparison.OrdinalIgnoreCase) || insp.InspectionCompletedAt != null || !string.IsNullOrEmpty(insp.OverallCondition) || insp.OverallScore > 0));
                 bool isOverdue = deadline.HasValue && deadline.Value < now && !isCompleted;
+
+                string statusToReturn = (insp != null && string.Equals(insp.Status, "Penalized", StringComparison.OrdinalIgnoreCase))
+                    ? "Penalized"
+                    : (isCompleted ? "Completed" : x.Status);
 
                 return new
                 {
@@ -2230,9 +2301,7 @@ namespace EcoCycle.API.Controllers
                         ? x.Technician.Login.Email
                         : null,
 
-                    status = (insp != null && string.Equals(insp.Status, "Penalized", StringComparison.OrdinalIgnoreCase))
-                        ? "Penalized"
-                        : x.Status,
+                    status = statusToReturn,
 
                     assignedAt = x.AssignedAt,
                     responseDeadline = x.ResponseDeadline,
@@ -2243,7 +2312,10 @@ namespace EcoCycle.API.Controllers
                     rejectionReason = x.RejectionReason,
                     reassignmentCount = x.ReassignmentCount,
 
-                    lifecycleStatus = x.Device?.LifecycleStatus
+                    lifecycleStatus = isCompleted ? (x.Device?.LifecycleStatus ?? "Inspected") : x.Device?.LifecycleStatus,
+                    isInspected = isCompleted,
+                    qualityGrade = insp?.OverallCondition,
+                    overallScore = insp?.OverallScore
                 };
             }).ToList();
 
@@ -2786,6 +2858,7 @@ namespace EcoCycle.API.Controllers
                     model = p.Device != null ? p.Device.Model : "",
                     categoryName = p.Device != null && p.Device.Category != null ? p.Device.Category.CategoryName : "E-Waste",
                     serialNumber = p.Device != null ? p.Device.SerialNumber : "N/A",
+                    purchaseDate = p.Device != null ? p.Device.PurchaseDate : null,
                     
                     inspectionRequestId = p.InspectionRequestId,
                     penaltyAmount = p.PenaltyAmount,

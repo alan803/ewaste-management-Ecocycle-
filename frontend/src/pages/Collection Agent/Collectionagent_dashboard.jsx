@@ -18,6 +18,7 @@ import {
     FiRefreshCw,
     FiSearch,
     FiAlertCircle,
+    FiAlertTriangle,
     FiBell,
     FiList,
     FiGrid,
@@ -160,7 +161,9 @@ function CollectionAgentDashboard() {
                         customerPhone: ap.customerPhone,
                         status: ap.status,
                         extensionCount: ap.extensionCount || 0,
-                        responseDeadline: ap.responseDeadline
+                        responseDeadline: ap.responseDeadline,
+                        acceptedAt: ap.acceptedAt,
+                        completionDeadline: ap.completionDeadline
                     }))
                 });
                 setShowReminderModal(true);
@@ -184,18 +187,31 @@ function CollectionAgentDashboard() {
         try {
             setProcessingId(assignmentId);
             const token = localStorage.getItem("token");
-            await axios.post(
+            const res = await axios.post(
                 `https://localhost:7102/api/CollectionAssignment/accept/${assignmentId}`,
                 {},
                 {
                     headers: { Authorization: `Bearer ${token}` }
                 }
             );
+            const acceptedAtDate = res.data?.acceptedAt || new Date().toISOString();
+            const compDeadline = res.data?.completionDeadline || new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
+            
             setPickups(prev =>
-                prev.map(p => (p.collectionAssignmentId === assignmentId ? { ...p, status: "Accepted" } : p))
+                prev.map(p => (p.collectionAssignmentId === assignmentId ? { 
+                    ...p, 
+                    status: "Accepted",
+                    acceptedAt: acceptedAtDate,
+                    completionDeadline: compDeadline
+                } : p))
             );
             if (selectedPickup?.collectionAssignmentId === assignmentId) {
-                setSelectedPickup(prev => prev ? { ...prev, status: "Accepted" } : null);
+                setSelectedPickup(prev => prev ? { 
+                    ...prev, 
+                    status: "Accepted",
+                    acceptedAt: acceptedAtDate,
+                    completionDeadline: compDeadline
+                } : null);
             }
         } catch (err) {
             console.error("Error accepting assignment:", err);
@@ -295,16 +311,20 @@ function CollectionAgentDashboard() {
         const activeTabLower = (activeTab || "").toLowerCase();
 
         let matchesTab = true;
-        if (activeTabLower === "assigned") {
+        if (activeTab === "Refurbishment Center") {
+            matchesTab = item.assignmentType === "TechnicianToRefurbishmentCenter";
+        } else if (activeTab === "Recycling Center") {
+            matchesTab = item.assignmentType === "TechnicianToRecyclingCenter";
+        } else if (activeTabLower === "assigned" || activeTabLower === "pending") {
             matchesTab = statusLower === "assigned" || statusLower === "pending";
         } else if (activeTabLower === "accepted") {
             matchesTab = statusLower === "accepted";
+        } else if (activeTabLower === "rejected" || activeTabLower === "declined" || activeTabLower === "expired") {
+            matchesTab = statusLower === "rejected" || statusLower === "declined" || statusLower === "expired" || statusLower === "failed" || statusLower === "cancelled";
         } else if (activeTabLower === "pickupstarted" || activeTabLower === "en route") {
             matchesTab = statusLower === "pickupstarted" || statusLower === "en route";
         } else if (activeTabLower === "completed") {
             matchesTab = statusLower === "completed" || statusLower === "deliveredtocenter" || statusLower === "delivered" || statusLower === "pickedup";
-        } else if (activeTabLower === "rejected" || activeTabLower === "declined") {
-            matchesTab = statusLower === "rejected" || statusLower === "declined";
         }
 
         return matchesSearch && matchesTab;
@@ -325,37 +345,112 @@ function CollectionAgentDashboard() {
             .join(" ");
     };
 
-    const getStatusBadge = (status) => {
-        switch ((status || "").toLowerCase()) {
-            case "completed":
-                return <span className="agent-status-badge collected"><FiCheckCircle /> Completed</span>;
-            case "deliveredtocenter":
-            case "delivered":
-                return <span className="agent-status-badge collected" style={{ background: "#dcfce7", color: "#15803d", border: "1px solid #86efac" }}><FiCheckCircle /> Delivered to Center</span>;
+    const formatDate = (dateStr) => {
+        if (!dateStr) return "N/A";
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            return d.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric"
+            });
+        } catch {
+            return dateStr;
+        }
+    };
+
+    const formatScheduleTime = (item) => {
+        const rawDate = item?.pickupDate || item?.assignedAt || item?.createdAt;
+        const dateFormatted = formatDate(rawDate);
+        const slot = item?.timeSlot || item?.pickupTimeSlot;
+        if (slot) {
+            return `${dateFormatted} (${slot})`;
+        }
+        return dateFormatted;
+    };
+
+    const getStatusBadge = (itemOrStatus) => {
+        let s = "";
+        let delStat = "";
+        let lcs = "";
+
+        if (typeof itemOrStatus === "object" && itemOrStatus !== null) {
+            s = String(itemOrStatus.status || "").toLowerCase();
+            delStat = String(itemOrStatus.deliveryStatus || "").toLowerCase();
+            lcs = String(itemOrStatus.lifecycleStatus || "").toLowerCase();
+        } else {
+            s = String(itemOrStatus || "").toLowerCase();
+        }
+
+        if (s === "handoverrejected" || delStat === "handoverrejected" || lcs === "handoverrejected") {
+            return (
+                <span className="pro-badge badge-declined" style={{ background: "#fef2f2", color: "#dc2626", border: "1.5px solid #fca5a5", fontWeight: 700 }}>
+                    <FiAlertTriangle /> Verification Rejected
+                </span>
+            );
+        }
+
+        if (s === "deliveredtocenter" || delStat === "delivered" || delStat === "completed") {
+            return <span className="pro-badge badge-completed"><FiCheckCircle /> Delivered to Hub</span>;
+        }
+
+        if (s === "awaitingtechnicianapproval" || delStat === "pendingverification" || lcs === "handoverpendingverification") {
+            return <span className="pro-badge badge-pending" style={{ background: "#fef3c7", color: "#b45309", border: "1px solid #fde68a" }}><FiClock /> Handover Verification</span>;
+        }
+
+        switch (s) {
             case "pickedup":
-                return <span className="agent-status-badge collected" style={{ background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd" }}><FiPackage /> Picked Up</span>;
+                return <span className="pro-badge badge-enroute" style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" }}><FiTruck /> Collected - In Transit</span>;
             case "pickupstarted":
             case "en route":
-                return <span className="agent-status-badge en-route"><FiTruck /> En Route</span>;
+            case "outfordelivery":
+                return <span className="pro-badge badge-enroute"><FiTruck /> En Route</span>;
             case "accepted":
-                return <span className="agent-status-badge accepted"><FiCheck /> Accepted</span>;
+                return <span className="pro-badge badge-accepted"><FiCheck /> Accepted</span>;
             case "rejected":
             case "declined":
-                return <span className="agent-status-badge rejected"><FiX /> Declined</span>;
             case "expired":
-                return <span className="agent-status-badge rejected" style={{ background: "#fee2e2", color: "#b91c1c", border: "1px solid #fca5a5" }}><FiClock /> Expired</span>;
+            case "cancelled":
+            case "failed":
+                return <span className="pro-badge badge-expired"><FiAlertTriangle /> Expired</span>;
             case "assigned":
             case "pending":
             default:
-                return <span className="agent-status-badge pending"><FiClock /> Assigned</span>;
+                return <span className="pro-badge badge-pending"><FiClock /> Pending</span>;
         }
     };
 
     const totalCount = safePickups.length;
+    // Helper to format clean device title without duplicate brand name
+    const getDeviceTitle = (item) => {
+        const brand = (item?.brand || "").trim();
+        const model = (item?.model || "").trim();
+        if (!brand && !model) return "E-Waste Device";
+        if (!brand) return model;
+        if (!model) return brand;
+        if (model.toLowerCase().startsWith(brand.toLowerCase())) {
+            return model;
+        }
+        return `${brand} ${model}`;
+    };
+
+    const refurbCount = safePickups.filter(p => p.assignmentType === "TechnicianToRefurbishmentCenter").length;
+    const recycleCount = safePickups.filter(p => p.assignmentType === "TechnicianToRecyclingCenter").length;
     const totalUnits = safePickups.reduce((acc, p) => acc + (p?.quantity || 1), 0);
+    const completedCount = safePickups.filter(p => {
+        const s = (p?.status || "").toLowerCase();
+        return s === "completed" || s === "deliveredtocenter" || s === "delivered" || s === "pickedup";
+    }).length;
     const assignedCount = safePickups.filter(p => {
         const s = (p?.status || "").toLowerCase();
         return s === "assigned" || s === "pending";
+    }).length;
+    const pendingCount = assignedCount;
+    const acceptedCount = safePickups.filter(p => (p?.status || "").toLowerCase() === "accepted").length;
+    const rejectedCount = safePickups.filter(p => {
+        const s = (p?.status || "").toLowerCase();
+        return s === "expired" || s === "rejected" || s === "declined" || s === "failed" || s === "cancelled";
     }).length;
     const activeCount = safePickups.filter(p => {
         const s = (p?.status || "").toLowerCase();
@@ -392,7 +487,9 @@ function CollectionAgentDashboard() {
             customerPhone: ap.customerPhone,
             status: ap.status,
             extensionCount: ap.extensionCount || 0,
-            responseDeadline: ap.responseDeadline
+            responseDeadline: ap.responseDeadline,
+            acceptedAt: ap.acceptedAt,
+            completionDeadline: ap.completionDeadline
         }));
 
     return (
@@ -456,12 +553,12 @@ function CollectionAgentDashboard() {
 
                 {/* Metric Summary Cards Grid */}
                 <div className="agent-kpi-grid">
-                    <div className="agent-kpi-card emerald-accent">
+                    <div className="agent-kpi-card">
                         <div className="agent-kpi-top">
                             <div className="agent-kpi-icon emerald">
                                 <FiTruck />
                             </div>
-                            <span className="agent-kpi-badge">Active</span>
+                            <span className="agent-kpi-badge">Total Tasks</span>
                         </div>
                         <div>
                             <h3 className="agent-kpi-val">{totalCount} Tasks</h3>
@@ -469,20 +566,20 @@ function CollectionAgentDashboard() {
                         </div>
                     </div>
 
-                    <div className="agent-kpi-card blue-accent">
+                    <div className="agent-kpi-card">
                         <div className="agent-kpi-top">
-                            <div className="agent-kpi-icon blue">
-                                <FiPackage />
+                            <div className="agent-kpi-icon teal">
+                                <FiCheckCircle />
                             </div>
-                            <span className="agent-kpi-badge blue-pill">Total Units</span>
+                            <span className="agent-kpi-badge teal-pill">Delivered</span>
                         </div>
                         <div>
-                            <h3 className="agent-kpi-val">{totalUnits} Units</h3>
-                            <div className="agent-kpi-lbl">E-Waste Quantity</div>
+                            <h3 className="agent-kpi-val">{completedCount} Completed</h3>
+                            <div className="agent-kpi-lbl">Delivered to Centers</div>
                         </div>
                     </div>
 
-                    <div className="agent-kpi-card amber-accent">
+                    <div className="agent-kpi-card">
                         <div className="agent-kpi-top">
                             <div className="agent-kpi-icon amber">
                                 <FiClock />
@@ -495,7 +592,7 @@ function CollectionAgentDashboard() {
                         </div>
                     </div>
 
-                    <div className="agent-kpi-card purple-accent">
+                    <div className="agent-kpi-card">
                         <div className="agent-kpi-top">
                             <div className="agent-kpi-icon purple">
                                 <FiNavigation />
@@ -509,7 +606,7 @@ function CollectionAgentDashboard() {
                     </div>
 
                     <div 
-                        className="agent-kpi-card rose-accent" 
+                        className="agent-kpi-card" 
                         style={{ cursor: "pointer" }}
                         onClick={() => setShowReminderModal(true)}
                         title="Click to view Today's Pickups Reminder"
@@ -522,63 +619,70 @@ function CollectionAgentDashboard() {
                         </div>
                         <div>
                             <h3 className="agent-kpi-val">{todaysReminder?.totalPickups || 0} Pickups</h3>
-                            <div className="agent-kpi-lbl">Click to view today's reminder</div>
+                            <div className="agent-kpi-lbl">Click to view reminders</div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filter & Search Bar */}
+                <div className="pro-filter-card" style={{ marginBottom: "1.5rem" }}>
+                    <div className="pro-tabs-list">
+                        {[
+                            { id: "All", label: "All", count: totalCount },
+                            { id: "Refurbishment Center", label: "Refurbishment Center", count: refurbCount },
+                            { id: "Recycling Center", label: "Recycling Center", count: recycleCount },
+                            { id: "Pending", label: "Pending", count: pendingCount },
+                            { id: "Accepted", label: "Accepted", count: acceptedCount },
+                            { id: "Rejected", label: "Rejected", count: rejectedCount }
+                        ].map((tab) => (
+                            <button
+                                key={tab.id}
+                                className={`pro-tab-item ${activeTab === tab.id ? "active" : ""}`}
+                                onClick={() => setActiveTab(tab.id)}
+                            >
+                                <span>{tab.label}</span>
+                                <span className="pro-tab-count">{tab.count}</span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="pro-search-row">
+                        <div className="pro-search-input">
+                            <FiSearch className="srch-icon" />
+                            <input
+                                type="text"
+                                placeholder="Search by customer, phone, brand..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
+                                <button className="clear-srch" onClick={() => setSearchQuery("")}>
+                                    <FiX />
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="view-toggle">
+                            <button
+                                className={`view-btn ${viewMode === "grid" ? "active" : ""}`}
+                                onClick={() => setViewMode("grid")}
+                                title="Grid View"
+                            >
+                                <FiGrid />
+                            </button>
+                            <button
+                                className={`view-btn ${viewMode === "table" ? "active" : ""}`}
+                                onClick={() => setViewMode("table")}
+                                title="Table View"
+                            >
+                                <FiList />
+                            </button>
                         </div>
                     </div>
                 </div>
 
                 {/* Full-Width Assigned Pickups Panel */}
                 <div className="agent-panel-card">
-                    <div className="agent-panel-header">
-                        <div>
-                            <h2 className="agent-panel-title">My Assigned Pickups</h2>
-                            <p className="agent-panel-subtitle">Manage allocated citizen e-waste collection requests</p>
-                        </div>
-
-                        <div className="panel-controls-row">
-                            <div className="agent-tab-pills">
-                                {["All", "Assigned", "Accepted", "PickupStarted", "Completed"].map((tab) => (
-                                    <button
-                                        key={tab}
-                                        className={`agent-tab-btn ${activeTab === tab ? "active" : ""}`}
-                                        onClick={() => setActiveTab(tab)}
-                                    >
-                                        {tab === "PickupStarted" ? "En Route" : tab} ({
-                                            tab === "All"
-                                                ? pickups.length
-                                                : pickups.filter(p => {
-                                                    const s = (p.status || "").toLowerCase();
-                                                    if (tab === "Assigned") return s === "assigned" || s === "pending";
-                                                    if (tab === "Accepted") return s === "accepted";
-                                                    if (tab === "PickupStarted") return s === "pickupstarted" || s === "en route";
-                                                    if (tab === "Completed") return s === "completed" || s === "deliveredtocenter" || s === "delivered" || s === "pickedup";
-                                                    return s === tab.toLowerCase();
-                                                }).length
-                                        })
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Table / Grid View Toggle */}
-                            <div className="view-toggle-wrap">
-                                <button
-                                    className={`toggle-btn ${viewMode === "table" ? "active" : ""}`}
-                                    onClick={() => setViewMode("table")}
-                                    title="Table View"
-                                >
-                                    <FiList />
-                                </button>
-                                <button
-                                    className={`toggle-btn ${viewMode === "grid" ? "active" : ""}`}
-                                    onClick={() => setViewMode("grid")}
-                                    title="Grid Card View"
-                                >
-                                    <FiGrid />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                     <div className="agent-content-body">
                         {loading ? (
                             <div className="state-box">
@@ -608,133 +712,201 @@ function CollectionAgentDashboard() {
                                 </p>
                             </div>
                         ) : viewMode === "grid" ? (
-                            <div className="pickup-cards-grid">
-                                {filteredPickups.map((task) => {
-                                    const statusLower = (task.status || "").toLowerCase();
-                                    const canAccept = statusLower === "assigned" || statusLower === "pending";
-                                    const canStart = statusLower === "accepted";
-                                    const canDecline = statusLower === "assigned" || statusLower === "pending";
-                                    const formattedName = formatName(task.customerName);
+                            /* Professional White Cards Grid */
+                            <div className="pro-cards-grid">
+                                {filteredPickups.map((item) => {
+                                    const statusLower = (item.status || "").toLowerCase();
+                                    const isExpired = statusLower === "expired" || statusLower === "rejected" || statusLower === "declined" || statusLower === "cancelled" || statusLower === "failed";
+                                    const isPending = !isExpired && (statusLower === "assigned" || statusLower === "pending");
+                                    const isAccepted = !isExpired && statusLower === "accepted";
+                                    const isEnRoute = !isExpired && (statusLower === "pickupstarted" || statusLower === "en route");
 
                                     return (
-                                        <div key={task.collectionAssignmentId} className={`pickup-card-item card-status-${statusLower}`}>
-                                            <div>
-                                                <div className="card-item-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-                                                    <div>
-                                                        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                                                            <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#64748b", fontSize: "0.8rem" }}>
-                                                                #{task.collectionAssignmentId}
-                                                            </span>
-                                                            {task.assignmentType === "TechnicianToRecyclingCenter" ? (
-                                                                <span style={{ background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd", fontSize: "0.7rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>
-                                                                    Tech ➔ Recycler
-                                                                </span>
-                                                            ) : (task.assignmentType === "TechnicianToTechnician" || task.isReassignedFromTech || task.isReassignmentPickup) ? (
-                                                                <span style={{ background: "#fff7ed", color: "#c2410c", border: "1px solid #ffedd5", fontSize: "0.7rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>
-                                                                    Tech ➔ Tech
-                                                                </span>
-                                                            ) : (
-                                                                <span style={{ background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", fontSize: "0.7rem", fontWeight: 700, padding: "0.1rem 0.45rem", borderRadius: "12px", whiteSpace: "nowrap" }}>
-                                                                    Citizen ➔ Tech
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <h3 className="card-device-title" style={{ margin: "0.2rem 0 0", fontSize: "1.05rem", fontWeight: 700, color: "#0f172a" }}>
-                                                            {task.brand} {task.model}
-                                                        </h3>
-                                                    </div>
-                                                    {getStatusBadge(task.status)}
-                                                </div>
-
-                                                <div style={{ background: "#f8fafc", padding: "0.75rem", borderRadius: "10px", border: "1px solid #e2e8f0", marginBottom: "0.75rem" }}>
-                                                    {task.assignmentType === "TechnicianToRecyclingCenter" ? (
-                                                        <>
-                                                            <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0369a1" }}>
-                                                                Collect From: {task.technicianName || task.inspectionCenterName || "Technician Hub"}
-                                                            </div>
-                                                            <div style={{ fontSize: "0.78rem", color: "#475569", marginTop: "0.15rem", fontWeight: 600 }}>
-                                                                Deliver To: {task.recyclingCenterName || "Recycling Center"}
-                                                            </div>
-                                                            {task.technicianPhone && (
-                                                                <a href={`tel:${task.technicianPhone}`} style={{ fontSize: "0.78rem", color: "#2563eb", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.25rem", marginTop: "0.15rem" }}>
-                                                                    <FiPhoneCall /> {task.technicianPhone}
-                                                                </a>
-                                                            )}
-                                                            <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "0.3rem" }}>
-                                                                <FiMapPin style={{ color: "#059669", marginRight: "0.25rem" }} />
-                                                                {task.deliveredAddress || task.technicianAddress || "Inspection Center Address"}
-                                                            </div>
-                                                        </>
+                                        <div key={item.collectionAssignmentId || item.id} className={`pro-pickup-card ${isExpired ? "pro-pickup-card--expired" : ""}`}>
+                                            {/* Card Header Row with Route Badge on Left and Status on Right */}
+                                            <div className="pro-card-header">
+                                                <div>
+                                                    {item.assignmentType === "TechnicianToRefurbishmentCenter" ? (
+                                                        <span className="t-route-chip refurb">Tech ➔ Refurbisher</span>
+                                                    ) : item.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                        <span className="t-route-chip recycler">Tech ➔ Recycler</span>
+                                                    ) : (item.assignmentType === "TechnicianToTechnician" || item.isReassignedFromTech || item.isReassignmentPickup) ? (
+                                                        <span className="t-route-chip tech">Tech ➔ Tech</span>
                                                     ) : (
-                                                        <>
-                                                            <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>
-                                                                {formattedName}
-                                                            </div>
-                                                            {task.customerPhone && (
-                                                                <a href={`tel:${task.customerPhone}`} style={{ fontSize: "0.78rem", color: "#2563eb", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.25rem", marginTop: "0.15rem" }}>
-                                                                    <FiPhoneCall /> {task.customerPhone}
-                                                                </a>
-                                                            )}
-                                                            <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "0.3rem" }}>
-                                                                <FiMapPin style={{ color: "#059669", marginRight: "0.25rem" }} />
-                                                                {task.address} {task.city ? `, ${task.city}` : ""}
-                                                            </div>
-                                                        </>
+                                                        <span className="t-route-chip citizen">Citizen ➔ Tech</span>
                                                     )}
                                                 </div>
-
-                                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.8rem", color: "#475569", marginBottom: "0.75rem" }}>
-                                                    <span>Category: <strong>{task.categoryName || "E-Waste"}</strong></span>
-                                                    <span>Qty: <strong>{task.quantity || 1}</strong></span>
-                                                </div>
-
-                                                <div style={{ fontSize: "0.8rem", color: "#64748b", marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
-                                                    <FiClock style={{ color: "#059669" }} />
-                                                    <span>{task.pickupDate ? new Date(task.pickupDate).toLocaleDateString() : "Scheduled"} • {task.timeSlot || "Standard Slot"}</span>
+                                                <div style={{ flexShrink: 0 }}>
+                                                    {getStatusBadge(item)}
                                                 </div>
                                             </div>
 
-                                            <div className="card-actions-row" style={{ display: "flex", gap: "0.4rem", marginTop: "auto" }}>
-                                                {canAccept && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleAccept(task.collectionAssignmentId)}
-                                                        disabled={processingId === task.collectionAssignmentId}
-                                                        className="btn btn-success"
-                                                        style={{ flex: 1, justifyContent: "center" }}
-                                                    >
-                                                        <FiCheck /> Accept
-                                                    </button>
+                                            {/* Item Title & Tags */}
+                                            <div className="pro-card-body">
+                                                <h3 className="pro-item-title">
+                                                    {getDeviceTitle(item)}
+                                                </h3>
+                                                <div className="pro-tags-wrap">
+                                                    <span className="pro-tag category">{item.categoryName || "E-Waste"}</span>
+                                                    <span className="pro-tag qty">Qty: {item.quantity || 1}</span>
+                                                    {item.condition && (
+                                                        <span className="pro-tag condition">{item.condition}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Route Details - based on assignmentType */}
+                                            <div className="pro-card-details">
+                                                {item.assignmentType === "TechnicianToRefurbishmentCenter" ? (
+                                                    <>
+                                                        <div className="pro-info-row">
+                                                            <FiUser className="icn" />
+                                                            <span className="bold-txt" style={{ color: "#7e22ce" }}>Collect From: {item.technicianName || item.inspectionCenterName || "Technician Hub"}</span>
+                                                        </div>
+                                                        {item.technicianPhone && (
+                                                            <div className="pro-info-row">
+                                                                <FiPhoneCall className="icn" />
+                                                                <a href={`tel:${item.technicianPhone}`} className="tel-link">{item.technicianPhone}</a>
+                                                            </div>
+                                                        )}
+                                                        <div className="pro-info-row">
+                                                            <FiMapPin className="icn pin" />
+                                                            <span className="addr-txt">{item.deliveredAddress || item.technicianAddress || "Inspection Center Address"}</span>
+                                                        </div>
+                                                        <div className="pro-info-row delivery-row">
+                                                            <FiTruck className="icn delivery-icn" />
+                                                            <span className="delivery-txt"><strong>Deliver To:</strong> {item.refurbishmentCenterName || "Refurbishment Center"}</span>
+                                                        </div>
+                                                    </>
+                                                ) : item.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                    <>
+                                                        <div className="pro-info-row">
+                                                            <FiUser className="icn" />
+                                                            <span className="bold-txt" style={{ color: "#0369a1" }}>Collect From: {item.technicianName || item.inspectionCenterName || "Technician Hub"}</span>
+                                                        </div>
+                                                        {item.technicianPhone && (
+                                                            <div className="pro-info-row">
+                                                                <FiPhoneCall className="icn" />
+                                                                <a href={`tel:${item.technicianPhone}`} className="tel-link">{item.technicianPhone}</a>
+                                                            </div>
+                                                        )}
+                                                        <div className="pro-info-row">
+                                                            <FiMapPin className="icn pin" />
+                                                            <span className="addr-txt">{item.deliveredAddress || item.technicianAddress || "Inspection Center Address"}</span>
+                                                        </div>
+                                                        <div className="pro-info-row delivery-row">
+                                                            <FiTruck className="icn delivery-icn" />
+                                                            <span className="delivery-txt"><strong>Deliver To:</strong> {item.recyclingCenterName || "Recycling Center"}</span>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className="pro-info-row">
+                                                            <FiUser className="icn" />
+                                                            <span className="bold-txt">{item.customerName || "Citizen Customer"}</span>
+                                                        </div>
+                                                        {item.customerPhone && (
+                                                            <div className="pro-info-row">
+                                                                <FiPhoneCall className="icn" />
+                                                                <a href={`tel:${item.customerPhone}`} className="tel-link">{item.customerPhone}</a>
+                                                            </div>
+                                                        )}
+                                                        <div className="pro-info-row">
+                                                            <FiMapPin className="icn pin" />
+                                                            <span className="addr-txt">{item.address || "Address N/A"}{item.city ? `, ${item.city}` : ""} {item.pincode ? `(${item.pincode})` : ""}</span>
+                                                        </div>
+                                                        {(item.technicianName || item.inspectionCenterName) && (
+                                                            <div className="pro-info-row delivery-row">
+                                                                <FiTruck className="icn delivery-icn" />
+                                                                <span className="delivery-txt"><strong>Deliver To:</strong> {item.technicianName || "Inspection Tech"} ({item.inspectionCenterName || item.technicianCenterName || "Hub"})</span>
+                                                            </div>
+                                                        )}
+                                                    </>
                                                 )}
-                                                {canStart && (
+                                                <div className="pro-info-row">
+                                                    <FiCalendar className="icn" />
+                                                    <span>Pickup: {formatScheduleTime(item)}</span>
+                                                </div>
+
+                                                {item.completionDeadline && (statusLower === "accepted" || statusLower === "pickupstarted" || statusLower === "en route" || statusLower === "pickedup") && (() => {
+                                                    const isOverdue = new Date(item.completionDeadline) < new Date();
+                                                    return (
+                                                        <div style={{
+                                                            fontSize: "0.76rem",
+                                                            color: isOverdue ? "#b91c1c" : "#0369a1",
+                                                            background: isOverdue ? "#fef2f2" : "#f0f9ff",
+                                                            border: isOverdue ? "1px solid #fecdd3" : "1px solid #bae6fd",
+                                                            padding: "0.35rem 0.55rem",
+                                                            borderRadius: "6px",
+                                                            marginTop: "0.45rem",
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "space-between",
+                                                            gap: "0.3rem"
+                                                        }}>
+                                                            <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                                <FiClock style={{ color: isOverdue ? "#e11d48" : "#0284c7", flexShrink: 0 }} />
+                                                                <span><strong>Deadline:</strong> {new Date(item.completionDeadline).toLocaleDateString()}</span>
+                                                            </div>
+                                                            <span style={{
+                                                                fontSize: "0.68rem",
+                                                                fontWeight: 800,
+                                                                background: isOverdue ? "#fee2e2" : "#e0f2fe",
+                                                                color: isOverdue ? "#991b1b" : "#0369a1",
+                                                                padding: "0.1rem 0.4rem",
+                                                                borderRadius: "4px",
+                                                                flexShrink: 0
+                                                            }}>
+                                                                {isOverdue ? "Overdue" : "5-Day SLA"}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+
+                                            {/* Properly Aligned Action Buttons */}
+                                            <div className="pro-card-actions">
+                                                {isExpired ? (
+                                                    <div className="status-expired-pill" style={{ flex: "1 1 auto" }}>
+                                                        <FiAlertTriangle /> Expired / Cancelled
+                                                    </div>
+                                                ) : isPending ? (
                                                     <button
-                                                        type="button"
-                                                        onClick={() => handleStartPickup(task.collectionAssignmentId)}
-                                                        disabled={processingId === task.collectionAssignmentId}
-                                                        className="btn btn-success"
-                                                        style={{ flex: 1, justifyContent: "center", background: "#0284c7", borderColor: "#0284c7" }}
+                                                        className="btn-pro-accept"
+                                                        disabled={processingId === item.collectionAssignmentId}
+                                                        onClick={() => handleAccept(item.collectionAssignmentId)}
+                                                    >
+                                                        <FiCheck /> Accept Task
+                                                    </button>
+                                                ) : isAccepted ? (
+                                                    <button
+                                                        className="btn-pro-start"
+                                                        disabled={processingId === item.collectionAssignmentId}
+                                                        onClick={() => handleStartPickup(item.collectionAssignmentId)}
                                                     >
                                                         <FiTruck /> Start Pickup
                                                     </button>
-                                                )}
+                                                ) : isEnRoute ? (
+                                                    <div className="btn-pro-enroute" style={{ flex: "1 1 auto" }}>
+                                                        <FiTruck /> En Route
+                                                    </div>
+                                                ) : null}
+
                                                 <button
-                                                    type="button"
-                                                    className="btn btn-secondary"
-                                                    onClick={() => setSelectedPickup(task)}
-                                                    style={{ flex: 1, justifyContent: "center" }}
+                                                    className="btn-pro-details"
+                                                    onClick={() => setSelectedPickup(item)}
                                                 >
                                                     <FiInfo /> Details
                                                 </button>
-                                                {canDecline && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setRejectionTarget(task)}
-                                                        disabled={processingId === task.collectionAssignmentId}
-                                                        className="btn btn-danger"
-                                                        style={{ flex: 1, justifyContent: "center" }}
+
+                                                {!isExpired && (item.customerPhone || item.technicianPhone) && (
+                                                    <a
+                                                        href={`tel:${item.customerPhone || item.technicianPhone}`}
+                                                        className="btn-pro-call"
+                                                        title="Call"
                                                     >
-                                                        <FiX /> Decline
-                                                    </button>
+                                                        <FiPhoneCall />
+                                                    </a>
                                                 )}
                                             </div>
                                         </div>
@@ -742,287 +914,334 @@ function CollectionAgentDashboard() {
                                 })}
                             </div>
                         ) : (
-                            <div className="agent-table-wrapper">
-                                <table className="agent-table">
-                                    <thead>
-                                        <tr>
-                                            <th style={{ width: "8%" }}>Task ID</th>
-                                            <th style={{ width: "24%" }}>Device Details</th>
-                                            <th style={{ width: "24%" }}>Sender & Address</th>
-                                            <th style={{ width: "16%" }}>Scheduled Slot</th>
-                                            <th style={{ width: "12%" }}>Status</th>
-                                            <th style={{ width: "16%", textAlign: "center" }}>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredPickups.map((task) => {
-                                            const statusLower = (task.status || "").toLowerCase();
-                                            const canAccept = statusLower === "assigned" || statusLower === "pending";
-                                            const canStart = statusLower === "accepted";
-                                            const canDecline = statusLower === "assigned" || statusLower === "pending";
-                                            const formattedName = formatName(task.customerName);
+                        <div className="pro-table-wrapper">
+                            <table className="pro-pickups-table">
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: "9%" }}>Task</th>
+                                        <th style={{ width: "23%" }}>E-Waste Item</th>
+                                        <th style={{ width: "18%" }}>Customer / Route</th>
+                                        <th style={{ width: "20%" }}>Pickup Location</th>
+                                        <th style={{ width: "15%" }}>Scheduled Slot</th>
+                                        <th style={{ width: "10%" }}>Status</th>
+                                        <th style={{ width: "5%", textAlign: "right" }}>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredPickups.map((item, index) => {
+                                        const statusLower = (item.status || "").toLowerCase();
+                                        const isExpired = statusLower === "expired" || statusLower === "rejected" || statusLower === "declined" || statusLower === "cancelled" || statusLower === "failed";
+                                        const isPending = !isExpired && (statusLower === "assigned" || statusLower === "pending");
+                                        const isAccepted = !isExpired && statusLower === "accepted";
+                                        const isEnRoute = !isExpired && (statusLower === "pickupstarted" || statusLower === "en route");
 
-                                            return (
-                                                <tr key={task.collectionAssignmentId} className={`table-row-status-${statusLower}`}>
-                                                    <td>
-                                                        <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#64748b", fontSize: "0.825rem" }}>
-                                                            #{task.collectionAssignmentId}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
-                                                            <div className="cell-title-lg" style={{ fontWeight: 700, color: "#0f172a", fontSize: "0.9rem" }}>
-                                                                {task.brand} {task.model}
-                                                            </div>
-                                                            {task.assignmentType === "TechnicianToRecyclingCenter" ? (
-                                                                <span style={{ background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd", fontSize: "0.68rem", fontWeight: 700, padding: "0.08rem 0.4rem", borderRadius: "10px", whiteSpace: "nowrap" }}>
-                                                                    Tech ➔ Recycler
-                                                                </span>
-                                                            ) : (task.assignmentType === "TechnicianToTechnician" || task.isReassignedFromTech || task.isReassignmentPickup) ? (
-                                                                <span style={{ background: "#fff7ed", color: "#c2410c", border: "1px solid #ffedd5", fontSize: "0.68rem", fontWeight: 700, padding: "0.08rem 0.4rem", borderRadius: "10px", whiteSpace: "nowrap" }}>
-                                                                    Tech ➔ Tech
-                                                                </span>
-                                                            ) : (
-                                                                <span style={{ background: "#f0fdf4", color: "#15803d", border: "1px solid #bbf7d0", fontSize: "0.68rem", fontWeight: 700, padding: "0.08rem 0.4rem", borderRadius: "10px", whiteSpace: "nowrap" }}>
-                                                                    Citizen ➔ Tech
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem" }}>
-                                                            {task.categoryName || "E-Waste"} • {task.quantity || 1} Unit(s) {task.condition ? `• ${task.condition}` : ""}
-                                                        </div>
-                                                    </td>
-                                                    <td>
-                                                        {task.assignmentType === "TechnicianToRecyclingCenter" ? (
-                                                            <>
-                                                                <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0369a1" }}>
-                                                                    Tech: {task.technicianName || task.inspectionCenterName || "Inspection Hub"}
-                                                                </div>
-                                                                <div style={{ fontSize: "0.75rem", color: "#475569", fontWeight: 600 }}>
-                                                                    To: {task.recyclingCenterName || "Recycling Facility"} • Ph: {task.technicianPhone || "N/A"}
-                                                                </div>
-                                                                <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={task.deliveredAddress || task.technicianAddress}>
-                                                                    {task.deliveredAddress || task.technicianAddress}
-                                                                </div>
-                                                            </>
+                                        return (
+                                            <tr key={item.collectionAssignmentId} className={isExpired ? "table-row-expired" : ""}>
+                                                <td className="t-task-id">
+                                                    <div className="t-task-col-wrapper">
+                                                        <span className="t-id-badge">{index + 1}</span>
+                                                        {item.assignmentType === "TechnicianToRefurbishmentCenter" ? (
+                                                            <span className="t-route-chip refurb">Tech ➔ Refurbisher</span>
+                                                        ) : item.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                            <span className="t-route-chip recycler">Tech ➔ Recycler</span>
+                                                        ) : (item.assignmentType === "TechnicianToTechnician" || item.isReassignedFromTech || item.isReassignmentPickup) ? (
+                                                            <span className="t-route-chip tech">Tech ➔ Tech</span>
                                                         ) : (
-                                                            <>
-                                                                <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#0f172a" }}>
-                                                                    {formattedName}
-                                                                </div>
-                                                                {task.customerPhone && (
-                                                                    <a href={`tel:${task.customerPhone}`} style={{ fontSize: "0.775rem", color: "#2563eb", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "0.2rem" }}>
-                                                                        <FiPhoneCall style={{ fontSize: "0.7rem" }} /> {task.customerPhone}
-                                                                    </a>
-                                                                )}
-                                                                <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={task.address}>
-                                                                    {task.address}
-                                                                </div>
-                                                            </>
+                                                            <span className="t-route-chip citizen">Citizen ➔ Tech</span>
                                                         )}
-                                                    </td>
-                                                    <td>
-                                                        <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "#0f172a" }}>
-                                                            {task.pickupDate ? new Date(task.pickupDate).toLocaleDateString() : "Scheduled"}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className="t-item-title">{getDeviceTitle(item)}</div>
+                                                    <div className="t-item-tags">
+                                                        <span className="t-tag category">{item.categoryName || "E-Waste"}</span>
+                                                        <span className="t-tag qty">Qty: {item.quantity || 1}</span>
+                                                        {item.condition && <span className="t-tag condition">{item.condition}</span>}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    {item.assignmentType === "TechnicianToRefurbishmentCenter" ? (
+                                                        <div className="t-cust-box">
+                                                            <div className="t-cust-name tech-refurb">{item.technicianName || item.inspectionCenterName || "Technician Hub"}</div>
+                                                            {item.technicianPhone && <a href={`tel:${item.technicianPhone}`} className="t-cust-phone"><FiPhoneCall /> {item.technicianPhone}</a>}
+                                                            <div className="t-dest-label">➔ {item.refurbishmentCenterName || "Refurbishment Center"}</div>
                                                         </div>
-                                                        <div style={{ fontSize: "0.775rem", color: "#64748b", marginTop: "0.15rem" }}>
-                                                            {task.timeSlot || "Standard Slot"}
+                                                    ) : item.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                                        <div className="t-cust-box">
+                                                            <div className="t-cust-name tech-recycle">{item.technicianName || item.inspectionCenterName || "Technician Hub"}</div>
+                                                            {item.technicianPhone && <a href={`tel:${item.technicianPhone}`} className="t-cust-phone"><FiPhoneCall /> {item.technicianPhone}</a>}
+                                                            <div className="t-dest-label">➔ {item.recyclingCenterName || "Recycling Center"}</div>
                                                         </div>
-                                                    </td>
-                                                    <td>
-                                                        {getStatusBadge(task.status)}
-                                                    </td>
-                                                    <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
-                                                        <div style={{ display: "inline-flex", gap: "0.35rem", justifyContent: "center", alignItems: "center" }}>
-                                                            {canAccept && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleAccept(task.collectionAssignmentId)}
-                                                                    disabled={processingId === task.collectionAssignmentId}
-                                                                    className="btn btn-success"
-                                                                    style={{ padding: "0.4rem 0.65rem", fontSize: "0.78rem", whiteSpace: "nowrap" }}
-                                                                >
-                                                                    <FiCheck /> Accept
-                                                                </button>
-                                                            )}
-                                                            {canStart && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleStartPickup(task.collectionAssignmentId)}
-                                                                    disabled={processingId === task.collectionAssignmentId}
-                                                                    className="btn btn-success"
-                                                                    style={{ padding: "0.4rem 0.65rem", fontSize: "0.78rem", whiteSpace: "nowrap", background: "#0284c7", borderColor: "#0284c7" }}
-                                                                >
-                                                                    <FiTruck /> Start Pickup
-                                                                </button>
-                                                            )}
+                                                    ) : (
+                                                        <div className="t-cust-box">
+                                                            <div className="t-cust-name">{item.customerName || "Citizen"}</div>
+                                                            {item.customerPhone && <a href={`tel:${item.customerPhone}`} className="t-cust-phone"><FiPhoneCall /> {item.customerPhone}</a>}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    <div className="t-address-wrap">
+                                                        <FiMapPin className="t-pin-icn" />
+                                                        <span className="t-addr-txt">
+                                                            {(item.assignmentType === "TechnicianToRefurbishmentCenter" || item.assignmentType === "TechnicianToRecyclingCenter")
+                                                                ? (item.deliveredAddress || item.technicianAddress || "Inspection Center Address")
+                                                                : `${item.address || "Address N/A"}${item.city ? `, ${item.city}` : ""}`}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className="t-date-badge">
+                                                        <FiCalendar className="t-cal-icn" />
+                                                        <span>{formatScheduleTime(item)}</span>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    {getStatusBadge(item)}
+                                                </td>
+                                                <td style={{ textAlign: "right" }}>
+                                                    <div className="t-actions">
+                                                        {isPending && (
+                                                            <button
+                                                                className="btn-pro-accept sm"
+                                                                disabled={processingId === item.collectionAssignmentId}
+                                                                onClick={() => handleAccept(item.collectionAssignmentId)}
+                                                            >
+                                                                <FiCheck /> Accept
+                                                            </button>
+                                                        )}
+                                                        {isAccepted && (
+                                                            <button
+                                                                className="btn-pro-start sm"
+                                                                disabled={processingId === item.collectionAssignmentId}
+                                                                onClick={() => handleStartPickup(item.collectionAssignmentId)}
+                                                            >
+                                                                <FiTruck /> Start
+                                                            </button>
+                                                        )}
+                                                        {isEnRoute && (
+                                                            <div className="btn-pro-enroute sm">
+                                                                <FiTruck /> En Route
+                                                            </div>
+                                                        )}
+                                                        {isPending && (
                                                             <button
                                                                 type="button"
-                                                                className="btn btn-secondary"
-                                                                onClick={() => setSelectedPickup(task)}
-                                                                title="View Details"
-                                                                style={{ padding: "0.4rem 0.65rem", fontSize: "0.78rem", whiteSpace: "nowrap" }}
+                                                                className="btn-pro-details sm"
+                                                                style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                                                                onClick={() => setRejectionTarget(item)}
+                                                                disabled={processingId === item.collectionAssignmentId}
                                                             >
-                                                                <FiInfo /> Details
+                                                                <FiX /> Decline
                                                             </button>
-                                                            {canDecline && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setRejectionTarget(task)}
-                                                                    disabled={processingId === task.collectionAssignmentId}
-                                                                    className="btn btn-danger"
-                                                                    style={{ padding: "0.4rem 0.65rem", fontSize: "0.78rem", whiteSpace: "nowrap" }}
-                                                                >
-                                                                    <FiX /> Decline
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                                                        )}
+                                                        <button
+                                                            className="btn-pro-details sm"
+                                                            onClick={() => setSelectedPickup(item)}
+                                                        >
+                                                            <FiInfo /> Details
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                         )}
 
                     </div>
                 </div>
             </main>
 
-            {/* Task Details Modal */}
+            {/* Task Details Modal (Matching Pickups.jsx) */}
             {selectedPickup && (
-                <div className="modal-overlay" onClick={() => setSelectedPickup(null)}>
-                    <div className="clean-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
+                <div className="pro-modal-overlay" onClick={() => setSelectedPickup(null)}>
+                    <div className="pro-modal-dialog" onClick={(e) => e.stopPropagation()}>
+                        <div className="pro-modal-header">
                             <div>
-                                <h2>Pickup Assignment Details</h2>
-                                <p className="modal-sub">{selectedPickup.brand} {selectedPickup.model}</p>
+                                <h2>Details</h2>
+                                <span className="sub-txt">Collection Assignment</span>
                             </div>
-                            <button className="close-btn" onClick={() => setSelectedPickup(null)}>
+                            <button className="pro-close-btn" onClick={() => setSelectedPickup(null)}>
                                 <FiX />
                             </button>
                         </div>
 
-                        <div className="modal-content">
-                            <div className="modal-top-meta" style={{ marginBottom: "1rem" }}>
-                                <div>
-                                    <span className="modal-meta-lbl">Scheduled Slot</span>
-                                    <div className="modal-meta-val">
-                                        {selectedPickup.pickupDate ? new Date(selectedPickup.pickupDate).toLocaleDateString() : "Scheduled"} ({selectedPickup.timeSlot || "Slot N/A"})
+                        <div className="pro-modal-body">
+                            {selectedPickup.completionDeadline && (
+                                <div style={{
+                                    background: "#f0fdf4",
+                                    border: "1px solid #bbf7d0",
+                                    padding: "0.65rem 0.85rem",
+                                    borderRadius: "9px",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    marginBottom: "0.85rem",
+                                    flexWrap: "wrap",
+                                    gap: "0.4rem"
+                                }}>
+                                    <div>
+                                        <div style={{ fontSize: "0.675rem", fontWeight: 800, color: "#166534", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                                            Logistics Completion Deadline
+                                        </div>
+                                        <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "#14532d", marginTop: "0.1rem" }}>
+                                            Must be delivered by: {new Date(selectedPickup.completionDeadline).toLocaleDateString()}
+                                        </div>
                                     </div>
+                                    <span style={{ background: "#dcfce7", color: "#15803d", fontWeight: 800, fontSize: "0.7rem", padding: "0.2rem 0.55rem", borderRadius: "10px", border: "1px solid #86efac" }}>
+                                        5-Day Completion SLA
+                                    </span>
                                 </div>
-                                {getStatusBadge(selectedPickup.status)}
-                            </div>
+                            )}
 
                             {/* COLLECT FROM -> DELIVER TO ROUTING FLOW */}
-                            <div style={{ background: "#f8fafc", padding: "1rem", borderRadius: "12px", border: "1px solid #e2e8f0", marginBottom: "1rem" }}>
-                                {selectedPickup.assignmentType === "TechnicianToRecyclingCenter" ? (
+                            <div style={{ background: "#f8fafc", padding: "0.85rem", borderRadius: "11px", border: "1px solid #e2e8f0", marginBottom: "0.85rem" }}>
+                                {selectedPickup.assignmentType === "TechnicianToRefurbishmentCenter" ? (
                                     <>
-                                        <div style={{ background: "#e0f2fe", border: "1px solid #bae6fd", padding: "0.85rem", borderRadius: "10px" }}>
-                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#0369a1", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                        <div style={{ background: "#f3e8ff", border: "1px solid #d8b4fe", padding: "0.75rem", borderRadius: "9px" }}>
+                                            <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#7e22ce", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                                                 COLLECT FROM (TECHNICIAN HUB)
                                             </div>
-                                            <div style={{ fontWeight: 700, color: "#0c4a6e", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                            <div style={{ fontWeight: 700, color: "#581c87", fontSize: "0.825rem", marginTop: "0.15rem" }}>
                                                 Technician / Hub: {selectedPickup.technicianName || selectedPickup.inspectionCenterName || "Inspection Technician"} {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
                                             </div>
-                                            <div style={{ color: "#0369a1", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                            <div style={{ color: "#7e22ce", fontSize: "0.75rem", marginTop: "0.15rem" }}>
                                                 <strong>Inspection Center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central Inspection Center"}
                                             </div>
-                                            <div style={{ color: "#0284c7", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                                            <div style={{ color: "#9333ea", fontSize: "0.725rem", marginTop: "0.15rem" }}>
                                                 <strong>Pickup date / time slot:</strong> {selectedPickup.pickupDate ? new Date(selectedPickup.pickupDate).toLocaleDateString() : "Scheduled"} • {selectedPickup.timeSlot || "Standard Slot"}
                                             </div>
                                         </div>
 
-                                        <div style={{ textAlign: "center", fontSize: "1.35rem", fontWeight: 800, color: "#0284c7", margin: "0.35rem 0" }}>
+                                        <div style={{ textAlign: "center", fontSize: "1.1rem", fontWeight: 800, color: "#9333ea", margin: "0.25rem 0" }}>
                                             ↓
                                         </div>
 
-                                        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.85rem", borderRadius: "10px" }}>
-                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#15803d", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                        <div style={{ background: "#faf5ff", border: "1px solid #e9d5ff", padding: "0.75rem", borderRadius: "9px" }}>
+                                            <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#6b21a8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                DELIVER TO (REFURBISHMENT CENTER)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#3b0764", fontSize: "0.825rem", marginTop: "0.15rem" }}>
+                                                Facility: {selectedPickup.refurbishmentCenterName || "Refurbishment Center"} {selectedPickup.refurbishmentCenterPhone ? `(Ph: ${selectedPickup.refurbishmentCenterPhone})` : ""}
+                                            </div>
+                                            {selectedPickup.refurbishmentCenterOwner && (
+                                                <div style={{ color: "#581c87", fontSize: "0.75rem", marginTop: "0.1rem" }}>
+                                                    <strong>Contact Person:</strong> {selectedPickup.refurbishmentCenterOwner}
+                                                </div>
+                                            )}
+                                            <div style={{ color: "#6b21a8", fontSize: "0.75rem", marginTop: "0.15rem" }}>
+                                                <strong>Refurbishment Center address:</strong> {selectedPickup.refurbishmentCenterAddress || selectedPickup.deliveredAddress || "Refurbishment Center Address"}
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : selectedPickup.assignmentType === "TechnicianToRecyclingCenter" ? (
+                                    <>
+                                        <div style={{ background: "#e0f2fe", border: "1px solid #bae6fd", padding: "0.75rem", borderRadius: "9px" }}>
+                                            <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#0369a1", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                                COLLECT FROM (TECHNICIAN HUB)
+                                            </div>
+                                            <div style={{ fontWeight: 700, color: "#0c4a6e", fontSize: "0.825rem", marginTop: "0.15rem" }}>
+                                                Technician / Hub: {selectedPickup.technicianName || selectedPickup.inspectionCenterName || "Inspection Technician"} {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
+                                            </div>
+                                            <div style={{ color: "#0369a1", fontSize: "0.75rem", marginTop: "0.15rem" }}>
+                                                <strong>Inspection Center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central Inspection Center"}
+                                            </div>
+                                            <div style={{ color: "#0284c7", fontSize: "0.725rem", marginTop: "0.15rem" }}>
+                                                <strong>Pickup date / time slot:</strong> {selectedPickup.pickupDate ? new Date(selectedPickup.pickupDate).toLocaleDateString() : "Scheduled"} • {selectedPickup.timeSlot || "Standard Slot"}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ textAlign: "center", fontSize: "1.1rem", fontWeight: 800, color: "#0284c7", margin: "0.25rem 0" }}>
+                                            ↓
+                                        </div>
+
+                                        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.75rem", borderRadius: "9px" }}>
+                                            <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#15803d", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                                                 DELIVER TO (RECYCLING CENTER)
                                             </div>
-                                            <div style={{ fontWeight: 700, color: "#14532d", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                            <div style={{ fontWeight: 700, color: "#14532d", fontSize: "0.825rem", marginTop: "0.15rem" }}>
                                                 Facility: {selectedPickup.recyclingCenterName || "Recycling Facility"} {selectedPickup.recyclingCenterPhone ? `(Ph: ${selectedPickup.recyclingCenterPhone})` : ""}
                                             </div>
                                             {selectedPickup.recyclingCenterOwner && (
-                                                <div style={{ color: "#166534", fontSize: "0.825rem", marginTop: "0.1rem" }}>
+                                                <div style={{ color: "#166534", fontSize: "0.75rem", marginTop: "0.1rem" }}>
                                                     <strong>Contact Person:</strong> {selectedPickup.recyclingCenterOwner}
                                                 </div>
                                             )}
-                                            <div style={{ color: "#15803d", fontSize: "0.825rem", marginTop: "0.2rem" }}>
-                                                <strong>Recycling Center address:</strong> {selectedPickup.recyclingCenterAddress || "Recycling Facility Address"}
+                                            <div style={{ color: "#15803d", fontSize: "0.75rem", marginTop: "0.15rem" }}>
+                                                <strong>Recycling Center address:</strong> {selectedPickup.recyclingCenterAddress || selectedPickup.deliveredAddress || "Recycling Facility Address"}
                                             </div>
                                         </div>
                                     </>
                                 ) : (selectedPickup.assignmentType === "TechnicianToTechnician" || selectedPickup.isReassignedFromTech || selectedPickup.isReassignmentPickup) ? (
                                     <>
-                                        <div style={{ background: "#fff7ed", border: "1px solid #ffedd5", padding: "0.85rem", borderRadius: "10px" }}>
-                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#c2410c", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                        <div style={{ background: "#fff7ed", border: "1px solid #ffedd5", padding: "0.75rem", borderRadius: "9px" }}>
+                                            <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#c2410c", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                                                 COLLECT FROM (PENALIZED TECHNICIAN CENTER)
                                             </div>
-                                            <div style={{ fontWeight: 700, color: "#9a3412", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                            <div style={{ fontWeight: 700, color: "#9a3412", fontSize: "0.825rem", marginTop: "0.15rem" }}>
                                                 Technician / Hub: {selectedPickup.customerName || selectedPickup.priorTechnicianName || "Penalized Hub"} {selectedPickup.customerPhone ? `(Ph: ${selectedPickup.customerPhone})` : ""}
                                             </div>
-                                            <div style={{ color: "#c2410c", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                            <div style={{ color: "#c2410c", fontSize: "0.75rem", marginTop: "0.15rem" }}>
                                                 <strong>Penalized Center address:</strong> {selectedPickup.address}
                                                 {selectedPickup.landmark && ` (Landmark: ${selectedPickup.landmark})`}
                                                 {[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).length > 0 &&
                                                     `, ${[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).join(", ")}`}
                                             </div>
-                                            <div style={{ color: "#ea580c", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                                            <div style={{ color: "#ea580c", fontSize: "0.725rem", marginTop: "0.15rem" }}>
                                                 <strong>Pickup date / time slot:</strong> {selectedPickup.pickupDate ? new Date(selectedPickup.pickupDate).toLocaleDateString() : "Scheduled"} • {selectedPickup.timeSlot || "Standard Slot"}
                                             </div>
                                         </div>
 
-                                        <div style={{ textAlign: "center", fontSize: "1.35rem", fontWeight: 800, color: "#ea580c", margin: "0.35rem 0" }}>
+                                        <div style={{ textAlign: "center", fontSize: "1.1rem", fontWeight: 800, color: "#ea580c", margin: "0.25rem 0" }}>
                                             ↓
                                         </div>
 
-                                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.85rem", borderRadius: "10px" }}>
-                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.75rem", borderRadius: "9px" }}>
+                                            <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                                                 DELIVER TO (NEW INSPECTION HUB)
                                             </div>
-                                            <div style={{ fontWeight: 700, color: "#1e40af", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                            <div style={{ fontWeight: 700, color: "#1e40af", fontSize: "0.825rem", marginTop: "0.15rem" }}>
                                                 Technician / Inspection Center: {selectedPickup.technicianName || "Inspection Technician"} ({selectedPickup.inspectionCenterName || selectedPickup.technicianCenterName || "EcoCycle Central Inspection Hub"}) {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
                                             </div>
-                                            <div style={{ color: "#1e3a8a", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                            <div style={{ color: "#1e3a8a", fontSize: "0.75rem", marginTop: "0.15rem" }}>
                                                 <strong>Technician/center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central E-Waste Facility & Inspection Hub"}
                                             </div>
                                         </div>
                                     </>
                                 ) : (
                                     <>
-                                        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.85rem", borderRadius: "10px" }}>
-                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#047857", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.75rem", borderRadius: "9px" }}>
+                                            <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#047857", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                                                 COLLECT FROM (CITIZEN)
                                             </div>
-                                            <div style={{ fontWeight: 700, color: "#065f46", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                            <div style={{ fontWeight: 700, color: "#065f46", fontSize: "0.825rem", marginTop: "0.15rem" }}>
                                                 Customer: {formatName(selectedPickup.customerName)} (Ph: {selectedPickup.customerPhone || "N/A"})
                                             </div>
-                                            <div style={{ color: "#047857", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                            <div style={{ color: "#047857", fontSize: "0.75rem", marginTop: "0.15rem" }}>
                                                 <strong>Customer pickup address:</strong> {selectedPickup.address}
                                                 {selectedPickup.landmark && ` (Landmark: ${selectedPickup.landmark})`}
                                                 {[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).length > 0 &&
                                                     `, ${[selectedPickup.city, selectedPickup.district, selectedPickup.state, selectedPickup.pincode].filter(Boolean).join(", ")}`}
                                             </div>
-                                            <div style={{ color: "#059669", fontSize: "0.8rem", marginTop: "0.2rem" }}>
+                                            <div style={{ color: "#059669", fontSize: "0.725rem", marginTop: "0.15rem" }}>
                                                 <strong>Pickup date / time slot:</strong> {selectedPickup.pickupDate ? new Date(selectedPickup.pickupDate).toLocaleDateString() : "Scheduled"} • {selectedPickup.timeSlot || "Standard Slot"}
                                             </div>
                                         </div>
 
-                                        <div style={{ textAlign: "center", fontSize: "1.35rem", fontWeight: 800, color: "#059669", margin: "0.35rem 0" }}>
+                                        <div style={{ textAlign: "center", fontSize: "1.1rem", fontWeight: 800, color: "#059669", margin: "0.25rem 0" }}>
                                             ↓
                                         </div>
 
-                                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.85rem", borderRadius: "10px" }}>
-                                            <div style={{ fontSize: "0.7rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                        <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.75rem", borderRadius: "9px" }}>
+                                            <div style={{ fontSize: "0.65rem", fontWeight: 800, color: "#1d4ed8", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                                                 DELIVER TO (INSPECTION HUB)
                                             </div>
-                                            <div style={{ fontWeight: 700, color: "#1e40af", fontSize: "0.9rem", marginTop: "0.2rem" }}>
+                                            <div style={{ fontWeight: 700, color: "#1e40af", fontSize: "0.825rem", marginTop: "0.15rem" }}>
                                                 Technician / Inspection Center: {selectedPickup.technicianName || "Inspection Technician"} ({selectedPickup.inspectionCenterName || selectedPickup.technicianCenterName || "EcoCycle Central Inspection Hub"}) {selectedPickup.technicianPhone ? `(Ph: ${selectedPickup.technicianPhone})` : ""}
                                             </div>
-                                            <div style={{ color: "#1e3a8a", fontSize: "0.825rem", marginTop: "0.2rem" }}>
+                                            <div style={{ color: "#1e3a8a", fontSize: "0.75rem", marginTop: "0.15rem" }}>
                                                 <strong>Technician/center address:</strong> {selectedPickup.deliveredAddress || selectedPickup.technicianAddress || "EcoCycle Central E-Waste Facility & Inspection Hub"}
                                             </div>
                                         </div>
@@ -1030,44 +1249,44 @@ function CollectionAgentDashboard() {
                                 )}
                             </div>
 
-                            <div className="modal-grid-box">
-                                <div className="modal-info-card">
-                                    <div className="info-card-lbl">Device Details</div>
-                                    <div className="info-card-val">
-                                        {selectedPickup.brand} {selectedPickup.model}
+                            {/* Device Info */}
+                            <div className="pro-section-box">
+                                <h4 className="sec-heading"><FiPackage /> E-Waste Specifications</h4>
+                                <div className="sec-grid">
+                                    <div className="sec-item">
+                                        <span className="lbl">Brand & Model</span>
+                                        <span className="val">{selectedPickup.brand} {selectedPickup.model}</span>
                                     </div>
-                                    <div className="info-card-green">
-                                        Category: {selectedPickup.categoryName} • Quantity: {selectedPickup.quantity} • Condition: {selectedPickup.condition || "Standard"}
+                                    <div className="sec-item">
+                                        <span className="lbl">Category</span>
+                                        <span className="val">{selectedPickup.categoryName}</span>
                                     </div>
-                                    {selectedPickup.working && (
-                                        <div className="info-card-sub">
-                                            Working State: {selectedPickup.working}
-                                        </div>
-                                    )}
+                                    <div className="sec-item">
+                                        <span className="lbl">Quantity</span>
+                                        <span className="val">{selectedPickup.quantity || 1} Unit(s)</span>
+                                    </div>
+                                    <div className="sec-item">
+                                        <span className="lbl">Condition</span>
+                                        <span className="val">{selectedPickup.condition || "Standard"}</span>
+                                    </div>
+                                    <div className="sec-item">
+                                        <span className="lbl">Functional</span>
+                                        <span className="val">{selectedPickup.working ? "Yes (Working)" : "Non-Functional / E-Waste"}</span>
+                                    </div>
                                 </div>
-
-                                {selectedPickup.pickupInstructions && (
-                                    <div className="modal-info-card">
-                                        <div className="info-card-lbl">Pickup Instructions</div>
-                                        <div className="info-card-notes">
-                                            {selectedPickup.pickupInstructions}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {(selectedPickup.status?.toLowerCase() === "rejected" || selectedPickup.status?.toLowerCase() === "declined" || selectedPickup.rejectionReason) && (
-                                    <div className="modal-danger-card">
-                                        <div className="danger-lbl">
-                                            <FiAlertCircle /> Reason for Rejection
-                                        </div>
-                                        <div className="danger-val">
-                                            {selectedPickup.rejectionReason || "No specific reason provided."}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
 
+                        <div className="pro-modal-footer">
+                            {selectedPickup.customerPhone && (
+                                <a href={`tel:${selectedPickup.customerPhone}`} className="btn-call-modal">
+                                    <FiPhoneCall /> Call Customer
+                                </a>
+                            )}
+                            <button className="btn-close-modal" onClick={() => setSelectedPickup(null)}>
+                                Close
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

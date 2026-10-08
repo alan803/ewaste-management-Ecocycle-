@@ -134,6 +134,8 @@ function RecyclingCenterDashboard() {
                     customerPhone: item.customerPhone || "N/A",
                     assignedAt: item.assignedAt,
                     responseDeadline: item.responseDeadline,
+                    processStartDate: item.processStartDate,
+                    processDeadline: item.processDeadline,
                     status: item.status || "Assigned",
                     processingDecision: item.processingDecision || "Recycling Center",
                     lifecycleStatus: item.lifecycleStatus,
@@ -163,11 +165,15 @@ function RecyclingCenterDashboard() {
             await axios.put(`https://localhost:7102/api/AllocateRecyclingCenter/accept/${requestId}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            updateRequestStatus(requestId, "Accepted");
-            showNotice("success", "Device allocation request accepted!");
+            const now = new Date();
+            const tenDaysLater = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+            updateRequestStatus(requestId, "Accepted", null, now.toISOString(), tenDaysLater.toISOString());
+            showNotice("success", "Device allocation request accepted! 10-day recycling SLA deadline initiated.");
         } catch (err) {
             console.error("Error accepting request:", err);
-            updateRequestStatus(requestId, "Accepted");
+            const now = new Date();
+            const tenDaysLater = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+            updateRequestStatus(requestId, "Accepted", null, now.toISOString(), tenDaysLater.toISOString());
             showNotice("success", "Allocation request accepted.");
         } finally {
             setProcessingId(null);
@@ -204,12 +210,24 @@ function RecyclingCenterDashboard() {
         }
     };
 
-    const updateRequestStatus = (reqId, newStatus, reason = null) => {
+    const updateRequestStatus = (reqId, newStatus, reason = null, startDate = null, deadline = null) => {
         setRequests(prev =>
-            prev.map(r => (r.id === reqId ? { ...r, status: newStatus, rejectionReason: reason || r.rejectionReason } : r))
+            prev.map(r => (r.id === reqId ? {
+                ...r,
+                status: newStatus,
+                rejectionReason: reason || r.rejectionReason,
+                processStartDate: startDate || r.processStartDate,
+                processDeadline: deadline || r.processDeadline
+            } : r))
         );
         if (selectedRequest && selectedRequest.id === reqId) {
-            setSelectedRequest(prev => ({ ...prev, status: newStatus, rejectionReason: reason || prev.rejectionReason }));
+            setSelectedRequest(prev => ({
+                ...prev,
+                status: newStatus,
+                rejectionReason: reason || prev.rejectionReason,
+                processStartDate: startDate || prev.processStartDate,
+                processDeadline: deadline || prev.processDeadline
+            }));
         }
     };
 
@@ -218,12 +236,28 @@ function RecyclingCenterDashboard() {
         setTimeout(() => setActionMsg({ type: "", text: "" }), 3500);
     };
 
-    const getDeadlineBadge = (deadlineStr, status) => {
-        if (!deadlineStr) return null;
-        const s = (status || "").toLowerCase();
-        if (s !== "assigned" && s !== "waiting") return null;
+    const getDeadlineBadge = (req) => {
+        const status = (req.status || "").toLowerCase();
+        if (status === "accepted" || status === "processing" || status === "in sorting") {
+            if (!req.processDeadline) return null;
+            try {
+                const d = new Date(req.processDeadline);
+                const now = new Date();
+                const diffMs = d.getTime() - now.getTime();
+                if (diffMs <= 0) {
+                    return <span className="recyc-pill pill-expired">10-Day SLA Passed</span>;
+                }
+                const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                return <span className="recyc-pill pill-assigned">{days > 0 ? `${days}d ${hours}h left` : `${hours}h left`}</span>;
+            } catch {
+                return null;
+            }
+        }
+        if (!req.responseDeadline) return null;
+        if (status !== "assigned" && status !== "waiting") return null;
         try {
-            const d = new Date(deadlineStr);
+            const d = new Date(req.responseDeadline);
             const now = new Date();
             const diffMs = d.getTime() - now.getTime();
             if (diffMs <= 0) {
@@ -242,7 +276,7 @@ function RecyclingCenterDashboard() {
         if (s === "accepted" || s === "in sorting" || s === "processing") {
             return <span className="recyc-pill pill-processing"><span className="recyc-dot"></span>In Processing</span>;
         }
-        if (s === "certified recycled" || s === "completed") {
+        if (s === "certified recycled" || s === "completed" || s === "recycled" || s === "certified") {
             return <span className="recyc-pill pill-completed"><span className="recyc-dot"></span>Completed</span>;
         }
         if (s === "rejected" || s === "expired") {
@@ -264,15 +298,24 @@ function RecyclingCenterDashboard() {
         let matchesTab = true;
         if (activeTab === "Assigned") matchesTab = s === "assigned" || s === "waiting";
         else if (activeTab === "Processing") matchesTab = s === "accepted" || s === "in sorting" || s === "processing";
-        else if (activeTab === "Completed") matchesTab = s === "certified recycled" || s === "completed";
+        else if (activeTab === "Completed") matchesTab = s === "certified recycled" || s === "completed" || s === "recycled" || s === "certified";
 
         return matchesSearch && matchesTab;
     });
 
     const totalProcessedKg = requests.reduce((acc, r) => acc + (parseInt(r.weight) || 140), 0);
-    const assignedCount = requests.filter(r => (r.status || "").toLowerCase() === "assigned").length;
-    const processingCount = requests.filter(r => (r.status || "").toLowerCase() === "accepted" || (r.status || "").toLowerCase() === "in sorting" || (r.status || "").toLowerCase() === "processing").length;
-    const completedCount = requests.filter(r => (r.status || "").toLowerCase() === "certified recycled" || (r.status || "").toLowerCase() === "completed").length;
+    const assignedCount = requests.filter(r => {
+        const s = (r.status || "").toLowerCase();
+        return s === "assigned" || s === "waiting";
+    }).length;
+    const processingCount = requests.filter(r => {
+        const s = (r.status || "").toLowerCase();
+        return s === "accepted" || s === "in sorting" || s === "processing";
+    }).length;
+    const completedCount = requests.filter(r => {
+        const s = (r.status || "").toLowerCase();
+        return s === "certified recycled" || s === "completed" || s === "recycled" || s === "certified";
+    }).length;
 
     return (
         <div className="recyc-dashboard-shell">
@@ -436,6 +479,10 @@ function RecyclingCenterDashboard() {
                                     {filteredRequests.map((req) => {
                                         const s = (req.status || "").toLowerCase();
                                         const isAssigned = s === "assigned" || s === "waiting";
+                                        const isCompleted = s === "certified recycled" || s === "completed" || s === "recycled" || s === "certified";
+                                        const isRejected = s === "rejected" || s === "expired";
+                                        const canPerformRecycling = !isAssigned && !isCompleted && !isRejected;
+
                                         return (
                                             <tr key={req.id}>
                                                 <td className="req-id-cell">
@@ -453,9 +500,9 @@ function RecyclingCenterDashboard() {
                                                     <div className="customer-city">{req.customerCity}</div>
                                                 </td>
                                                 <td>
-                                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", alignItems: "flex-start" }}>
+                                                    <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: "0.4rem", alignItems: "center" }}>
                                                         {getStatusBadge(req.status)}
-                                                        {getDeadlineBadge(req.responseDeadline, req.status)}
+                                                        {getDeadlineBadge(req)}
                                                     </div>
                                                 </td>
                                                 <td style={{ textAlign: "right" }}>
@@ -480,14 +527,14 @@ function RecyclingCenterDashboard() {
                                                                     <FiX /> Reject
                                                                 </button>
                                                             </>
-                                                        ) : (
+                                                        ) : canPerformRecycling ? (
                                                             <button
                                                                 className="btn btn-teal"
                                                                 onClick={() => navigate(`/recycling_perform?id=${req.id}`)}
                                                             >
                                                                 <FiZap /> Perform Recycling
                                                             </button>
-                                                        )}
+                                                        ) : null}
 
                                                         <button
                                                             className="btn btn-ghost"
@@ -567,6 +614,20 @@ function RecyclingCenterDashboard() {
                                     <label>Processing Lifecycle Status</label>
                                     <span>{selectedRequest.processingLifecycleStatus || selectedRequest.lifecycleStatus || "Assigned"}</span>
                                 </div>
+                                {selectedRequest.processStartDate && (
+                                    <div className="info-tile">
+                                        <label>Process Start Date</label>
+                                        <span>{new Date(selectedRequest.processStartDate).toLocaleString()}</span>
+                                    </div>
+                                )}
+                                {selectedRequest.processDeadline && (
+                                    <div className="info-tile">
+                                        <label>Processing Deadline (10-Day SLA)</label>
+                                        <span style={{ color: "#059669", fontWeight: 700 }}>
+                                            {new Date(selectedRequest.processDeadline).toLocaleString()}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="recyc-modal-footer">

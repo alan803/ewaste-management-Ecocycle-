@@ -223,6 +223,8 @@ namespace EcoCycle.API.Controllers
 
                     Status = "Pending",
 
+                    PurchaseDate = dev.PurchaseDate,
+
                     CreatedAt = DateTime.Now
                 };
                 device.FrontPhoto =
@@ -384,6 +386,7 @@ namespace EcoCycle.API.Controllers
                     d.Model,
                     d.ModelNumber,
                     d.SerialNumber,
+                    d.PurchaseDate,
                     d.Quantity,
                     d.Weight,
                     d.Condition,
@@ -592,6 +595,71 @@ namespace EcoCycle.API.Controllers
                 string techCenterAddress = string.Join(", ", tParts);
                 string techFullLocation = $"{techCenterName} ({techCenterAddress})";
 
+                // Processing Center Data (Recycling or Refurbishment)
+                var rcReq = await db.RecyclingCenterRequests
+                    .Include(r => r.RecyclingCenter)
+                    .Where(r => r.DeviceId == d.DeviceId)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                RecyclingProcess? rcProc = null;
+                if (rcReq != null)
+                {
+                    rcProc = await db.RecyclingProcesses
+                        .FirstOrDefaultAsync(p => p.RecyclingCenterRequestId == rcReq.RecyclingCenterRequestId);
+                }
+
+                var rfReq = await db.RefurbishmentRequests
+                    .Include(r => r.RefurbishmentCenter)
+                    .Where(r => r.DeviceId == d.DeviceId)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                bool isRecyclingCompleted = (rcProc != null && rcProc.Status == "Completed") ||
+                                            (rcReq != null && rcReq.Status == "Completed") ||
+                                            string.Equals(d.Status, "Recycled", StringComparison.OrdinalIgnoreCase) ||
+                                            string.Equals(d.LifecycleStatus, "Recycled", StringComparison.OrdinalIgnoreCase) ||
+                                            string.Equals(d.ProcessingLifecycleStatus, "RecyclingCompleted", StringComparison.OrdinalIgnoreCase) ||
+                                            string.Equals(d.ProcessingLifecycleStatus, "Recycled", StringComparison.OrdinalIgnoreCase);
+
+                bool isRefurbishmentCompleted = (rfReq != null && rfReq.Status == "Completed") ||
+                                               string.Equals(d.Status, "Refurbished", StringComparison.OrdinalIgnoreCase) ||
+                                               string.Equals(d.LifecycleStatus, "Refurbished", StringComparison.OrdinalIgnoreCase) ||
+                                               string.Equals(d.ProcessingLifecycleStatus, "RefurbishmentCompleted", StringComparison.OrdinalIgnoreCase) ||
+                                               string.Equals(d.ProcessingLifecycleStatus, "Refurbished", StringComparison.OrdinalIgnoreCase);
+
+                bool isCompleted = string.Equals(d.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(d.LifecycleStatus, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(d.ProcessingLifecycleStatus, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                                  isRecyclingCompleted || isRefurbishmentCompleted;
+
+                string completedCenterType = isRecyclingCompleted ? "Recycling Center" : (isRefurbishmentCompleted ? "Refurbishment Center" : (rcReq != null ? "Recycling Center" : (rfReq != null ? "Refurbishment Center" : "")));
+                string completedCenterName = rcReq?.RecyclingCenter?.CenterName ?? rfReq?.RefurbishmentCenter?.CenterName ?? "";
+                string completedCenterCity = rcReq?.RecyclingCenter?.City ?? rfReq?.RefurbishmentCenter?.City ?? "";
+                string completedCenterAddress = "";
+                if (rcReq?.RecyclingCenter != null)
+                {
+                    var rc = rcReq.RecyclingCenter;
+                    var parts = new List<string> { rc.BuildingNumber, rc.Street, rc.District, rc.City, rc.State, rc.Pincode }
+                        .Where(s => !string.IsNullOrWhiteSpace(s));
+                    completedCenterAddress = string.Join(", ", parts);
+                }
+                else if (rfReq?.RefurbishmentCenter != null)
+                {
+                    var rf = rfReq.RefurbishmentCenter;
+                    var parts = new List<string> { rf.BuildingNumber, rf.Street, rf.District, rf.City, rf.State, rf.Pincode }
+                        .Where(s => !string.IsNullOrWhiteSpace(s));
+                    completedCenterAddress = string.Join(", ", parts);
+                }
+
+                DateTime? completedAt = rcProc?.CompletedAt ?? rfReq?.RefurbishmentCompletedAt ?? (isCompleted ? (rcReq?.UpdatedAt ?? rfReq?.UpdatedAt ?? d.CreatedAt) : null);
+
+                string certId = "";
+                if (rcReq != null && (isRecyclingCompleted || isCompleted))
+                {
+                    certId = $"ECO-REC-{rcReq.CreatedAt.Year}-{rcReq.RecyclingCenterRequestId:D6}";
+                }
+
                 result.Add(new
                 {
                     d.DeviceId,
@@ -612,6 +680,10 @@ namespace EcoCycle.API.Controllers
                     d.TimeSlot,
                     d.Status,
                     d.LifecycleStatus,
+                    d.ProcessingPreference,
+                    d.ProcessingDecision,
+                    d.ProcessingLifecycleStatus,
+                    d.ProcessingDecisionAt,
                     d.AllocationRequested,
                     d.FrontPhoto,
                     d.BackPhoto,
@@ -619,6 +691,7 @@ namespace EcoCycle.API.Controllers
                     d.LabelPhoto,
                     d.SerialNumber,
                     d.ModelNumber,
+                    d.PurchaseDate,
                     DeviceQrToken = !string.IsNullOrEmpty(d.DeviceQrToken) ? d.DeviceQrToken : $"ECOQR-DEV-{d.DeviceId}",
                     d.CreatedAt,
                     assignedTechnicianName = techName,
@@ -626,7 +699,22 @@ namespace EcoCycle.API.Controllers
                     assignedTechnicianCenterName = techCenterName,
                     assignedTechnicianCenterAddress = techCenterAddress,
                     techCity,
-                    techPincode = techPin
+                    techPincode = techPin,
+                    isCenterCompleted = isCompleted,
+                    isRecyclingCompleted,
+                    isRefurbishmentCompleted,
+                    completedCenterType,
+                    completedCenterName,
+                    completedCenterCity,
+                    completedCenterAddress,
+                    completedAt,
+                    certificateId = certId,
+                    totalRecoveredWeight = rcProc?.TotalRecoveredWeight,
+                    totalMaterialValue = rcProc?.TotalMaterialValue,
+                    recyclingStatus = rcReq?.Status,
+                    refurbishmentStatus = rfReq?.Status,
+                    recyclingCenterName = rcReq?.RecyclingCenter?.CenterName,
+                    refurbishmentCenterName = rfReq?.RefurbishmentCenter?.CenterName
                 });
             }
 

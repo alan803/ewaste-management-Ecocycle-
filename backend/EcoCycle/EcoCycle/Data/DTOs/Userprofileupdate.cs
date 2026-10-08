@@ -13,5 +13,11 @@ namespace EcoCycle.API.DTOs
         public string? Gender { get; set; }
         public DateTime? DateOfBirth { get; set; }
         public IFormFile? ProfilePicture { get; set; }
+
+        // Bank Details
+        public string? AccountHolder { get; set; }
+        public string? BankName { get; set; }
+        public string? AccountNumber { get; set; }
+        public string? IFSCCode { get; set; }
     }
 }

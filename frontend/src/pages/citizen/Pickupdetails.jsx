@@ -99,31 +99,6 @@ function Pickupdetails() {
         }
     };
 
-    const isPickupOverdue = (req) => {
-        if (!req || !req.pickupDate) return false;
-        try {
-            const pDate = new Date(req.pickupDate);
-            if (isNaN(pDate.getTime())) return false;
-            pDate.setHours(0, 0, 0, 0);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
-            const reqStatus = String(req.requestStatus || "").toLowerCase();
-            const isDone = cas === "completed" || cas === "delivered" || reqStatus === "completed" || reqStatus === "rejected";
-            return pDate < today && !isDone;
-        } catch {
-            return false;
-        }
-    };
-
-    const isPickupCancelled = (req) => {
-        if (!req) return false;
-        const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
-        const status = String(req.status || "").toLowerCase();
-        const lcs = String(req.lifecycleStatus || "").toLowerCase();
-        return cas === "cancelled" || status === "cancelled" || lcs === "pickupcancelled";
-    };
-
     const isDeviceCollectedFromUser = (req) => {
         if (!req) return false;
         const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
@@ -136,6 +111,33 @@ function Pickupdetails() {
             ["pickedup", "collected", "intransit", "handoverpendingverification", "atinspectioncenter", "delivered"].includes(lcs) ||
             ["intransit", "pendingverification", "delivered"].includes(delStat)
         );
+    };
+
+    const isPickupCancelled = (req) => {
+        if (!req) return false;
+        const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
+        const status = String(req.status || "").toLowerCase();
+        const lcs = String(req.lifecycleStatus || "").toLowerCase();
+        return cas === "cancelled" || status === "cancelled" || lcs === "pickupcancelled";
+    };
+
+    const isPickupOverdue = (req) => {
+        if (!req || !req.pickupDate) return false;
+        // Never show overdue effect for devices already collected from the user or cancelled
+        if (isDeviceCollectedFromUser(req) || isPickupCancelled(req)) return false;
+        try {
+            const pDate = new Date(req.pickupDate);
+            if (isNaN(pDate.getTime())) return false;
+            pDate.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const cas = String(req.collectionAssignmentStatus || "").toLowerCase();
+            const reqStatus = String(req.requestStatus || "").toLowerCase();
+            const isDone = cas === "completed" || cas === "delivered" || cas === "deliveredtocenter" || cas === "pickedup" || cas === "intransit" || reqStatus === "completed" || reqStatus === "rejected";
+            return pDate < today && !isDone;
+        } catch {
+            return false;
+        }
     };
 
     useEffect(() => {
@@ -496,252 +498,97 @@ function Pickupdetails() {
     };
 
     return (
-        <div className="pickup-details-page">
+        <div className="vd-page-layout">
             {/* Sidebar Navigation */}
             <Sidebar />
 
             {/* Main Content Area */}
-            <main className="citizen-main-content">
-                {/* Title & User Header Ribbon */}
-                <div className="vd-ribbon" style={{ marginBottom: "1.75rem" }}>
+            <main className="vd-main-content">
+
+{/* Main Control Header Panel */}
+                <div className="control-bar-panel">
                     <div>
-                        <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a202c", margin: "0 0 0.25rem 0", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.025em" }}>
-                            Pickup Details & Status
-                        </h1>
-                        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0, fontWeight: 500 }}>
-                            Track accepted e-waste collection schedules, agent assignments, and delivery statuses.
-                        </p>
+                        <h3 style={{ fontFamily: "'Space Grotesk', 'Plus Jakarta Sans', sans-serif", fontSize: "1.25rem", fontWeight: 700, margin: "0 0 0.2rem", color: "#0f172a" }}>Pickup Details &amp; Logistics Tracking</h3>
+                        <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>Track accepted e-waste</p>
                     </div>
 
-                    <div className="vd-top-actions">
-                        <button 
-                            className="vd-circle-btn" 
-                            title="Refresh Data"
-                            onClick={() => {
-                                const token = localStorage.getItem("token");
-                                if (token) fetchPickupRequests(token);
-                            }}
-                        >
-                            <FiRefreshCw className={loading ? "spin-animation" : ""} />
-                        </button>
-
-                        <button 
-                            type="button"
-                            className="vd-circle-btn" 
-                            title={`Notifications ${notifications.filter(n => !n.isRead && !n.isread).length > 0 ? `(${notifications.filter(n => !n.isRead && !n.isread).length} unread)` : ""}`} 
-                            onClick={() => navigate("/technician-notification")}
-                            style={{ position: "relative" }}
-                        >
-                            <FiBell />
-                            {notifications.filter(n => !n.isRead && !n.isread).length > 0 && (
-                                <span className="vd-notif-badge-pill" style={{
-                                    position: "absolute",
-                                    top: "-4px",
-                                    right: "-4px",
-                                    background: "#ef4444",
-                                    color: "#ffffff",
-                                    fontSize: "0.65rem",
-                                    fontWeight: 800,
-                                    width: "18px",
-                                    height: "18px",
-                                    borderRadius: "50%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center"
-                                }}>
-                                    {notifications.filter(n => !n.isRead && !n.isread).length > 9 ? "9+" : notifications.filter(n => !n.isRead && !n.isread).length}
-                                </span>
+                    <div className="control-panel-right-group">
+                        <div className="vd-inline-search">
+                            <FiSearch style={{ color: "#94a3b8", fontSize: "0.85rem" }} />
+                            <input
+                                type="text"
+                                placeholder="Search brand, category, agent..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
+                                <button onClick={() => setSearchQuery("")} className="vd-search-clear-btn">
+                                    <FiX style={{ fontSize: "0.8rem" }} />
+                                </button>
                             )}
-                        </button>
-
-                        <Link 
-                            to="/manage-userprofile" 
-                            className="vd-user-profile-pill" 
-                            style={{ textDecoration: "none", cursor: "pointer" }}
-                            title="View & Edit Profile"
-                        >
-                            {profileImage ? (
-                                <img src={profileImage} alt="User Avatar" className="vd-user-avatar" style={{ objectFit: "cover" }} />
-                            ) : (
-                                <div className="vd-user-avatar">{userName.charAt(0).toUpperCase()}</div>
-                            )}
-                            <div className="vd-user-info">
-                                <span className="vd-user-name">{userName}</span>
-                            </div>
-                            <FiChevronDown style={{ color: "#718096", fontSize: "0.9rem", marginLeft: "0.2rem" }} />
-                        </Link>
-                    </div>
-                </div>
-
-                {/* KPI Summary Cards Grid */}
-                <div className="vd-kpi-grid">
-                    {/* KPI 1 - Total Accepted */}
-                    <div className="vd-kpi-card">
-                        <div className="vd-kpi-header">
-                            <div className="vd-kpi-icon-circle teal">
-                                <FiTruck />
-                            </div>
                         </div>
-                        <div>
-                            <span className="vd-kpi-label">Total Pickups Tracked</span>
-                            <div className="vd-kpi-body">
-                                <h3 className="vd-kpi-number">{allRequests.length}</h3>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* KPI 2 - In Transit */}
-                    <div className="vd-kpi-card">
-                        <div className="vd-kpi-header">
-                            <div className="vd-kpi-icon-circle purple">
-                                <FiNavigation />
-                            </div>
+                        <div className="filter-pills">
+                            {["All", "Accepted", "Collected", "InTransit", "Delivered", "Cancelled"].map((tab) => {
+                                const labelMap = {
+                                    All: `All (${allRequests.length})`,
+                                    Accepted: "Accepted",
+                                    Collected: `Collected (${collectedCount})`,
+                                    InTransit: `In Transit (${inTransitCount})`,
+                                    Delivered: `Delivered (${completedCount})`,
+                                    Cancelled: `Cancelled (${cancelledCount})`
+                                };
+                                return (
+                                    <button
+                                        key={tab}
+                                        className={`pill-btn ${activeTab === tab ? "active" : ""}`}
+                                        onClick={() => setActiveTab(tab)}
+                                    >
+                                        {labelMap[tab] || tab}
+                                    </button>
+                                );
+                            })}
                         </div>
-                        <div>
-                            <span className="vd-kpi-label">In Transit / Picked Up</span>
-                            <div className="vd-kpi-body">
-                                <h3 className="vd-kpi-number">{inTransitCount}</h3>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* KPI 3 - Completed */}
-                    <div className="vd-kpi-card">
-                        <div className="vd-kpi-header">
-                            <div className="vd-kpi-icon-circle amber" style={{ background: "#ecfdf5", color: "#059669" }}>
-                                <FiCheckCircle />
-                            </div>
+                        <div className="view-toggle">
+                            <button
+                                className={`toggle-btn ${viewMode === "table" ? "active" : ""}`}
+                                onClick={() => setViewMode("table")}
+                                title="Table View"
+                            >
+                                <FiList />
+                            </button>
+                            <button
+                                className={`toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+                                onClick={() => setViewMode("grid")}
+                                title="Grid View"
+                            >
+                                <FiGrid />
+                            </button>
                         </div>
-                        <div>
-                            <span className="vd-kpi-label">Delivered To Facility</span>
-                            <div className="vd-kpi-body">
-                                <h3 className="vd-kpi-number">{completedCount}</h3>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* KPI 4 - Total Weight */}
-                    <div className="vd-kpi-card">
-                        <div className="vd-kpi-header">
-                            <div className="vd-kpi-icon-circle teal" style={{ background: "#f3e8ff", color: "#7c3aed" }}>
-                                <FiBox />
-                            </div>
-                        </div>
-                        <div>
-                            <span className="vd-kpi-label">Total Delivery Weight</span>
-                            <div className="vd-kpi-body">
-                                <h3 className="vd-kpi-number">{totalWeight} kg</h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Filter, Search & View Controls Bar */}
-                <div className="pk-controls-bar">
-                    <div className="pk-search-box">
-                        <FiSearch style={{ color: "#64748b", fontSize: "1.1rem" }} />
-                        <input 
-                            type="text" 
-                            placeholder="Search by brand, category, agent, or address..." 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        {searchQuery && (
-                            <FiX style={{ cursor: "pointer", color: "#94a3b8" }} onClick={() => setSearchQuery("")} />
-                        )}
-                    </div>
-
-                    <div className="pk-filter-tabs">
-                        <button 
-                            className={`pk-tab-btn ${activeTab === "All" ? "active" : ""}`}
-                            onClick={() => setActiveTab("All")}
-                        >
-                            All Pickups ({allRequests.length})
-                        </button>
-                        <button 
-                            className={`pk-tab-btn ${activeTab === "Accepted" ? "active" : ""}`}
-                            onClick={() => setActiveTab("Accepted")}
-                        >
-                            Accepted
-                        </button>
-                        <button 
-                            className={`pk-tab-btn ${activeTab === "Collected" ? "active" : ""}`}
-                            onClick={() => setActiveTab("Collected")}
-                        >
-                            Collected ({collectedCount})
-                        </button>
-                        <button 
-                            className={`pk-tab-btn ${activeTab === "InTransit" ? "active" : ""}`}
-                            onClick={() => setActiveTab("InTransit")}
-                        >
-                            In Transit ({inTransitCount})
-                        </button>
-                        <button 
-                            className={`pk-tab-btn ${activeTab === "Delivered" ? "active" : ""}`}
-                            onClick={() => setActiveTab("Delivered")}
-                        >
-                            Delivered ({completedCount})
-                        </button>
-                        <button 
-                            className={`pk-tab-btn ${activeTab === "Cancelled" ? "active" : ""}`}
-                            onClick={() => setActiveTab("Cancelled")}
-                        >
-                            Cancelled ({cancelledCount})
-                        </button>
-                    </div>
-
-                    <div className="pk-view-toggle">
-                        <button 
-                            className={`pk-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
-                            onClick={() => setViewMode("grid")}
-                            title="Grid View"
-                        >
-                            <FiGrid />
-                        </button>
-                        <button 
-                            className={`pk-toggle-btn ${viewMode === "table" ? "active" : ""}`}
-                            onClick={() => setViewMode("table")}
-                            title="Table View"
-                        >
-                            <FiList />
-                        </button>
                     </div>
                 </div>
 
                 {/* Main Devices Container */}
-                <div className="panel-card" style={{ padding: "1.5rem" }}>
-                    <div className="panel-header" style={{ marginBottom: "1rem" }}>
-                        <div>
-                            <h2 className="panel-title">Accepted Pickup Devices</h2>
-                            <p className="panel-subtitle">
-                                Collection agent details, vehicle info & live delivery progress
-                            </p>
-                        </div>
-                        <Link to="/add-device" className="panel-action-link" style={{ fontSize: "0.85rem" }}>
-                            + Add New Device
+                {loading ? (
+                    <div style={{ padding: "3.5rem 1.5rem", textAlign: "center", color: "#64748b", background: "#ffffff", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
+                        <FiRefreshCw className="spin-animation" style={{ fontSize: "2rem", color: "#059669", marginBottom: "0.5rem" }} />
+                        <p style={{ fontWeight: 600, margin: 0 }}>Loading accepted pickup requests...</p>
+                    </div>
+                ) : filteredRequests.length === 0 ? (
+                    <div style={{ padding: "3.5rem 1.5rem", textAlign: "center", color: "#64748b", background: "#ffffff", borderRadius: "14px", border: "1px solid #e2e8f0" }}>
+                        <FiBox style={{ fontSize: "2.5rem", color: "#cbd5e1", marginBottom: "0.75rem" }} />
+                        <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#1e293b" }}>No Accepted Pickup Devices Found</h3>
+                        <p style={{ margin: "0.35rem 0 1.25rem", fontSize: "0.875rem", color: "#64748b" }}>
+                            {searchQuery 
+                                ? `No devices matched "${searchQuery}"`
+                                : "There are currently no devices accepted by a collection agent for delivery."}
+                        </p>
+                        <Link to="/add-device" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "0.45rem", background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#ffffff", padding: "0.6rem 1.35rem", borderRadius: "10px", fontWeight: 700, fontSize: "0.85rem", boxShadow: "0 2px 8px rgba(5, 150, 105, 0.25)" }}>
+                            <FiPlusCircle /> Schedule E-Waste Pickup
                         </Link>
                     </div>
-
-
-                    {loading ? (
-                        <div style={{ padding: "3rem 1.5rem", textAlign: "center", color: "#64748b" }}>
-                            <FiRefreshCw className="spin-animation" style={{ fontSize: "2rem", color: "#059669", marginBottom: "0.5rem" }} />
-                            <p style={{ fontWeight: 600, margin: 0 }}>Loading accepted pickup requests...</p>
-                        </div>
-                    ) : filteredRequests.length === 0 ? (
-                        <div style={{ padding: "3rem 1.5rem", textAlign: "center", color: "#64748b" }}>
-                            <FiBox style={{ fontSize: "2.5rem", color: "#cbd5e1", marginBottom: "0.75rem" }} />
-                            <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#1e293b" }}>No Accepted Pickup Devices Found</h3>
-                            <p style={{ margin: "0.35rem 0 1.25rem", fontSize: "0.875rem", color: "#64748b" }}>
-                                {searchQuery 
-                                    ? `No devices matched "${searchQuery}"`
-                                    : "There are currently no devices accepted by a collection agent for delivery."}
-                            </p>
-                            <Link to="/add-device" className="profile-btn save" style={{ textDecoration: "none", display: "inline-flex", padding: "0.6rem 1.35rem" }}>
-                                + Schedule E-Waste Pickup
-                            </Link>
-                        </div>
-                    ) : viewMode === "grid" ? (
+                ) : viewMode === "grid" ? (
 
                         /* GRID VIEW */
                         <div className="pk-grid">
@@ -992,7 +839,6 @@ function Pickupdetails() {
                             </table>
                         </div>
                     )}
-                </div>
             </main>
 
             {/* Detailed Pickup & Tracking Modal */}
@@ -1430,7 +1276,7 @@ function Pickupdetails() {
                     <div className="vd-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "500px", textAlign: "left" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                             <div className="vd-confirm-icon-wrapper" style={{ margin: 0, width: "48px", height: "48px", background: "#eef2ff", borderColor: "#e0e7ff" }}>
-                                <FiRefreshCw style={{ fontSize: "1.4rem", color: "#4f46e5" }} />
+                                <FiRefreshCw style={{ fontSize: "1.4rem", color: "#059669" }} />
                             </div>
                             <div>
                                 <h3 className="vd-confirm-title" style={{ margin: 0 }}>Request Pickup Again</h3>

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import "./Citizendashboard.css";
+import "./View_device.css";
 import "./Add_device.css";
 import Sidebar from "./Sidebar";
 import axios from "axios";
-import { FiCheck, FiArrowLeft, FiArrowRight, FiSearch, FiBell, FiChevronDown, FiCalendar, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
+import { FiCheck, FiArrowLeft, FiArrowRight, FiSearch, FiBell, FiChevronDown, FiCalendar, FiCheckCircle, FiAlertCircle, FiImage, FiUploadCloud, FiShield, FiAward, FiTruck, FiCpu, FiBox } from "react-icons/fi";
 import {
     validate_brand,
     validate_modelname,
@@ -33,6 +35,16 @@ function Add_device() {
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const day = String(d.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    };
+
+    const todayStr = getLocalDateString(new Date());
+
+    const validate_purchasedate = (val) => {
+        if (!val) return "";
+        if (val > todayStr) {
+            return "Purchase date cannot be in the future.";
+        }
+        return "";
     };
 
     const todayObj = new Date();
@@ -89,6 +101,7 @@ function Add_device() {
         model: "",
         modelNumber: "",
         serialNumber: "",
+        purchaseDate: "",
         quantity: 1,
         weight:"",
 
@@ -125,6 +138,7 @@ function Add_device() {
         model_er: "",
         modelNumber_er: "",
         serialNumber_er: "",
+        purchaseDate_er: "",
         quantity_er: "",
         weight_er:"",
         condition_er: "",
@@ -350,6 +364,7 @@ function Add_device() {
         if (name === "model") seterror(prev => ({ ...prev, model_er: validate_modelname(value) }));
         if (name === "modelNumber") seterror(prev => ({ ...prev, modelNumber_er: validate_modelnumber(value) }));
         if (name === "serialNumber") seterror(prev => ({ ...prev, serialNumber_er: validate_serialnumber(value) }));
+        if (name === "purchaseDate") seterror(prev => ({ ...prev, purchaseDate_er: validate_purchasedate(value) }));
         if (name === "quantity") seterror(prev => ({ ...prev, quantity_er: validate_quantity(value) }));
         if(name==="weight") seterror(prev => ({ ...prev, weight_er: validate_weight(value) }));
         if (name === "condition") seterror(prev => ({ ...prev, condition_er: validate_condition(value) }));
@@ -380,6 +395,7 @@ function Add_device() {
                 model_er: validate_modelname(form_data.model),
                 modelNumber_er: validate_modelnumber(form_data.modelNumber),
                 serialNumber_er: validate_serialnumber(form_data.serialNumber),
+                purchaseDate_er: validate_purchasedate(form_data.purchaseDate),
                 quantity_er: validate_quantity(form_data.quantity),
                 weight_er: validate_weight(form_data.weight),
             };
@@ -433,6 +449,7 @@ function Add_device() {
             model_er: validate_modelname(form_data.model),
             modelNumber_er: validate_modelnumber(form_data.modelNumber),
             serialNumber_er: validate_serialnumber(form_data.serialNumber),
+            purchaseDate_er: validate_purchasedate(form_data.purchaseDate),
             quantity_er: validate_quantity(form_data.quantity),
             weight_er: validate_weight(form_data.weight),
             condition_er: validate_condition(form_data.condition),
@@ -533,67 +550,57 @@ function Add_device() {
           localStorage.getItem("name") ||
           "Citizen Champion";
 
+    const renderStepActions = () => (
+        <div className="step-actions-bar">
+            {currentStep > 0 && (
+                <button type="button" className="btn-prev" onClick={handlePrevStep}>
+                    <FiArrowLeft /> Previous
+                </button>
+            )}
+
+            {currentStep < stepTitles.length - 1 ? (
+                <button type="button" className="btn-next" onClick={handleNextStep}>
+                    Next <FiArrowRight />
+                </button>
+            ) : (
+                <button type="submit" className="btn-submit-device" disabled={isSubmitting}>
+                    {isSubmitting ? "Submitting..." : <>Submit Request <FiCheck /></>}
+                </button>
+            )}
+        </div>
+    );
+
     return (
         <div className="citizen-dashboard-layout">
             <Sidebar />
 
             <main className="citizen-main-content">
-                {/* Title & User Header Ribbon */}
-                <div className="vd-ribbon" style={{ marginBottom: "1.75rem" }}>
+                {/* Main Header Panel Card */}
+                <div className="control-bar-panel">
                     <div>
-                        <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a202c", margin: "0 0 0.25rem 0", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.025em" }}>
-                            Post E-Waste Device
-                        </h1>
-                        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0, fontWeight: 500 }}>
-                            Register your old or unused electronic devices for safe pickup, recycling, or refurbishment.
-                        </p>
+                        <h3 style={{ fontFamily: "'Space Grotesk', 'Plus Jakarta Sans', sans-serif", fontSize: "1.25rem", fontWeight: 700, margin: "0 0 0.2rem", color: "#0f172a" }}>Register E-Waste Device</h3>
+                        <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>Submit electronic items for certified diagnostic evaluation, refurbishment, or sustainable recycling</p>
                     </div>
 
-                    <div className="vd-top-actions">
-                        <button 
-                            type="button" 
-                            className="vd-circle-btn" 
-                            title={`Notifications ${totalNotifCount > 0 ? `(${totalNotifCount} unread)` : ""}`} 
-                            onClick={() => navigate("/technician-notification")}
-                            style={{ position: "relative" }}
-                        >
-                            <FiBell />
-                            {totalNotifCount > 0 && (
-                                <span className="vd-notif-badge-pill" style={{
-                                    position: "absolute",
-                                    top: "-4px",
-                                    right: "-4px",
-                                    background: "#ef4444",
-                                    color: "#ffffff",
-                                    fontSize: "0.65rem",
-                                    fontWeight: 800,
-                                    width: "18px",
-                                    height: "18px",
-                                    borderRadius: "50%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center"
-                                }}>
-                                    {totalNotifCount > 9 ? "9+" : totalNotifCount}
-                                </span>
-                            )}
-                        </button>
-
+                    <div className="control-panel-right-group">
                         <Link 
-                            to="/manage-userprofile" 
-                            className="vd-user-profile-pill" 
-                            style={{ textDecoration: "none", cursor: "pointer" }}
-                            title="View & Edit Profile"
+                            to="/view-device" 
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.45rem",
+                                background: "#f8fafc",
+                                border: "1px solid #e2e8f0",
+                                color: "#0f172a",
+                                padding: "0.5rem 0.95rem",
+                                borderRadius: "8px",
+                                fontSize: "0.8rem",
+                                fontWeight: 600,
+                                textDecoration: "none",
+                                transition: "all 0.2s ease"
+                            }}
                         >
-                            {profileImage ? (
-                                <img src={profileImage} alt="User Avatar" className="vd-user-avatar" style={{ objectFit: "cover" }} />
-                            ) : (
-                                <div className="vd-user-avatar">{userName.charAt(0).toUpperCase()}</div>
-                            )}
-                            <div className="vd-user-info">
-                                <span className="vd-user-name">{userName}</span>
-                            </div>
-                            <FiChevronDown style={{ color: "#718096", fontSize: "0.9rem", marginLeft: "0.2rem" }} />
+                            <FiBox style={{ color: "#059669" }} /> My Registered Devices
                         </Link>
                     </div>
                 </div>
@@ -624,14 +631,14 @@ function Add_device() {
 
                     <form onSubmit={validate_devicesignup} className="post-device-form">
                         {successMessage && (
-                            <div style={{ background: "#ecfdf5", color: "#047857", padding: "0.85rem 1.15rem", borderRadius: "12px", border: "1px solid #a7f3d0", fontWeight: 700, fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            <div style={{ background: "#ecfdf5", color: "#047857", padding: "0.75rem 1rem", borderRadius: "12px", border: "1px solid #a7f3d0", fontWeight: 700, fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                                 <FiCheckCircle style={{ fontSize: "1.1rem" }} />
                                 <span>{successMessage}</span>
                             </div>
                         )}
 
                         {submissionError && (
-                            <div style={{ background: "#fff1f2", color: "#e11d48", padding: "0.85rem 1.15rem", borderRadius: "12px", border: "1px solid #fecdd3", fontWeight: 700, fontSize: "0.875rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            <div style={{ background: "#fff1f2", color: "#e11d48", padding: "0.75rem 1rem", borderRadius: "12px", border: "1px solid #fecdd3", fontWeight: 700, fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                                 <FiAlertCircle style={{ fontSize: "1.1rem" }} />
                                 <span>{submissionError}</span>
                             </div>
@@ -640,491 +647,665 @@ function Add_device() {
                         {/* STEP 1: Device Information */}
                         {currentStep === 0 && (
                             <div className="form-step-card">
-                                <h2>1. Device Information</h2>
+                                <div className="form-card-header">
+                                    <div className="form-card-header-left">
+                                        <span className="form-step-badge">Step 1 of 5</span>
+                                        <h2>Device Information</h2>
+                                        <p className="form-step-subtitle">Select category, brand, and hardware specifications.</p>
+                                    </div>
+                                </div>
 
-                                <label>Device Category *</label>
-                                <select
-                                    name="categoryId"
-                                    value={form_data.categoryId}
-                                    onChange={handleInputChange}
-                                    className={error.categoryId_er ? "input-error" : ""}
-                                >
-                                    <option value="">Select Category</option>
-                                    {categories.map((cat) => (
-                                        <option key={cat.categoryId} value={cat.categoryId}>
-                                            {cat.categoryName}
-                                        </option>
-                                    ))}
-                                </select>
-                                {error.categoryId_er && <span className="error">{error.categoryId_er}</span>}
+                                <div className="form-grid-2">
+                                    {/* Category */}
+                                    <div className="form-field-group">
+                                        <label>Device Category *</label>
+                                        <select
+                                            name="categoryId"
+                                            value={form_data.categoryId}
+                                            onChange={handleInputChange}
+                                            className={error.categoryId_er ? "input-error" : ""}
+                                        >
+                                            <option value="">Select Category</option>
+                                            {categories.map((cat) => (
+                                                <option key={cat.categoryId} value={cat.categoryId}>
+                                                    {cat.categoryName}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {error.categoryId_er && <span className="error">{error.categoryId_er}</span>}
+                                    </div>
 
-                                <label>Brand *</label>
-                                <select
-                                    name="brandSelect"
-                                    value={selectedBrandOption}
-                                    onChange={handleBrandSelectChange}
-                                    className={error.brand_er && !selectedBrandOption ? "input-error" : ""}
-                                >
-                                    <option value="">Select Brand</option>
-                                    {availableBrands.map((b) => (
-                                        <option key={b} value={b}>{b}</option>
-                                    ))}
-                                    <option value="Other">Other / Custom Brand...</option>
-                                </select>
+                                    {/* Brand */}
+                                    <div className="form-field-group">
+                                        <label>Brand *</label>
+                                        <select
+                                            name="brandSelect"
+                                            value={selectedBrandOption}
+                                            onChange={handleBrandSelectChange}
+                                            className={error.brand_er && !selectedBrandOption ? "input-error" : ""}
+                                        >
+                                            <option value="">Select Brand</option>
+                                            {availableBrands.map((b) => (
+                                                <option key={b} value={b}>{b}</option>
+                                            ))}
+                                            <option value="Other">Other / Custom Brand...</option>
+                                        </select>
 
-                                {(selectedBrandOption === "Other" || (!selectedBrandOption && form_data.brand)) && (
-                                    <div style={{ marginTop: "0.5rem" }}>
+                                        {(selectedBrandOption === "Other" || (!selectedBrandOption && form_data.brand)) && (
+                                            <div style={{ marginTop: "0.35rem" }}>
+                                                <input
+                                                    type="text"
+                                                    name="brand"
+                                                    value={form_data.brand}
+                                                    onChange={handleInputChange}
+                                                    placeholder="Type custom brand name"
+                                                    className={error.brand_er ? "input-error" : ""}
+                                                />
+                                            </div>
+                                        )}
+                                        {error.brand_er && <span className="error">{error.brand_er}</span>}
+                                    </div>
+
+                                    {/* Model */}
+                                    <div className="form-field-group">
+                                        <label>Model *</label>
+                                        <select
+                                            name="modelSelect"
+                                            value={selectedModelOption}
+                                            onChange={handleModelSelectChange}
+                                            disabled={!selectedBrandOption}
+                                            className={error.model_er && !selectedModelOption ? "input-error" : ""}
+                                        >
+                                            <option value="">
+                                                {!selectedBrandOption ? "Select Brand First" : "Select Model"}
+                                            </option>
+                                            {availableModels.map((m) => (
+                                                <option key={m.deviceModelId || m.model} value={m.model}>
+                                                    {m.model} {m.modelNumber ? `(${m.modelNumber})` : ""} {m.weight ? `- ${m.weight} kg` : ""}
+                                                </option>
+                                            ))}
+                                            {selectedBrandOption && <option value="Other">Other / Custom Model...</option>}
+                                        </select>
+
+                                        {(selectedModelOption === "Other" || (!selectedModelOption && form_data.model && selectedBrandOption === "Other")) && (
+                                            <div style={{ marginTop: "0.35rem" }}>
+                                                <input
+                                                    type="text"
+                                                    name="model"
+                                                    value={form_data.model}
+                                                    onChange={handleInputChange}
+                                                    placeholder="Type custom model name"
+                                                    className={error.model_er ? "input-error" : ""}
+                                                />
+                                            </div>
+                                        )}
+                                        {error.model_er && <span className="error">{error.model_er}</span>}
+                                    </div>
+
+                                    {/* Model Number */}
+                                    <div className="form-field-group">
+                                        <label>Model Number</label>
                                         <input
                                             type="text"
-                                            name="brand"
-                                            value={form_data.brand}
+                                            name="modelNumber"
+                                            value={form_data.modelNumber}
                                             onChange={handleInputChange}
-                                            placeholder="Type custom brand name"
-                                            className={error.brand_er ? "input-error" : ""}
+                                            placeholder="Optional (Auto-filled or Custom)"
+                                            className={error.modelNumber_er ? "input-error" : ""}
                                         />
+                                        {error.modelNumber_er && <span className="error">{error.modelNumber_er}</span>}
                                     </div>
-                                )}
-                                {error.brand_er && <span className="error">{error.brand_er}</span>}
 
-                                <label>Model *</label>
-                                <select
-                                    name="modelSelect"
-                                    value={selectedModelOption}
-                                    onChange={handleModelSelectChange}
-                                    disabled={!selectedBrandOption}
-                                    className={error.model_er && !selectedModelOption ? "input-error" : ""}
-                                >
-                                    <option value="">
-                                        {!selectedBrandOption ? "Select Brand First" : "Select Model"}
-                                    </option>
-                                    {availableModels.map((m) => (
-                                        <option key={m.deviceModelId || m.model} value={m.model}>
-                                            {m.model} {m.modelNumber ? `(${m.modelNumber})` : ""} {m.weight ? `- ${m.weight} kg` : ""}
-                                        </option>
-                                    ))}
-                                    {selectedBrandOption && <option value="Other">Other / Custom Model...</option>}
-                                </select>
-
-                                {(selectedModelOption === "Other" || (!selectedModelOption && form_data.model && selectedBrandOption === "Other")) && (
-                                    <div style={{ marginTop: "0.5rem" }}>
+                                    {/* Serial Number */}
+                                    <div className="form-field-group">
+                                        <label>Serial Number</label>
                                         <input
                                             type="text"
-                                            name="model"
-                                            value={form_data.model}
+                                            name="serialNumber"
+                                            value={form_data.serialNumber}
                                             onChange={handleInputChange}
-                                            placeholder="Type custom model name"
-                                            className={error.model_er ? "input-error" : ""}
+                                            placeholder="Optional hardware serial"
+                                            className={error.serialNumber_er ? "input-error" : ""}
                                         />
+                                        {error.serialNumber_er && <span className="error">{error.serialNumber_er}</span>}
                                     </div>
-                                )}
-                                {error.model_er && <span className="error">{error.model_er}</span>}
 
-                                <label>Model Number</label>
-                                <input
-                                    type="text"
-                                    name="modelNumber"
-                                    value={form_data.modelNumber}
-                                    onChange={handleInputChange}
-                                    placeholder="Optional (Auto-filled or Custom)"
-                                    className={error.modelNumber_er ? "input-error" : ""}
-                                />
-                                {error.modelNumber_er && <span className="error">{error.modelNumber_er}</span>}
+                                    {/* Date of Purchase */}
+                                    <div className="form-field-group">
+                                        <label>Date of Purchase</label>
+                                        <input
+                                            type="date"
+                                            name="purchaseDate"
+                                            value={form_data.purchaseDate}
+                                            onChange={handleInputChange}
+                                            max={todayStr}
+                                            className={error.purchaseDate_er ? "input-error" : ""}
+                                        />
+                                        {error.purchaseDate_er && <span className="error">{error.purchaseDate_er}</span>}
+                                    </div>
 
-                                <label>Serial Number</label>
-                                <input
-                                    type="text"
-                                    name="serialNumber"
-                                    value={form_data.serialNumber}
-                                    onChange={handleInputChange}
-                                    placeholder="Optional"
-                                    className={error.serialNumber_er ? "input-error" : ""}
-                                />
-                                {error.serialNumber_er && <span className="error">{error.serialNumber_er}</span>}
+                                    {/* Quantity */}
+                                    <div className="form-field-group">
+                                        <label>Quantity *</label>
+                                        <input
+                                            type="number"
+                                            name="quantity"
+                                            value={form_data.quantity}
+                                            onChange={handleInputChange}
+                                            min="1"
+                                            className={error.quantity_er ? "input-error" : ""}
+                                        />
+                                        {error.quantity_er && <span className="error">{error.quantity_er}</span>}
+                                    </div>
 
-                                <label>Quantity *</label>
-                                <input
-                                    type="number"
-                                    name="quantity"
-                                    value={form_data.quantity}
-                                    onChange={handleInputChange}
-                                    min="1"
-                                    className={error.quantity_er ? "input-error" : ""}
-                                />
-                                {error.quantity_er && <span className="error">{error.quantity_er}</span>}
+                                    {/* Weight */}
+                                    <div className="form-field-group">
+                                        <label>Weight (in kg) *</label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            name="weight"
+                                            value={form_data.weight}
+                                            onChange={handleInputChange}
+                                            placeholder="e.g. 0.25 (Auto-filled or Custom)"
+                                            min="0.01"
+                                            className={error.weight_er ? "input-error" : ""}
+                                        />
+                                        {error.weight_er && <span className="error">{error.weight_er}</span>}
+                                    </div>
+                                </div>
 
-                                <label>Weight (in kg) *</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    name="weight"
-                                    value={form_data.weight}
-                                    onChange={handleInputChange}
-                                    placeholder="e.g. 0.25 (Auto-filled or Custom)"
-                                    min="0.01"
-                                    className={error.weight_er ? "input-error" : ""}
-                                />
-                                {error.weight_er && <span className="error">{error.weight_er}</span>}
+                                {renderStepActions()}
                             </div>
                         )}
 
                         {/* STEP 2: Device Condition */}
                         {currentStep === 1 && (
                             <div className="form-step-card">
-                                <h2>2. Device Condition</h2>
-
-                                <label>Overall Condition *</label>
-                                <div className="radio-group">
-                                    {["Excellent", "Good", "Fair", "Poor", "Non-functional"].map((cond) => (
-                                        <label key={cond}>
-                                            <input
-                                                type="radio"
-                                                name="condition"
-                                                value={cond}
-                                                checked={form_data.condition === cond}
-                                                onChange={handleInputChange}
-                                            />
-                                            {cond}
-                                        </label>
-                                    ))}
+                                <div className="form-card-header">
+                                    <div className="form-card-header-left">
+                                        <span className="form-step-badge">Step 2 of 5</span>
+                                        <h2>Device Condition & Diagnostics</h2>
+                                        <p className="form-step-subtitle">Tell us about the working status and physical condition.</p>
+                                    </div>
                                 </div>
-                                {error.condition_er && <span className="error">{error.condition_er}</span>}
 
-                                <label>Is the device working?</label>
-                                <div className="radio-group">
-                                    {["Yes", "No", "Partially"].map((opt) => (
-                                        <label key={opt}>
-                                            <input
-                                                type="radio"
-                                                name="working"
-                                                value={opt}
-                                                checked={form_data.working === opt}
-                                                onChange={handleInputChange}
-                                            />
-                                            {opt}
-                                        </label>
-                                    ))}
+                                <div className="form-grid-2">
+                                    {/* Overall Condition */}
+                                    <div className="form-field-group form-grid-full">
+                                        <label>Overall Condition *</label>
+                                        <div className="pill-radio-group">
+                                            {["Excellent", "Good", "Fair", "Poor", "Non-functional"].map((cond) => (
+                                                <label key={cond} className={`pill-radio-label ${form_data.condition === cond ? "selected" : ""}`}>
+                                                    <input
+                                                        type="radio"
+                                                        name="condition"
+                                                        value={cond}
+                                                        checked={form_data.condition === cond}
+                                                        onChange={handleInputChange}
+                                                    />
+                                                    {cond}
+                                                </label>
+                                            ))}
+                                        </div>
+                                        {error.condition_er && <span className="error">{error.condition_er}</span>}
+                                    </div>
+
+                                    {/* Working */}
+                                    <div className="form-field-group">
+                                        <label>Is the device working?</label>
+                                        <div className="pill-radio-group">
+                                            {["Yes", "No", "Partially"].map((opt) => (
+                                                <label key={opt} className={`pill-radio-label ${form_data.working === opt ? "selected" : ""}`}>
+                                                    <input
+                                                        type="radio"
+                                                        name="working"
+                                                        value={opt}
+                                                        checked={form_data.working === opt}
+                                                        onChange={handleInputChange}
+                                                    />
+                                                    {opt}
+                                                </label>
+                                            ))}
+                                        </div>
+                                        {error.working_er && <span className="error">{error.working_er}</span>}
+                                    </div>
+
+                                    {/* Accessories */}
+                                    <div className="form-field-group">
+                                        <label>Accessories Available?</label>
+                                        <div className="pill-radio-group">
+                                            {["Yes", "No"].map((opt) => (
+                                                <label key={opt} className={`pill-radio-label ${form_data.accessories === opt ? "selected" : ""}`}>
+                                                    <input
+                                                        type="radio"
+                                                        name="accessories"
+                                                        value={opt}
+                                                        checked={form_data.accessories === opt}
+                                                        onChange={handleInputChange}
+                                                    />
+                                                    {opt}
+                                                </label>
+                                            ))}
+                                        </div>
+                                        {error.accessories_er && <span className="error">{error.accessories_er}</span>}
+                                    </div>
+
+                                    {/* Screen Display */}
+                                    <div className="form-field-group">
+                                        <label>Screen / Display Condition</label>
+                                        <select
+                                            name="displayCondition"
+                                            value={form_data.displayCondition}
+                                            onChange={handleInputChange}
+                                            className={error.displayCondition_er ? "input-error" : ""}
+                                        >
+                                            <option value="">Select Condition</option>
+                                            <option value="Good">Good</option>
+                                            <option value="Minor Damage">Minor Damage</option>
+                                            <option value="Cracked">Cracked</option>
+                                            <option value="Broken">Broken</option>
+                                            <option value="Not Applicable">Not Applicable</option>
+                                        </select>
+                                        {error.displayCondition_er && <span className="error">{error.displayCondition_er}</span>}
+                                    </div>
+
+                                    {/* Battery Condition */}
+                                    <div className="form-field-group">
+                                        <label>Battery Condition</label>
+                                        <select
+                                            name="batteryCondition"
+                                            value={form_data.batteryCondition}
+                                            onChange={handleInputChange}
+                                            className={error.batteryCondition_er ? "input-error" : ""}
+                                        >
+                                            <option value="">Select Condition</option>
+                                            <option value="Good">Good</option>
+                                            <option value="Average">Average</option>
+                                            <option value="Poor">Poor</option>
+                                            <option value="Not Applicable">Not Applicable</option>
+                                        </select>
+                                        {error.batteryCondition_er && <span className="error">{error.batteryCondition_er}</span>}
+                                    </div>
+
+                                    {/* Charger */}
+                                    <div className="form-field-group">
+                                        <label>Charger Available?</label>
+                                        <div className="pill-radio-group">
+                                            {["Yes", "No", "Not Applicable"].map((opt) => (
+                                                <label key={opt} className={`pill-radio-label ${form_data.charger === opt ? "selected" : ""}`}>
+                                                    <input
+                                                        type="radio"
+                                                        name="charger"
+                                                        value={opt}
+                                                        checked={form_data.charger === opt}
+                                                        onChange={handleInputChange}
+                                                    />
+                                                    {opt}
+                                                </label>
+                                            ))}
+                                        </div>
+                                        {error.charger_er && <span className="error">{error.charger_er}</span>}
+                                    </div>
+
+                                    {/* Physical Damage */}
+                                    <div className="form-field-group form-grid-full">
+                                        <label>Physical Damage / Wear Description</label>
+                                        <textarea
+                                            name="physicalDamage"
+                                            value={form_data.physicalDamage}
+                                            onChange={handleInputChange}
+                                            placeholder="Describe any scratches, cracks, dents, or visible flaws..."
+                                            className={error.physicalDamage_er ? "input-error" : ""}
+                                        ></textarea>
+                                        {error.physicalDamage_er && <span className="error">{error.physicalDamage_er}</span>}
+                                    </div>
                                 </div>
-                                {error.working_er && <span className="error">{error.working_er}</span>}
 
-                                <label>Physical Damage</label>
-                                <textarea
-                                    name="physicalDamage"
-                                    value={form_data.physicalDamage}
-                                    onChange={handleInputChange}
-                                    placeholder="Describe any visible damage"
-                                    className={error.physicalDamage_er ? "input-error" : ""}
-                                ></textarea>
-                                {error.physicalDamage_er && <span className="error">{error.physicalDamage_er}</span>}
-
-                                <label>Screen / Display Condition</label>
-                                <select
-                                    name="displayCondition"
-                                    value={form_data.displayCondition}
-                                    onChange={handleInputChange}
-                                    className={error.displayCondition_er ? "input-error" : ""}
-                                >
-                                    <option value="">Select Condition</option>
-                                    <option value="Good">Good</option>
-                                    <option value="Minor Damage">Minor Damage</option>
-                                    <option value="Cracked">Cracked</option>
-                                    <option value="Broken">Broken</option>
-                                    <option value="Not Applicable">Not Applicable</option>
-                                </select>
-                                {error.displayCondition_er && <span className="error">{error.displayCondition_er}</span>}
-
-                                <label>Battery Condition</label>
-                                <select
-                                    name="batteryCondition"
-                                    value={form_data.batteryCondition}
-                                    onChange={handleInputChange}
-                                    className={error.batteryCondition_er ? "input-error" : ""}
-                                >
-                                    <option value="">Select Condition</option>
-                                    <option value="Good">Good</option>
-                                    <option value="Average">Average</option>
-                                    <option value="Poor">Poor</option>
-                                    <option value="Not Applicable">Not Applicable</option>
-                                </select>
-                                {error.batteryCondition_er && <span className="error">{error.batteryCondition_er}</span>}
-
-                                <label>Accessories Available?</label>
-                                <div className="radio-group">
-                                    {["Yes", "No"].map((opt) => (
-                                        <label key={opt}>
-                                            <input
-                                                type="radio"
-                                                name="accessories"
-                                                value={opt}
-                                                checked={form_data.accessories === opt}
-                                                onChange={handleInputChange}
-                                            />
-                                            {opt}
-                                        </label>
-                                    ))}
-                                </div>
-                                {error.accessories_er && <span className="error">{error.accessories_er}</span>}
-
-                                <label>Charger Available?</label>
-                                <div className="radio-group">
-                                    {["Yes", "No", "Not Applicable"].map((opt) => (
-                                        <label key={opt}>
-                                            <input
-                                                type="radio"
-                                                name="charger"
-                                                value={opt}
-                                                checked={form_data.charger === opt}
-                                                onChange={handleInputChange}
-                                            />
-                                            {opt}
-                                        </label>
-                                    ))}
-                                </div>
-                                {error.charger_er && <span className="error">{error.charger_er}</span>}
+                                {renderStepActions()}
                             </div>
                         )}
 
                         {/* STEP 3: Device Photos */}
                         {currentStep === 2 && (
                             <div className="form-step-card">
-                                <h2>3. Device Photos</h2>
+                                <div className="form-card-header">
+                                    <div className="form-card-header-left">
+                                        <span className="form-step-badge">Step 3 of 5</span>
+                                        <h2>Device Photos</h2>
+                                        <p className="form-step-subtitle">Upload clear photos to accelerate valuation and inspection.</p>
+                                    </div>
+                                </div>
 
-                                <label>Front Photo *</label>
-                                <input
-                                    type="file"
-                                    name="frontPhoto"
-                                    accept="image/*"
-                                    onChange={handleInputChange}
-                                    className={error.frontPhoto_er ? "input-error" : ""}
-                                />
-                                {error.frontPhoto_er && <span className="error">{error.frontPhoto_er}</span>}
+                                <div className="photo-upload-grid">
+                                    <div className={`photo-upload-box ${form_data.frontPhoto ? "has-file" : ""}`}>
+                                        <input
+                                            type="file"
+                                            name="frontPhoto"
+                                            accept="image/*"
+                                            onChange={handleInputChange}
+                                            className="photo-upload-input"
+                                        />
+                                        <FiImage className="photo-upload-icon" />
+                                        <span className="photo-upload-label">Front Photo *</span>
+                                        {form_data.frontPhoto ? (
+                                            <span className="photo-file-name">{form_data.frontPhoto.name}</span>
+                                        ) : (
+                                            <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Click to upload</span>
+                                        )}
+                                        {error.frontPhoto_er && <span className="error">{error.frontPhoto_er}</span>}
+                                    </div>
 
-                                <label>Back Photo *</label>
-                                <input
-                                    type="file"
-                                    name="backPhoto"
-                                    accept="image/*"
-                                    onChange={handleInputChange}
-                                    className={error.backPhoto_er ? "input-error" : ""}
-                                />
-                                {error.backPhoto_er && <span className="error">{error.backPhoto_er}</span>}
+                                    <div className={`photo-upload-box ${form_data.backPhoto ? "has-file" : ""}`}>
+                                        <input
+                                            type="file"
+                                            name="backPhoto"
+                                            accept="image/*"
+                                            onChange={handleInputChange}
+                                            className="photo-upload-input"
+                                        />
+                                        <FiImage className="photo-upload-icon" />
+                                        <span className="photo-upload-label">Back Photo *</span>
+                                        {form_data.backPhoto ? (
+                                            <span className="photo-file-name">{form_data.backPhoto.name}</span>
+                                        ) : (
+                                            <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Click to upload</span>
+                                        )}
+                                        {error.backPhoto_er && <span className="error">{error.backPhoto_er}</span>}
+                                    </div>
 
-                                <label>Damage Photo</label>
-                                <input
-                                    type="file"
-                                    name="damagePhoto"
-                                    accept="image/*"
-                                    onChange={handleInputChange}
-                                    className={error.damagePhoto_er ? "input-error" : ""}
-                                />
-                                {error.damagePhoto_er && <span className="error">{error.damagePhoto_er}</span>}
+                                    <div className={`photo-upload-box ${form_data.damagePhoto ? "has-file" : ""}`}>
+                                        <input
+                                            type="file"
+                                            name="damagePhoto"
+                                            accept="image/*"
+                                            onChange={handleInputChange}
+                                            className="photo-upload-input"
+                                        />
+                                        <FiImage className="photo-upload-icon" />
+                                        <span className="photo-upload-label">Damage View</span>
+                                        {form_data.damagePhoto ? (
+                                            <span className="photo-file-name">{form_data.damagePhoto.name}</span>
+                                        ) : (
+                                            <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Optional</span>
+                                        )}
+                                        {error.damagePhoto_er && <span className="error">{error.damagePhoto_er}</span>}
+                                    </div>
 
-                                <label>Device Label / Serial Number</label>
-                                <input
-                                    type="file"
-                                    name="labelPhoto"
-                                    accept="image/*"
-                                    onChange={handleInputChange}
-                                    className={error.labelPhoto_er ? "input-error" : ""}
-                                />
-                                {error.labelPhoto_er && <span className="error">{error.labelPhoto_er}</span>}
+                                    <div className={`photo-upload-box ${form_data.labelPhoto ? "has-file" : ""}`}>
+                                        <input
+                                            type="file"
+                                            name="labelPhoto"
+                                            accept="image/*"
+                                            onChange={handleInputChange}
+                                            className="photo-upload-input"
+                                        />
+                                        <FiImage className="photo-upload-icon" />
+                                        <span className="photo-upload-label">Serial / Label</span>
+                                        {form_data.labelPhoto ? (
+                                            <span className="photo-file-name">{form_data.labelPhoto.name}</span>
+                                        ) : (
+                                            <span style={{ fontSize: "0.72rem", color: "#94a3b8" }}>Optional</span>
+                                        )}
+                                        {error.labelPhoto_er && <span className="error">{error.labelPhoto_er}</span>}
+                                    </div>
+                                </div>
+
+                                {renderStepActions()}
                             </div>
                         )}
 
                         {/* STEP 4: Processing & Pickup Details */}
                         {currentStep === 3 && (
                             <div className="form-step-card">
-                                <h2>4. Processing & Pickup Details</h2>
-
-                                <label>Processing Preference *</label>
-                                <div className="preference">
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="processingPreference"
-                                            value="valuation"
-                                            checked={form_data.processingPreference === "valuation"}
-                                            onChange={handleInputChange}
-                                        />
-                                        <strong>Request Valuation</strong>
-                                        <small>Get a valuation/offer for your device.</small>
-                                    </label>
-
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="processingPreference"
-                                            value="recycling"
-                                            checked={form_data.processingPreference === "recycling"}
-                                            onChange={handleInputChange}
-                                        />
-                                        <strong>Responsible Recycling</strong>
-                                        <small>Recycle your device responsibly.</small>
-                                    </label>
-                                </div>
-                                {error.processingPreference_er && <span className="error">{error.processingPreference_er}</span>}
-
-                                <label>Pickup Address Option</label>
-                                <div className="radio-group">
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="useRegisteredAddress"
-                                            value="true"
-                                            checked={form_data.useRegisteredAddress === true}
-                                            onChange={handleInputChange}
-                                        />
-                                        Use my registered address
-                                    </label>
-
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="useRegisteredAddress"
-                                            value="false"
-                                            checked={form_data.useRegisteredAddress === false}
-                                            onChange={handleInputChange}
-                                        />
-                                        Use a different address
-                                    </label>
+                                <div className="form-card-header">
+                                    <div className="form-card-header-left">
+                                        <span className="form-step-badge">Step 4 of 5</span>
+                                        <h2>Processing & Pickup Logistics</h2>
+                                        <p className="form-step-subtitle">Choose how you'd like your device handled and schedule a collection slot.</p>
+                                    </div>
                                 </div>
 
-                                {!form_data.useRegisteredAddress && (
-                                    <>
-                                        <label>Address *</label>
+                                <div className="form-grid-2">
+                                    {/* Preference */}
+                                    <div className="form-field-group form-grid-full">
+                                        <label>Processing Preference *</label>
+                                        <div className="preference-grid">
+                                            <label className={`preference-card ${form_data.processingPreference === "valuation" ? "selected" : ""}`}>
+                                                <div className="preference-card-top">
+                                                    <span className="preference-card-title">Request Valuation</span>
+                                                    <input
+                                                        type="radio"
+                                                        name="processingPreference"
+                                                        value="valuation"
+                                                        checked={form_data.processingPreference === "valuation"}
+                                                        onChange={handleInputChange}
+                                                    />
+                                                </div>
+                                                <p className="preference-card-desc">Receive an estimated monetary offer and revenue share upon technical inspection.</p>
+                                            </label>
+
+                                            <label className={`preference-card ${form_data.processingPreference === "recycling" ? "selected" : ""}`}>
+                                                <div className="preference-card-top">
+                                                    <span className="preference-card-title">Responsible Recycling</span>
+                                                    <input
+                                                        type="radio"
+                                                        name="processingPreference"
+                                                        value="recycling"
+                                                        checked={form_data.processingPreference === "recycling"}
+                                                        onChange={handleInputChange}
+                                                    />
+                                                </div>
+                                                <p className="preference-card-desc">Zero-landfill certified recycling with an official Green Impact Certificate.</p>
+                                            </label>
+                                        </div>
+                                        {error.processingPreference_er && <span className="error">{error.processingPreference_er}</span>}
+                                    </div>
+
+                                    {/* Address Option */}
+                                    <div className="form-field-group form-grid-full">
+                                        <label>Pickup Address Option</label>
+                                        <div className="pill-radio-group">
+                                            <label className={`pill-radio-label ${form_data.useRegisteredAddress ? "selected" : ""}`}>
+                                                <input
+                                                    type="radio"
+                                                    name="useRegisteredAddress"
+                                                    value="true"
+                                                    checked={form_data.useRegisteredAddress === true}
+                                                    onChange={handleInputChange}
+                                                />
+                                                Use registered profile address
+                                            </label>
+                                            <label className={`pill-radio-label ${!form_data.useRegisteredAddress ? "selected" : ""}`}>
+                                                <input
+                                                    type="radio"
+                                                    name="useRegisteredAddress"
+                                                    value="false"
+                                                    checked={form_data.useRegisteredAddress === false}
+                                                    onChange={handleInputChange}
+                                                />
+                                                Use custom pickup address
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    {!form_data.useRegisteredAddress && (
+                                        <div className="form-field-group form-grid-full">
+                                            <label>Custom Pickup Address *</label>
+                                            <textarea
+                                                name="address"
+                                                value={form_data.address}
+                                                onChange={handleInputChange}
+                                                placeholder="Enter flat/house no., street, city, pin code..."
+                                                className={error.address_er ? "input-error" : ""}
+                                            ></textarea>
+                                            {error.address_er && <span className="error">{error.address_er}</span>}
+                                        </div>
+                                    )}
+
+                                    {/* Landmark */}
+                                    <div className="form-field-group">
+                                        <label>Landmark (Optional)</label>
+                                        <input
+                                            type="text"
+                                            name="landmark"
+                                            value={form_data.landmark}
+                                            onChange={handleInputChange}
+                                            placeholder="Nearby building or landmark"
+                                            className={error.landmark_er ? "input-error" : ""}
+                                        />
+                                        {error.landmark_er && <span className="error">{error.landmark_er}</span>}
+                                    </div>
+
+                                    {/* Date */}
+                                    <div className="form-field-group">
+                                        <label>Preferred Pickup Date *</label>
+                                        <input
+                                            type="date"
+                                            name="pickupDate"
+                                            min={minDateStr}
+                                            max={maxDateStr}
+                                            value={form_data.pickupDate}
+                                            onChange={handleInputChange}
+                                            className={error.pickupDate_er ? "input-error" : ""}
+                                        />
+                                        {error.pickupDate_er && <span className="error">{error.pickupDate_er}</span>}
+                                    </div>
+
+                                    {/* Time Slot */}
+                                    <div className="form-field-group">
+                                        <label>Preferred Time Slot *</label>
+                                        <select
+                                            name="timeSlot"
+                                            value={form_data.timeSlot}
+                                            onChange={handleInputChange}
+                                            className={error.timeSlot_er ? "input-error" : ""}
+                                        >
+                                            <option value="">Select Time Slot</option>
+                                            <option value="9AM-12PM">9:00 AM - 12:00 PM (Morning)</option>
+                                            <option value="12PM-3PM">12:00 PM - 3:00 PM (Afternoon)</option>
+                                            <option value="3PM-6PM">3:00 PM - 6:00 PM (Evening)</option>
+                                        </select>
+                                        {error.timeSlot_er && <span className="error">{error.timeSlot_er}</span>}
+                                    </div>
+
+                                    {/* Instructions */}
+                                    <div className="form-field-group form-grid-full">
+                                        <label>Pickup Instructions (Optional)</label>
                                         <textarea
-                                            name="address"
-                                            value={form_data.address}
+                                            name="pickupInstructions"
+                                            value={form_data.pickupInstructions}
                                             onChange={handleInputChange}
-                                            placeholder="Enter pickup address"
-                                            className={error.address_er ? "input-error" : ""}
+                                            placeholder="e.g. Call 10 mins before arrival, gate access code..."
+                                            className={error.pickupInstructions_er ? "input-error" : ""}
                                         ></textarea>
-                                        {error.address_er && <span className="error">{error.address_er}</span>}
-                                    </>
-                                )}
+                                        {error.pickupInstructions_er && <span className="error">{error.pickupInstructions_er}</span>}
+                                    </div>
+                                </div>
 
-                                <label>Landmark</label>
-                                <input
-                                    type="text"
-                                    name="landmark"
-                                    value={form_data.landmark}
-                                    onChange={handleInputChange}
-                                    placeholder="Enter landmark"
-                                    className={error.landmark_er ? "input-error" : ""}
-                                />
-                                {error.landmark_er && <span className="error">{error.landmark_er}</span>}
-
-                                <label>Preferred Pickup Date *</label>
-                                <input
-                                    type="date"
-                                    name="pickupDate"
-                                    min={minDateStr}
-                                    max={maxDateStr}
-                                    value={form_data.pickupDate}
-                                    onChange={handleInputChange}
-                                    className={error.pickupDate_er ? "input-error" : ""}
-                                />
-                                {error.pickupDate_er && <span className="error">{error.pickupDate_er}</span>}
-
-                                <label>Preferred Time Slot *</label>
-                                <select
-                                    name="timeSlot"
-                                    value={form_data.timeSlot}
-                                    onChange={handleInputChange}
-                                    className={error.timeSlot_er ? "input-error" : ""}
-                                >
-                                    <option value="">Select Time Slot</option>
-                                    <option value="9AM-12PM">9:00 AM - 12:00 PM</option>
-                                    <option value="12PM-3PM">12:00 PM - 3:00 PM</option>
-                                    <option value="3PM-6PM">3:00 PM - 6:00 PM</option>
-                                </select>
-                                {error.timeSlot_er && <span className="error">{error.timeSlot_er}</span>}
-
-                                <label>Pickup Instructions</label>
-                                <textarea
-                                    name="pickupInstructions"
-                                    value={form_data.pickupInstructions}
-                                    onChange={handleInputChange}
-                                    placeholder="Optional instructions"
-                                    className={error.pickupInstructions_er ? "input-error" : ""}
-                                ></textarea>
-                                {error.pickupInstructions_er && <span className="error">{error.pickupInstructions_er}</span>}
+                                {renderStepActions()}
                             </div>
                         )}
 
                         {/* STEP 5: Ownership Confirmation */}
                         {currentStep === 4 && (
                             <div className="form-step-card">
-                                <h2>5. Ownership & Confirmation</h2>
-
-                                <label>Device Ownership *</label>
-                                <div className="radio-group">
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="ownership"
-                                            value="Personal"
-                                            checked={form_data.ownership === "Personal"}
-                                            onChange={handleInputChange}
-                                        />
-                                        Personal
-                                    </label>
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="ownership"
-                                            value="Business"
-                                            checked={form_data.ownership === "Business"}
-                                            onChange={handleInputChange}
-                                        />
-                                        Business
-                                    </label>
+                                <div className="form-card-header">
+                                    <div className="form-card-header-left">
+                                        <span className="form-step-badge">Step 5 of 5</span>
+                                        <h2>Review & Confirm Submission</h2>
+                                        <p className="form-step-subtitle">Verify device specifications and declare legal ownership.</p>
+                                    </div>
                                 </div>
-                                {error.ownership_er && <span className="error">{error.ownership_er}</span>}
 
-                                <label className="checkbox">
-                                    <input
-                                        type="checkbox"
-                                        name="ownershipConfirmed"
-                                        checked={form_data.ownershipConfirmed}
-                                        onChange={handleInputChange}
-                                        className={error.ownershipConfirmed_er ? "input-error" : ""}
-                                    />
-                                    I confirm that I am the owner or authorized person to submit this device to EcoCycle.
-                                </label>
-                                {error.ownershipConfirmed_er && <span className="error">{error.ownershipConfirmed_er}</span>}
+                                <div className="review-summary-card">
+                                    <div className="review-summary-title">Summary Review</div>
+                                    <div className="review-grid">
+                                        <div className="review-item">
+                                            <span className="review-key">Device & Brand</span>
+                                            <span className="review-val">{form_data.brand || "N/A"} - {form_data.model || "Custom Model"}</span>
+                                        </div>
+                                        <div className="review-item">
+                                            <span className="review-key">Category & Qty</span>
+                                            <span className="review-val">{categories.find(c => String(c.categoryId) === String(form_data.categoryId))?.categoryName || "E-Waste"} (Qty: {form_data.quantity || 1})</span>
+                                        </div>
+                                        <div className="review-item">
+                                            <span className="review-key">Condition</span>
+                                            <span className="review-val">{form_data.condition || "Not Specified"} {form_data.working ? `(${form_data.working})` : ""}</span>
+                                        </div>
+                                        <div className="review-item">
+                                            <span className="review-key">Preference</span>
+                                            <span className="review-val" style={{ textTransform: "capitalize", color: "#059669" }}>{form_data.processingPreference || "Valuation"}</span>
+                                        </div>
+                                        <div className="review-item">
+                                            <span className="review-key">Pickup Schedule</span>
+                                            <span className="review-val">{form_data.pickupDate || "Date TBD"} ({form_data.timeSlot || "Slot TBD"})</span>
+                                        </div>
+                                        <div className="review-item">
+                                            <span className="review-key">Weight</span>
+                                            <span className="review-val">{form_data.weight ? `${form_data.weight} kg` : "N/A"}</span>
+                                        </div>
+                                    </div>
+                                </div>
 
-                                <label className="checkbox">
-                                    <input
-                                        type="checkbox"
-                                        name="termsAccepted"
-                                        checked={form_data.termsAccepted}
-                                        onChange={handleInputChange}
-                                        className={error.termsAccepted_er ? "input-error" : ""}
-                                    />
-                                    I agree to the EcoCycle Terms & Services and confirm that the information provided is accurate.
-                                </label>
-                                {error.termsAccepted_er && <span className="error">{error.termsAccepted_er}</span>}
+                                <div className="form-grid-2">
+                                    <div className="form-field-group form-grid-full">
+                                        <label>Device Ownership *</label>
+                                        <div className="pill-radio-group">
+                                            <label className={`pill-radio-label ${form_data.ownership === "Personal" ? "selected" : ""}`}>
+                                                <input
+                                                    type="radio"
+                                                    name="ownership"
+                                                    value="Personal"
+                                                    checked={form_data.ownership === "Personal"}
+                                                    onChange={handleInputChange}
+                                                />
+                                                Personal Device
+                                            </label>
+                                            <label className={`pill-radio-label ${form_data.ownership === "Business" ? "selected" : ""}`}>
+                                                <input
+                                                    type="radio"
+                                                    name="ownership"
+                                                    value="Business"
+                                                    checked={form_data.ownership === "Business"}
+                                                    onChange={handleInputChange}
+                                                />
+                                                Business / Corporate Device
+                                            </label>
+                                        </div>
+                                        {error.ownership_er && <span className="error">{error.ownership_er}</span>}
+                                    </div>
+
+                                    <div className="form-grid-full">
+                                        <label className="checkbox-card">
+                                            <input
+                                                type="checkbox"
+                                                name="ownershipConfirmed"
+                                                checked={form_data.ownershipConfirmed}
+                                                onChange={handleInputChange}
+                                                className={error.ownershipConfirmed_er ? "input-error" : ""}
+                                            />
+                                            <span>I confirm that I am the legal owner or authorized custodian to surrender this electronic hardware to EcoCycle for processing.</span>
+                                        </label>
+                                        {error.ownershipConfirmed_er && <span className="error">{error.ownershipConfirmed_er}</span>}
+
+                                        <label className="checkbox-card">
+                                            <input
+                                                type="checkbox"
+                                                name="termsAccepted"
+                                                checked={form_data.termsAccepted}
+                                                onChange={handleInputChange}
+                                                className={error.termsAccepted_er ? "input-error" : ""}
+                                            />
+                                            <span>I agree to EcoCycle Environmental Terms & Services and verify all data provided is genuine.</span>
+                                        </label>
+                                        {error.termsAccepted_er && <span className="error">{error.termsAccepted_er}</span>}
+                                    </div>
+                                </div>
+
+                                {renderStepActions()}
                             </div>
                         )}
-
-                        {/* Step Navigation Action Buttons */}
-                        <div className="step-actions-bar">
-                            {currentStep > 0 && (
-                                <button type="button" className="btn-prev" onClick={handlePrevStep}>
-                                    <FiArrowLeft /> Previous
-                                </button>
-                            )}
-
-                            {currentStep < stepTitles.length - 1 ? (
-                                <button type="button" className="btn-next" onClick={handleNextStep}>
-                                    Next <FiArrowRight />
-                                </button>
-                            ) : (
-                                <button type="submit" className="btn-submit-device" disabled={isSubmitting}>
-                                    {isSubmitting ? "Submitting..." : <>Submit Request <FiCheck /></>}
-                                </button>
-                            )}
-                        </div>
                     </form>
                 </div>
             </main>

@@ -1,0 +1,411 @@
+/* Manage_refurbishmentprocess.css - Enterprise Refurbishment Management Styles */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap");
+@import "./AdminCommon.css";
+@import "./Manage_inspection.css";
+
+/* Specific Refurbishment Process Colors & Tokens */
+:root {
+  --refurb-purple: #7c3aed;
+  --refurb-purple-light: #f5f3ff;
+  --refurb-purple-border: #ddd6fe;
+  --refurb-green: #059669;
+  --refurb-green-light: #ecfdf5;
+  --refurb-amber: #d97706;
+  --refurb-amber-light: #fef3c7;
+}
+
+.refurb-pulse-ping {
+  width: 8px;
+  height: 8px;
+  background: #7c3aed;
+  border-radius: 50%;
+  display: inline-block;
+  animation: pulsePingRefurb 1.5s infinite;
+}
+
+@keyframes pulsePingRefurb {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.5; }
+}
+
+.refurb-category-pill {
+  background: #f5f3ff;
+  color: #6d28d9;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid #ddd6fe;
+}
+
+.refurb-icon-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #f5f3ff;
+  color: #7c3aed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  border: 1px solid #ede9fe;
+}
+
+/* Modal Architecture */
+.admin-modal-card.mrp-audit-modal {
+  max-width: 1020px !important;
+  width: 95vw !important;
+  max-height: 92vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 20px !important;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25) !important;
+  background: #ffffff !important;
+  overflow: hidden !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.mrp-audit-modal .admin-modal-header,
+.mrp-cert-modal .admin-modal-header {
+  flex-shrink: 0;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.mrp-audit-modal .admin-modal-body,
+.mrp-cert-modal .admin-modal-body {
+  padding: 1.5rem 1.75rem !important;
+  overflow-y: auto !important;
+  max-height: calc(92vh - 145px) !important;
+  flex: 1 1 auto !important;
+  background: #f8fafc;
+}
+
+.mrp-audit-hero {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  display: grid;
+  grid-template-columns: 1.3fr 1.3fr auto;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.hero-label {
+  font-size: 0.725rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+}
+
+.hero-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+}
+
+.hero-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.tag-pill {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 9px;
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* 5-Step Refurbishment Stepper */
+.refurb-stepper-tracker {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.refurb-stepper-node {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.85rem;
+  text-align: center;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.refurb-stepper-node.active {
+  border-color: #059669;
+  background: #ecfdf5;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.12);
+}
+
+.refurb-stepper-node.completed {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.refurb-step-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.4rem;
+}
+
+.refurb-stepper-node.completed .refurb-step-badge {
+  background: #10b981;
+  color: #ffffff;
+}
+
+.refurb-stepper-node.active .refurb-step-badge {
+  background: #059669;
+  color: #ffffff;
+}
+
+.refurb-step-title {
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: block;
+}
+
+.refurb-step-sub {
+  font-size: 0.675rem;
+  color: #64748b;
+  margin-top: 2px;
+  display: block;
+}
+
+/* Sections in Audit Modal */
+.refurb-audit-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.refurb-section-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.refurb-section-title-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.refurb-section-icon {
+  font-size: 1.15rem;
+  color: #7c3aed;
+}
+
+/* Repair Table */
+.refurb-repairs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.825rem;
+}
+
+.refurb-repairs-table th {
+  background: #f8fafc;
+  padding: 0.65rem 0.85rem;
+  text-align: left;
+  font-weight: 700;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.725rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.refurb-repairs-table td {
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
+}
+
+.refurb-repairs-table tfoot td {
+  background: #faf5ff;
+  font-weight: 800;
+  color: #581c87;
+  border-top: 2px solid #ddd6fe;
+}
+
+/* Diagnostic Test Matrix - Admin Dashboard Style */
+.refurb-tests-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.85rem;
+}
+
+@media (max-width: 680px) {
+  .refurb-tests-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.refurb-test-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.9rem 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+}
+
+.refurb-test-card:hover {
+  border-color: #a7f3d0;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.06);
+}
+
+.refurb-test-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.refurb-test-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ecfdf5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  border: 1px solid #a7f3d0;
+}
+
+.refurb-test-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.refurb-test-title {
+  font-size: 0.865rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.refurb-test-sub {
+  font-size: 0.725rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.refurb-test-status {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.refurb-test-status.pass {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.refurb-test-status.fail {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* Printable Certificate Frame */
+.refurb-printable-cert-wrap {
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 16px;
+  border: 3px double #7c3aed;
+  box-shadow: 0 10px 30px rgba(124, 58, 237, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.refurb-printable-cert-wrap::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, #7c3aed, #10b981, #3b82f6);
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .refurb-printable-cert-wrap,
+  .refurb-printable-cert-wrap * {
+    visibility: visible;
+  }
+  .refurb-printable-cert-wrap {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    box-shadow: none;
+    border: 2px solid #7c3aed;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+.table-row-hover.row-rejected {
+  background: #fffafa;
+}
+
+.table-row-hover.row-rejected:hover {
+  background: #fef2f2 !important;
+}

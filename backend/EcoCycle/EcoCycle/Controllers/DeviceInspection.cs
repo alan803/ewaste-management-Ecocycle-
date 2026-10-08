@@ -293,7 +293,7 @@ namespace EcoCycle.Controllers
                 // Update InspectionRequest
                 inspReq.RespondedAt = inspReq.RespondedAt ?? now;
                 inspReq.UpdatedAt = now;
-                inspReq.Status = "Accepted";
+                inspReq.Status = "Completed";
 
                 // Update Device Master Fields & Decision
                 device.ProcessingDecision = dto.WasteDestination;

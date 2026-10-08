@@ -1,5 +1,81 @@
 /* Refurbishmentcenter_dashboard.css - Modern Sleek UI for Refurbishment Center */
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+@import "../Administrator/Manage_recyclingprocess.css";
+@import "../Administrator/Manage_inspection.css";
+
+/* Refurbishment Center Purple Theme for Certificate & Modal */
+.refurb-cert-modal .admin-modal-header {
+  border-bottom: 1px solid #ede9fe;
+}
+
+.refurb-cert-modal .admin-cat-icon-box {
+  background: #f5f3ff !important;
+  color: #7c3aed !important;
+}
+
+.refurb-cert-frame {
+  background: #ffffff;
+  padding: 1.5rem;
+  border-radius: 8px;
+  color: #1e293b;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.refurb-cert-frame .cert-border-outer {
+  border: 4px double #7c3aed !important;
+  padding: 6px;
+  border-radius: 4px;
+}
+
+.refurb-cert-frame .cert-border-inner {
+  border: 1px solid #ddd6fe !important;
+  padding: 2rem 2.25rem;
+  background: radial-gradient(circle at center, #ffffff 60%, #faf5ff 100%) !important;
+  position: relative;
+}
+
+.refurb-cert-frame .cert-header {
+  border-bottom: 2px solid #7c3aed !important;
+}
+
+.refurb-cert-frame .cert-leaf {
+  color: #7c3aed !important;
+}
+
+.refurb-cert-frame .cert-brand-title {
+  color: #581c87 !important;
+}
+
+.refurb-cert-frame .cert-brand-sub {
+  color: #7c3aed !important;
+}
+
+.refurb-cert-frame .cert-subtitle {
+  color: #7c3aed !important;
+}
+
+.refurb-cert-frame .cert-mat-badge {
+  background: #f5f3ff !important;
+  border: 1px solid #ddd6fe !important;
+  color: #6d28d9 !important;
+}
+
+.refurb-cert-frame .stamp-circle {
+  border: 3px dashed #7c3aed !important;
+  color: #7c3aed !important;
+}
+
+.refurb-cert-modal .btn-modal-confirm {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid #7c3aed !important;
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25) !important;
+}
+
+.refurb-cert-modal .btn-modal-confirm:hover {
+  background: linear-gradient(135deg, #6d28d9 0%, #5b21b6 100%) !important;
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.35) !important;
+}
 
 :root {
   --refurb-bg: #f8fafc;
@@ -19,15 +95,15 @@
   background-image: 
     radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.04) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.04) 0px, transparent 50%);
-  font-family: "Plus Jakarta Sans", sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: var(--refurb-text-main);
+  letter-spacing: -0.011em;
 }
 
 .refurb-main-content {
   flex: 1;
-  padding: 1.5rem;
-  max-width: 1350px;
-  margin: 0 auto;
+  min-width: 0;
+  padding: 1.5rem 2rem;
   box-sizing: border-box;
   overflow-x: hidden;
 }
@@ -235,6 +311,280 @@
   color: var(--refurb-primary);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   font-weight: 700;
+}
+
+/* View Toggle Buttons */
+.view-toggle-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #f1f5f9;
+  padding: 0.25rem;
+  border-radius: 10px;
+}
+
+.view-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-btn:hover {
+  color: var(--refurb-primary);
+}
+
+.view-btn.active {
+  background: #ffffff;
+  color: var(--refurb-primary);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+}
+
+/* Cards Grid View */
+.refurb-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.15rem;
+  margin-top: 0.5rem;
+}
+
+.refurb-item-card {
+  background: #ffffff;
+  border: 1px solid var(--refurb-border);
+  border-radius: 16px;
+  padding: 1.15rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+}
+
+.refurb-item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.08);
+  border-color: #ddd6fe;
+}
+
+.refurb-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.refurb-cat-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #f5f3ff;
+  color: var(--refurb-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+
+.refurb-card-brand-name {
+  margin: 0 0 0.15rem 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.refurb-card-cat-sub {
+  margin: 0;
+  font-size: 0.775rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.refurb-agent-chip-box {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+}
+
+.refurb-agent-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #7c3aed;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.refurb-agent-name {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: block;
+}
+
+.refurb-agent-sub {
+  font-size: 0.725rem;
+  color: #64748b;
+}
+
+.btn-refurb-call {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #7c3aed;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
+  transition: transform 0.15s ease;
+}
+
+.btn-refurb-call:hover {
+  transform: scale(1.05);
+}
+
+.refurb-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.refurb-detail-row .detail-icon {
+  font-size: 0.95rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.refurb-detail-row .detail-label {
+  font-size: 0.675rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.04em;
+}
+
+.refurb-detail-row .detail-val {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.refurb-card-actions {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed #e2e8f0;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.refurb-btn-accept {
+  flex: 1;
+  height: 38px;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.825rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+  transition: all 0.2s ease;
+}
+
+.refurb-btn-accept:hover {
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35);
+  transform: translateY(-1px);
+}
+
+.refurb-btn-reject {
+  height: 38px;
+  padding: 0 0.85rem;
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  font-size: 0.825rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refurb-btn-reject:hover {
+  background: #fecaca;
+  color: #b91c1c;
+}
+
+.refurb-btn-bench {
+  flex: 1;
+  height: 38px;
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.825rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
+  transition: all 0.2s ease;
+}
+
+.refurb-btn-bench:hover {
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+  transform: translateY(-1px);
+}
+
+.refurb-btn-view {
+  height: 38px;
+  padding: 0 0.85rem;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.825rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refurb-btn-view:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 /* Table Styling */

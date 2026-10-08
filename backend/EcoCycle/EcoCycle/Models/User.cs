@@ -29,6 +29,7 @@ namespace EcoCycle.API.Models
         [Required]
         [StringLength(255)]
         public string Address { get; set; } = string.Empty;
+
         [Required]
         [StringLength(50)]
         public string State { get; set; } = string.Empty;
@@ -51,10 +52,29 @@ namespace EcoCycle.API.Models
         [Required]
         [StringLength(10)]
         public string Gender { get; set; } = string.Empty;
+
         public double? Latitude { get; set; }
+
         public double? Longitude { get; set; }
+
         [Required]
         public DateTime DateOfBirth { get; set; }
+
+        // ================= PAYMENT DETAILS =================
+
+        [Required]
+        public string AccountHolder { get; set; } = string.Empty;
+
+        [Required]
+        public string BankName { get; set; } = string.Empty;
+
+        [Required]
+        public string AccountNumber { get; set; } = string.Empty;
+
+        [Required]
+        public string IFSCCode { get; set; } = string.Empty;
+
+        // ===================================================
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 

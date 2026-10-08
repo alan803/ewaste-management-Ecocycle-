@@ -928,16 +928,16 @@
 }
 
 .action-btn--primary {
-  background: #0b1329;
-  color: #ffffff;
-  box-shadow: 0 5px 16px rgba(11, 19, 41, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #0f172a !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25) !important;
+  border: none !important;
 }
 
 .action-btn--primary:hover {
-  background: #162447;
+  background: #000000 !important;
   transform: translateY(-1.5px);
-  box-shadow: 0 8px 22px rgba(11, 19, 41, 0.48);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.4) !important;
 }
 
 .action-btn--secondary {
@@ -1078,7 +1078,8 @@
   gap: 0.3rem;
 }
 
-.table-btn--primary { background: #10b981; color: #ffffff; }
+.table-btn--primary { background: #0f172a !important; color: #ffffff !important; border: none !important; }
+.table-btn--primary:hover { background: #000000 !important; }
 .table-btn--success { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
 
 /* Modal Styling */
@@ -1101,9 +1102,11 @@
   width: 100%;
   max-width: 960px;
   background: #ffffff;
-  border-radius: 20px;
-  box-shadow: 0 20px 50px -10px rgba(15, 23, 42, 0.25);
-  overflow: hidden;
+  border-radius: 20px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+  border: none !important;
+  padding: 0 !important;
+  overflow: hidden !important;
   display: flex;
   flex-direction: column;
   max-height: 90vh;
@@ -1116,72 +1119,90 @@
 }
 
 .modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 1.25rem 1.5rem;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 1.25rem 1.5rem !important;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  color: #ffffff !important;
+  border-radius: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
 }
 
-.modal-header h3 {
+.modal-header h3,
+.modal-header h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #ffffff;
 }
 
-.modal-header p {
+.modal-header p,
+.modal-header .modal-sub {
   margin: 0.2rem 0 0;
   font-size: 0.8rem;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .close-modal-btn {
-  background: #f1f5f9;
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  background: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.05rem !important;
+  color: #0f172a !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
 }
 
 .close-modal-btn:hover {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: #f1f5f9 !important;
+  color: #047857 !important;
+  transform: scale(1.05);
 }
 
 .modal-tabs {
   display: flex;
   background: #ffffff;
-  padding: 0.5rem 1.5rem;
+  padding: 1rem 1.5rem 0.5rem;
   border-bottom: 1px solid #f1f5f9;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .modal-tab-btn {
   border: none;
   background: transparent;
-  padding: 0.45rem 0.85rem;
-  font-size: 0.775rem;
+  padding: 0.45rem 1rem;
+  font-size: 0.825rem;
   font-weight: 700;
-  color: var(--text-muted);
+  color: #64748b;
   border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.modal-tab-btn:hover:not(.active) {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .modal-tab-btn.active {
-  background: var(--primary-light);
-  color: var(--primary-dark);
+  background: #0f172a;
+  color: #ffffff;
 }
 
 .modal-body-scroll {

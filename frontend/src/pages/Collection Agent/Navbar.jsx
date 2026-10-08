@@ -163,18 +163,6 @@ function Navbar({
                         </div>
                     )}
 
-                    {/* Refresh Button */}
-                    {onRefresh && (
-                        <button
-                            type="button"
-                            onClick={onRefresh}
-                            className="agent-nav-action-btn"
-                            title="Refresh Assignments"
-                        >
-                            <FiRefreshCw className={loading ? "spin-icon" : ""} />
-                        </button>
-                    )}
-
                     {/* Notifications Bell */}
                     <button
                         type="button"
@@ -191,18 +179,6 @@ function Navbar({
                             <span className="nav-dot-badge"></span>
                         ) : null}
                     </button>
-
-                    {/* On-Duty / Offline toggle pill */}
-                    {setIsOnDuty && (
-                        <div
-                            className="duty-toggle-btn"
-                            onClick={() => setIsOnDuty(!isOnDuty)}
-                            title="Click to toggle On-Duty / Offline status"
-                        >
-                            <div className={`duty-dot ${!isOnDuty ? "off" : ""}`}></div>
-                            <span className="duty-label">{isOnDuty ? "ON DUTY" : "OFFLINE"}</span>
-                        </div>
-                    )}
 
                     {/* Profile Link Pill */}
                     <Link to="/agent-profile" className="agent-user-badge">
@@ -322,18 +298,6 @@ function Navbar({
                     </div>
                 )}
 
-                {/* Refresh Button */}
-                {onRefresh && (
-                    <button
-                        type="button"
-                        onClick={onRefresh}
-                        className="agent-nav-action-btn"
-                        title="Refresh Assignments"
-                    >
-                        <FiRefreshCw className={loading ? "spin-icon" : ""} />
-                    </button>
-                )}
-
                 {/* Notifications Bell */}
                 <button
                     type="button"
@@ -350,18 +314,6 @@ function Navbar({
                         <span className="nav-dot-badge"></span>
                     ) : null}
                 </button>
-
-                {/* On-Duty / Offline toggle pill */}
-                {setIsOnDuty && (
-                    <div
-                        className="duty-toggle-btn"
-                        onClick={() => setIsOnDuty(!isOnDuty)}
-                        title="Click to toggle On-Duty / Offline status"
-                    >
-                        <div className={`duty-dot ${!isOnDuty ? "off" : ""}`}></div>
-                        <span className="duty-label">{isOnDuty ? "ON DUTY" : "OFFLINE"}</span>
-                    </div>
-                )}
 
                 {/* Profile Link Pill */}
                 <Link to="/agent-profile" className="agent-user-badge">

@@ -31,7 +31,9 @@ import {
     FiLayers,
     FiBell,
     FiPieChart,
-    FiBox
+    FiBox,
+    FiTag,
+    FiSmartphone
 } from "react-icons/fi";
 import "./Navbar.css";
 import "./AdminCommon.css";
@@ -350,7 +352,7 @@ function Navbar() {
                             <li className="admin-sb-item">
                                 <button
                                     type="button"
-                                    className={`admin-sb-link ${isActive("/allocate-refurbishment") || isActive("/manage-recyclingallocation") ? "active" : ""}`}
+                                    className={`admin-sb-link ${isActive("/manage-refurbishmentallocation") || isActive("/allocate-refurbishment") || isActive("/manage-recyclingallocation") ? "active" : ""}`}
                                     onClick={() => setCenterAllocationsDropdownOpen(!centerAllocationsDropdownOpen)}
                                     style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
                                 >
@@ -375,8 +377,8 @@ function Navbar() {
                                             </li>
                                             <li>
                                                 <Link
-                                                    to="/allocate-refurbishment"
-                                                    className={`admin-sb-sublink ${isActive("/allocate-refurbishment") ? "active" : ""}`}
+                                                    to="/manage-refurbishmentallocation"
+                                                    className={`admin-sb-sublink ${isActive("/manage-refurbishmentallocation") || isActive("/allocate-refurbishment") ? "active" : ""}`}
                                                     onClick={handleCenterAllocationsOptionClick}
                                                 >
                                                     <FiCpu className="sublink-icon icon--purple" />
@@ -389,20 +391,32 @@ function Navbar() {
                             </li>
                             <li className="admin-sb-item">
                                 <Link
-                                    to="/recyclingcenter_dashboard"
-                                    className={`admin-sb-link ${isActive("/recyclingcenter_dashboard") || isActive("/refurbishmentcenter_dashboard") ? "active" : ""}`}
+                                    to="/manage-refurbishmentprocess"
+                                    className={`admin-sb-link ${isActive("/manage-refurbishmentprocess") || isActive("/manage-refurbishmentprocesses") || isActive("/admin/refurbishment-processes") ? "active" : ""}`}
                                     onClick={closeMobileMenu}
                                 >
-                                    <div className="admin-sb-icon-box icon-box--emerald">
-                                        <FiActivity />
+                                    <div className="admin-sb-icon-box icon-box--purple">
+                                        <FiCpu />
                                     </div>
-                                    <span className="admin-sb-link-text">Processing Monitoring</span>
+                                    <span className="admin-sb-link-text">Refurbishment Processes</span>
                                 </Link>
                             </li>
                             <li className="admin-sb-item">
                                 <Link
-                                    to="/recycling_perform"
-                                    className={`admin-sb-link ${isActive("/recycling_perform") || isActive("/recycling/perform") ? "active" : ""}`}
+                                    to="/manage-recyclingprocess"
+                                    className={`admin-sb-link ${isActive("/manage-recyclingprocess") || isActive("/manage-recyclingprocesses") || isActive("/admin/recycling-processes") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--teal">
+                                        <FiRefreshCw />
+                                    </div>
+                                    <span className="admin-sb-link-text">Recycling Processes</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/manage-materialrecovery"
+                                    className={`admin-sb-link ${isActive("/manage-materialrecovery") || isActive("/manage-material-recovery") || isActive("/manage_materialrecovery") || isActive("/admin/material-recovery") ? "active" : ""}`}
                                     onClick={closeMobileMenu}
                                 >
                                     <div className="admin-sb-icon-box icon-box--cyan">
@@ -413,14 +427,50 @@ function Navbar() {
                             </li>
                             <li className="admin-sb-item">
                                 <Link
-                                    to="/manage-device?status=Completed"
-                                    className={`admin-sb-link ${location.search.includes("status=Completed") ? "active" : ""}`}
+                                    to="/manage-modelprices"
+                                    className={`admin-sb-link ${isActive("/manage-modelprices") || isActive("/manage-model-prices") || isActive("/admin/model-prices") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--blue">
+                                        <FiSmartphone />
+                                    </div>
+                                    <span className="admin-sb-link-text">Device Model Pricing</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/manage-materialprices"
+                                    className={`admin-sb-link ${isActive("/manage-materialprices") || isActive("/admin/material-prices") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--emerald">
+                                        <FiTag />
+                                    </div>
+                                    <span className="admin-sb-link-text">Material Pricing</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/manage-completeddevices"
+                                    className={`admin-sb-link ${isActive("/manage-completeddevices") || isActive("/manage-completed-devices") || isActive("/admin/completed-devices") ? "active" : ""}`}
                                     onClick={closeMobileMenu}
                                 >
                                     <div className="admin-sb-icon-box icon-box--slate">
                                         <FiAward />
                                     </div>
                                     <span className="admin-sb-link-text">Completed Devices</span>
+                                </Link>
+                            </li>
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/manage-transactions"
+                                    className={`admin-sb-link ${isActive("/manage-transactions") || isActive("/admin/transactions") || isActive("/admin/financials") ? "active" : ""}`}
+                                    onClick={closeMobileMenu}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--emerald" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#10b981" }}>
+                                        <FiDollarSign />
+                                    </div>
+                                    <span className="admin-sb-link-text">Financials &amp; Escrow</span>
                                 </Link>
                             </li>
                         </ul>

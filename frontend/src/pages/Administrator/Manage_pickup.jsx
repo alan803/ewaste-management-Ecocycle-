@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import Navbar from "./Navbar";
 import {
     FiPackage,
+    FiBell,
     FiCheckCircle,
     FiClock,
     FiUser,
@@ -126,10 +127,37 @@ function ManagePickup() {
         return s === "scheduled" || s === "assigned" || s === "accepted";
     }).length;
 
+    const hasAgentStartedPickup = (item) => {
+        if (!item) return false;
+        const cas = String(item.status || "").toLowerCase();
+        const delStat = String(item.deliveryStatus || "").toLowerCase();
+        const lcs = String(item.lifecycleStatus || "").toLowerCase();
+
+        if (item.pickupStartedAt || item.startedAt || item.pickupPickedUpAt || item.pickedUpAt) return true;
+
+        const startedStatuses = [
+            "pickupstarted",
+            "en route",
+            "pickedup",
+            "completed",
+            "intransit",
+            "outfordelivery",
+            "delivered",
+            "deliveredtocenter",
+            "pendingverification",
+            "awaitingtechnicianapproval",
+            "atinspectioncenter"
+        ];
+
+        return startedStatuses.includes(cas) || startedStatuses.includes(delStat) || startedStatuses.includes(lcs);
+    };
+
     const location = useLocation();
     const typeQuery = new URLSearchParams(location.search).get("type");
 
     const filteredAssignments = assignments.filter(item => {
+        if (!hasAgentStartedPickup(item)) return false;
+
         const status = String(item.status || "").toLowerCase();
         const delStat = String(item.deliveryStatus || "").toLowerCase();
         const lcs = String(item.lifecycleStatus || "").toLowerCase();
@@ -137,8 +165,8 @@ function ManagePickup() {
 
         if (typeQuery) {
             const reqType = typeQuery.toLowerCase();
-            if (reqType === "customertotechnician" && itemType === "techniciantorecyclingcenter") return false;
-            if (reqType === "techniciantorecyclingcenter" && itemType !== "techniciantorecyclingcenter") return false;
+            if (reqType.includes("customer") && itemType.includes("recycling")) return false;
+            if (reqType.includes("recycling") && !itemType.includes("recycling")) return false;
         }
 
         const isDelivered = delStat === "delivered" || status === "deliveredtocenter" || lcs === "atinspectioncenter";
@@ -293,8 +321,8 @@ function ManagePickup() {
                         </div>
 
                         <div className="topbar-actions">
-                            <button className="glass-btn notification-btn" onClick={() => fetchData()} title="Sync pickup assignments">
-                                <FiRefreshCw />
+                            <button className="glass-btn notification-btn" title="System Alerts">
+                                <FiBell />
                                 <span className="pulse-ping"></span>
                             </button>
 
@@ -471,50 +499,72 @@ function ManagePickup() {
                                                         <div className="admin-detail-row">
                                                             <FiUser className="detail-icon" style={{ color: "#3b82f6" }} />
                                                             <div>
-                                                                <div className="detail-label">Origin Customer</div>
-                                                                <div className="detail-val">{item.customerName || "N/A"}</div>
-                                                                <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{item.city || "City N/A"}</div>
+                                                                <div className="detail-label">
+                                                                    {item.assignmentType === "TechnicianToRecyclingCenter" ? "Origin (Technician Hub)" : "Origin Customer"}
+                                                                </div>
+                                                                <div className="detail-val">
+                                                                    {item.assignmentType === "TechnicianToRecyclingCenter"
+                                                                        ? (item.technicianName || item.inspectionCenterName || "Technician Hub")
+                                                                        : (item.customerName || "N/A")}
+                                                                </div>
+                                                                <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                                                                    {item.assignmentType === "TechnicianToRecyclingCenter"
+                                                                        ? (item.deliveredAddress || item.technicianAddress || item.city || "Inspection Center Address")
+                                                                        : (item.city || "City N/A")}
+                                                                </div>
                                                             </div>
                                                         </div>
 
                                                         <div className="admin-detail-row">
                                                             <FiMapPin className="detail-icon" style={{ color: "#059669" }} />
                                                             <div>
-                                                                <div className="detail-label">Destination Hub</div>
-                                                                <div className="detail-val">{item.inspectionCenterName || "Central Hub"}</div>
-                                                                <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Tech: {item.technicianName || "N/A"}</div>
+                                                                <div className="detail-label">
+                                                                    {item.assignmentType === "TechnicianToRecyclingCenter" ? "Destination (Recycling Center)" : "Destination Hub"}
+                                                                </div>
+                                                                <div className="detail-val">
+                                                                    {item.assignmentType === "TechnicianToRecyclingCenter"
+                                                                        ? (item.recyclingCenterName || "Recycling Facility")
+                                                                        : (item.inspectionCenterName || "Central Hub")}
+                                                                </div>
+                                                                <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
+                                                                    {item.assignmentType === "TechnicianToRecyclingCenter"
+                                                                        ? (item.recyclingCenterAddress || "Recycling Facility Address")
+                                                                        : `Tech: ${item.technicianName || "N/A"}`}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div style={{ marginTop: "1rem", paddingTop: "0.85rem", borderTop: "1px dashed #e2e8f0" }}>
-                                                <button
-                                                    onClick={() => setSelectedAssignment(item)}
-                                                    title="Track Live Status"
-                                                    style={{
-                                                        width: "100%",
-                                                        height: "42px",
-                                                        background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
-                                                        color: "#ffffff",
-                                                        border: "none",
-                                                        borderRadius: "10px",
-                                                        fontSize: "0.875rem",
-                                                        fontWeight: 700,
-                                                        display: "inline-flex",
-                                                        alignItems: "center",
-                                                        justifyContent: "center",
-                                                        gap: "0.55rem",
-                                                        boxShadow: "0 4px 14px rgba(5, 150, 105, 0.28)",
-                                                        cursor: "pointer",
-                                                        transition: "all 0.2s ease"
-                                                    }}
-                                                >
-                                                    <FiNavigation style={{ fontSize: "1rem" }} />
-                                                    <span>Track Live Status</span>
-                                                </button>
-                                            </div>
+                                            {hasAgentStartedPickup(item) && (
+                                                <div style={{ marginTop: "1rem", paddingTop: "0.85rem", borderTop: "1px dashed #e2e8f0" }}>
+                                                    <button
+                                                        onClick={() => setSelectedAssignment(item)}
+                                                        title="Track Live Status"
+                                                        style={{
+                                                            width: "100%",
+                                                            height: "42px",
+                                                            background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                                                            color: "#ffffff",
+                                                            border: "none",
+                                                            borderRadius: "10px",
+                                                            fontSize: "0.875rem",
+                                                            fontWeight: 700,
+                                                            display: "inline-flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "center",
+                                                            gap: "0.55rem",
+                                                            boxShadow: "0 4px 14px rgba(5, 150, 105, 0.28)",
+                                                            cursor: "pointer",
+                                                            transition: "all 0.2s ease"
+                                                        }}
+                                                    >
+                                                        <FiNavigation style={{ fontSize: "1rem" }} />
+                                                        <span>Track Live Status</span>
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -580,27 +630,47 @@ function ManagePickup() {
                                                     </td>
                                                     <td className="contact-cell">
                                                         <div className="user-info">
-                                                            <span className="user-name">{item.customerName}</span>
-                                                            <span className="user-email">{item.city}</span>
+                                                            <span className="user-name">
+                                                                {item.assignmentType === "TechnicianToRecyclingCenter"
+                                                                    ? (item.technicianName || item.inspectionCenterName || "Technician Hub")
+                                                                    : item.customerName}
+                                                            </span>
+                                                            <span className="user-email">
+                                                                {item.assignmentType === "TechnicianToRecyclingCenter"
+                                                                    ? (item.deliveredAddress || item.technicianAddress || item.city)
+                                                                    : item.city}
+                                                            </span>
                                                         </div>
                                                     </td>
                                                     <td className="contact-cell">
                                                         <div className="user-info">
-                                                            <span className="user-name">{item.inspectionCenterName || "Central Hub"}</span>
-                                                            <span className="user-email">Technician: {item.technicianName || "N/A"}</span>
+                                                            <span className="user-name">
+                                                                {item.assignmentType === "TechnicianToRecyclingCenter"
+                                                                    ? (item.recyclingCenterName || "Recycling Facility")
+                                                                    : (item.inspectionCenterName || "Central Hub")}
+                                                            </span>
+                                                            <span className="user-email">
+                                                                {item.assignmentType === "TechnicianToRecyclingCenter"
+                                                                    ? (item.recyclingCenterAddress || "Recycling Facility Address")
+                                                                    : `Technician: ${item.technicianName || "N/A"}`}
+                                                            </span>
                                                         </div>
                                                     </td>
                                                     <td>{getStatusBadge(item)}</td>
                                                     <td>
                                                         <div className="action-buttons" style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                                                            <button
-                                                                className="btn-track-live"
-                                                                onClick={() => setSelectedAssignment(item)}
-                                                                title="Track Pickup Status"
-                                                            >
-                                                                <FiNavigation />
-                                                                <span>Track</span>
-                                                            </button>
+                                                            {hasAgentStartedPickup(item) ? (
+                                                                <button
+                                                                    className="btn-track-live"
+                                                                    onClick={() => setSelectedAssignment(item)}
+                                                                    title="Track Pickup Status"
+                                                                >
+                                                                    <FiNavigation />
+                                                                    <span>Track</span>
+                                                                </button>
+                                                            ) : (
+                                                                <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>—</span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -833,7 +903,11 @@ function ManagePickup() {
                                                       <div className="pk-timeline-dot">
                                                           {isDelivered ? <FiCheck style={{ fontSize: "0.7rem" }} /> : isCitizenPickupDone ? <FiClock style={{ fontSize: "0.7rem" }} /> : null}
                                                       </div>
-                                                      <div className="pk-step-title">Delivered to Inspection Center Hub</div>
+                                                      <div className="pk-step-title">
+                                                          {selectedAssignment.assignmentType === "TechnicianToRecyclingCenter"
+                                                              ? "Delivered to Recycling Center"
+                                                              : "Delivered to Inspection Center Hub"}
+                                                      </div>
                                                       <div className="pk-step-desc">
                                                           {isDelivered ? "E-Waste item successfully received at inspection hub" : "In transit to inspection center hub"}
                                                       </div>
@@ -873,6 +947,27 @@ function ManagePickup() {
                                          <FiCalendar /> Scheduled: {formatDate(selectedAssignment.pickupDate)} ({selectedAssignment.timeSlot || "Standard Slot"})
                                      </div>
                                  </div>
+
+                                  {/* Destination Location Card for TechnicianToRecyclingCenter */}
+                                  {selectedAssignment.assignmentType === "TechnicianToRecyclingCenter" && (
+                                      <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "14px", padding: "1rem", marginTop: "0.85rem" }}>
+                                          <div style={{ fontSize: "0.725rem", color: "#166534", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em" }}>
+                                              Destination Location (Recycling Center)
+                                          </div>
+                                          <div style={{ fontWeight: 700, fontSize: "0.925rem", color: "#14532d", marginTop: "0.2rem" }}>
+                                              {selectedAssignment.recyclingCenterName || "Recycling Facility"} {selectedAssignment.recyclingCenterPhone ? `(Ph: ${selectedAssignment.recyclingCenterPhone})` : ""}
+                                          </div>
+                                          {selectedAssignment.recyclingCenterOwner && (
+                                              <div style={{ fontSize: "0.825rem", color: "#166534", marginTop: "0.1rem" }}>
+                                                  Contact Person: {selectedAssignment.recyclingCenterOwner}
+                                              </div>
+                                          )}
+                                          <div style={{ fontSize: "0.825rem", color: "#15803d", marginTop: "0.2rem" }}>
+                                              <FiMapPin style={{ color: "#16a34a", marginRight: "4px" }} />
+                                              {selectedAssignment.recyclingCenterAddress || "Recycling Facility Address"}
+                                          </div>
+                                      </div>
+                                  )}
 
                                 {/* Pickup Verification & Handover Record from Pickup Table */}
                                 {(selectedAssignment.deviceVerified || selectedAssignment.proofPhotoPath || selectedAssignment.agentNotes || selectedAssignment.failureReason) && (

@@ -128,6 +128,8 @@ namespace EcoCycle.Controllers
                     brand = device.Brand,
                     model = device.Model,
                     modelNumber = device.ModelNumber,
+                    serialNumber = device.SerialNumber,
+                    purchaseDate = device.PurchaseDate,
                     categoryName = device.Category?.CategoryName,
                     totalWeightKg = device.Weight > 0 ? device.Weight : 15,
                     components = componentsResult
@@ -219,6 +221,7 @@ namespace EcoCycle.Controllers
                         model = request.Device?.Model,
                         modelNumber = request.Device?.ModelNumber,
                         serialNumber = request.Device?.SerialNumber ?? "SN-" + request.DeviceId.ToString("D6"),
+                        purchaseDate = request.Device?.PurchaseDate,
                         categoryName = request.Device?.Category?.CategoryName,
                         quantity = request.Device?.Quantity ?? 1,
                         weight = request.Device?.Weight ?? 15,
@@ -240,6 +243,7 @@ namespace EcoCycle.Controllers
                         recyclingProcessId = process.RecyclingProcessId,
                         status = process.Status,
                         startedAt = process.StartedAt,
+                        completionDeadline = process.CompletionDeadline ?? request.ProcessDeadline ?? (process.StartedAt != default ? process.StartedAt.AddDays(10) : (DateTime?)null),
                         completedAt = process.CompletedAt,
                         totalRecoveredWeight = process.TotalRecoveredWeight,
                         totalMaterialValue = process.TotalMaterialValue,
@@ -248,7 +252,19 @@ namespace EcoCycle.Controllers
                         hazardousWasteWeight = process.HazardousWasteWeight,
                         hazardousWasteDetails = process.HazardousWasteDetails,
                         disposalMethod = process.DisposalMethod,
-                        notes = process.Notes
+                        notes = process.Notes,
+                        visibleDamage = process.VisibleDamage,
+                        missingParts = process.MissingParts,
+                        dataFound = process.DataFound,
+                        sanitizationPerformed = process.SanitizationPerformed,
+                        sanitizationMethod = process.SanitizationMethod,
+                        batteryCondition = process.BatteryCondition,
+                        hazardousStorageArea = process.HazardousStorageArea,
+                        residualWasteWeight = process.ResidualWasteWeight,
+                        packagingContainer = process.PackagingContainer,
+                        dispatchDestination = process.DispatchDestination,
+                        removedComponentsJson = process.RemovedComponentsJson,
+                        hazardousComponentsJson = process.HazardousComponentsJson
                     } : null,
                     recoveredMaterials = recoveredMaterialsList
                 });
@@ -256,6 +272,168 @@ namespace EcoCycle.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Error loading process details.", error = ex.Message });
+            }
+        }
+
+        // 3b. Get all recycling processes for admin management
+        [HttpGet("all-processes")]
+        public async Task<IActionResult> GetAllProcesses()
+        {
+            try
+            {
+                var requests = await _context.RecyclingCenterRequests
+                    .Include(r => r.Device)
+                        .ThenInclude(d => d.Category)
+                    .Include(r => r.Device)
+                        .ThenInclude(d => d.User)
+                    .Include(r => r.Device)
+                        .ThenInclude(d => d.InspectionRequests)
+                            .ThenInclude(ir => ir.Technician)
+                    .Include(r => r.Device)
+                        .ThenInclude(d => d.CollectionAssignments)
+                            .ThenInclude(ca => ca.CollectionAgent)
+                    .Include(r => r.RecyclingCenter)
+                        .ThenInclude(c => c.Login)
+                    .OrderByDescending(r => r.CreatedAt)
+                    .ToListAsync();
+
+                var processes = await _context.RecyclingProcesses
+                    .ToListAsync();
+
+                var allRecoveredMaterials = await _context.RecoveredMaterials
+                    .ToListAsync();
+
+                var result = requests.Select(r =>
+                {
+                    var proc = processes.FirstOrDefault(p => p.RecyclingCenterRequestId == r.RecyclingCenterRequestId);
+                    var materials = allRecoveredMaterials
+                        .Where(rm => proc != null && rm.RecyclingProccessId == proc.RecyclingProcessId)
+                        .Select(rm => new
+                        {
+                            rm.RecoveredMaterialId,
+                            rm.MaterialName,
+                            rm.Quantity,
+                            rm.Unit,
+                            rm.PricePerUnit,
+                            rm.EstimatedValue
+                        }).ToList();
+
+                    string certId = (proc?.Status == "Completed" || r.Status == "Completed")
+                        ? $"ECO-REC-{r.CreatedAt.Year}-{r.RecyclingCenterRequestId:D6}"
+                        : "";
+
+                    // Extract assigned agents & technician
+                    var assignments = r.Device?.CollectionAssignments?.ToList() ?? new List<CollectionAssignment>();
+                    var ca1 = assignments.FirstOrDefault(a => a.AssignmentType == "CustomerToTechnician" || (a.SourceType != null && a.SourceType.ToLower().Contains("customer")))
+                        ?? assignments.OrderBy(a => a.CreatedAt).FirstOrDefault();
+                    var ca2 = assignments.FirstOrDefault(a => a.AssignmentType != "CustomerToTechnician" || (a.DestinationType != null && (a.DestinationType.ToLower().Contains("center") || a.DestinationType.ToLower().Contains("recycl"))))
+                        ?? (assignments.Count > 1 ? assignments.OrderByDescending(a => a.CreatedAt).FirstOrDefault() : null);
+
+                    string ca1Name = ca1?.CollectionAgent != null 
+                        ? $"{ca1.CollectionAgent.FirstName} {ca1.CollectionAgent.LastName}".Trim() 
+                        : "EcoCycle Logistics Carrier";
+                    string ca2Name = ca2?.CollectionAgent != null 
+                        ? $"{ca2.CollectionAgent.FirstName} {ca2.CollectionAgent.LastName}".Trim() 
+                        : "EcoCycle Regional Fleet Carrier";
+
+                    var inspReq = r.Device?.InspectionRequests?
+                        .Where(ir => ir.Status != "Rejected" && ir.Status != "Cancelled")
+                        .OrderByDescending(ir => ir.CreatedAt)
+                        .FirstOrDefault() ?? r.Device?.InspectionRequests?.OrderByDescending(ir => ir.CreatedAt).FirstOrDefault();
+
+                    string techName = inspReq?.Technician != null 
+                        ? $"{inspReq.Technician.FirstName} {inspReq.Technician.LastName}".Trim() 
+                        : "Tech. Rahul Krishnan";
+
+                    return new
+                    {
+                        requestId = r.RecyclingCenterRequestId,
+                        deviceId = r.DeviceId,
+                        status = r.Status,
+                        assignedAt = r.AssignedAt,
+                        respondedAt = r.RespondedAt,
+                        processStartDate = r.ProcessStartDate ?? proc?.StartedAt,
+                        processDeadline = proc?.CompletionDeadline ?? r.ProcessDeadline ?? (proc?.StartedAt != null && proc.StartedAt != default ? proc.StartedAt.AddDays(10) : (r.ProcessStartDate.HasValue ? r.ProcessStartDate.Value.AddDays(10) : (DateTime?)null)),
+                        responseDeadline = r.ResponseDeadline,
+                        createdAt = r.CreatedAt,
+                        updatedAt = r.UpdatedAt,
+                        rejectionReason = r.RejectionReason,
+                        reassignmentCount = r.ReassignmentCount,
+
+                        // Device Details
+                        brand = r.Device?.Brand ?? "Unknown",
+                        model = r.Device?.Model ?? "Unknown Model",
+                        modelNumber = r.Device?.ModelNumber ?? "-",
+                        serialNumber = r.Device?.SerialNumber ?? $"SN-{r.DeviceId:D6}",
+                        purchaseDate = r.Device?.PurchaseDate,
+                        categoryName = r.Device?.Category?.CategoryName ?? "Electronic",
+                        quantity = r.Device?.Quantity ?? 1,
+                        weight = r.Device?.Weight ?? 15,
+                        customerName = r.Device?.User != null ? $"{r.Device.User.FirstName} {r.Device.User.LastName}".Trim() : "Customer",
+                        customerCity = r.Device?.User?.City ?? "Hub",
+                        customerPhone = r.Device?.User?.PhoneNumber ?? "-",
+                        deviceQrToken = r.Device?.DeviceQrToken ?? $"QR-ECO-{r.DeviceId}",
+                        lifecycleStatus = r.Device?.LifecycleStatus ?? "In Recycling",
+                        processingLifecycleStatus = r.Device?.ProcessingLifecycleStatus ?? "Recycling",
+                        processingPreference = r.Device?.ProcessingPreference ?? "recycling",
+                        processingDecision = r.Device?.ProcessingDecision,
+
+                        // Stakeholders
+                        inspectorName = techName,
+                        technicianName = techName,
+                        collectionAgent1Name = ca1Name,
+                        collectionAgent2Name = ca2Name,
+                        collectionAgentName = ca1Name,
+
+                        // Center Details
+                        recyclingCenterId = r.RecyclingCenterId,
+                        recyclingCenterName = r.RecyclingCenter?.CenterName ?? "EcoCycle Recycling Facility",
+                        recyclingCenterCity = r.RecyclingCenter?.City ?? "Industrial Hub",
+                        recyclingCenterState = r.RecyclingCenter?.State ?? "-",
+                        recyclingCenterPhone = r.RecyclingCenter?.PhoneNumber ?? "-",
+                        recyclingCenterEmail = r.RecyclingCenter?.Login?.Email ?? "-",
+                        hazardousWasteHandling = r.RecyclingCenter != null ? r.RecyclingCenter.HazardousWasteHandling : "Yes",
+
+                        // Process Details
+                        process = proc != null ? new
+                        {
+                            recyclingProcessId = proc.RecyclingProcessId,
+                            status = proc.Status,
+                            startedAt = proc.StartedAt,
+                            completionDeadline = proc.CompletionDeadline ?? r.ProcessDeadline ?? (proc.StartedAt != default ? proc.StartedAt.AddDays(10) : (DateTime?)null),
+                            completedAt = proc.CompletedAt,
+                            totalRecoveredWeight = proc.TotalRecoveredWeight ?? 0,
+                            totalMaterialValue = proc.TotalMaterialValue ?? 0,
+                            processingCost = proc.ProcessingCost ?? 400.00m,
+                            netRecoveryValue = proc.NetRecoveryValue ?? 0,
+                            hazardousWasteWeight = proc.HazardousWasteWeight ?? 0,
+                            hazardousWasteDetails = proc.HazardousWasteDetails,
+                            disposalMethod = proc.DisposalMethod,
+                            notes = proc.Notes,
+                            visibleDamage = proc.VisibleDamage,
+                            missingParts = proc.MissingParts,
+                            dataFound = proc.DataFound,
+                            sanitizationPerformed = proc.SanitizationPerformed,
+                            sanitizationMethod = proc.SanitizationMethod,
+                            batteryCondition = proc.BatteryCondition,
+                            hazardousStorageArea = proc.HazardousStorageArea,
+                            residualWasteWeight = proc.ResidualWasteWeight,
+                            packagingContainer = proc.PackagingContainer,
+                            dispatchDestination = proc.DispatchDestination,
+                            removedComponentsJson = proc.RemovedComponentsJson,
+                            hazardousComponentsJson = proc.HazardousComponentsJson
+                        } : null,
+
+                        recoveredMaterials = materials,
+                        certificateId = certId
+                    };
+                }).ToList();
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error fetching all recycling processes.", error = ex.Message });
             }
         }
 
@@ -272,8 +450,13 @@ namespace EcoCycle.Controllers
                 if (request == null)
                     return NotFound(new { message = "Request not found." });
 
+                var now = DateTime.Now;
+                var deadline = now.AddDays(10);
+
                 request.Status = "Processing";
-                request.UpdatedAt = DateTime.Now;
+                request.ProcessStartDate = now;
+                request.ProcessDeadline = deadline;
+                request.UpdatedAt = now;
 
                 if (request.Device != null)
                 {
@@ -289,16 +472,19 @@ namespace EcoCycle.Controllers
                     {
                         RecyclingCenterRequestId = requestId,
                         Status = "Processing",
-                        StartedAt = DateTime.Now,
+                        StartedAt = now,
+                        CompletionDeadline = deadline,
                         ProcessingCost = 400.00m,
-                        CreatedAt = DateTime.Now
+                        CreatedAt = now
                     };
                     _context.RecyclingProcesses.Add(process);
                 }
                 else
                 {
                     process.Status = "Processing";
-                    process.UpdatedAt = DateTime.Now;
+                    process.StartedAt = now;
+                    process.CompletionDeadline = deadline;
+                    process.UpdatedAt = now;
                 }
 
                 await _context.SaveChangesAsync();
@@ -307,12 +493,73 @@ namespace EcoCycle.Controllers
                 {
                     message = "Recycling process started successfully.",
                     status = request.Status,
+                    startedAt = process.StartedAt,
+                    completionDeadline = process.CompletionDeadline,
                     recyclingProcessId = process.RecyclingProcessId
                 });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Error starting process.", error = ex.Message });
+            }
+        }
+
+        // 4b. Reset recycling process back to initial Accepted / Pre-start state
+        [HttpPost("reset/{requestId}")]
+        public async Task<IActionResult> ResetProcess(int requestId)
+        {
+            try
+            {
+                var request = await _context.RecyclingCenterRequests
+                    .Include(r => r.Device)
+                    .FirstOrDefaultAsync(r => r.RecyclingCenterRequestId == requestId);
+
+                if (request == null)
+                    return NotFound(new { message = "Request not found." });
+
+                request.Status = "Accepted";
+                request.ProcessStartDate = null;
+                request.ProcessDeadline = null;
+                request.UpdatedAt = DateTime.Now;
+
+                if (request.Device != null)
+                {
+                    request.Device.LifecycleStatus = "Assigned to Recycling";
+                    request.Device.Status = "Assigned";
+                }
+
+                var processes = await _context.RecyclingProcesses
+                    .Where(p => p.RecyclingCenterRequestId == requestId)
+                    .ToListAsync();
+
+                foreach (var proc in processes)
+                {
+                    var materials = await _context.RecoveredMaterials
+                        .Where(rm => rm.RecyclingProccessId == proc.RecyclingProcessId)
+                        .ToListAsync();
+                    if (materials.Any())
+                    {
+                        _context.RecoveredMaterials.RemoveRange(materials);
+                    }
+                }
+
+                if (processes.Any())
+                {
+                    _context.RecyclingProcesses.RemoveRange(processes);
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "Recycling process reset successfully to pre-start state.",
+                    requestId = request.RecyclingCenterRequestId,
+                    status = request.Status
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error resetting process.", error = ex.Message });
             }
         }
 
@@ -334,20 +581,41 @@ namespace EcoCycle.Controllers
 
                 if (process == null)
                 {
+                    var now = DateTime.Now;
+                    var deadline = request.ProcessDeadline ?? (request.ProcessStartDate.HasValue ? request.ProcessStartDate.Value.AddDays(10) : now.AddDays(10));
                     process = new RecyclingProcess
                     {
                         RecyclingCenterRequestId = dto.RequestId,
                         Status = request.Status,
-                        StartedAt = DateTime.Now,
-                        CreatedAt = DateTime.Now
+                        StartedAt = request.ProcessStartDate ?? now,
+                        CompletionDeadline = deadline,
+                        CreatedAt = now
                     };
                     _context.RecyclingProcesses.Add(process);
                     await _context.SaveChangesAsync();
                 }
+                else if (!process.CompletionDeadline.HasValue)
+                {
+                    process.CompletionDeadline = request.ProcessDeadline ?? (process.StartedAt != default ? process.StartedAt.AddDays(10) : DateTime.Now.AddDays(10));
+                }
 
                 process.ProcessingCost = dto.ProcessingCost ?? 400.00m;
                 process.HazardousWasteDetails = dto.HazardousWasteDetails;
+                process.HazardousWasteWeight = dto.HazardousWasteWeight;
+                process.ResidualWasteWeight = dto.ResidualWasteWeight;
+                process.DisposalMethod = dto.DisposalMethod;
                 process.Notes = dto.Notes;
+                process.VisibleDamage = dto.VisibleDamage;
+                process.MissingParts = dto.MissingParts;
+                process.DataFound = dto.DataFound;
+                process.SanitizationPerformed = dto.SanitizationPerformed;
+                process.SanitizationMethod = dto.SanitizationMethod;
+                process.BatteryCondition = dto.BatteryCondition;
+                process.HazardousStorageArea = dto.HazardousStorageArea;
+                process.PackagingContainer = dto.PackagingContainer;
+                process.DispatchDestination = dto.DispatchDestination;
+                process.RemovedComponentsJson = dto.RemovedComponentsJson;
+                process.HazardousComponentsJson = dto.HazardousComponentsJson;
                 process.UpdatedAt = DateTime.Now;
 
                 // Update Recovered Materials
@@ -378,6 +646,48 @@ namespace EcoCycle.Controllers
                             EstimatedValue = itemValue,
                             CreatedAt = DateTime.Now
                         });
+
+                        // Auto-register in ComponentTypes and MaterialPrices if not present
+                        if (!string.IsNullOrWhiteSpace(item.MaterialName))
+                        {
+                            var trimmedName = item.MaterialName.Trim();
+                            var existingComp = await _context.ComponentTypes
+                                .FirstOrDefaultAsync(ct => ct.ComponentName.ToLower() == trimmedName.ToLower());
+
+                            if (existingComp == null)
+                            {
+                                existingComp = new ComponentType
+                                {
+                                    ComponentName = trimmedName,
+                                    HandlingType = "Recyclable",
+                                    Description = "Auto-registered recovered material stream",
+                                    IsHazardous = false,
+                                    CreatedAt = DateTime.Now
+                                };
+                                _context.ComponentTypes.Add(existingComp);
+                                await _context.SaveChangesAsync();
+                            }
+
+                            var existingPrice = await _context.MaterialPrices
+                                .FirstOrDefaultAsync(mp => mp.ComponentTypeId == existingComp.ComponentTypeId && mp.IsActive);
+
+                            if (existingPrice == null)
+                            {
+                                _context.MaterialPrices.Add(new MaterialPrice
+                                {
+                                    ComponentTypeId = existingComp.ComponentTypeId,
+                                    PricePerKg = item.PricePerUnit > 0 ? item.PricePerUnit : 100m,
+                                    EffectiveFrom = DateTime.Now,
+                                    IsActive = true,
+                                    CreatedAt = DateTime.Now
+                                });
+                            }
+                            else if (item.PricePerUnit > 0 && existingPrice.PricePerKg != item.PricePerUnit)
+                            {
+                                existingPrice.PricePerKg = item.PricePerUnit;
+                                existingPrice.UpdatedAt = DateTime.Now;
+                            }
+                        }
                     }
                 }
 
@@ -433,19 +743,41 @@ namespace EcoCycle.Controllers
 
                 if (process == null)
                 {
+                    var now = DateTime.Now;
+                    var deadline = request.ProcessDeadline ?? (request.ProcessStartDate.HasValue ? request.ProcessStartDate.Value.AddDays(10) : now.AddDays(10));
                     process = new RecyclingProcess
                     {
                         RecyclingCenterRequestId = dto.RequestId,
-                        StartedAt = DateTime.Now.AddHours(-2),
-                        CreatedAt = DateTime.Now
+                        StartedAt = request.ProcessStartDate ?? now.AddHours(-2),
+                        CompletionDeadline = deadline,
+                        CreatedAt = now
                     };
                     _context.RecyclingProcesses.Add(process);
+                }
+                else if (!process.CompletionDeadline.HasValue)
+                {
+                    process.CompletionDeadline = request.ProcessDeadline ?? (process.StartedAt != default ? process.StartedAt.AddDays(10) : DateTime.Now.AddDays(10));
                 }
 
                 process.Status = "Completed";
                 process.CompletedAt = DateTime.Now;
                 process.ProcessingCost = dto.ProcessingCost ?? 400.00m;
+                process.HazardousWasteDetails = dto.HazardousWasteDetails;
+                process.HazardousWasteWeight = dto.HazardousWasteWeight;
+                process.ResidualWasteWeight = dto.ResidualWasteWeight;
+                process.DisposalMethod = dto.DisposalMethod;
                 process.Notes = dto.Notes ?? "Recycling process completed successfully with certified material recovery.";
+                process.VisibleDamage = dto.VisibleDamage;
+                process.MissingParts = dto.MissingParts;
+                process.DataFound = dto.DataFound;
+                process.SanitizationPerformed = dto.SanitizationPerformed;
+                process.SanitizationMethod = dto.SanitizationMethod;
+                process.BatteryCondition = dto.BatteryCondition;
+                process.HazardousStorageArea = dto.HazardousStorageArea;
+                process.PackagingContainer = dto.PackagingContainer;
+                process.DispatchDestination = dto.DispatchDestination;
+                process.RemovedComponentsJson = dto.RemovedComponentsJson;
+                process.HazardousComponentsJson = dto.HazardousComponentsJson;
                 process.UpdatedAt = DateTime.Now;
 
                 // Save materials if provided
@@ -475,6 +807,48 @@ namespace EcoCycle.Controllers
                             EstimatedValue = itemValue,
                             CreatedAt = DateTime.Now
                         });
+
+                        // Auto-register in ComponentTypes and MaterialPrices if not present
+                        if (!string.IsNullOrWhiteSpace(item.MaterialName))
+                        {
+                            var trimmedName = item.MaterialName.Trim();
+                            var existingComp = await _context.ComponentTypes
+                                .FirstOrDefaultAsync(ct => ct.ComponentName.ToLower() == trimmedName.ToLower());
+
+                            if (existingComp == null)
+                            {
+                                existingComp = new ComponentType
+                                {
+                                    ComponentName = trimmedName,
+                                    HandlingType = "Recyclable",
+                                    Description = "Auto-registered recovered material stream",
+                                    IsHazardous = false,
+                                    CreatedAt = DateTime.Now
+                                };
+                                _context.ComponentTypes.Add(existingComp);
+                                await _context.SaveChangesAsync();
+                            }
+
+                            var existingPrice = await _context.MaterialPrices
+                                .FirstOrDefaultAsync(mp => mp.ComponentTypeId == existingComp.ComponentTypeId && mp.IsActive);
+
+                            if (existingPrice == null)
+                            {
+                                _context.MaterialPrices.Add(new MaterialPrice
+                                {
+                                    ComponentTypeId = existingComp.ComponentTypeId,
+                                    PricePerKg = item.PricePerUnit > 0 ? item.PricePerUnit : 100m,
+                                    EffectiveFrom = DateTime.Now,
+                                    IsActive = true,
+                                    CreatedAt = DateTime.Now
+                                });
+                            }
+                            else if (item.PricePerUnit > 0 && existingPrice.PricePerKg != item.PricePerUnit)
+                            {
+                                existingPrice.PricePerKg = item.PricePerUnit;
+                                existingPrice.UpdatedAt = DateTime.Now;
+                            }
+                        }
                     }
 
                     process.TotalRecoveredWeight = totalWeight;
@@ -635,7 +1009,21 @@ namespace EcoCycle.Controllers
         public int RequestId { get; set; }
         public decimal? ProcessingCost { get; set; }
         public string? HazardousWasteDetails { get; set; }
+        public decimal? HazardousWasteWeight { get; set; }
+        public decimal? ResidualWasteWeight { get; set; }
+        public string? DisposalMethod { get; set; }
         public string? Notes { get; set; }
+        public string? VisibleDamage { get; set; }
+        public string? MissingParts { get; set; }
+        public string? DataFound { get; set; }
+        public string? SanitizationPerformed { get; set; }
+        public string? SanitizationMethod { get; set; }
+        public string? BatteryCondition { get; set; }
+        public string? HazardousStorageArea { get; set; }
+        public string? PackagingContainer { get; set; }
+        public string? DispatchDestination { get; set; }
+        public string? RemovedComponentsJson { get; set; }
+        public string? HazardousComponentsJson { get; set; }
         public List<RecoveredMaterialItemDto>? RecoveredMaterials { get; set; }
     }
 
@@ -643,7 +1031,22 @@ namespace EcoCycle.Controllers
     {
         public int RequestId { get; set; }
         public decimal? ProcessingCost { get; set; }
+        public string? HazardousWasteDetails { get; set; }
+        public decimal? HazardousWasteWeight { get; set; }
+        public decimal? ResidualWasteWeight { get; set; }
+        public string? DisposalMethod { get; set; }
         public string? Notes { get; set; }
+        public string? VisibleDamage { get; set; }
+        public string? MissingParts { get; set; }
+        public string? DataFound { get; set; }
+        public string? SanitizationPerformed { get; set; }
+        public string? SanitizationMethod { get; set; }
+        public string? BatteryCondition { get; set; }
+        public string? HazardousStorageArea { get; set; }
+        public string? PackagingContainer { get; set; }
+        public string? DispatchDestination { get; set; }
+        public string? RemovedComponentsJson { get; set; }
+        public string? HazardousComponentsJson { get; set; }
         public List<RecoveredMaterialItemDto>? RecoveredMaterials { get; set; }
     }
 
@@ -655,3 +1058,4 @@ namespace EcoCycle.Controllers
         public decimal PricePerUnit { get; set; }
     }
 }
+

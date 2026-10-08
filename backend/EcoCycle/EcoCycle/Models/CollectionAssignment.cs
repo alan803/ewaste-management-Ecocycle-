@@ -27,6 +27,15 @@ public class CollectionAssignment
     [ForeignKey(nameof(RecyclingCenterId))]
     public RecyclingCenter? RecyclingCenter { get; set; }
 
+    /// <summary>
+    /// Populated for AssignmentType = "TechnicianToRefurbishmentCenter".
+    /// Identifies which refurbishment center is receiving the device.
+    /// </summary>
+    public int? RefurbishmentCenterId { get; set; }
+
+    [ForeignKey(nameof(RefurbishmentCenterId))]
+    public RefurbishmentCenter? RefurbishmentCenter { get; set; }
+
     [Required]
     [StringLength(50)]
     public string AssignmentType { get; set; } = "CustomerToTechnician";
@@ -50,6 +59,8 @@ public class CollectionAssignment
     public DateTime? RespondedAt { get; set; }
 
     public DateTime? AcceptedAt { get; set; }
+
+    public DateTime? CompletionDeadline { get; set; }
 
     public DateTime? PickupStartedAt { get; set; }
 

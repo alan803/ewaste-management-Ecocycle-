@@ -20,8 +20,11 @@ import {
   FiArrowLeft,
   FiClipboard,
   FiExternalLink,
-  FiEyeOff,
-  FiBell
+  FiBell,
+  FiKey,
+  FiCopy,
+  FiShield,
+  FiSmartphone
 } from "react-icons/fi";
 import "./Technician_notification.css";
 
@@ -32,6 +35,7 @@ function Technician_notification() {
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState(null);
+  const [copiedOtp, setCopiedOtp] = useState(false);
 
   const navigate = useNavigate();
 
@@ -75,7 +79,15 @@ function Technician_notification() {
         }
       );
 
-      const data = Array.isArray(response.data) ? response.data : [];
+      const raw = Array.isArray(response.data) ? response.data : [];
+      const data = raw.map((n) => ({
+        notificationId: n.notificationId ?? n.NotificationId ?? n.id,
+        title: n.title ?? n.Title ?? "System Notification",
+        message: n.message ?? n.Message ?? "",
+        isRead: n.isRead !== undefined ? n.isRead : (n.isread !== undefined ? n.isread : n.Isread),
+        status: n.status !== undefined ? n.status : n.Status,
+        createdAt: n.createdAt ?? n.CreatedAt ?? n.created_at
+      }));
       setNotifications(data);
 
       if (data.length > 0 && !selectedId) {
@@ -91,6 +103,7 @@ function Technician_notification() {
 
   const handleSelectNotification = (notification) => {
     setSelectedId(notification.notificationId);
+    setCopiedOtp(false);
     if (!notification.isRead) {
       markAsRead(notification.notificationId);
     }
@@ -117,7 +130,6 @@ function Technician_notification() {
       );
     } catch (err) {
       console.error("Error marking as read:", err);
-      // Fallback local update
       setNotifications((prev) =>
         prev.map((n) =>
           n.notificationId === notificationId ? { ...n, isRead: true } : n
@@ -165,7 +177,6 @@ function Technician_notification() {
       setSelectedId(null);
     } catch (err) {
       console.error("Error clearing all notifications:", err);
-      // Optimistic local update fallback
       setNotifications([]);
       setSelectedId(null);
     }
@@ -198,16 +209,26 @@ function Technician_notification() {
     }
   };
 
-  // Helper category classification
+  const copyToClipboard = (text) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedOtp(true);
+    setTimeout(() => setCopiedOtp(false), 2000);
+  };
+
+  // Category helper
   const getCategory = (title = "", message = "") => {
     const text = (title + " " + message).toLowerCase();
-    if (text.includes("assign") || text.includes("device") || text.includes("inspection")) {
+    if (text.includes("otp") || text.includes("verification code")) {
+      return { key: "otp", label: "Verification OTP", icon: <FiKey />, class: "cat-assignment" };
+    }
+    if (text.includes("assign") || text.includes("allocat") || text.includes("dispatch") || text.includes("deliver") || text.includes("inspection")) {
       return { key: "assignments", label: "Assignment", icon: <FiClipboard />, class: "cat-assignment" };
     }
-    if (text.includes("alert") || text.includes("warn") || text.includes("reject") || text.includes("urgent")) {
+    if (text.includes("alert") || text.includes("warn") || text.includes("reject") || text.includes("penalty") || text.includes("urgent")) {
       return { key: "alerts", label: "Alert", icon: <FiAlertCircle />, class: "cat-alert" };
     }
-    if (text.includes("complete") || text.includes("passed") || text.includes("approved")) {
+    if (text.includes("complete") || text.includes("passed") || text.includes("approved") || text.includes("success")) {
       return { key: "success", label: "Success", icon: <FiCheckCircle />, class: "cat-success" };
     }
     return { key: "system", label: "System", icon: <FiBell />, class: "cat-system" };
@@ -234,63 +255,67 @@ function Technician_notification() {
     return d.toLocaleString([], { dateStyle: "full", timeStyle: "short" });
   };
 
-  const renderProfessionalMessage = (message) => {
-    if (!message) return null;
+  // Render message body with structured cards if special notice
+  const renderMessageContent = (notif) => {
+    if (!notif || !notif.message) return null;
+    const message = notif.message;
+    const title = notif.title || "";
 
-    const isExtensionNotif = message.includes("Extension Count") || message.includes("Inspection Deadline Policy") || message.includes("deadline extension");
+    // OTP Detection
+    const otpMatch = message.match(/(?:OTP\s*(?:is|:)?\s*|verification\s*OTP[^\d]*is\s*|code\s*is\s*)(\d{4,6})/i) ||
+                     message.match(/\bis\s+(\d{4,6})\b/i);
+    const hasOtp = otpMatch && (title.toLowerCase().includes("otp") || message.toLowerCase().includes("otp") || message.toLowerCase().includes("verification"));
 
-    if (isExtensionNotif) {
-      const deviceMatch = message.match(/\(([^)]+)\)/);
-      const deadlineMatch = message.match(/New inspection deadline:\s*([^.\n]+)/i) || message.match(/New Deadline:\s*([^.\n]+)/i);
-      const countMatch = message.match(/Extension Count:\s*(\d+\/\d+)/i) || message.match(/Extensions Used:\s*([^\n]+)/i);
-
+    if (hasOtp) {
+      const otpCode = otpMatch[1];
       return (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-          <div style={{ background: "#f8fafc", border: "1px solid #cbd5e1", borderRadius: "12px", padding: "1.15rem" }}>
-            <p style={{ margin: "0 0 0.85rem 0", fontSize: "0.95rem", color: "#1e293b", lineHeight: "1.5" }}>
-              The Administrator has granted a <strong>24-hour deadline extension</strong> for device inspection {deviceMatch ? `(${deviceMatch[1]})` : ""}.
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.75rem", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "10px", padding: "0.85rem" }}>
-              <div>
-                <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>New Inspection Deadline</div>
-                <div style={{ fontSize: "0.9rem", fontWeight: 800, color: "#059669", marginTop: "0.2rem" }}>
-                  {deadlineMatch ? deadlineMatch[1] : "Extended Deadline Active"}
-                </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div style={{ whiteSpace: "pre-wrap", lineHeight: "1.6" }}>{message}</div>
+          <div style={{
+            background: "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
+            border: "1px solid #a7f3d0",
+            borderRadius: "12px",
+            padding: "1rem 1.25rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "0.75rem"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+              <div style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "8px",
+                background: "#059669",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "1.1rem"
+              }}>
+                <FiShield />
               </div>
               <div>
-                <div style={{ fontSize: "0.68rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Extension Usage</div>
-                <div style={{ fontSize: "0.9rem", fontWeight: 800, color: "#d97706", marginTop: "0.2rem" }}>
-                  {countMatch ? countMatch[1] : "1 / 2 Max Extensions"}
-                </div>
+                <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#065f46", textTransform: "uppercase" }}>Handover Code</div>
+                <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "#064e3b", letterSpacing: "2px", fontFamily: "monospace" }}>{otpCode}</div>
               </div>
             </div>
-          </div>
-
-          <div style={{ background: "#fffbe6", border: "1px solid #fde68a", borderRadius: "12px", padding: "1.15rem" }}>
-            <h4 style={{ margin: "0 0 0.65rem 0", color: "#92400e", fontSize: "0.925rem", fontWeight: 800, display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <FiAlertTriangle style={{ color: "#d97706" }} /> Technician Inspection Deadline &amp; Penalty Guidelines
-            </h4>
-            <ul style={{ margin: 0, paddingLeft: "1.2rem", fontSize: "0.825rem", color: "#78350f", lineHeight: "1.6" }}>
-              <li style={{ marginBottom: "0.4rem" }}>
-                <strong>Inspection Timeframe:</strong> Once assigned, you are responsible for completing the inspection within the specified deadline.
-              </li>
-              <li style={{ marginBottom: "0.4rem" }}>
-                <strong>Permitted Extensions:</strong> A maximum of <strong>two 24-hour extensions</strong> will be permitted per device task.
-              </li>
-              <li style={{ marginBottom: "0.4rem" }}>
-                <strong>Overdue Penalty:</strong> Failure to complete the inspection after the second 24-hour extension will incur a technician performance penalty.
-              </li>
-              <li>
-                <strong>Performance Record:</strong> Repeated overdue inspections may impact your technician evaluation score and future assignments.
-              </li>
-            </ul>
+            <button
+              type="button"
+              className="inbox-btn btn-primary-ghost"
+              onClick={() => copyToClipboard(otpCode)}
+              style={{ padding: "0.45rem 0.9rem", fontSize: "0.8rem", fontWeight: 700 }}
+            >
+              {copiedOtp ? <><FiCheck /> Copied!</> : <><FiCopy /> Copy OTP</>}
+            </button>
           </div>
         </div>
       );
     }
 
     return (
-      <div style={{ whiteSpace: "pre-line", lineHeight: "1.6", color: "#334155", fontSize: "0.925rem" }}>
+      <div style={{ whiteSpace: "pre-wrap", lineHeight: "1.6" }}>
         {message}
       </div>
     );
@@ -307,18 +332,23 @@ function Technician_notification() {
 
     if (activeTab === "unread") return !item.isRead;
     if (activeTab === "assignments") {
-      return getCategory(item.title, item.message).key === "assignments";
+      return getCategory(item.title, item.message).key === "assignments" || getCategory(item.title, item.message).key === "otp";
     }
     return true;
   });
 
-  const activeNotification = notifications.find((n) => n.notificationId === selectedId) || filteredNotifications[0];
+  const activeNotification =
+    notifications.find((n) => n.notificationId === selectedId) || filteredNotifications[0];
 
   return (
-    <div className={`technician-notif-app ${isAgent ? "agent-theme" : isCitizen ? "citizen-theme" : "tech-theme"}`}>
+    <div className={`tech-notif-app ${isAgent ? "agent-theme" : isCitizen ? "citizen-theme" : ""}`}>
       <SidebarComponent />
 
       <main className="inbox-main-container">
+        {/* Background Ambient Glow */}
+        <div className="ambient-glow ambient-glow--1"></div>
+        <div className="ambient-glow ambient-glow--2"></div>
+
         {/* Topbar Header */}
         <header className="inbox-topbar">
           <div className="inbox-topbar-left">
@@ -327,7 +357,7 @@ function Technician_notification() {
             </Link>
             <div className="inbox-title-area">
               <h1>
-                <FiInbox style={{ color: "#10b981" }} /> Notification Inbox
+                <FiInbox style={{ color: "#059669" }} /> Notification Inbox
                 {unreadCount > 0 && (
                   <span className="unread-count-pill">{unreadCount} unread</span>
                 )}
@@ -340,7 +370,7 @@ function Technician_notification() {
               className="inbox-btn"
               onClick={() => fetchNotifications(true)}
               disabled={refreshing}
-              title="Refresh Inbox"
+              title="Refresh Notifications"
             >
               <FiRefreshCw className={refreshing ? "spin-icon" : ""} />
               <span>Refresh</span>
@@ -368,13 +398,13 @@ function Technician_notification() {
         </header>
 
         {/* Toolbar Controls */}
-        <div className="inbox-toolbar" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", gap: "1rem", flexWrap: "wrap" }}>
+        <div className="inbox-toolbar">
           <div>
-            <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "1.15rem", fontWeight: 700, margin: "0 0 0.2rem", color: "#0f172a" }}>Filter Messages</h3>
-            <p style={{ margin: 0, fontSize: "0.775rem", color: "#64748b" }}>Filter notifications by status or assignment category</p>
+            <h3 className="inbox-toolbar-title">Filter Messages</h3>
+            <p className="inbox-toolbar-sub">Manage system notices, assignment alerts, and status updates</p>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", flexWrap: "wrap", marginLeft: "auto" }}>
+          <div className="inbox-toolbar-right">
             <div className="filter-pills">
               <button
                 className={`pill-btn ${activeTab === "all" ? "active" : ""}`}
@@ -399,32 +429,37 @@ function Technician_notification() {
                 >
                   Assignments
                   <span className="tab-badge">
-                    {notifications.filter((n) => getCategory(n.title, n.message).key === "assignments").length}
+                    {
+                      notifications.filter(
+                        (n) =>
+                          getCategory(n.title, n.message).key === "assignments" ||
+                          getCategory(n.title, n.message).key === "otp"
+                      ).length
+                    }
                   </span>
                 </button>
               )}
             </div>
 
-          <div className="inbox-search-wrap">
-            <FiSearch className="search-icon" />
-            <input
-              type="text"
-              placeholder="Search messages..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            {searchQuery && (
-              <button
-                className="icon-action-btn"
-                onClick={() => setSearchQuery("")}
-                style={{ position: "absolute", right: "0.5rem" }}
-              >
-                <FiX />
-              </button>
-            )}
+            <div className="inbox-search-wrap">
+              <FiSearch className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button
+                  className="icon-action-btn clear-search-btn"
+                  onClick={() => setSearchQuery("")}
+                >
+                  <FiX />
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
         {/* Main Split View: Left List + Right Reader */}
         <div className="inbox-split-view">
@@ -447,7 +482,7 @@ function Technician_notification() {
                 <FiInbox className="reader-empty-icon" />
                 <p style={{ margin: 0, fontWeight: 600, color: "#475569" }}>No messages found</p>
                 <span style={{ fontSize: "0.8rem", marginTop: "0.25rem" }}>
-                  {searchQuery ? "Try clearing search filter" : "Your inbox is completely clean."}
+                  {searchQuery ? "Try clearing search filter" : "Your inbox is clean."}
                 </span>
               </div>
             ) : (
@@ -518,7 +553,7 @@ function Technician_notification() {
                   </div>
 
                   <div className="reader-meta-row">
-                    <span>From: System Coordinator</span>
+                    <span>From: System Coordinator / Dispatch</span>
                     <span title={formatFullDate(activeNotification.createdAt)}>
                       <FiClock style={{ verticalAlign: "middle", marginRight: "4px" }} />
                       {formatFullDate(activeNotification.createdAt)}
@@ -527,7 +562,9 @@ function Technician_notification() {
                 </div>
 
                 <div className="reader-body">
-                  <div className="reader-message-content">{renderProfessionalMessage(activeNotification.message)}</div>
+                  <div className="reader-message-content">
+                    {renderMessageContent(activeNotification)}
+                  </div>
                 </div>
 
                 <div className="reader-actions">

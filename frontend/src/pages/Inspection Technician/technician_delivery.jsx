@@ -333,7 +333,8 @@ function TechnicianDelivery() {
     const inTransitCount = deliveries.filter(d => {
         const cas = String(d.status || "").toLowerCase();
         const delStat = String(d.deliveryStatus || "").toLowerCase();
-        const isDelivered = cas === "deliveredtocenter" || delStat === "delivered";
+        const lifeStat = String(d.lifecycleStatus || "").toLowerCase();
+        const isDelivered = cas === "deliveredtocenter" || delStat === "delivered" || lifeStat === "atinspectioncenter" || lifeStat === "inspected" || lifeStat.includes("refurbish") || lifeStat.includes("recycl") || Boolean(d.isInspected);
         if (isDelivered) return false;
         return cas === "outfordelivery" || cas === "pickupstarted" || cas === "pickedup" || cas === "completed" || cas === "awaitingtechnicianapproval" || cas === "intransit" || delStat === "intransit" || delStat === "pending" || delStat === "pendingverification";
     }).length;
@@ -342,19 +343,21 @@ function TechnicianDelivery() {
     const acceptedDeliveries = deliveries.filter((item) => {
         const reqStat = String(item.requestStatus || "").toLowerCase();
         const lifeStat = String(item.lifecycleStatus || "").toLowerCase();
-        return reqStat === "accepted" || reqStat === "inprogress" || reqStat === "completed" || lifeStat === "inspected";
+        return reqStat === "accepted" || reqStat === "inprogress" || reqStat === "completed" || lifeStat === "inspected" || Boolean(item.isInspected);
     });
 
     const deliveredCount = acceptedDeliveries.filter(d => {
         const cas = String(d.status || "").toLowerCase();
         const delStat = String(d.deliveryStatus || "").toLowerCase();
-        return cas === "deliveredtocenter" || delStat === "delivered";
+        const lifeStat = String(d.lifecycleStatus || "").toLowerCase();
+        return cas === "deliveredtocenter" || delStat === "delivered" || lifeStat === "atinspectioncenter" || lifeStat === "inspected" || lifeStat.includes("refurbish") || lifeStat.includes("recycl") || Boolean(d.isInspected);
     }).length;
 
     const scheduledCount = acceptedDeliveries.filter(d => {
         const cas = String(d.status || "").toLowerCase();
         const delStat = String(d.deliveryStatus || "").toLowerCase();
-        const isDelivered = cas === "deliveredtocenter" || delStat === "delivered";
+        const lifeStat = String(d.lifecycleStatus || "").toLowerCase();
+        const isDelivered = cas === "deliveredtocenter" || delStat === "delivered" || lifeStat === "atinspectioncenter" || lifeStat === "inspected" || lifeStat.includes("refurbish") || lifeStat.includes("recycl") || Boolean(d.isInspected);
         if (isDelivered) return false;
         return cas === "scheduled" || cas === "assigned" || cas === "accepted";
     }).length;
@@ -368,19 +371,20 @@ function TechnicianDelivery() {
         const lifeStat = String(item.lifecycleStatus || "").toLowerCase();
         const reqStat = String(item.requestStatus || "").toLowerCase();
 
-        const isDelivered = cas === "deliveredtocenter" || delStat === "delivered" || lifeStat === "atinspectioncenter" || lifeStat === "inspected";
+        const isDelivered = cas === "deliveredtocenter" || delStat === "delivered" || lifeStat === "atinspectioncenter" || lifeStat === "inspected" || lifeStat.includes("refurbish") || lifeStat.includes("recycl") || Boolean(item.isInspected);
         const isInTransit = !isDelivered && (cas === "outfordelivery" || cas === "pickupstarted" || cas === "pickedup" || cas === "completed" || cas === "awaitingtechnicianapproval" || cas === "intransit" || delStat === "intransit" || delStat === "pending" || delStat === "pendingverification");
         const isScheduled = !isDelivered && (cas === "scheduled" || cas === "assigned" || cas === "accepted");
 
         const isInspectionDone =
-            isDelivered && (
-                lifeStat === "inspected" ||
-                reqStat === "completed" ||
-                cas === "inspected" ||
-                Boolean(item.isInspected) ||
-                Boolean(item.inspectionCompleted) ||
-                Boolean(item.qualityGrade)
-            );
+            lifeStat === "inspected" ||
+            lifeStat === "completed" ||
+            reqStat === "completed" ||
+            delStat === "completed" ||
+            cas === "completed" ||
+            cas === "inspected" ||
+            Boolean(item.isInspected) ||
+            Boolean(item.inspectionCompleted) ||
+            Boolean(item.qualityGrade);
 
         const isVerificationReq = delStat === "pendingverification" || cas === "awaitingtechnicianapproval" || lifeStat === "handoverpendingverification";
 
@@ -422,7 +426,7 @@ function TechnicianDelivery() {
         const cas = String(item.status || "").toLowerCase();
         const lcs = String(item.lifecycleStatus || "").toLowerCase();
 
-        if (delStat === "delivered" || cas === "deliveredtocenter" || lcs === "atinspectioncenter" || lcs === "inspected") {
+        if (delStat === "delivered" || cas === "deliveredtocenter" || lcs === "atinspectioncenter" || lcs === "inspected" || lcs.includes("refurbish") || lcs.includes("recycl") || Boolean(item.isInspected)) {
             return (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "0.25rem 0.6rem", borderRadius: "8px", fontSize: "0.75rem", fontWeight: 700, background: "#dcfce7", color: "#15803d" }}>
                     <FiCheckCircle /> Delivered to Center
@@ -796,7 +800,7 @@ function TechnicianDelivery() {
                             const lifeStat = String(item.lifecycleStatus || "").toLowerCase();
                             const cas = String(item.status || "").toLowerCase();
 
-                            const isReceived = delStat === "delivered" || cas === "deliveredtocenter" || lifeStat === "atinspectioncenter" || lifeStat === "inspected";
+                            const isReceived = delStat === "delivered" || cas === "deliveredtocenter" || lifeStat === "atinspectioncenter" || lifeStat === "inspected" || lifeStat.includes("refurbish") || lifeStat.includes("recycl") || Boolean(item.isInspected);
 
                             const isInspectionDone =
                                 lifeStat === "inspected" ||
@@ -878,14 +882,14 @@ function TechnicianDelivery() {
                                                      className="btn-tech-track"
                                                      style={{
                                                          width: "100%",
-                                                         background: isInspectionDone ? "linear-gradient(135deg, #059669 0%, #047857 100%)" : isInspectionInProgress ? "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)" : "#0f172a",
+                                                         background: isInspectionDone ? "linear-gradient(135deg, #059669 0%, #047857 100%)" : "#0f172a",
                                                          border: "none",
                                                          color: "#ffffff",
                                                          fontSize: "0.775rem",
                                                          padding: "0.45rem 0.5rem",
                                                          fontWeight: 700
                                                      }}
-                                                     onClick={() => navigate("/technician_dashboard")}
+                                                     onClick={() => navigate("/technician/device-inspection", { state: { selectedDevice: item } })}
                                                  >
                                                      {isInspectionDone ? (
                                                          <><FiCheckCircle /> Inspection Completed</>
@@ -1006,7 +1010,7 @@ function TechnicianDelivery() {
                                     const lifeStat = String(item.lifecycleStatus || "").toLowerCase();
                                     const cas = String(item.status || "").toLowerCase();
 
-                                    const isReceived = delStat === "delivered" || cas === "deliveredtocenter" || lifeStat === "atinspectioncenter" || lifeStat === "inspected";
+                                    const isReceived = delStat === "delivered" || cas === "deliveredtocenter" || lifeStat === "atinspectioncenter" || lifeStat === "inspected" || lifeStat.includes("refurbish") || lifeStat.includes("recycl") || Boolean(item.isInspected);
 
                                     const isInspectionDone =
                                         lifeStat === "inspected" ||
@@ -1079,13 +1083,13 @@ function TechnicianDelivery() {
                                                                  padding: "0.4rem 0.65rem",
                                                                  fontSize: "0.775rem",
                                                                  borderRadius: "8px",
-                                                                 background: isInspectionDone ? "linear-gradient(135deg, #059669 0%, #047857 100%)" : isInspectionInProgress ? "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)" : "#0f172a",
+                                                                 background: isInspectionDone ? "linear-gradient(135deg, #059669 0%, #047857 100%)" : "#0f172a",
                                                                  border: "none",
                                                                  color: "#ffffff",
                                                                  fontWeight: 700,
                                                                  cursor: "pointer"
                                                              }}
-                                                             onClick={() => navigate("/technician_dashboard")}
+                                                             onClick={() => navigate("/technician/device-inspection", { state: { selectedDevice: item } })}
                                                          >
                                                              {isInspectionDone ? "✓ Inspection Completed" : isInspectionInProgress ? "Continue Inspection" : "Start Inspection"}
                                                          </button>
@@ -1213,19 +1217,19 @@ function TechnicianDelivery() {
             {/* QR Scan Verification Modal - Matched to Pickups.jsx */}
             {qrModalItem && (
                 <div className="tech-modal-overlay" onClick={() => setQrModalItem(null)}>
-                    <div className="tech-modal-content" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+                    <div className="tech-modal-content" style={{ maxWidth: "520px", border: "none", overflow: "hidden", padding: 0, borderRadius: "20px" }} onClick={(e) => e.stopPropagation()}>
                         <div className="tech-modal-header">
-                            <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                                <FaQrcode style={{ color: "#059669" }} /> Scan & Match Device Barcode / QR Code
+                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, color: "#ffffff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                <FaQrcode style={{ color: "#ffffff" }} /> Scan & Match Device Barcode / QR Code
                             </h3>
                             <button className="tech-modal-close" onClick={() => setQrModalItem(null)}><FiX /></button>
                         </div>
-                        <div className="tech-modal-body" style={{ padding: "1.25rem" }}>
-                            <div className={`step-action-card ${qrCodeVerified ? "completed" : ""}`} style={{ marginBottom: "1rem", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "1rem" }}>
-                                <div style={{ fontWeight: 700, fontSize: "0.875rem", color: "#0f172a", marginBottom: "0.25rem" }}>
+                        <div className="tech-modal-body" style={{ padding: "1.5rem" }}>
+                            <div>
+                                <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "#0f172a", marginBottom: "0.35rem" }}>
                                     Scan Device Barcode / QR Code
                                 </div>
-                                <p style={{ margin: "0 0 0.75rem 0", fontSize: "0.775rem", color: "#64748b" }}>
+                                <p style={{ margin: "0 0 1rem 0", fontSize: "0.825rem", color: "#64748b", lineHeight: 1.5 }}>
                                     Scan the citizen's device tag QR/Barcode or enter the token to verify before accepting handover. <strong>Reminder:</strong> Keep QR packaging intact for center delivery.
                                 </p>
 
@@ -1235,36 +1239,65 @@ function TechnicianDelivery() {
                                         placeholder="Scan or enter Device Barcode / QR Token"
                                         value={qrCodeInput}
                                         onChange={handleQrInputChange}
-                                        style={{ flex: 1, padding: "0.55rem 0.8rem", fontSize: "0.85rem", borderRadius: "8px", border: qrCodeVerified ? "1.5px solid #10b981" : qrScanError ? "1.5px solid #ef4444" : "1px solid #cbd5e1" }}
+                                        style={{
+                                            flex: 1,
+                                            padding: "0.65rem 0.85rem",
+                                            fontSize: "0.875rem",
+                                            borderRadius: "10px",
+                                            border: qrCodeVerified ? "1.5px solid #10b981" : qrScanError ? "1.5px solid #ef4444" : "1px solid #cbd5e1",
+                                            outline: "none"
+                                        }}
                                     />
                                     <button
                                         type="button"
                                         className={`btn-step-action ${qrCodeVerified ? "verified" : ""}`}
                                         onClick={() => handleVerifyQrCode(qrModalItem)}
-                                        style={{ whiteSpace: "nowrap", padding: "0.55rem 1rem", background: qrCodeVerified ? "#10b981" : "#2563eb", color: "#ffffff", border: "none", borderRadius: "8px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "0.3rem" }}
+                                        style={{
+                                            whiteSpace: "nowrap",
+                                            padding: "0.65rem 1.15rem",
+                                            background: qrCodeVerified ? "#10b981" : "#2563eb",
+                                            color: "#ffffff",
+                                            border: "none",
+                                            borderRadius: "10px",
+                                            fontWeight: 600,
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "0.4rem"
+                                        }}
                                     >
                                         {qrCodeVerified ? "✓ Verified" : <><FiMaximize2 /> Scan & Verify</>}
                                     </button>
                                 </div>
 
                                 {qrScanError && (
-                                    <div style={{ marginTop: "0.4rem", fontSize: "0.775rem", color: "#dc2626", fontWeight: 600 }}>
+                                    <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "#dc2626", fontWeight: 600 }}>
                                         {qrScanError}
                                     </div>
                                 )}
 
                                 {qrCodeVerified && (
-                                    <div style={{ marginTop: "0.4rem", fontSize: "0.775rem", color: "#047857", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                                    <div style={{ marginTop: "0.5rem", fontSize: "0.8rem", color: "#047857", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.35rem" }}>
                                         <FiCheckCircle /> Device Barcode / QR Code Verified
                                     </div>
                                 )}
                             </div>
 
                             {/* Footer Action Buttons */}
-                            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+                            <div style={{ display: "flex", gap: "0.65rem", marginTop: "1.25rem", paddingTop: "1rem", borderTop: "1px solid #f1f5f9" }}>
                                 <button
                                     type="button"
-                                    style={{ flex: 1.2, padding: "0.7rem", borderRadius: "10px", background: qrCodeVerified ? "linear-gradient(135deg, #059669 0%, #047857 100%)" : "#cbd5e1", border: "none", color: "#ffffff", fontSize: "0.85rem", fontWeight: 800, cursor: "pointer" }}
+                                    style={{
+                                        flex: 1.2,
+                                        padding: "0.75rem",
+                                        borderRadius: "10px",
+                                        background: qrCodeVerified ? "linear-gradient(135deg, #059669 0%, #047857 100%)" : "#cbd5e1",
+                                        border: "none",
+                                        color: "#ffffff",
+                                        fontSize: "0.875rem",
+                                        fontWeight: 700,
+                                        cursor: qrCodeVerified ? "pointer" : "default"
+                                    }}
                                     disabled={actionLoadingId === qrModalItem.deviceId}
                                     onClick={() => {
                                         if (!qrCodeVerified) {
@@ -1278,7 +1311,17 @@ function TechnicianDelivery() {
                                 </button>
                                 <button
                                     type="button"
-                                    style={{ flex: 1, padding: "0.7rem", borderRadius: "10px", background: "#fef2f2", border: "1px solid #fca5a5", color: "#dc2626", fontSize: "0.85rem", fontWeight: 800, cursor: "pointer" }}
+                                    style={{
+                                        flex: 1,
+                                        padding: "0.75rem",
+                                        borderRadius: "10px",
+                                        background: "#fef2f2",
+                                        border: "1px solid #fca5a5",
+                                        color: "#dc2626",
+                                        fontSize: "0.875rem",
+                                        fontWeight: 700,
+                                        cursor: "pointer"
+                                    }}
                                     onClick={() => {
                                         const target = qrModalItem;
                                         setQrModalItem(null);
@@ -1298,10 +1341,10 @@ function TechnicianDelivery() {
             {/* Device Handover Rejection Issue Modal */}
             {rejectModalItem && (
                 <div className="tech-modal-overlay" onClick={() => setRejectModalItem(null)}>
-                    <div className="tech-modal-content" style={{ maxWidth: "500px" }} onClick={(e) => e.stopPropagation()}>
-                        <div className="tech-modal-header" style={{ borderBottom: "1px solid #fee2e2", background: "#fef2f2" }}>
-                            <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, color: "#dc2626", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                                <FiAlertCircle style={{ color: "#ef4444" }} /> Device Handover Issue
+                    <div className="tech-modal-content" style={{ maxWidth: "500px", border: "none", overflow: "hidden", padding: 0, borderRadius: "20px" }} onClick={(e) => e.stopPropagation()}>
+                        <div className="tech-modal-header">
+                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, color: "#ffffff", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                <FiAlertCircle style={{ color: "#ffffff" }} /> Report Handover Issue
                             </h3>
                             <button className="tech-modal-close" onClick={() => setRejectModalItem(null)}><FiX /></button>
                         </div>
@@ -1731,7 +1774,7 @@ function TechnicianDelivery() {
                             <button
                                 onClick={() => {
                                     setHandoverInstructionModal(null);
-                                    navigate("/device-inspection");
+                                    navigate("/technician/device-inspection");
                                 }}
                                 style={{ padding: "0.6rem 1.35rem", borderRadius: "10px", background: "#059669", border: "none", color: "#ffffff", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
                             >

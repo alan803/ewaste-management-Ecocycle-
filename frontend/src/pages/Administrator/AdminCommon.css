@@ -612,6 +612,45 @@ body,
   border-color: #166534;
 }
 
+/* Unified Notification Bell Button */
+.glass-btn.notification-btn,
+.notification-btn {
+  position: relative !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  border: 1px solid #a7f3d0 !important;
+  color: #059669 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.15rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  padding: 0 !important;
+}
 
+.glass-btn.notification-btn:hover,
+.notification-btn:hover {
+  background: #ecfdf5 !important;
+  border-color: #34d399 !important;
+  color: #047857 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.15) !important;
+}
 
-
+.glass-btn.notification-btn .pulse-ping,
+.notification-btn .pulse-ping,
+.pulse-ping {
+  position: absolute !important;
+  top: 7px !important;
+  right: 7px !important;
+  width: 9px !important;
+  height: 9px !important;
+  background: #f43f5e !important;
+  border-radius: 50% !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.2) !important;
+}

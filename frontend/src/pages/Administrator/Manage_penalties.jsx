@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import {
     FiSearch,
+    FiBell,
     FiRefreshCw,
     FiAlertTriangle,
     FiCheckCircle,
@@ -275,8 +276,8 @@ function ManagePenalties() {
                         </div>
 
                         <div className="topbar-actions">
-                            <button className="glass-btn notification-btn" onClick={fetchPenalties} title="Sync penalty records">
-                                <FiRefreshCw className={loading ? "spin-icon" : ""} />
+                            <button className="glass-btn notification-btn" title="System Alerts">
+                                <FiBell />
                                 <span className="pulse-ping"></span>
                             </button>
 

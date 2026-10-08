@@ -399,6 +399,10 @@ function CitizenDeviceReport() {
                             <div class="info-val">${dev.serialNumber || "N/A"}</div>
                         </div>
                         <div class="info-card">
+                            <div class="info-label">Purchase Date</div>
+                            <div class="info-val">${dev.purchaseDate ? new Date(dev.purchaseDate).toLocaleDateString("en-IN") : "N/A"}</div>
+                        </div>
+                        <div class="info-card">
                             <div class="info-label">Assigned Quality Grade</div>
                             <div class="info-val" style="color: #059669;">${dev.condition || "Grade A"}</div>
                         </div>
@@ -482,202 +486,67 @@ function CitizenDeviceReport() {
     };
 
     return (
-        <div className="citizen-report-container">
+        <div className="vd-page-layout">
             <Sidebar />
 
-            <main className="citizen-report-main">
-                {/* Ambient Background Glows */}
-                <div className="ambient-glow ambient-glow--1"></div>
-                <div className="ambient-glow ambient-glow--2"></div>
+            <main className="vd-main-content">
 
-                {/* Title & User Header Ribbon */}
-                <div className="vd-ribbon" style={{ marginBottom: "1.75rem" }}>
-                    <div>
-                        <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#059669", margin: "0 0 0.25rem 0", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.025em" }}>
-                            My Inspection Reports
-                        </h1>
-                        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0, fontWeight: 500 }}>
-                            Review certified technician diagnostic evaluation reports and download official PDF certificates.
-                        </p>
-                    </div>
-
-                    <div className="vd-top-actions">
-                        <button
-                            type="button"
-                            className="vd-circle-btn"
-                            title={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ""}`}
-                            onClick={() => navigate("/technician-notification")}
-                            style={{ position: "relative" }}
-                        >
-                            <FiBell />
-                            {unreadCount > 0 && (
-                                <span className="vd-notif-badge-pill" style={{
-                                    position: "absolute",
-                                    top: "-4px",
-                                    right: "-4px",
-                                    background: "#ef4444",
-                                    color: "#ffffff",
-                                    fontSize: "0.65rem",
-                                    fontWeight: 800,
-                                    width: "18px",
-                                    height: "18px",
-                                    borderRadius: "50%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center"
-                                }}>
-                                    {unreadCount > 9 ? "9+" : unreadCount}
-                                </span>
-                            )}
-                        </button>
-
-                        <Link
-                            to="/manage-userprofile"
-                            className="vd-user-profile-pill"
-                            style={{ textDecoration: "none", cursor: "pointer" }}
-                            title="View & Edit Profile"
-                        >
-                            {userPhoto ? (
-                                <img
-                                    src={userPhoto}
-                                    alt={userName}
-                                    className="vd-user-avatar"
-                                    style={{ objectFit: "cover" }}
-                                    onError={(e) => { e.target.onerror = null; setUserPhoto(null); }}
-                                />
-                            ) : (
-                                <div className="vd-user-avatar">{userInitial}</div>
-                            )}
-                            <div className="vd-user-info">
-                                <span className="vd-user-name">{userName}</span>
-                            </div>
-                            <FiChevronDown style={{ color: "#718096", fontSize: "0.9rem", marginLeft: "0.2rem" }} />
-                        </Link>
-                    </div>
-                </div>
-
-                {/* KPI Summary Cards Grid */}
-                <div className="vd-kpi-grid">
-                    {/* KPI 1 - Inspected Devices */}
-                    <div className="vd-kpi-card">
-                        <div className="vd-kpi-header">
-                            <div className="vd-kpi-icon-circle teal" style={{ background: "#ecfdf5", color: "#059669" }}>
-                                <FiFileText />
-                            </div>
-                        </div>
-                        <div>
-                            <span className="vd-kpi-label">Inspected Devices</span>
-                            <div className="vd-kpi-body">
-                                <h3 className="vd-kpi-number">{loading ? "..." : totalReports}</h3>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* KPI 2 - Grade A Condition */}
-                    <div className="vd-kpi-card">
-                        <div className="vd-kpi-header">
-                            <div className="vd-kpi-icon-circle purple">
-                                <FiShield />
-                            </div>
-                        </div>
-                        <div>
-                            <span className="vd-kpi-label">Grade A Condition</span>
-                            <div className="vd-kpi-body">
-                                <h3 className="vd-kpi-number">{loading ? "..." : gradeACount}</h3>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* KPI 3 - Refurbishment Center */}
-                    <div className="vd-kpi-card">
-                        <div className="vd-kpi-header">
-                            <div className="vd-kpi-icon-circle amber">
-                                <FiCheckCircle />
-                            </div>
-                        </div>
-                        <div>
-                            <span className="vd-kpi-label">Refurbishment Center</span>
-                            <div className="vd-kpi-body">
-                                <h3 className="vd-kpi-number">{loading ? "..." : refurbishCount}</h3>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* KPI 4 - Recycling Center */}
-                    <div className="vd-kpi-card">
-                        <div className="vd-kpi-header">
-                            <div className="vd-kpi-icon-circle teal">
-                                <FiCpu />
-                            </div>
-                        </div>
-                        <div>
-                            <span className="vd-kpi-label">Recycling Center</span>
-                            <div className="vd-kpi-body">
-                                <h3 className="vd-kpi-number">{loading ? "..." : recyclingCount}</h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Main Inspection Controls Header */}
+{/* Main Control Header Panel */}
                 <div className="control-bar-panel">
-                    <div className="search-box-v2" style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                        <FiSearch className="search-icon" style={{ position: "absolute", left: "0.85rem", color: "#94a3b8", fontSize: "0.95rem" }} />
-                        <input
-                            type="text"
-                            placeholder="Search brand, model, serial number..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(sanitizeText(e.target.value))}
-                            style={{
-                                padding: "0.45rem 1rem 0.45rem 2.3rem",
-                                border: "1px solid #e2e8f0",
-                                borderRadius: "10px",
-                                background: "#ffffff",
-                                fontSize: "0.8rem",
-                                color: "#0f172a",
-                                width: "240px",
-                                outline: "none",
-                                boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
-                            }}
-                        />
+                    <div>
+                        <h3 style={{ fontFamily: "'Space Grotesk', 'Plus Jakarta Sans', sans-serif", fontSize: "1.25rem", fontWeight: 700, margin: "0 0 0.2rem", color: "#0f172a" }}>My Inspection Reports</h3>
+                        <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>Review certified technician diagnostic evaluation reports and download official PDF certificates</p>
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginLeft: "auto" }}>
-                        <div className="filter-tabs">
-                            <button
-                                className={`tab-btn ${activeTab === "All" ? "tab-btn--active" : ""}`}
-                                onClick={() => setActiveTab("All")}
-                            >
-                                All ({totalReports})
-                            </button>
-                            <button
-                                className={`tab-btn ${activeTab === "Refurbishment" ? "tab-btn--active" : ""}`}
-                                onClick={() => setActiveTab("Refurbishment")}
-                            >
-                                Refurbishment ({refurbishCount})
-                            </button>
-                            <button
-                                className={`tab-btn ${activeTab === "Recycling" ? "tab-btn--active" : ""}`}
-                                onClick={() => setActiveTab("Recycling")}
-                            >
-                                Recycling ({recyclingCount})
-                            </button>
+                    <div className="control-panel-right-group">
+                        <div className="vd-inline-search">
+                            <FiSearch style={{ color: "#94a3b8", fontSize: "0.85rem" }} />
+                            <input
+                                type="text"
+                                placeholder="Search brand, model, serial..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(sanitizeText(e.target.value))}
+                            />
+                            {searchQuery && (
+                                <button onClick={() => setSearchQuery("")} className="vd-search-clear-btn">
+                                    <FiX style={{ fontSize: "0.8rem" }} />
+                                </button>
+                            )}
                         </div>
 
-                        <div className="pk-view-toggle">
+                        <div className="filter-pills">
+                            {["All", "Refurbishment", "Recycling"].map((tab) => {
+                                const labelMap = {
+                                    All: `All (${totalReports})`,
+                                    Refurbishment: `Refurbishment (${refurbishCount})`,
+                                    Recycling: `Recycling (${recyclingCount})`
+                                };
+                                return (
+                                    <button
+                                        key={tab}
+                                        className={`pill-btn ${activeTab === tab ? "active" : ""}`}
+                                        onClick={() => setActiveTab(tab)}
+                                    >
+                                        {labelMap[tab] || tab}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <div className="view-toggle">
                             <button
-                                onClick={() => setViewMode("grid")}
-                                className={`pk-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
-                                title="Grid View"
-                            >
-                                <FiGrid />
-                            </button>
-                            <button
+                                className={`toggle-btn ${viewMode === "table" ? "active" : ""}`}
                                 onClick={() => setViewMode("table")}
-                                className={`pk-toggle-btn ${viewMode === "table" ? "active" : ""}`}
                                 title="Table View"
                             >
                                 <FiList />
+                            </button>
+                            <button
+                                className={`toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+                                onClick={() => setViewMode("grid")}
+                                title="Grid View"
+                            >
+                                <FiGrid />
                             </button>
                         </div>
                     </div>
@@ -860,10 +729,14 @@ function CitizenDeviceReport() {
                                 <div className="modal-section-title" style={{ marginTop: "1.2rem" }}>
                                     <FiCpu /> 2. Master Device Specifications
                                 </div>
-                                <div className="spec-meta-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+                                <div className="spec-meta-grid" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
                                     <div className="meta-box">
                                         <span className="meta-lbl">Citizen Owner</span>
                                         <span className="meta-val">{userName}</span>
+                                    </div>
+                                    <div className="meta-box">
+                                        <span className="meta-lbl">Purchase Date</span>
+                                        <span className="meta-val">{selectedReport.purchaseDate ? new Date(selectedReport.purchaseDate).toLocaleDateString("en-IN") : "N/A"}</span>
                                     </div>
                                     <div className="meta-box">
                                         <span className="meta-lbl">Weight &amp; Quantity</span>

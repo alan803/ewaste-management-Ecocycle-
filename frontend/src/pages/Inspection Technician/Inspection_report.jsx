@@ -424,6 +424,10 @@ function InspectionReport() {
                             <div class="info-val">${dev.serialNumber || "N/A"}</div>
                         </div>
                         <div class="info-card">
+                            <div class="info-label">Purchase Date</div>
+                            <div class="info-val">${dev.purchaseDate ? new Date(dev.purchaseDate).toLocaleDateString("en-IN") : "N/A"}</div>
+                        </div>
+                        <div class="info-card">
                             <div class="info-label">Quantity & Weight</div>
                             <div class="info-val">${dev.weight || 1} kg (${dev.quantity || 1} unit)</div>
                         </div>
@@ -904,11 +908,10 @@ function InspectionReport() {
                 {selectedReport && (
                     <div className="modal-backdrop">
                         <div className="inspection-modal-card" style={{ maxWidth: "920px" }}>
-                            <div className="modal-header" style={{ background: "#ffffff", borderBottom: "1px solid #e2e8f0", padding: "1.25rem 1.5rem" }}>
+                            <div className="modal-header">
                                 <div>
-                                    <h3 style={{ color: "#0f172a", margin: 0, fontSize: "1.15rem", fontWeight: 700 }}>Detailed Inspection Report</h3>
-                                    <p style={{ color: "#64748b", margin: "0.2rem 0 0", fontSize: "0.8rem" }}>Device Record #DEV-{String(selectedReport.deviceId).padStart(3, "0")} • {selectedReport.brand} {selectedReport.model}</p>
-                                </div>
+                                    <h3 style={{ color: "#ffffff", margin: 0, fontSize: "1.2rem", fontWeight: 700 }}>Detailed Inspection Report</h3>
+                                   </div>
                                 <button className="close-modal-btn" onClick={() => setSelectedReport(null)}>
                                     <FiX />
                                 </button>
@@ -947,7 +950,7 @@ function InspectionReport() {
                                 <div className="modal-section-title">
                                     <FiCpu /> 1. Master Device &amp; Specification Details
                                 </div>
-                                <div className="spec-meta-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)", marginBottom: "1rem" }}>
+                                <div className="spec-meta-grid" style={{ gridTemplateColumns: "repeat(5, 1fr)", marginBottom: "1rem" }}>
                                     <div className="meta-box">
                                         <span className="meta-lbl">Brand &amp; Model</span>
                                         <span className="meta-val">{selectedReport.brand} {selectedReport.model}</span>
@@ -955,6 +958,10 @@ function InspectionReport() {
                                     <div className="meta-box">
                                         <span className="meta-lbl">Serial Number</span>
                                         <span className="meta-val">{selectedReport.serialNumber || "N/A"}</span>
+                                    </div>
+                                    <div className="meta-box">
+                                        <span className="meta-lbl">Purchase Date</span>
+                                        <span className="meta-val">{selectedReport.purchaseDate ? new Date(selectedReport.purchaseDate).toLocaleDateString("en-IN") : "N/A"}</span>
                                     </div>
                                     <div className="meta-box">
                                         <span className="meta-lbl">Quantity &amp; Weight</span>

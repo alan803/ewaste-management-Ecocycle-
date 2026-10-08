@@ -1,0 +1,398 @@
+/* ==========================================================================
+   OFFICIAL RECYCLING SETTLEMENT BILL & RECOVERY SLIP STYLING (MODEL EXACT)
+   ========================================================================== */
+
+/* Overlay */
+.recyc-bill-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    overflow-y: auto;
+    animation: billFadeIn 0.2s ease-out;
+}
+
+@keyframes billFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Modal Window Container */
+.recyc-bill-modal-container {
+    background: #0f172a;
+    border-radius: 14px;
+    max-width: 960px;
+    width: 100%;
+    max-height: 94vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+/* Modal Control Topbar */
+.recyc-bill-modal-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: #090d16;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.bill-topbar-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #f8fafc;
+    font-weight: 700;
+    font-size: 14px;
+    font-family: 'Poppins', sans-serif;
+}
+
+.bill-check-icon {
+    color: #10b981;
+    font-size: 17px;
+}
+
+.bill-modal-close-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    color: #94a3b8;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.bill-modal-close-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+/* Modal Action Footer */
+.recyc-bill-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 24px;
+    background: #090d16;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.recyc-bill-modal-actions .btn-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-weight: 700;
+    font-family: 'Poppins', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.recyc-bill-modal-actions .btn-action.primary {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.recyc-bill-modal-actions .btn-action.primary:hover {
+    background: linear-gradient(135deg, #047857 0%, #059669 100%);
+    transform: translateY(-1px);
+}
+
+.recyc-bill-modal-actions .btn-action.glass {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.recyc-bill-modal-actions .btn-action.glass:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+}
+
+/* ==========================================================================
+   PRINTABLE BILL CANVAS SHEET (EXACT MATCH TO REFERENCE INVOICE / SLIP)
+   ========================================================================== */
+
+.recyc-bill-sheet-wrap {
+    padding: 24px;
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+    background: #1e293b;
+}
+
+.recyc-salary-bill-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 860px;
+    min-height: 520px;
+    box-sizing: border-box;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    position: relative;
+    color: #000000;
+    font-family: Arial, Helvetica, sans-serif;
+    border: 2.5px solid #000000;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 1. Header Box */
+.bill-header-row {
+    border: 1.5px solid #000000;
+    text-align: center;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+    background: #ffffff;
+}
+
+.bill-company-name {
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #000000;
+}
+
+.bill-subheading {
+    font-size: 12px;
+    font-weight: 700;
+    border-top: 1px solid #000000;
+    margin-top: 4px;
+    padding-top: 4px;
+    color: #000000;
+}
+
+/* 2. Upper 2-Column Info Grid */
+.bill-meta-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    border: 1.5px solid #000000;
+    padding: 8px 14px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    line-height: 1.65;
+    background: #ffffff;
+}
+
+.meta-line {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.meta-k {
+    font-weight: 700;
+    color: #000000;
+    min-width: 120px;
+}
+
+.meta-v {
+    font-weight: 700;
+    color: #000000;
+}
+
+/* 3. Dual Side-by-Side Tables */
+.bill-dual-tables-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.bill-table-wrapper {
+    border: 1.5px solid #000000;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+}
+
+.bill-table-heading {
+    text-align: center;
+    font-weight: 900;
+    font-size: 12px;
+    padding: 5px 8px;
+    border-bottom: 1.5px solid #000000;
+    background: #f8fafc;
+    color: #000000;
+    letter-spacing: 0.2px;
+}
+
+.bill-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+}
+
+.bill-data-table th {
+    border: 1px solid #000000;
+    padding: 4px 6px;
+    font-weight: 800;
+    background: #ffffff;
+    color: #000000;
+}
+
+.bill-data-table td {
+    border: 1px solid #000000;
+    padding: 4px 6px;
+    color: #000000;
+    font-size: 10.5px;
+}
+
+/* 4. Bottom Summary Calculation Boxes */
+.bill-summary-boxes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.bill-summary-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bill-box-row {
+    display: flex;
+    border: 1.5px solid #000000;
+    height: 28px;
+    align-items: center;
+    background: #ffffff;
+}
+
+.bill-box-row.highlight-green {
+    background: #f0fdf4;
+    border: 2px solid #059669;
+}
+
+.box-title {
+    width: 60%;
+    font-weight: 800;
+    padding: 0 8px;
+    border-right: 1.5px solid #000000;
+    text-transform: uppercase;
+    font-size: 10px;
+    color: #000000;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.bill-box-row.highlight-green .box-title {
+    color: #166534;
+    border-right: 2px solid #059669;
+}
+
+.box-value {
+    width: 40%;
+    text-align: right;
+    padding: 0 8px;
+    font-weight: 800;
+    font-family: monospace;
+    font-size: 11.5px;
+    color: #000000;
+}
+
+.box-value.net-pay {
+    color: #166534;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.box-value.text-green {
+    color: #059669;
+    font-weight: 900;
+}
+
+/* 5. Bottom Signatures Row */
+.bill-bottom-signature-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid #000000;
+    font-size: 10.5px;
+    color: #000000;
+}
+
+/* ==========================================================================
+   PRINT MEDIA RULES
+   ========================================================================== */
+@media print {
+    @page {
+        size: A4 landscape;
+        margin: 8mm;
+    }
+
+    body {
+        background: #ffffff !important;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .recyc-bill-modal-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        z-index: 999999 !important;
+    }
+
+    .recyc-bill-modal-container {
+        box-shadow: none !important;
+        border: none !important;
+        background: #ffffff !important;
+        max-width: 100% !important;
+        width: 100vw !important;
+        height: 100vh !important;
+    }
+
+    .recyc-bill-sheet-wrap {
+        background: #ffffff !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    .recyc-salary-bill-card {
+        box-shadow: none !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        border: 2px solid #000000 !important;
+    }
+}

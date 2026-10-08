@@ -163,7 +163,7 @@ response.data.forEach((req) => {
             const rawList = response.data || [];
             const activeList = rawList.filter(r => {
                 const s = String(r.status || "").toLowerCase();
-                return s !== "reassigned" && s !== "penalized" && s !== "completed" && s !== "expired" && s !== "rejected" && s !== "cancelled";
+                return s !== "reassigned" && s !== "penalized" && s !== "cancelled";
             });
             setRequests(activeList);
             setError("");
@@ -325,11 +325,11 @@ response.data.forEach((req) => {
                 }
             );
 
-            setRequests(prev => prev.filter(r => r.inspectionRequestId !== rejectionTarget.inspectionRequestId));
+            setRequests(prev => prev.map(r => r.inspectionRequestId === rejectionTarget.inspectionRequestId ? { ...r, status: "Rejected", rejectionReason: rejectionReason || "Unable to inspect at this time." } : r));
             setRejectionTarget(null);
             setRejectionReason("");
             if (selectedRequest?.inspectionRequestId === rejectionTarget.inspectionRequestId) {
-                setSelectedRequest(null);
+                setSelectedRequest(prev => prev ? { ...prev, status: "Rejected", rejectionReason: rejectionReason || "Unable to inspect at this time." } : null);
             }
         } catch (err) {
             console.error("Error rejecting request:", err);
@@ -354,6 +354,8 @@ response.data.forEach((req) => {
                 return <span className="pill pill-red">Declined</span>;
             case "expired":
                 return <span className="pill pill-red" style={{ backgroundColor: "#ef4444", color: "white" }}>Expired</span>;
+            case "completed":
+                return <span className="pill pill-green" style={{ backgroundColor: "#059669", color: "white" }}>Completed</span>;
             default:
                 return <span className="pill pill-gray">{status || "Assigned"}</span>;
         }
@@ -369,9 +371,14 @@ response.data.forEach((req) => {
             (d.condition?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
             (d.category?.categoryName?.toLowerCase() || "").includes(searchQuery.toLowerCase());
 
+        const st = (r.status || "").toLowerCase();
         const matchesStatus =
             activeFilter === "All" ||
-            (r.status?.toLowerCase() || "") === activeFilter.toLowerCase();
+            (activeFilter === "Assigned" && st === "assigned") ||
+            (activeFilter === "Accepted" && st === "accepted") ||
+            (activeFilter === "InProgress" && (st === "inprogress" || st === "in progress")) ||
+            (activeFilter === "Rejected" && (st === "rejected" || st === "declined")) ||
+            st === activeFilter.toLowerCase();
 
         return matchesSearch && matchesStatus;
     });
@@ -486,7 +493,9 @@ response.data.forEach((req) => {
 
     const totalCount = requests.length;
     const pendingActionCount = requests.filter(r => r.status?.toLowerCase() === "assigned").length;
-    const acceptedCount = requests.filter(r => r.status?.toLowerCase() === "accepted" || r.status?.toLowerCase() === "inprogress").length;
+    const acceptedCount = requests.filter(r => r.status?.toLowerCase() === "accepted").length;
+    const inProgressCount = requests.filter(r => r.status?.toLowerCase() === "inprogress" || r.status?.toLowerCase() === "in progress").length;
+    const rejectedCount = requests.filter(r => r.status?.toLowerCase() === "rejected" || r.status?.toLowerCase() === "declined").length;
     const urgentCount = [
         ...deliveries,
         ...requests
@@ -623,11 +632,15 @@ response.data.forEach((req) => {
 
                 {/* Summary Metric Cards */}
                 <div className="summary-cards-grid">
-                    <div className="summary-card">
+                    <div
+                        className="summary-card"
+                        style={{ cursor: "pointer" }}
+                        onClick={() => setActiveFilter("All")}
+                    >
                         <div className="card-info">
                             <span className="card-label">Total Assigned</span>
                             <span className="card-value">{totalCount}</span>
-                            <span className="card-subtext">Total active assignments</span>
+                            <span className="card-subtext">All active & processed</span>
                         </div>
                         <div className="card-icon icon-blue"><FiCheckSquare /></div>
                     </div>
@@ -635,24 +648,43 @@ response.data.forEach((req) => {
                     <div
                         className="summary-card"
                         style={{ cursor: "pointer" }}
-                        onClick={() => setShowReminderModal(true)}
-                        title="Click to view assigned inspection requests reminder"
+                        onClick={() => setActiveFilter("Assigned")}
+                        title="Click to filter pending review"
                     >
                         <div className="card-info">
                             <span className="card-label">Action Required</span>
                             <span className="card-value">{pendingActionCount}</span>
-                            <span className="card-subtext">Pending review & acceptance (Click to view)</span>
+                            <span className="card-subtext">Pending acceptance</span>
                         </div>
                         <div className="card-icon icon-amber"><FiAlertCircle /></div>
                     </div>
 
-                    <div className="summary-card">
+                    <div
+                        className="summary-card"
+                        style={{ cursor: "pointer" }}
+                        onClick={() => setActiveFilter("Accepted")}
+                        title="Click to filter accepted requests"
+                    >
                         <div className="card-info">
-                            <span className="card-label">In Evaluation</span>
+                            <span className="card-label">Accepted Requests</span>
                             <span className="card-value">{acceptedCount}</span>
-                            <span className="card-subtext">Accepted inspection queue</span>
+                            <span className="card-subtext">Ready for inspection</span>
                         </div>
-                        <div className="card-icon icon-green"><FiActivity /></div>
+                        <div className="card-icon icon-green"><FiCheckCircle /></div>
+                    </div>
+
+                    <div
+                        className="summary-card"
+                        style={{ cursor: "pointer" }}
+                        onClick={() => setActiveFilter("Rejected")}
+                        title="Click to filter rejected requests"
+                    >
+                        <div className="card-info">
+                            <span className="card-label">Declined Requests</span>
+                            <span className="card-value">{rejectedCount}</span>
+                            <span className="card-subtext">Rejected submissions</span>
+                        </div>
+                        <div className="card-icon icon-red"><FiX /></div>
                     </div>
 
                     <div className="summary-card">
@@ -690,18 +722,24 @@ response.data.forEach((req) => {
                         <div className="queue-toolbar">
                             <div>
                                 <h3 className="queue-heading">Assigned Submissions</h3>
-                                <p className="queue-desc">Review device specifications and complete quality evaluations</p>
+                                <p className="queue-desc">Review device specifications, accept/decline tasks, and perform evaluations</p>
                             </div>
 
                             <div className="queue-controls">
                                 <div className="filter-pills">
-                                    {["All", "Assigned", "Accepted", "InProgress"].map((tab) => (
+                                    {[
+                                        { key: "All", label: `All (${totalCount})` },
+                                        { key: "Assigned", label: `Pending (${pendingActionCount})` },
+                                        { key: "Accepted", label: `Accepted (${acceptedCount})` },
+                                        { key: "InProgress", label: `In Evaluation (${inProgressCount})` },
+                                        { key: "Rejected", label: `Declined (${rejectedCount})` }
+                                    ].map((tab) => (
                                         <button
-                                            key={tab}
-                                            className={`pill-btn ${activeFilter === tab ? "active" : ""}`}
-                                            onClick={() => setActiveFilter(tab)}
+                                            key={tab.key}
+                                            className={`pill-btn ${activeFilter === tab.key ? "active" : ""}`}
+                                            onClick={() => setActiveFilter(tab.key)}
                                         >
-                                            {tab === "InProgress" ? "In Evaluation" : tab}
+                                            {tab.label}
                                         </button>
                                     ))}
                                 </div>
@@ -793,7 +831,7 @@ response.data.forEach((req) => {
                                                         >
                                                             <button
                                                                 type="button"
-                                                                className="btn btn-secondary"
+                                                                className="btn btn-dark"
                                                                 onClick={() => {
                                                                     setSelectedRequest(req);
                                                                     setActiveModalTab("overview");
@@ -857,6 +895,34 @@ response.data.forEach((req) => {
                                                                     </>
                                                                 );
                                                             })()}
+
+                                                            {(req.status?.toLowerCase() === "accepted" || req.status?.toLowerCase() === "inprogress" || req.status?.toLowerCase() === "in progress") && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => navigate(`/technician_inspection/${req.deviceId}`)}
+                                                                    style={{
+                                                                        display: "inline-flex",
+                                                                        alignItems: "center",
+                                                                        gap: "5px",
+                                                                        backgroundColor: "#059669",
+                                                                        color: "white",
+                                                                        border: "none",
+                                                                        padding: "7px 12px",
+                                                                        borderRadius: "5px",
+                                                                        cursor: "pointer",
+                                                                        fontWeight: 600,
+                                                                        fontSize: "0.8rem"
+                                                                    }}
+                                                                >
+                                                                    <FiCheckCircle /> Inspect
+                                                                </button>
+                                                            )}
+
+                                                            {(req.status?.toLowerCase() === "rejected" || req.status?.toLowerCase() === "declined") && (
+                                                                <span style={{ fontSize: "0.75rem", color: "#e11d48", fontWeight: 700, background: "#fff1f2", padding: "0.25rem 0.55rem", borderRadius: "5px", border: "1px solid #fecdd3" }} title={req.rejectionReason || "Declined"}>
+                                                                    Declined
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -903,8 +969,8 @@ response.data.forEach((req) => {
 
                                             <div className="grid-card-footer">
                                                 <button
-                                                    className="btn btn-secondary"
-                                                    style={{ flex: 1 }}
+                                                    className="btn btn-dark"
+                                                    style={{ flex: 1, minWidth: 0 }}
                                                     onClick={() => {
                                                         setSelectedRequest(req);
                                                         setActiveModalTab("overview");
@@ -918,7 +984,7 @@ response.data.forEach((req) => {
                                                     const isReqOverdue = dead && new Date(dead) < new Date();
                                                     if (isReqOverdue) {
                                                         return (
-                                                            <span style={{ color: "#dc2626", fontWeight: 700, fontSize: "0.75rem", background: "#fef2f2", border: "1px solid #fca5a5", padding: "0.35rem 0.6rem", borderRadius: "6px", display: "inline-flex", alignItems: "center", gap: "0.3rem", flex: 1, justifyContent: "center" }}>
+                                                            <span style={{ color: "#dc2626", fontWeight: 700, fontSize: "0.75rem", background: "#fef2f2", border: "1px solid #fca5a5", padding: "0.35rem 0.6rem", borderRadius: "6px", display: "inline-flex", alignItems: "center", gap: "0.3rem", flex: 2, justifyContent: "center" }}>
                                                                 <FiAlertTriangle /> Deadline Expired
                                                             </span>
                                                         );
@@ -927,6 +993,7 @@ response.data.forEach((req) => {
                                                         <>
                                                             <button
                                                                 className="btn btn-success"
+                                                                style={{ flex: 1, minWidth: 0 }}
                                                                 onClick={() => handleAccept(req.inspectionRequestId)}
                                                                 disabled={processingId === req.inspectionRequestId}
                                                             >
@@ -934,6 +1001,7 @@ response.data.forEach((req) => {
                                                             </button>
                                                             <button
                                                                 className="btn btn-danger"
+                                                                style={{ flex: 1, minWidth: 0 }}
                                                                 onClick={() => setRejectionTarget(req)}
                                                                 disabled={processingId === req.inspectionRequestId}
                                                             >
@@ -942,6 +1010,22 @@ response.data.forEach((req) => {
                                                         </>
                                                     );
                                                 })()}
+
+                                                {(req.status?.toLowerCase() === "accepted" || req.status?.toLowerCase() === "inprogress" || req.status?.toLowerCase() === "in progress") && (
+                                                    <button
+                                                        className="btn btn-success"
+                                                        style={{ flex: 1, minWidth: 0, background: "#059669", color: "white" }}
+                                                        onClick={() => navigate(`/technician_inspection/${req.deviceId}`)}
+                                                    >
+                                                        <FiCheckCircle /> Inspect
+                                                    </button>
+                                                )}
+
+                                                {(req.status?.toLowerCase() === "rejected" || req.status?.toLowerCase() === "declined") && (
+                                                    <span style={{ fontSize: "0.75rem", color: "#e11d48", fontWeight: 700, background: "#fff1f2", padding: "0.35rem 0.6rem", borderRadius: "6px", border: "1px solid #fecdd3", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: 1 }}>
+                                                        Declined
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     );
@@ -954,11 +1038,10 @@ response.data.forEach((req) => {
                 {/* Inspection Details Modal */}
                 {selectedRequest && (
                     <div className="modal-overlay" onClick={() => setSelectedRequest(null)}>
-                        <div className="clean-modal" onClick={(e) => e.stopPropagation()}>
+                        <div className="clean-modal insp-modal" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <div>
                                     <h2>{selectedRequest.device?.brand} {selectedRequest.device?.model}</h2>
-                                    <p className="modal-sub">Inspection Request #{selectedRequest.inspectionRequestId}</p>
                                 </div>
                                 <button className="close-btn" onClick={() => setSelectedRequest(null)}>
                                     <FiX />
@@ -972,12 +1055,6 @@ response.data.forEach((req) => {
                                     onClick={() => setActiveModalTab("overview")}
                                 >
                                     Overview & Specs
-                                </button>
-                                <button
-                                    className={`tab-item ${activeModalTab === "diagnostic" ? "active" : ""}`}
-                                    onClick={() => setActiveModalTab("diagnostic")}
-                                >
-                                    Evaluation Form
                                 </button>
                                 <button
                                     className={`tab-item ${activeModalTab === "photos" ? "active" : ""}`}
@@ -1002,6 +1079,10 @@ response.data.forEach((req) => {
                                             <div className="detail-item">
                                                 <label>Serial Number</label>
                                                 <span>{selectedRequest.device?.serialNumber || "N/A"}</span>
+                                            </div>
+                                            <div className="detail-item">
+                                                <label>Purchase Date</label>
+                                                <span>{selectedRequest.device?.purchaseDate ? new Date(selectedRequest.device?.purchaseDate).toLocaleDateString("en-IN") : "N/A"}</span>
                                             </div>
                                             <div className="detail-item">
                                                 <label>Quantity</label>
@@ -1032,9 +1113,9 @@ response.data.forEach((req) => {
                                             </h4>
                                             <div style={{ fontSize: "0.8rem", color: "#475569", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
                                                 <div><strong>Device Tag Code:</strong> <span style={{ color: "#059669", fontWeight: 700 }}>#EC-{selectedRequest.device?.deviceId}</span></div>
-                                                <div><strong>Delivery Status:</strong> {selectedRequest.device?.lifecycleStatus === "ReceivedAtCenter" ? <span style={{ color: "#16a34a", fontWeight: 700 }}>Delivered</span> : <span style={{ color: "#2563eb", fontWeight: 700 }}>In Transit</span>}</div>
-                                                <div><strong>Condition:</strong> <span style={{ color: "#d97706", fontWeight: 700 }}>Pending Inspection</span></div>
-                                                <div><strong>Inspection Started:</strong> <span style={{ color: "#64748b", fontWeight: 700 }}>No</span></div>
+                                                <div><strong>Delivery Status:</strong> {(selectedRequest.device?.lifecycleStatus === "ReceivedAtCenter" || selectedRequest.device?.lifecycleStatus === "AtInspectionCenter" || selectedRequest.device?.lifecycleStatus === "Inspected" || selectedRequest.device?.lifecycleStatus?.includes("Refurbish") || selectedRequest.device?.lifecycleStatus?.includes("Recycl") || selectedRequest.status === "Completed") ? <span style={{ color: "#16a34a", fontWeight: 700 }}>Delivered</span> : <span style={{ color: "#2563eb", fontWeight: 700 }}>In Transit</span>}</div>
+                                                <div><strong>Condition:</strong> {selectedRequest.status === "Completed" || selectedRequest.device?.lifecycleStatus === "Inspected" ? <span style={{ color: "#059669", fontWeight: 700 }}>✓ Inspected</span> : <span style={{ color: "#d97706", fontWeight: 700 }}>Pending Inspection</span>}</div>
+                                                <div><strong>Inspection Started:</strong> {selectedRequest.status === "Completed" || selectedRequest.device?.lifecycleStatus === "Inspected" ? <span style={{ color: "#059669", fontWeight: 700 }}>Yes (Completed)</span> : selectedRequest.status === "InProgress" ? <span style={{ color: "#2563eb", fontWeight: 700 }}>Yes (In Progress)</span> : <span style={{ color: "#64748b", fontWeight: 700 }}>No</span>}</div>
                                             </div>
                                             <div style={{ display: "flex", gap: "0.5rem" }}>
                                                 <button
@@ -1139,7 +1220,7 @@ response.data.forEach((req) => {
                 {/* Decline Modal */}
                 {rejectionTarget && (
                     <div className="modal-overlay" onClick={() => setRejectionTarget(null)}>
-                        <div className="clean-modal" style={{ maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
+                        <div className="clean-modal insp-modal" style={{ maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <div>
                                     <h2>Decline Request</h2>
@@ -1151,7 +1232,7 @@ response.data.forEach((req) => {
                             </div>
 
                             <form onSubmit={handleRejectSubmit}>
-                                <div style={{ margin: "1rem 0" }}>
+                                <div style={{ padding: "1.25rem 1.5rem" }}>
                                     <label style={{ fontSize: "0.85rem", fontWeight: 700, color: "#475569", display: "block", marginBottom: "0.5rem" }}>
                                         Reason for declining request:
                                     </label>
@@ -1185,21 +1266,21 @@ response.data.forEach((req) => {
                 {/* Today's Inspection Reminder Modal */}
                 {showReminderModal && (
                     <div className="modal-overlay" onClick={() => setShowReminderModal(false)} style={{ zIndex: 9999 }}>
-                        <div className="clean-modal reminder-modal" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header reminder-header" style={{ background: "#ffffff", color: "#0f172a", borderBottom: "1px solid #e2e8f0", padding: "1.25rem 1.5rem" }}>
-                                <div className="reminder-header-title">
-                                    <div className="reminder-icon-badge" style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#ffffff" }}>
-                                        <FiBell className="reminder-bell-ring" />
+                        <div className="clean-modal insp-modal reminder-modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                                    <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "#ffffff" }}>
+                                        <FiBell />
                                     </div>
                                     <div>
-                                        <h2 style={{ color: "#0f172a", margin: 0, fontSize: "1.25rem", fontWeight: 800 }}>Pending Technical Device Inspection Alert</h2>
-                                        <p className="modal-sub" style={{ color: "#64748b", margin: "0.2rem 0 0 0", fontSize: "0.825rem" }}>
+                                        <h2 style={{ color: "#ffffff", margin: 0, fontSize: "1.15rem", fontWeight: 800 }}>Pending Technical Device Inspection Alert</h2>
+                                        <p className="modal-sub" style={{ color: "rgba(255,255,255,0.85)", margin: "0.15rem 0 0 0", fontSize: "0.8rem" }}>
                                             Date: <strong>{new Date().toLocaleDateString([], { dateStyle: "medium" })}</strong> &bull; Devices Awaiting Inspection: <strong>{inspectionDevicesToComplete.length} Items</strong>
                                         </p>
                                     </div>
                                 </div>
-                                <button className="close-btn" onClick={() => setShowReminderModal(false)} style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #cbd5e1", borderRadius: "10px", width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                                    <FiX style={{ fontSize: "1.1rem" }} />
+                                <button className="close-btn" onClick={() => setShowReminderModal(false)}>
+                                    <FiX />
                                 </button>
                             </div>
 
@@ -1306,7 +1387,7 @@ response.data.forEach((req) => {
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 setShowReminderModal(false);
-                                                                                navigate("/device-inspection");
+                                                                                navigate("/technician/device-inspection");
                                                                             }}
                                                                             style={{ width: "100%", background: "#0f172a", color: "#ffffff", border: "none", padding: "0.65rem 1rem", borderRadius: "10px", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}
                                                                         >
@@ -1344,7 +1425,7 @@ response.data.forEach((req) => {
                                     className="btn btn-success"
                                     onClick={() => {
                                         setShowReminderModal(false);
-                                        navigate("/device-inspection");
+                                        navigate("/technician/device-inspection");
                                     }}
                                     style={{ padding: "0.55rem 1.25rem", borderRadius: "10px", background: "#059669", border: "none", color: "#ffffff", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.4rem" }}
                                 >

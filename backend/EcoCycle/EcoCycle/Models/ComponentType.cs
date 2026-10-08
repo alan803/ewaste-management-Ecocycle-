@@ -21,6 +21,7 @@ namespace EcoCycle.API.Models
         public bool IsHazardous { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public ICollection<MaterialPrice> MaterialPrices { get; set; }= new List<MaterialPrice>();
         public ICollection<DeviceModelComponent> DeviceModelComponents { get; set; }
             = new List<DeviceModelComponent>();
     }

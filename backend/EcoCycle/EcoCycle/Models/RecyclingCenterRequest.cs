@@ -27,6 +27,10 @@ namespace EcoCycle.API.Models
 
         public DateTime? RespondedAt { get; set; }
 
+        public DateTime? ProcessStartDate { get; set; }
+
+        public DateTime? ProcessDeadline { get; set; }
+
         [StringLength(500)]
         public string? RejectionReason { get; set; }
 

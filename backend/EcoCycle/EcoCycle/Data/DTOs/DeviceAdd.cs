@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.ComponentModel.DataAnnotations;
 
@@ -32,6 +32,8 @@ namespace EcoCycle.Data.DTOs
 
         [Required]
         public int Weight { get; set; }
+
+        public DateTime? PurchaseDate { get; set; }
 
         // =========================================================
         // DEVICE CONDITION

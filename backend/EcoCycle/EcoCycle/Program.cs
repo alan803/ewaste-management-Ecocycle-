@@ -137,12 +137,75 @@ using (var scope = app.Services.CreateScope())
 
             IF NOT EXISTS (
                 SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[CollectionAssignments]') 
+                AND name = N'CompletionDeadline'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[CollectionAssignments] ADD [CompletionDeadline] DATETIME2 NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[CollectionAssignments]') 
+                AND name = N'RefurbishmentCenterId'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[CollectionAssignments] ADD [RefurbishmentCenterId] INT NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
                 WHERE object_id = OBJECT_ID(N'[dbo].[Device]') 
                 AND name = N'DeviceModelId'
             )
             BEGIN
                 ALTER TABLE [dbo].[Device] ADD [DeviceModelId] INT NULL;
                 ALTER TABLE [dbo].[Device] ADD CONSTRAINT [FK_Device_DeviceModel_DeviceModelId] FOREIGN KEY ([DeviceModelId]) REFERENCES [dbo].[DeviceModel] ([DeviceModelId]) ON DELETE SET NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[DeviceModel]') 
+                AND name = N'ReferenceMarketPrice'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[DeviceModel] ADD [ReferenceMarketPrice] DECIMAL(18,2) NOT NULL DEFAULT 5000.00;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[DeviceModel]') 
+                AND name = N'UpdatedAt'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[DeviceModel] ADD [UpdatedAt] DATETIME2 NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[RecyclingCenterRequests]') 
+                AND name = N'ProcessStartDate'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[RecyclingCenterRequests] ADD [ProcessStartDate] DATETIME2 NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[RecyclingCenterRequests]') 
+                AND name = N'ProcessDeadline'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[RecyclingCenterRequests] ADD [ProcessDeadline] DATETIME2 NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[RecyclingProcesses]') 
+                AND name = N'CompletionDeadline'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[RecyclingProcesses] ADD [CompletionDeadline] DATETIME2 NULL;
             END
 
             IF EXISTS (SELECT * FROM sys.tables WHERE name = N'collectionAgentPenalties')
@@ -188,6 +251,76 @@ using (var scope = app.Services.CreateScope())
                     [CreatedAt] DATETIME2 NOT NULL DEFAULT GETDATE(),
                     CONSTRAINT [PK_Payments] PRIMARY KEY CLUSTERED ([PaymentId] ASC)
                 );
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = N'Payouts')
+            BEGIN
+                CREATE TABLE [dbo].[Payouts] (
+                    [PayoutId] INT IDENTITY(1,1) NOT NULL,
+                    [DeviceId] INT NOT NULL,
+                    [ReceiverType] NVARCHAR(50) NOT NULL,
+                    [ReceiverLoginId] INT NOT NULL,
+                    [PayoutType] NVARCHAR(50) NOT NULL,
+                    [Amount] DECIMAL(18,2) NOT NULL,
+                    [Currency] NVARCHAR(10) NOT NULL DEFAULT 'INR',
+                    [PayoutStatus] NVARCHAR(30) NOT NULL DEFAULT 'Pending',
+                    [PayoutBatchId] NVARCHAR(100) NOT NULL DEFAULT '',
+                    [RazorpayPayoutId] NVARCHAR(100) NULL,
+                    [RazorpayContactId] NVARCHAR(100) NULL,
+                    [RazorpayFundAccountId] NVARCHAR(100) NULL,
+                    [FailureReason] NVARCHAR(500) NULL,
+                    [PaidAt] DATETIME2 NULL,
+                    [UpdatedAt] DATETIME2 NULL,
+                    [CreatedAt] DATETIME2 NOT NULL DEFAULT GETDATE(),
+                    CONSTRAINT [PK_Payouts] PRIMARY KEY CLUSTERED ([PayoutId] ASC),
+                    CONSTRAINT [FK_Payouts_Device_DeviceId] FOREIGN KEY ([DeviceId]) REFERENCES [dbo].[Device] ([DeviceId]) ON DELETE CASCADE
+                );
+            END
+            ELSE
+            BEGIN
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Payouts]') AND name = N'RazorpayPayoutId')
+                    ALTER TABLE [dbo].[Payouts] ADD [RazorpayPayoutId] NVARCHAR(100) NULL;
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Payouts]') AND name = N'RazorpayContactId')
+                    ALTER TABLE [dbo].[Payouts] ADD [RazorpayContactId] NVARCHAR(100) NULL;
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Payouts]') AND name = N'RazorpayFundAccountId')
+                    ALTER TABLE [dbo].[Payouts] ADD [RazorpayFundAccountId] NVARCHAR(100) NULL;
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Payouts]') AND name = N'FailureReason')
+                    ALTER TABLE [dbo].[Payouts] ADD [FailureReason] NVARCHAR(500) NULL;
+                IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[Payouts]') AND name = N'UpdatedAt')
+                    ALTER TABLE [dbo].[Payouts] ADD [UpdatedAt] DATETIME2 NULL;
+            END
+
+            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = N'EcoCycleTransactions')
+            BEGIN
+                CREATE TABLE [dbo].[EcoCycleTransactions] (
+                    [TransactionId] INT IDENTITY(1,1) NOT NULL,
+                    [DeviceId] INT NULL,
+                    [TransactionType] NVARCHAR(50) NOT NULL,
+                    [Direction] NVARCHAR(20) NOT NULL,
+                    [Amount] DECIMAL(18,2) NOT NULL,
+                    [Status] NVARCHAR(30) NOT NULL DEFAULT 'Completed',
+                    [Description] NVARCHAR(500) NULL,
+                    [CreatedAt] DATETIME2 NOT NULL DEFAULT GETDATE(),
+                    CONSTRAINT [PK_EcoCycleTransactions] PRIMARY KEY CLUSTERED ([TransactionId] ASC)
+                );
+            END
+            ELSE
+            BEGIN
+                IF EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[EcoCycleTransactions]') AND name = N'EcoCycleTransactionId')
+                BEGIN
+                    DROP TABLE [dbo].[EcoCycleTransactions];
+                    CREATE TABLE [dbo].[EcoCycleTransactions] (
+                        [TransactionId] INT IDENTITY(1,1) NOT NULL,
+                        [DeviceId] INT NULL,
+                        [TransactionType] NVARCHAR(50) NOT NULL,
+                        [Direction] NVARCHAR(20) NOT NULL,
+                        [Amount] DECIMAL(18,2) NOT NULL,
+                        [Status] NVARCHAR(30) NOT NULL DEFAULT 'Completed',
+                        [Description] NVARCHAR(500) NULL,
+                        [CreatedAt] DATETIME2 NOT NULL DEFAULT GETDATE(),
+                        CONSTRAINT [PK_EcoCycleTransactions] PRIMARY KEY CLUSTERED ([TransactionId] ASC)
+                    );
+                END
             END
         ");
     }

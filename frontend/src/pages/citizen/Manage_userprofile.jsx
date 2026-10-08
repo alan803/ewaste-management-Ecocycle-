@@ -11,6 +11,10 @@ import {
     validateFile,
     validate_dob,
     validate_gender,
+    validate_accountHolder,
+    validate_bankName,
+    validate_accountNumber,
+    validate_ifscCode
 } from "../../utils/validation";
 import {
     FiUser,
@@ -37,7 +41,8 @@ import {
     FiX,
     FiKey,
     FiEye,
-    FiEyeOff
+    FiEyeOff,
+    FiCreditCard
 } from "react-icons/fi";
 import "./Manage_userprofile.css";
 
@@ -61,7 +66,11 @@ function Manage_userprofile() {
         dateOfBirth: "",
         email: "",
         phoneNumber: "",
-        address: ""
+        address: "",
+        accountHolder: "",
+        bankName: "",
+        accountNumber: "",
+        ifscCode: ""
     });
     const [formErrors, setFormErrors] = useState({});
     const [selectedFile, setSelectedFile] = useState(null);
@@ -239,7 +248,11 @@ function Manage_userprofile() {
                 dateOfBirth: data.dateOfBirth ? data.dateOfBirth.split("T")[0] : "",
                 email: data.email || "",
                 phoneNumber: data.phoneNumber || "",
-                address: data.address || ""
+                address: data.address || "",
+                accountHolder: data.accountHolder || "",
+                bankName: data.bankName || "",
+                accountNumber: data.accountNumber || "",
+                ifscCode: data.ifscCode || ""
             });
 
             // Set profile image preview if present
@@ -308,17 +321,24 @@ function Manage_userprofile() {
 
     // Handle Input Field Changes with Live Validation
     const handleInputChange = (field, value) => {
-        setEditForm(prev => ({ ...prev, [field]: value }));
+        let finalValue = value;
+        if (field === "ifscCode") finalValue = value.toUpperCase();
+
+        setEditForm(prev => ({ ...prev, [field]: finalValue }));
 
         // Validate individual editable field
         let err = "";
-        if (field === "firstName") err = validate_first_name(value);
-        if (field === "lastName") err = validate_last_name(value);
-        if (field === "gender") err = validate_gender(value);
-        if (field === "dateOfBirth") err = validate_dob(value);
-        if (field === "email") err = validate_email(value);
-        if (field === "phoneNumber") err = validate_phone(value);
-        if (field === "address") err = validate_address(value);
+        if (field === "firstName") err = validate_first_name(finalValue);
+        if (field === "lastName") err = validate_last_name(finalValue);
+        if (field === "gender") err = validate_gender(finalValue);
+        if (field === "dateOfBirth") err = validate_dob(finalValue);
+        if (field === "email") err = validate_email(finalValue);
+        if (field === "phoneNumber") err = validate_phone(finalValue);
+        if (field === "address") err = validate_address(finalValue);
+        if (field === "accountHolder" && finalValue) err = validate_accountHolder(finalValue);
+        if (field === "bankName" && finalValue) err = validate_bankName(finalValue);
+        if (field === "accountNumber" && finalValue) err = validate_accountNumber(finalValue);
+        if (field === "ifscCode" && finalValue) err = validate_ifscCode(finalValue);
 
         setFormErrors(prev => ({ ...prev, [field]: err }));
     };
@@ -334,6 +354,13 @@ function Manage_userprofile() {
             phoneNumber: validate_phone(editForm.phoneNumber),
             address: validate_address(editForm.address)
         };
+
+        if (editForm.accountHolder || editForm.bankName || editForm.accountNumber || editForm.ifscCode) {
+            if (editForm.accountHolder) errors.accountHolder = validate_accountHolder(editForm.accountHolder);
+            if (editForm.bankName) errors.bankName = validate_bankName(editForm.bankName);
+            if (editForm.accountNumber) errors.accountNumber = validate_accountNumber(editForm.accountNumber);
+            if (editForm.ifscCode) errors.ifscCode = validate_ifscCode(editForm.ifscCode);
+        }
 
         setFormErrors(errors);
         return !Object.values(errors).some(err => err !== "");
@@ -386,6 +413,22 @@ function Manage_userprofile() {
         }
         if (editForm.address !== profile?.address) {
             formData.append("Address", editForm.address);
+            hasChanges = true;
+        }
+        if (editForm.accountHolder !== profile?.accountHolder) {
+            formData.append("AccountHolder", editForm.accountHolder || "");
+            hasChanges = true;
+        }
+        if (editForm.bankName !== profile?.bankName) {
+            formData.append("BankName", editForm.bankName || "");
+            hasChanges = true;
+        }
+        if (editForm.accountNumber !== profile?.accountNumber) {
+            formData.append("AccountNumber", editForm.accountNumber || "");
+            hasChanges = true;
+        }
+        if (editForm.ifscCode !== profile?.ifscCode) {
+            formData.append("IFSCCode", (editForm.ifscCode || "").toUpperCase());
             hasChanges = true;
         }
         if (selectedFile) {
@@ -493,60 +536,9 @@ function Manage_userprofile() {
 
             {/* Main Content Area */}
             <main className="citizen-main-content">
-                {/* Title & Top Ribbon */}
-                <div className="vd-ribbon" style={{ marginBottom: "1.75rem" }}>
-                    <div>
-                        <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a202c", margin: "0 0 0.25rem 0", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.025em" }}>
-                            Citizen User Profile
-                        </h1>
-                        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0, fontWeight: 500 }}>
-                            View and update your personal contact info, pickup address, and account security settings.
-                        </p>
-                    </div>
 
-                    <div className="vd-top-actions">
-                        <button 
-                            type="button" 
-                            className="vd-circle-btn" 
-                            title={`Notifications ${totalNotifCount > 0 ? `(${totalNotifCount} unread)` : ""}`} 
-                            onClick={() => navigate("/technician-notification")}
-                            style={{ position: "relative" }}
-                        >
-                            <FiBell />
-                            {totalNotifCount > 0 && (
-                                <span className="vd-notif-badge-pill" style={{
-                                    position: "absolute",
-                                    top: "-4px",
-                                    right: "-4px",
-                                    background: "#ef4444",
-                                    color: "#ffffff",
-                                    fontSize: "0.65rem",
-                                    fontWeight: 800,
-                                    width: "18px",
-                                    height: "18px",
-                                    borderRadius: "50%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center"
-                                }}>
-                                    {totalNotifCount > 9 ? "9+" : totalNotifCount}
-                                </span>
-                            )}
-                        </button>
 
-                        <div className="vd-user-profile-pill">
-                            {profileImagePreview ? (
-                                <img src={profileImagePreview} alt="User Avatar" className="vd-user-avatar" style={{ objectFit: "cover" }} />
-                            ) : (
-                                <div className="vd-user-avatar">{getInitial(userName)}</div>
-                            )}
-                            <div className="vd-user-info">
-                                <span className="vd-user-name">{userName}</span>
-                            </div>
-                            <FiChevronDown style={{ color: "#718096", fontSize: "0.9rem", marginLeft: "0.2rem" }} />
-                        </div>
-                    </div>
-                </div>
+                
 
                 {/* Success Alert Message */}
                 {successMessage && (
@@ -656,15 +648,16 @@ function Manage_userprofile() {
                         <div className="vd-dashboard-grid">
                             {/* Left Column (Details / Edit Sections) */}
                             <div>
-                                {/* Personal Information Card */}
+                                {/* Personal & Location Information Card */}
                                 <div className="panel-card">
                                     <div className="panel-header">
                                         <div>
-                                            <h2 className="panel-title">Personal Identity Details</h2>
-                                            <p className="panel-subtitle">Your basic registration information & demographics</p>
+                                            <h2 className="panel-title">Personal & Contact Details</h2>
+                                            <p className="panel-subtitle">Your basic registration information, contact channels & address</p>
                                         </div>
                                     </div>
 
+                                    {/* Sub-section: Personal Identity */}
                                     <div className="profile-details-grid">
                                         {/* Editable First Name */}
                                         <div className={`profile-field-box ${isEditing ? "editing" : ""}`}>
@@ -771,19 +764,7 @@ function Manage_userprofile() {
                                                 </p>
                                             )}
                                         </div>
-                                    </div>
-                                </div>
 
-                                {/* Contact Details Card */}
-                                <div className="panel-card">
-                                    <div className="panel-header">
-                                        <div>
-                                            <h2 className="panel-title">Contact Channels</h2>
-                                            <p className="panel-subtitle">Primary email and phone number linked to notifications</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="profile-details-grid">
                                         {/* Editable Email */}
                                         <div className={`profile-field-box ${isEditing ? "editing" : ""}`}>
                                             <div className="profile-field-header">
@@ -836,15 +817,10 @@ function Manage_userprofile() {
                                             )}
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Address Details Card */}
-                                <div className="panel-card">
-                                    <div className="panel-header">
-                                        <div>
-                                            <h2 className="panel-title">Registered Location & Address</h2>
-                                            <p className="panel-subtitle">Default home pickup location for scheduled e-waste collection</p>
-                                        </div>
+                                    {/* Sub-section Divider: Address */}
+                                    <div className="profile-section-divider">
+                                        <FiMapPin className="profile-section-divider-icon" /> Registered Pickup Address
                                     </div>
 
                                     <div className="profile-details-grid">
@@ -853,7 +829,7 @@ function Manage_userprofile() {
                                             <div className="profile-field-header">
                                                 <div className="profile-field-label-group">
                                                     <FiMapPin className="profile-field-icon" />
-                                                    <span>Address</span>
+                                                    <span>Street Address</span>
                                                 </div>
                                             </div>
                                             {isEditing ? (
@@ -931,17 +907,146 @@ function Manage_userprofile() {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Bank Account & Payout Details Card */}
+                                <div className="panel-card">
+                                    <div className="panel-header">
+                                        <div>
+                                            <h2 className="panel-title">Bank & Payout Account Details</h2>
+                                            <p className="panel-subtitle">Official account used for electronic device payouts & incentives</p>
+                                        </div>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                            <span className="profile-tag verified" style={{ background: "#ecfdf5", color: "#065f46" }}>
+                                                <FiShield /> Encrypted
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="profile-details-grid">
+                                        {/* Editable Account Holder Name */}
+                                        <div className={`profile-field-box ${isEditing ? "editing" : ""}`}>
+                                            <div className="profile-field-header">
+                                                <div className="profile-field-label-group">
+                                                    <FiUser className="profile-field-icon" />
+                                                    <span>Account Holder Name</span>
+                                                </div>
+                                            </div>
+                                            {isEditing ? (
+                                                <>
+                                                    <input 
+                                                        type="text"
+                                                        className="profile-input"
+                                                        value={editForm.accountHolder}
+                                                        placeholder="Account holder name"
+                                                        onChange={(e) => handleInputChange("accountHolder", e.target.value)}
+                                                    />
+                                                    {formErrors.accountHolder && <span className="profile-field-error">{formErrors.accountHolder}</span>}
+                                                </>
+                                            ) : (
+                                                <p className={`profile-field-value ${!profile?.accountHolder ? "empty" : ""}`}>
+                                                    {profile?.accountHolder || "Not Configured (Pending Setup)"}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Editable Bank Name */}
+                                        <div className={`profile-field-box ${isEditing ? "editing" : ""}`}>
+                                            <div className="profile-field-header">
+                                                <div className="profile-field-label-group">
+                                                    <FiAward className="profile-field-icon" />
+                                                    <span>Bank Name</span>
+                                                </div>
+                                            </div>
+                                            {isEditing ? (
+                                                <>
+                                                    <input 
+                                                        type="text"
+                                                        className="profile-input"
+                                                        value={editForm.bankName}
+                                                        placeholder="e.g. State Bank of India, HDFC"
+                                                        onChange={(e) => handleInputChange("bankName", e.target.value)}
+                                                    />
+                                                    {formErrors.bankName && <span className="profile-field-error">{formErrors.bankName}</span>}
+                                                </>
+                                            ) : (
+                                                <p className={`profile-field-value ${!profile?.bankName ? "empty" : ""}`}>
+                                                    {profile?.bankName || "Not Configured (Pending Setup)"}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Editable Account Number */}
+                                        <div className={`profile-field-box ${isEditing ? "editing" : ""}`}>
+                                            <div className="profile-field-header">
+                                                <div className="profile-field-label-group">
+                                                    <FiCreditCard className="profile-field-icon" />
+                                                    <span>Account Number</span>
+                                                </div>
+                                            </div>
+                                            {isEditing ? (
+                                                <>
+                                                    <input 
+                                                        type="text"
+                                                        className="profile-input"
+                                                        value={editForm.accountNumber}
+                                                        placeholder="9-18 digit account number"
+                                                        maxLength={18}
+                                                        onChange={(e) => handleInputChange("accountNumber", e.target.value)}
+                                                    />
+                                                    {formErrors.accountNumber && <span className="profile-field-error">{formErrors.accountNumber}</span>}
+                                                </>
+                                            ) : (
+                                                <p className={`profile-field-value ${!profile?.accountNumber ? "empty" : ""}`}>
+                                                    {profile?.accountNumber 
+                                                        ? (profile.accountNumber.length > 4 ? `•••• •••• ${profile.accountNumber.slice(-4)}` : profile.accountNumber)
+                                                        : "Not Configured (Pending Setup)"}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Editable IFSC Code */}
+                                        <div className={`profile-field-box ${isEditing ? "editing" : ""}`}>
+                                            <div className="profile-field-header">
+                                                <div className="profile-field-label-group">
+                                                    <FiCheckCircle className="profile-field-icon" />
+                                                    <span>IFSC Code</span>
+                                                </div>
+                                            </div>
+                                            {isEditing ? (
+                                                <>
+                                                    <input 
+                                                        type="text"
+                                                        className="profile-input"
+                                                        value={editForm.ifscCode}
+                                                        placeholder="e.g. SBIN0001234"
+                                                        maxLength={11}
+                                                        style={{ textTransform: "uppercase" }}
+                                                        onChange={(e) => handleInputChange("ifscCode", e.target.value)}
+                                                    />
+                                                    {formErrors.ifscCode && <span className="profile-field-error">{formErrors.ifscCode}</span>}
+                                                </>
+                                            ) : (
+                                                <p className={`profile-field-value ${!profile?.ifscCode ? "empty" : ""}`}>
+                                                    {profile?.ifscCode || "Not Configured (Pending Setup)"}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Right Column (Account Status & Quick Actions) */}
                             <div className="vd-appointments-panel">
-                                <div>
-                                    <h3 className="vd-panel-header-title">Account Security & Status</h3>
+                                {/* Card 1: Account Security & Status */}
+                                <div className="side-widget-card">
+                                    <h3 className="side-widget-title">
+                                        <FiShield style={{ color: "#059669" }} /> Account & Security
+                                    </h3>
 
-                                    <div style={{ marginBottom: "1.5rem" }}>
+                                    <div className="profile-stat-list">
                                         <div className="profile-stat-item">
                                             <span className="profile-stat-label">
-                                                <FiShield style={{ color: "#059669" }} /> Account Status
+                                                <FiShield style={{ color: "#059669" }} /> Status
                                             </span>
                                             <span className="status-pill status-completed">Active</span>
                                         </div>
@@ -950,7 +1055,7 @@ function Manage_userprofile() {
                                             <span className="profile-stat-label">
                                                 <FiAward style={{ color: "#d97706" }} /> Eco Level
                                             </span>
-                                            <span className="profile-stat-val">Gold Recycler</span>
+                                            <span className="profile-stat-val" style={{ color: "#059669", fontWeight: 800 }}>Gold Recycler</span>
                                         </div>
                                     </div>
 
@@ -962,8 +1067,7 @@ function Manage_userprofile() {
                                                 handleResetPasswordForm();
                                                 setShowPasswordSection(true);
                                             }} 
-                                            className="profile-btn secondary"
-                                            style={{ width: "100%", justifyContent: "center", marginBottom: "1.5rem" }}
+                                            className="side-action-btn"
                                         >
                                             <FiKey /> Change Password
                                         </button>
@@ -972,7 +1076,7 @@ function Manage_userprofile() {
                                             <div className="password-card-header">
                                                 <div className="password-card-title-group">
                                                     <FiKey className="password-card-icon" />
-                                                    <span>{passwordStep === 1 ? "Verify Current Password" : "Set New Password"}</span>
+                                                    <span>{passwordStep === 1 ? "Verify Password" : "Set New Password"}</span>
                                                 </div>
                                                 <button 
                                                     type="button" 
@@ -990,14 +1094,14 @@ function Manage_userprofile() {
                                                     background: "#fef2f2",
                                                     border: "1px solid #fecaca",
                                                     color: "#dc2626",
-                                                    padding: "0.65rem 0.85rem",
-                                                    borderRadius: "10px",
-                                                    fontSize: "0.8rem",
+                                                    padding: "0.5rem 0.65rem",
+                                                    borderRadius: "8px",
+                                                    fontSize: "0.75rem",
                                                     fontWeight: "600",
-                                                    marginBottom: "0.85rem",
+                                                    marginBottom: "0.6rem",
                                                     display: "flex",
                                                     alignItems: "center",
-                                                    gap: "0.5rem"
+                                                    gap: "0.4rem"
                                                 }}>
                                                     <FiAlertCircle style={{ flexShrink: 0 }} />
                                                     <span>{passwordError}</span>
@@ -1007,8 +1111,8 @@ function Manage_userprofile() {
                                             {/* STEP 1: Enter Current Password */}
                                             {passwordStep === 1 ? (
                                                 <form onSubmit={handleVerifyCurrentPassword} className="password-fields-group">
-                                                    <p style={{ fontSize: "0.825rem", color: "#475569", margin: "0 0 0.4rem 0" }}>
-                                                        Enter your current password to continue:
+                                                    <p style={{ fontSize: "0.785rem", color: "#475569", margin: "0 0 0.25rem 0" }}>
+                                                        Enter current password:
                                                     </p>
 
                                                     <div className="password-field-item">
@@ -1019,7 +1123,7 @@ function Manage_userprofile() {
                                                             <input 
                                                                 type={showCurrentPassword ? "text" : "password"}
                                                                 className="profile-input"
-                                                                placeholder="Enter current password"
+                                                                placeholder="Current password"
                                                                 value={currentPasswordInput}
                                                                 onChange={(e) => {
                                                                     setCurrentPasswordInput(e.target.value);
@@ -1041,7 +1145,7 @@ function Manage_userprofile() {
                                                         <button 
                                                             type="button" 
                                                             className="profile-btn secondary"
-                                                            style={{ flex: 1, padding: "0.55rem 0.85rem", fontSize: "0.8rem", justifyContent: "center" }}
+                                                            style={{ flex: 1, padding: "0.45rem 0.65rem", fontSize: "0.785rem", justifyContent: "center" }}
                                                             onClick={handleResetPasswordForm}
                                                             disabled={passwordLoading}
                                                         >
@@ -1050,10 +1154,10 @@ function Manage_userprofile() {
                                                         <button 
                                                             type="submit" 
                                                             className="profile-btn save"
-                                                            style={{ flex: 1.2, padding: "0.55rem 0.85rem", fontSize: "0.8rem", justifyContent: "center" }}
+                                                            style={{ flex: 1.2, padding: "0.45rem 0.65rem", fontSize: "0.785rem", justifyContent: "center" }}
                                                             disabled={passwordLoading}
                                                         >
-                                                            {passwordLoading ? "Verifying..." : "Verify Password"}
+                                                            {passwordLoading ? "Verifying..." : "Verify"}
                                                         </button>
                                                     </div>
                                                 </form>
@@ -1064,17 +1168,17 @@ function Manage_userprofile() {
                                                         background: "#ecfdf5",
                                                         border: "1px solid #a7f3d0",
                                                         color: "#047857",
-                                                        padding: "0.5rem 0.75rem",
+                                                        padding: "0.45rem 0.6rem",
                                                         borderRadius: "8px",
-                                                        fontSize: "0.785rem",
+                                                        fontSize: "0.75rem",
                                                         fontWeight: "600",
                                                         display: "flex",
                                                         alignItems: "center",
-                                                        gap: "0.4rem",
-                                                        marginBottom: "0.35rem"
+                                                        gap: "0.35rem",
+                                                        marginBottom: "0.25rem"
                                                     }}>
                                                         <FiCheckCircle style={{ flexShrink: 0 }} />
-                                                        <span>Current password verified! Enter your new password below.</span>
+                                                        <span>Verified! Enter new password below.</span>
                                                     </div>
 
                                                     {/* Field 1: New Password */}
@@ -1107,13 +1211,13 @@ function Manage_userprofile() {
                                                     {/* Field 2: Confirm New Password */}
                                                     <div className="password-field-item">
                                                         <label className="password-field-label">
-                                                            <FiLock className="field-icon" /> Confirm New Password
+                                                            <FiLock className="field-icon" /> Confirm Password
                                                         </label>
                                                         <div className="password-input-wrapper">
                                                             <input 
                                                                 type={showConfirmPassword ? "text" : "password"}
                                                                 className="profile-input"
-                                                                placeholder="Re-enter new password"
+                                                                placeholder="Confirm new password"
                                                                 value={confirmPasswordInput}
                                                                 onChange={(e) => {
                                                                     setConfirmPasswordInput(e.target.value);
@@ -1135,7 +1239,7 @@ function Manage_userprofile() {
                                                         <button 
                                                             type="button" 
                                                             className="profile-btn secondary"
-                                                            style={{ flex: 1, padding: "0.55rem 0.85rem", fontSize: "0.8rem", justifyContent: "center" }}
+                                                            style={{ flex: 1, padding: "0.45rem 0.65rem", fontSize: "0.785rem", justifyContent: "center" }}
                                                             onClick={handleResetPasswordForm}
                                                             disabled={passwordLoading}
                                                         >
@@ -1144,67 +1248,70 @@ function Manage_userprofile() {
                                                         <button 
                                                             type="submit" 
                                                             className="profile-btn save"
-                                                            style={{ flex: 1.2, padding: "0.55rem 0.85rem", fontSize: "0.8rem", justifyContent: "center" }}
+                                                            style={{ flex: 1.2, padding: "0.45rem 0.65rem", fontSize: "0.785rem", justifyContent: "center" }}
                                                             disabled={passwordLoading}
                                                         >
-                                                            {passwordLoading ? "Updating..." : "Update Password"}
+                                                            {passwordLoading ? "Updating..." : "Update"}
                                                         </button>
                                                     </div>
                                                 </form>
                                             )}
                                         </div>
                                     )}
+                                </div>
 
-                                    <h3 className="vd-panel-header-title" style={{ marginTop: "1.75rem" }}>Quick Actions</h3>
+                                {/* Card 2: Quick Navigation Actions */}
+                                <div className="side-widget-card">
+                                    <h3 className="side-widget-title">
+                                        <FiBox style={{ color: "#059669" }} /> Quick Navigation
+                                    </h3>
                                     
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                                        <Link 
-                                            to="/citizen/pickup" 
-                                            className="category-card" 
-                                            style={{ margin: 0, padding: "0.85rem 1rem" }}
-                                        >
-                                            <div className="cat-icon-badge" style={{ width: "36px", height: "36px", fontSize: "1rem" }}>
+                                    <div className="profile-quick-nav-list">
+                                        <Link to="/add-device" className="profile-quick-nav-item">
+                                            <div className="quick-nav-icon">
                                                 <FiPlusCircle />
                                             </div>
-                                            <div className="cat-info">
-                                                <h3 style={{ fontSize: "0.875rem" }}>Schedule Pickup</h3>
-                                                <p style={{ margin: 0, fontSize: "0.725rem" }}>Request e-waste collection</p>
+                                            <div className="quick-nav-info">
+                                                <span className="quick-nav-title">Schedule Pickup</span>
+                                                <span className="quick-nav-desc">Request e-waste collection</span>
                                             </div>
                                         </Link>
 
-                                        <Link 
-                                            to="/view-device" 
-                                            className="category-card" 
-                                            style={{ margin: 0, padding: "0.85rem 1rem" }}
-                                        >
-                                            <div className="cat-icon-badge" style={{ width: "36px", height: "36px", fontSize: "1rem" }}>
+                                        <Link to="/view-device" className="profile-quick-nav-item">
+                                            <div className="quick-nav-icon">
                                                 <FiBox />
                                             </div>
-                                            <div className="cat-info">
-                                                <h3 style={{ fontSize: "0.875rem" }}>My Devices</h3>
-                                                <p style={{ margin: 0, fontSize: "0.725rem" }}>View registered items</p>
+                                            <div className="quick-nav-info">
+                                                <span className="quick-nav-title">My Devices</span>
+                                                <span className="quick-nav-desc">View registered items</span>
                                             </div>
                                         </Link>
 
-                                        <Link 
-                                            to="/citizen/rewards" 
-                                            className="category-card" 
-                                            style={{ margin: 0, padding: "0.85rem 1rem" }}
-                                        >
-                                            <div className="cat-icon-badge" style={{ width: "36px", height: "36px", fontSize: "1rem" }}>
+                                        <Link to="/citizen/certificates" className="profile-quick-nav-item">
+                                            <div className="quick-nav-icon">
                                                 <FiAward />
                                             </div>
-                                            <div className="cat-info">
-                                                <h3 style={{ fontSize: "0.875rem" }}>Eco Rewards</h3>
-                                                <p style={{ margin: 0, fontSize: "0.725rem" }}>Check point balance</p>
+                                            <div className="quick-nav-info">
+                                                <span className="quick-nav-title">Eco Certificates</span>
+                                                <span className="quick-nav-desc">Check recycling points & rewards</span>
                                             </div>
                                         </Link>
                                     </div>
+
+                                    <Link to="/citizen" className="vd-see-more-btn" style={{ marginTop: "0.85rem" }}>
+                                        ← Back to Citizen Dashboard
+                                    </Link>
                                 </div>
 
-                                <Link to="/citizen" className="vd-see-more-btn" style={{ marginTop: "2rem" }}>
-                                    ← Back to Citizen Dashboard
-                                </Link>
+                                {/* Card 3: Standards / Privacy Notice */}
+                                <div className="eco-standard-card">
+                                    <div className="eco-standard-header">
+                                        <FiShield /> Certified Security
+                                    </div>
+                                    <p className="eco-standard-text">
+                                        Your personal identity & financial payout information are protected with 256-bit AES encryption.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </>

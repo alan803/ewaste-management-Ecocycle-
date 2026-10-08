@@ -1,0 +1,642 @@
+/* ==========================================================================
+   CITIZEN RECYCLING & REFURBISHMENT CERTIFICATES - DASHBOARD THEME
+   ========================================================================== */
+
+/* Top Stats Grid */
+.citizen-cert-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1.75rem;
+}
+
+.citizen-cert-stat-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.citizen-cert-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px -3px rgba(0, 0, 0, 0.05);
+    border-color: #cbd5e1;
+}
+
+.cert-stat-icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+}
+
+.cert-stat-icon-wrap.gold {
+    background: #fef9c3;
+    color: #ca8a04;
+}
+
+.cert-stat-icon-wrap.green {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.cert-stat-icon-wrap.blue {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.cert-stat-icon-wrap.purple {
+    background: #faf5ff;
+    color: #9333ea;
+}
+
+.cert-stat-info .cert-stat-val {
+    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: #1a202c;
+    line-height: 1.2;
+}
+
+.cert-stat-info .cert-stat-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #718096;
+    margin-top: 2px;
+}
+
+/* ==========================================================================
+   CONTROLS & SEARCH BAR
+   ========================================================================== */
+.citizen-cert-action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.citizen-cert-search-bar {
+    display: flex;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #cbd5e0;
+    border-radius: 12px;
+    padding: 0.55rem 0.9rem;
+    flex: 1;
+    min-width: 240px;
+    max-width: 420px;
+    position: relative;
+}
+
+.citizen-cert-search-bar input {
+    border: none;
+    outline: none;
+    background: transparent;
+    width: 100%;
+    font-size: 0.875rem;
+    color: #1a202c;
+    font-family: inherit;
+    margin-left: 0.4rem;
+}
+
+.clear-search-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    color: #a0aec0;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   LOADING & EMPTY STATES
+   ========================================================================== */
+.citizen-cert-loading {
+    padding: 80px 20px;
+    text-align: center;
+    color: #718096;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+
+.cert-spinner-icon {
+    font-size: 32px;
+    color: #7c3aed;
+    animation: certSpin 1s linear infinite;
+}
+
+@keyframes certSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.citizen-cert-empty {
+    background: #ffffff;
+    border: 1px dashed #cbd5e0;
+    border-radius: 20px;
+    padding: 50px 24px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 600px;
+    margin: 20px auto;
+}
+
+.empty-cert-icon-wrap {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #f5f3ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    color: #7c3aed;
+    margin-bottom: 1rem;
+}
+
+.citizen-cert-empty h3 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1a202c;
+    margin: 0 0 0.5rem 0;
+    font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+.citizen-cert-empty p {
+    font-size: 0.9rem;
+    color: #718096;
+    max-width: 460px;
+    line-height: 1.6;
+    margin: 0 0 1.5rem 0;
+}
+
+.btn-citizen-add {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    color: #ffffff;
+    text-decoration: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
+    transition: all 0.2s;
+}
+
+.btn-citizen-add:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+}
+
+.btn-citizen-outline {
+    background: #f8fafc;
+    color: #4a5568;
+    text-decoration: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s;
+}
+
+.btn-citizen-outline:hover {
+    background: #edf2f7;
+    color: #1a202c;
+}
+
+/* ==========================================================================
+   CERTIFICATES GRID CARDS
+   ========================================================================== */
+.citizen-cert-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    align-items: stretch;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.citizen-cert-card {
+    background: #ffffff;
+    border-radius: 18px;
+    border: 1px solid #e2e8f0;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+}
+
+.citizen-cert-card.card-refurb:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px rgba(124, 58, 237, 0.08);
+    border-color: #ddd6fe;
+}
+
+.citizen-cert-card.card-recyc:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px rgba(5, 150, 105, 0.08);
+    border-color: #a7f3d0;
+}
+
+.cert-card-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: nowrap;
+    width: 100%;
+    min-width: 0;
+}
+
+.cert-code-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.3rem 0.65rem;
+    border-radius: 8px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cert-code-tag.tag-purple {
+    background: #f5f3ff;
+    border: 1px solid #ddd6fe;
+    color: #6d28d9;
+}
+
+.cert-code-tag.tag-green {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+}
+
+.cert-code-tag svg {
+    flex-shrink: 0;
+}
+
+.cert-card-actions-top {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.btn-cert-icon-btn {
+    width: 32px;
+    height: 32px;
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-cert-icon-btn:hover {
+    background: #7c3aed;
+    color: #ffffff;
+    border-color: #7c3aed;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3);
+}
+
+.cert-device-header {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+}
+
+.cert-device-icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.cert-device-icon-box.icon-purple {
+    background: #f5f3ff;
+    border: 1px solid #ddd6fe;
+    color: #7c3aed;
+}
+
+.cert-device-icon-box.icon-green {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #059669;
+}
+
+.cert-device-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.cert-device-info .cert-device-title {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: #1a202c;
+    font-family: "Plus Jakarta Sans", sans-serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cert-device-info .cert-device-sub {
+    font-size: 0.78rem;
+    color: #718096;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cert-details-box {
+    background: #f8fafc;
+    border: 1px solid #edf2f7;
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.cert-metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.2rem;
+}
+
+.metric-label-text {
+    font-size: 0.82rem;
+    color: #718096;
+    font-weight: 500;
+}
+
+.metric-value-text {
+    font-size: 0.95rem;
+    font-family: monospace;
+    font-weight: 800;
+}
+
+.cert-info-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: #4a5568;
+    min-width: 0;
+}
+
+.cert-info-line .info-icon {
+    color: #a0aec0;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.cert-info-line span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cert-compliance-banner {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.4rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.cert-compliance-banner.banner-purple {
+    background: #f5f3ff;
+    border: 1px solid #ddd6fe;
+    color: #6d28d9;
+}
+
+.cert-compliance-banner.banner-green {
+    background: #f0fdf4;
+    border: 1px solid #dcfce7;
+    color: #166534;
+}
+
+.cert-compliance-banner .shield-icon {
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.cert-compliance-banner span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cert-card-bottom-bar {
+    margin-top: 0.25rem;
+}
+
+.btn-view-cert-full {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0.55rem 0.75rem;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #1e293b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-view-cert-full:hover {
+    background: #f8fafc;
+    border-color: #7c3aed;
+    color: #7c3aed;
+}
+
+/* ==========================================================================
+   TABLE VIEW
+   ========================================================================== */
+.citizen-cert-table-wrap {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.citizen-cert-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.citizen-cert-table th {
+    background: #f8fafc;
+    color: #4a5568;
+    text-align: left;
+    padding: 0.85rem 1.15rem;
+    font-weight: 700;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.825rem;
+}
+
+.citizen-cert-table td {
+    padding: 0.85rem 1.15rem;
+    color: #2d3748;
+    border-bottom: 1px solid #edf2f7;
+    vertical-align: middle;
+}
+
+.citizen-cert-table tr:hover td {
+    background: #f8fafc;
+}
+
+.cert-table-id {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: monospace;
+    font-weight: 700;
+    color: #1a202c;
+}
+
+.purple-icon {
+    color: #7c3aed;
+}
+
+.green-icon {
+    color: #059669;
+}
+
+.table-device-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.table-device-text strong {
+    color: #1a202c;
+}
+
+.table-sub {
+    font-size: 0.75rem;
+    color: #718096;
+}
+
+.table-pathway-badge {
+    padding: 0.25rem 0.55rem;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.78rem;
+    display: inline-block;
+}
+
+.table-pathway-badge.badge-purple {
+    background: #f5f3ff;
+    color: #6d28d9;
+    border: 1px solid #ddd6fe;
+}
+
+.table-pathway-badge.badge-green {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+}
+
+.table-facility-text {
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #4a5568;
+}
+
+.table-verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #059669;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.btn-table-action-icon {
+    width: 32px;
+    height: 32px;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-table-action-icon:hover {
+    background: #7c3aed;
+    color: #ffffff;
+    border-color: #7c3aed;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
+}

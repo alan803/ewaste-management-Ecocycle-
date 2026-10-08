@@ -1,5 +1,104 @@
 /* Inspection Report Styles */
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+}
+
+.inspection-modal-card {
+  background: #ffffff;
+  border-radius: 20px !important;
+  border: none !important;
+  width: 100%;
+  max-width: 920px;
+  max-height: 90vh;
+  overflow: hidden !important;
+  padding: 0 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  color: #ffffff !important;
+  padding: 1.25rem 1.5rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  border-radius: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+.modal-header h3,
+.modal-header h2 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.modal-header p,
+.modal-header .modal-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.close-modal-btn,
+.close-btn {
+  background: #ffffff !important;
+  border: none !important;
+  color: #0f172a !important;
+  border-radius: 8px !important;
+  width: 32px !important;
+  height: 32px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.05rem !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.close-modal-btn:hover,
+.close-btn:hover {
+  background: #f1f5f9 !important;
+  color: #047857 !important;
+  transform: scale(1.05);
+}
+
+.modal-body-scroll {
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 1rem 1.5rem 1.25rem;
+  background: #ffffff;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .report-summary-hero {
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   border: 1px solid #cbd5e1;

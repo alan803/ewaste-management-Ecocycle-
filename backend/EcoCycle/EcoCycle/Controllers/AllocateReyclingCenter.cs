@@ -550,6 +550,8 @@ namespace EcoCycle.Controllers
 
             request.Status = "Accepted";
             request.RespondedAt = DateTime.Now;
+            request.ProcessStartDate = DateTime.Now;
+            request.ProcessDeadline = DateTime.Now.AddDays(10);
             request.UpdatedAt = DateTime.Now;
 
             // ---------------------------------------------------------
@@ -936,6 +938,8 @@ namespace EcoCycle.Controllers
                         status                 = ca.Status,
                         assignedAt             = ca.AssignedAt,
                         respondedAt            = ca.RespondedAt,
+                        acceptedAt             = ca.AcceptedAt,
+                        completionDeadline     = ca.CompletionDeadline ?? (ca.AcceptedAt.HasValue ? ca.AcceptedAt.Value.AddDays(5) : (ca.Status == "Accepted" || ca.Status == "PickupStarted" || ca.Status == "PickedUp" || ca.Status == "En Route" || ca.Status == "en route" || ca.Status == "pickupstarted" ? (ca.UpdatedAt ?? ca.CreatedAt).AddDays(5) : null)),
                         createdAt              = ca.CreatedAt,
                         updatedAt              = ca.UpdatedAt,
                         // Device details
@@ -1125,6 +1129,8 @@ namespace EcoCycle.Controllers
                     assignedAt = r.AssignedAt,
                     responseDeadline = r.ResponseDeadline,
                     respondedAt = r.RespondedAt,
+                    processStartDate = r.ProcessStartDate,
+                    processDeadline = r.ProcessDeadline,
                     rejectionReason = r.RejectionReason,
                     reassignmentCount = r.ReassignmentCount,
                     createdAt = r.CreatedAt,
@@ -1189,6 +1195,8 @@ namespace EcoCycle.Controllers
                         assignedAt = r.AssignedAt,
                         responseDeadline = r.ResponseDeadline,
                         respondedAt = r.RespondedAt,
+                        processStartDate = r.ProcessStartDate,
+                        processDeadline = r.ProcessDeadline,
                         rejectionReason = r.RejectionReason,
                         reassignmentCount = r.ReassignmentCount,
                         createdAt = r.CreatedAt,

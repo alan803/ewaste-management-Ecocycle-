@@ -24,7 +24,8 @@ import {
     FiAlertTriangle,
     FiTruck,
     FiGrid,
-    FiList
+    FiList,
+    FiUser
 } from "react-icons/fi";
 import "./Manage_device.css";
 
@@ -643,6 +644,7 @@ function Manage_device() {
             (d.model?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
             (d.modelNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
             (d.serialNumber?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+            (d.userName?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
             (d.condition?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
             (d.processingPreference?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
             (d.processingDecision?.toLowerCase() || "").includes(searchQuery.toLowerCase());
@@ -849,7 +851,9 @@ function Manage_device() {
                                                         <span className="user-name">
                                                             {d.brand} {d.model}
                                                         </span>
-                                                        <span className="user-email">Qty: {d.quantity || 1}</span>
+                                                        <span className="user-email" style={{ color: "#059669", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                                                            <FiUser /> {d.userName || "Citizen"} • Qty: {d.quantity || 1}
+                                                        </span>
                                                     </div>
                                                 </td>
                                                 <td className="contact-cell">
@@ -982,7 +986,8 @@ function Manage_device() {
                                                     <div className="admin-card-title-group">
                                                         <span className="admin-card-brand-name">{d.brand || "Device"} {d.model || ""}</span>
                                                         <span className="admin-card-sub-info">
-                                                            Device #DEV-{String(d.deviceId).padStart(3, "0")} • Qty: {d.quantity || 1}
+                                                            <FiUser style={{ color: "#10b981", verticalAlign: "middle", marginRight: "3px" }} />
+                                                            <strong>{d.userName || "Citizen"}</strong> • #DEV-{String(d.deviceId).padStart(3, "0")} • Qty: {d.quantity || 1}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -1130,7 +1135,7 @@ function Manage_device() {
                             <div className="modal-header">
                                 <div>
                                     <h2>{selectedDevice.brand} {selectedDevice.model}</h2>
-                                    <p className="panel-subtitle">Device Submission ID: #{selectedDevice.deviceId}</p>
+                                    <p className="panel-subtitle">Device Submission ID: #{selectedDevice.deviceId} {selectedDevice.userName && `• Submitted By: ${selectedDevice.userName}`}</p>
                                 </div>
                                 <button className="modal-close-btn" onClick={() => setSelectedDevice(null)}>
                                     <FiX />
@@ -1138,6 +1143,14 @@ function Manage_device() {
                             </div>
 
                             <div className="device-details-grid">
+                                <div className="detail-item detail-item--span-2" style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", padding: "0.65rem 0.85rem" }}>
+                                    <label style={{ color: "#166534", fontWeight: 700, display: "flex", alignItems: "center", gap: "5px" }}>
+                                        <FiUser style={{ color: "#16a34a" }} /> Submitted By (User)
+                                    </label>
+                                    <span style={{ color: "#0f172a", fontWeight: 700, fontSize: "0.95rem" }}>
+                                        {selectedDevice.userName || selectedDevice.customerName || selectedDevice.user?.name || "N/A"}
+                                    </span>
+                                </div>
                                 <div className="detail-item">
                                     <label>Brand</label>
                                     <span>{selectedDevice.brand || "N/A"}</span>
@@ -1153,6 +1166,10 @@ function Manage_device() {
                                 <div className="detail-item">
                                     <label>Serial Number</label>
                                     <span>{selectedDevice.serialNumber || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Purchase Date</label>
+                                    <span>{selectedDevice.purchaseDate ? formatDate(selectedDevice.purchaseDate) : "N/A"}</span>
                                 </div>
                                 <div className="detail-item">
                                     <label>Quantity</label>

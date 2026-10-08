@@ -3,6 +3,7 @@ import axios from "axios";
 import Navbar from "./Navbar";
 import {
     FiRefreshCw,
+    FiBell,
     FiSearch,
     FiCpu,
     FiTrash2,
@@ -499,8 +500,9 @@ function AllocateRecyclingCenter() {
                         </div>
 
                         <div className="topbar-actions">
-                            <button className="glass-btn notification-btn" onClick={fetchRecyclingDevices} title="Sync data">
-                                <FiRefreshCw className={loading ? "spin-icon" : ""} />
+                            <button className="glass-btn notification-btn" title="System Alerts">
+                                <FiBell />
+                                <span className="pulse-ping"></span>
                             </button>
 
                             <div className="user-profile-chip">
@@ -919,6 +921,10 @@ function AllocateRecyclingCenter() {
                                 <div className="detail-item">
                                     <label>Serial Number</label>
                                     <span>{selectedDevice.serialNumber || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Purchase Date</label>
+                                    <span>{selectedDevice.purchaseDate ? formatDate(selectedDevice.purchaseDate) : "N/A"}</span>
                                 </div>
                                 <div className="detail-item">
                                     <label>Quantity</label>

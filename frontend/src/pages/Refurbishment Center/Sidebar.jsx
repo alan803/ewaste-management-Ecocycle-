@@ -10,11 +10,12 @@ import {
     FiMenu,
     FiX,
     FiActivity,
-    FiShield
+    FiShield,
+    FiBell
 } from "react-icons/fi";
 import "./Sidebar.css";
 
-function Sidebar() {
+function Sidebar({ isLocked = false, onBlockedNav }) {
     const location = useLocation();
     const navigate = useNavigate();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -29,13 +30,32 @@ function Sidebar() {
         return false;
     };
 
-    const handleLogout = () => {
+    const handleNavClick = (e, targetPath) => {
+        if (isLocked) {
+            e.preventDefault();
+            if (onBlockedNav) {
+                onBlockedNav(targetPath);
+            }
+            return false;
+        }
+        setIsMobileOpen(false);
+    };
+
+    const handleLogout = (e) => {
+        if (isLocked) {
+            e.preventDefault();
+            if (onBlockedNav) {
+                onBlockedNav("/login");
+            }
+            return false;
+        }
         localStorage.clear();
         navigate("/login");
     };
 
     const navItems = [
-        { path: "/refurbishmentcenter_dashboard", label: "Refurbish Dashboard", icon: <FiCpu /> },
+        { path: "/refurbishmentcenter_dashboard", label: "Inbound Queue", icon: <FiBox /> },
+        { path: "/refurbishment_perform", label: "Refurbish Process", icon: <FiTool /> },
         { path: "/refurbishment_profile", label: "Center Profile", icon: <FiUser /> }
     ];
 
@@ -54,7 +74,11 @@ function Sidebar() {
             <aside className={`refurb-sidebar-aside ${isMobileOpen ? "open" : ""}`}>
                 <div>
                     {/* Brand Header */}
-                    <Link to="/refurbishmentcenter_dashboard" className="refurb-sidebar-brand">
+                    <Link 
+                        to="/refurbishmentcenter_dashboard" 
+                        className="refurb-sidebar-brand"
+                        onClick={(e) => handleNavClick(e, "/refurbishmentcenter_dashboard")}
+                    >
                         <div className="refurb-brand-badge">
                             <FiCpu />
                         </div>
@@ -73,8 +97,8 @@ function Sidebar() {
                                     <li key={item.path}>
                                         <Link
                                             to={item.path}
-                                            className={`refurb-sidebar-link ${isActive(item.path) ? "active" : ""}`}
-                                            onClick={() => setIsMobileOpen(false)}
+                                            className={`refurb-sidebar-link ${isActive(item.path) ? "active" : ""} ${isLocked && !isActive(item.path) ? "nav-locked" : ""}`}
+                                            onClick={(e) => handleNavClick(e, item.path)}
                                         >
                                             <span className="refurb-sidebar-icon">{item.icon}</span>
                                             <span>{item.label}</span>
@@ -90,7 +114,7 @@ function Sidebar() {
                                 <li>
                                     <button
                                         onClick={handleLogout}
-                                        className="refurb-sidebar-link refurb-logout-btn"
+                                        className={`refurb-sidebar-link refurb-logout-btn ${isLocked ? "nav-locked" : ""}`}
                                     >
                                         <span className="refurb-sidebar-icon"><FiLogOut /></span>
                                         <span>Sign Out</span>

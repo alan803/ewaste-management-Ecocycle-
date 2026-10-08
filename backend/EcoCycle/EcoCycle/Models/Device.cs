@@ -147,6 +147,7 @@ namespace EcoCycle.API.Models
 
         [StringLength(50)]
         public string? ProcessingLifecycleStatus { get; set; }
+        public DateTime? PurchaseDate { get; set; }
 
         public ICollection<InspectionRequest> InspectionRequests { get; set; }
             = new List<InspectionRequest>();

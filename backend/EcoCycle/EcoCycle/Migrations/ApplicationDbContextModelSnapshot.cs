@@ -44,13 +44,23 @@ namespace EcoCycle.Migrations
                     b.Property<int?>("CollectionAgentId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("CompletionDeadline")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("DeliveredAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("DestinationType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<int>("DeviceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ExtensionCount")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("PickedUpAt")
@@ -62,6 +72,9 @@ namespace EcoCycle.Migrations
                     b.Property<int?>("RecyclingCenterId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("RefurbishmentCenterId")
+                        .HasColumnType("int");
+
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -71,6 +84,10 @@ namespace EcoCycle.Migrations
 
                     b.Property<DateTime?>("ResponseDeadline")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("SourceType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -87,6 +104,8 @@ namespace EcoCycle.Migrations
                     b.HasIndex("DeviceId");
 
                     b.HasIndex("RecyclingCenterId");
+
+                    b.HasIndex("RefurbishmentCenterId");
 
                     b.ToTable("CollectionAssignments");
                 });
@@ -450,6 +469,9 @@ namespace EcoCycle.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<DateTime?>("PurchaseDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
 
@@ -554,6 +576,12 @@ namespace EcoCycle.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<decimal>("ReferenceMarketPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<decimal?>("Weight")
                         .HasColumnType("decimal(8,3)");
 
@@ -593,6 +621,48 @@ namespace EcoCycle.Migrations
                     b.ToTable("DeviceModelComponents");
                 });
 
+            modelBuilder.Entity("EcoCycle.API.Models.EcoCycleTransaction", b =>
+                {
+                    b.Property<int>("TransactionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TransactionId"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("DeviceId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("TransactionId");
+
+                    b.ToTable("EcoCycleTransactions");
+                });
+
             modelBuilder.Entity("EcoCycle.API.Models.Inspection", b =>
                 {
                     b.Property<int>("InspectionId")
@@ -627,6 +697,7 @@ namespace EcoCycle.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal?>("OverallScore")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("RecommendedAction")
@@ -824,6 +895,43 @@ namespace EcoCycle.Migrations
                     b.ToTable("Login");
                 });
 
+            modelBuilder.Entity("EcoCycle.API.Models.MaterialPrice", b =>
+                {
+                    b.Property<int>("MaterialPriceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MaterialPriceId"));
+
+                    b.Property<int>("ComponentTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EffectiveTo")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("PricePerKg")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("MaterialPriceId");
+
+                    b.HasIndex("ComponentTypeId");
+
+                    b.ToTable("MaterialPrices");
+                });
+
             modelBuilder.Entity("EcoCycle.API.Models.Notification", b =>
                 {
                     b.Property<int>("NotificationId")
@@ -945,6 +1053,83 @@ namespace EcoCycle.Migrations
                     b.ToTable("Payments");
                 });
 
+            modelBuilder.Entity("EcoCycle.API.Models.Payout", b =>
+                {
+                    b.Property<int>("PayoutId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PayoutId"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("DeviceId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PayoutBatchId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PayoutStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("PayoutType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RazorpayContactId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RazorpayFundAccountId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RazorpayPayoutId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("ReceiverLoginId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReceiverType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("PayoutId");
+
+                    b.HasIndex("DeviceId");
+
+                    b.HasIndex("ReceiverLoginId");
+
+                    b.ToTable("Payouts");
+                });
+
             modelBuilder.Entity("EcoCycle.API.Models.Pickup", b =>
                 {
                     b.Property<int>("PickupId")
@@ -1004,6 +1189,7 @@ namespace EcoCycle.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<decimal>("EstimatedValue")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("MaterialName")
@@ -1012,10 +1198,12 @@ namespace EcoCycle.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<decimal>("PricePerUnit")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("Quantity")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<int>("RecyclingProccessId")
                         .HasColumnType("int");
@@ -1168,6 +1356,12 @@ namespace EcoCycle.Migrations
                     b.Property<int>("DeviceId")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("ProcessDeadline")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ProcessStartDate")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("ReassignmentCount")
                         .HasColumnType("int");
 
@@ -1209,35 +1403,79 @@ namespace EcoCycle.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RecyclingProcessId"));
 
+                    b.Property<string>("BatteryCondition")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("DataFound")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DispatchDestination")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("DisposalMethod")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("HazardousComponentsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("HazardousStorageArea")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("HazardousWasteDetails")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
                     b.Property<decimal?>("HazardousWasteWeight")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<string>("MissingParts")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<decimal?>("NetRecoveryValue")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<string>("PackagingContainer")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<decimal?>("ProcessingCost")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("RecyclingCenterRequestId")
                         .HasColumnType("int");
+
+                    b.Property<string>("RemovedComponentsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("ResidualWasteWeight")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("SanitizationMethod")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SanitizationPerformed")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("datetime2");
@@ -1248,13 +1486,19 @@ namespace EcoCycle.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.Property<decimal?>("TotalMaterialValue")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal?>("TotalRecoveredWeight")
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("VisibleDamage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.HasKey("RecyclingProcessId");
 
@@ -1370,6 +1614,166 @@ namespace EcoCycle.Migrations
                     b.HasIndex("LoginId");
 
                     b.ToTable("RefurbishmentCenter");
+                });
+
+            modelBuilder.Entity("EcoCycle.API.Models.RefurbishmentProcess", b =>
+                {
+                    b.Property<int>("RefurbishmentProcessId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RefurbishmentProcessId"));
+
+                    b.Property<string>("AssessmentDecision")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("BatteryAssessment")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CertificateNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("DataWiped")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("DeviceVerified")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("DisplayCondition")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal?>("EstimatedRepairCost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("FinalOutcome")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("FunctionalTestsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("KeyboardAssessment")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PhysicalCondition")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("PortsAssessment")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("QcApproved")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("QcDataWiped")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("QcHardwareTested")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("QcInspector")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("QcRepairCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("QcSoftwareTested")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("QualityGrade")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RamAssessment")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RefurbishedCertificateNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal?>("RefurbishedValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("RefurbishmentRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("RepairItemsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SoftwareAssessment")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("StorageAssessment")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("TestingPassed")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal?>("TotalRepairCost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("VerifiedByTechnician")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("WarrantyDuration")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("WipingCompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("WipingMethod")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("WipingTechnician")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("WipingVerificationStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("RefurbishmentProcessId");
+
+                    b.HasIndex("RefurbishmentRequestId");
+
+                    b.ToTable("RefurbishmentProcesses");
                 });
 
             modelBuilder.Entity("EcoCycle.API.Models.RefurbishmentRequest", b =>
@@ -1588,6 +1992,7 @@ namespace EcoCycle.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("PenaltyAmount")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Reason")
@@ -1625,10 +2030,22 @@ namespace EcoCycle.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("UserId"));
 
+                    b.Property<string>("AccountHolder")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Address")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("City")
                         .IsRequired()
@@ -1655,6 +2072,10 @@ namespace EcoCycle.Migrations
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("IFSCCode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -1745,11 +2166,17 @@ namespace EcoCycle.Migrations
                         .HasForeignKey("RecyclingCenterId")
                         .OnDelete(DeleteBehavior.NoAction);
 
+                    b.HasOne("EcoCycle.API.Models.RefurbishmentCenter", "RefurbishmentCenter")
+                        .WithMany()
+                        .HasForeignKey("RefurbishmentCenterId");
+
                     b.Navigation("CollectionAgent");
 
                     b.Navigation("Device");
 
                     b.Navigation("RecyclingCenter");
+
+                    b.Navigation("RefurbishmentCenter");
                 });
 
             modelBuilder.Entity("EcoCycle.API.Models.CollectionAgent", b =>
@@ -1907,6 +2334,17 @@ namespace EcoCycle.Migrations
                     b.Navigation("Role");
                 });
 
+            modelBuilder.Entity("EcoCycle.API.Models.MaterialPrice", b =>
+                {
+                    b.HasOne("EcoCycle.API.Models.ComponentType", "ComponentType")
+                        .WithMany("MaterialPrices")
+                        .HasForeignKey("ComponentTypeId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("ComponentType");
+                });
+
             modelBuilder.Entity("EcoCycle.API.Models.Payment", b =>
                 {
                     b.HasOne("EcoCycle.API.Models.Login", "Payer")
@@ -1920,6 +2358,25 @@ namespace EcoCycle.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Payer");
+
+                    b.Navigation("Receiver");
+                });
+
+            modelBuilder.Entity("EcoCycle.API.Models.Payout", b =>
+                {
+                    b.HasOne("EcoCycle.API.Models.Device", "Device")
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EcoCycle.API.Models.Login", "Receiver")
+                        .WithMany()
+                        .HasForeignKey("ReceiverLoginId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Device");
 
                     b.Navigation("Receiver");
                 });
@@ -1995,6 +2452,17 @@ namespace EcoCycle.Migrations
                         .IsRequired();
 
                     b.Navigation("Login");
+                });
+
+            modelBuilder.Entity("EcoCycle.API.Models.RefurbishmentProcess", b =>
+                {
+                    b.HasOne("EcoCycle.API.Models.RefurbishmentRequest", "RefurbishmentRequest")
+                        .WithMany()
+                        .HasForeignKey("RefurbishmentRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RefurbishmentRequest");
                 });
 
             modelBuilder.Entity("EcoCycle.API.Models.RefurbishmentRequest", b =>
@@ -2077,6 +2545,8 @@ namespace EcoCycle.Migrations
             modelBuilder.Entity("EcoCycle.API.Models.ComponentType", b =>
                 {
                     b.Navigation("DeviceModelComponents");
+
+                    b.Navigation("MaterialPrices");
                 });
 
             modelBuilder.Entity("EcoCycle.API.Models.Device", b =>

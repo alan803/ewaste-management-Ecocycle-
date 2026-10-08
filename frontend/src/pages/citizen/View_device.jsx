@@ -27,8 +27,16 @@ import {
     FiRotateCcw,
     FiXCircle,
     FiPrinter,
-    FiTag
+    FiTag,
+    FiDollarSign,
+    FiPercent,
+    FiAward,
+    FiTrendingUp,
+    FiInfo,
+    FiHelpCircle,
+    FiTruck
 } from "react-icons/fi";
+import "./Citizendashboard.css";
 import "./View_device.css";
 
 function View_device() {
@@ -50,6 +58,7 @@ function View_device() {
     const [userProfile, setUserProfile] = useState(null);
     const [profileImage, setProfileImage] = useState(null);
     const [allocationModalDevice, setAllocationModalDevice] = useState(null);
+    const [allocationModalStep, setAllocationModalStep] = useState(1);
     const [submittingAllocationId, setSubmittingAllocationId] = useState(null);
     const [notifications, setNotifications] = useState([]);
 
@@ -59,6 +68,7 @@ function View_device() {
     };
 
     const handleRequestAllocation = (device) => {
+        setAllocationModalStep(1);
         setAllocationModalDevice(device);
     };
 
@@ -339,17 +349,56 @@ function View_device() {
           localStorage.getItem("name") ||
           "Citizen Champion";
 
-    const isAcceptedStatus = (status) => {
+    const isDeviceCompleted = (item) => {
+        if (!item) return false;
+        if (item.isCenterCompleted || item.isRecyclingCompleted || item.isRefurbishmentCompleted) return true;
+        const statusLower = (item.status || "").toLowerCase();
+        const lifeLower = (item.lifecycleStatus || "").toLowerCase();
+        const procLower = (item.processingLifecycleStatus || "").toLowerCase();
+        const rcStatus = (item.recyclingStatus || "").toLowerCase();
+        const rfStatus = (item.refurbishmentStatus || "").toLowerCase();
+
+        return (
+            statusLower === "completed" ||
+            statusLower === "recycled" ||
+            statusLower === "refurbished" ||
+            lifeLower === "completed" ||
+            lifeLower === "recycled" ||
+            lifeLower === "refurbished" ||
+            lifeLower === "processingcompleted" ||
+            procLower === "completed" ||
+            procLower === "recycled" ||
+            procLower === "refurbished" ||
+            procLower === "recyclingcompleted" ||
+            procLower === "refurbishmentcompleted" ||
+            rcStatus === "completed" ||
+            rfStatus === "completed"
+        );
+    };
+
+    const isAcceptedStatus = (status, item = null) => {
+        if (item && isDeviceCompleted(item)) return false;
         const s = (status || "").toLowerCase();
         return s === "accepted" || s === "approved" || s === "active";
     };
 
+    const getDeviceTitle = (brand, model) => {
+        const b = (brand || "").trim();
+        const m = (model || "").trim();
+        if (!b) return m || "Electronic Device";
+        if (!m) return b;
+        if (m.toLowerCase().startsWith(b.toLowerCase())) return m;
+        return `${b} ${m}`;
+    };
+
     const getStatusStyle = (status, item = null) => {
         const statusLower = (status || "pending").toLowerCase();
+        const lifeLower = (item?.lifecycleStatus || "").toLowerCase();
+        const procLower = (item?.processingLifecycleStatus || "").toLowerCase();
         
         if (statusLower === "inactive" || statusLower === "deleted") {
             return {
-                bg: "#fef2f2",
+                bg: "rgba(254, 242, 242, 0.95)",
                 color: "#dc2626",
                 dot: "#ef4444",
                 label: "Deleted"
@@ -357,33 +406,63 @@ function View_device() {
         }
         if (statusLower === "rejected") {
             return {
-                bg: "#fef2f2",
+                bg: "rgba(254, 242, 242, 0.95)",
                 color: "#b91c1c",
                 dot: "#ef4444",
                 label: "Rejected"
             };
         }
-        if (statusLower === "pending") {
+
+        if (isDeviceCompleted(item) || statusLower === "completed" || statusLower === "recycled" || statusLower === "refurbished") {
+            const isRecycle = item?.isRecyclingCompleted || 
+                              statusLower === "recycled" || 
+                              lifeLower === "recycled" || 
+                              procLower.includes("recyc") || 
+                              (item?.completedCenterType && item.completedCenterType.toLowerCase().includes("recycl"));
+
+            const isRefurb = item?.isRefurbishmentCompleted || 
+                             statusLower === "refurbished" || 
+                             lifeLower === "refurbished" || 
+                             procLower.includes("refurb") || 
+                             (item?.completedCenterType && item.completedCenterType.toLowerCase().includes("refurb"));
+
+            if (isRecycle) {
+                return {
+                    bg: "rgba(236, 253, 245, 0.95)",
+                    color: "#059669",
+                    dot: "#10b981",
+                    label: "Recycled"
+                };
+            }
+            if (isRefurb) {
+                return {
+                    bg: "rgba(239, 246, 255, 0.95)",
+                    color: "#2563eb",
+                    dot: "#3b82f6",
+                    label: "Refurbished"
+                };
+            }
             return {
-                bg: "#fffbeb",
-                color: "#b45309",
-                dot: "#f59e0b",
-                label: "Pending Review"
-            };
-        }
-        if (statusLower === "completed" || statusLower === "recycled" || statusLower === "delivered") {
-            return {
-                bg: "#eff6ff",
-                color: "#1d4ed8",
-                dot: "#3b82f6",
+                bg: "rgba(236, 253, 245, 0.95)",
+                color: "#059669",
+                dot: "#10b981",
                 label: "Completed"
             };
         }
 
+        if (statusLower === "pending") {
+            return {
+                bg: "rgba(255, 251, 235, 0.95)",
+                color: "#b45309",
+                dot: "#f59e0b",
+                label: "Pending"
+            };
+        }
+
         return {
-            bg: "#ecfdf5",
-            color: "#047857",
-            dot: "#10b981",
+            bg: "rgba(240, 253, 244, 0.95)",
+            color: "#15803d",
+            dot: "#22c55e",
             label: "Accepted"
         };
     };
@@ -444,7 +523,7 @@ function View_device() {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const statusLower = (item.status || "").toLowerCase();
-            const isDone = statusLower === "completed" || statusLower === "rejected" || statusLower === "inactive" || statusLower === "deleted";
+            const isDone = isDeviceCompleted(item) || statusLower === "completed" || statusLower === "rejected" || statusLower === "inactive" || statusLower === "deleted";
             return pDate < today && !isDone;
         } catch {
             return false;
@@ -457,6 +536,7 @@ function View_device() {
         const modelNo = (item.modelNumber || "").toLowerCase();
         const address = (item.address || "").toLowerCase();
         const condition = (item.condition || "").toLowerCase();
+        const centerName = (item.completedCenterName || item.recyclingCenterName || item.refurbishmentCenterName || "").toLowerCase();
         const query = searchQuery.toLowerCase();
 
         const matchesSearch =
@@ -464,20 +544,23 @@ function View_device() {
             serialNo.includes(query) ||
             modelNo.includes(query) ||
             address.includes(query) ||
-            condition.includes(query);
+            condition.includes(query) ||
+            centerName.includes(query);
 
         const statusStr = (item.status || "").toLowerCase();
+        const completed = isDeviceCompleted(item);
+
         const matchesStatus =
             activeFilter === "All"
                 ? statusStr !== "inactive" && statusStr !== "deleted"
                 : activeFilter === "Pending"
-                ? statusStr === "pending"
+                ? statusStr === "pending" && !completed
                 : activeFilter === "Accepted"
-                ? statusStr === "accepted" || statusStr === "approved" || statusStr === "active"
+                ? (statusStr === "accepted" || statusStr === "approved" || statusStr === "active") && !completed
                 : activeFilter === "Rejected"
                 ? statusStr === "rejected"
                 : activeFilter === "Completed"
-                ? statusStr === "completed" || statusStr === "recycled"
+                ? completed
                 : activeFilter === "Deleted"
                 ? statusStr === "inactive" || statusStr === "deleted"
                 : true;
@@ -492,112 +575,56 @@ function View_device() {
 
             {/* Main Content Area */}
             <main className="vd-main-content">
-                {/* Title & User Header Ribbon */}
-                <div className="vd-ribbon" style={{ marginBottom: "1.75rem" }}>
+
+{/* Main Control Header Panel */}
+                <div className="control-bar-panel">
                     <div>
-                        <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a202c", margin: "0 0 0.25rem 0", fontFamily: "'Plus Jakarta Sans', sans-serif", letterSpacing: "-0.025em" }}>
-                            My Registered Devices
-                        </h1>
-                        <p style={{ fontSize: "0.85rem", color: "#64748b", margin: 0, fontWeight: 500 }}>
-                            View, manage, and track all electronic devices registered in your account.
-                        </p>
+                        <h3 style={{ fontFamily: "'Space Grotesk', 'Plus Jakarta Sans', sans-serif", fontSize: "1.25rem", fontWeight: 700, margin: "0 0 0.2rem", color: "#0f172a" }}>My Registered Devices</h3>
+                        <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>View, manage, inspect, and track all electronic assets registered in your citizen account</p>
                     </div>
 
-                    <div className="vd-top-actions">
-                        <button 
-                            type="button" 
-                            className="vd-circle-btn" 
-                            title={`Notifications ${totalNotifCount > 0 ? `(${totalNotifCount} unread)` : ""}`} 
-                            onClick={() => navigate("/technician-notification")}
-                            style={{ position: "relative" }}
-                        >
-                            <FiBell />
-                            {totalNotifCount > 0 && (
-                                <span className="vd-notif-badge-pill" style={{
-                                    position: "absolute",
-                                    top: "-4px",
-                                    right: "-4px",
-                                    background: "#ef4444",
-                                    color: "#ffffff",
-                                    fontSize: "0.65rem",
-                                    fontWeight: 800,
-                                    width: "18px",
-                                    height: "18px",
-                                    borderRadius: "50%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center"
-                                }}>
-                                    {totalNotifCount > 9 ? "9+" : totalNotifCount}
-                                </span>
+                    <div className="control-panel-right-group">
+                        <div className="vd-inline-search">
+                            <FiSearch style={{ color: "#94a3b8", fontSize: "0.85rem" }} />
+                            <input
+                                type="text"
+                                placeholder="Search brand, model, serial..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
+                                <button onClick={() => setSearchQuery("")} className="vd-search-clear-btn">
+                                    <FiX style={{ fontSize: "0.8rem" }} />
+                                </button>
                             )}
-                        </button>
+                        </div>
 
-                        <Link 
-                            to="/manage-userprofile" 
-                            className="vd-user-profile-pill" 
-                            style={{ textDecoration: "none", cursor: "pointer" }}
-                            title="View & Edit Profile"
-                        >
-                            {profileImage ? (
-                                <img src={profileImage} alt="User Avatar" className="vd-user-avatar" style={{ objectFit: "cover" }} />
-                            ) : (
-                                <div className="vd-user-avatar">{userName.charAt(0).toUpperCase()}</div>
-                            )}
-                            <div className="vd-user-info">
-                                <span className="vd-user-name">{userName}</span>
-                            </div>
-                            <FiChevronDown style={{ color: "#718096", fontSize: "0.9rem", marginLeft: "0.2rem" }} />
-                        </Link>
-                    </div>
-                </div>
-
-                {/* Control Toolbar */}
-                <div className="vd-controls-card">
-                    {/* Search Input */}
-                    <div className="vd-search-bar">
-                        <FiSearch style={{ color: "#a0aec0" }} />
-                        <input
-                            type="text"
-                            placeholder="Search brand, model, serial number..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        {searchQuery && (
-                            <button onClick={() => setSearchQuery("")} style={{ border: "none", background: "none", cursor: "pointer", color: "#a0aec0" }}>
-                                <FiX />
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Filter Tabs & View Mode Switcher */}
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", flexWrap: "wrap" }}>
-                        <div className="vd-filter-tabs">
+                        <div className="filter-pills">
                             {["All", "Pending", "Accepted", "Rejected", "Completed", "Deleted"].map((tab) => (
                                 <button
                                     key={tab}
+                                    className={`pill-btn ${activeFilter === tab ? "active" : ""}`}
                                     onClick={() => setActiveFilter(tab)}
-                                    className={`vd-tab-btn ${activeFilter === tab ? "active" : ""}`}
                                 >
                                     {tab}
                                 </button>
                             ))}
                         </div>
 
-                        <div className="pk-view-toggle">
+                        <div className="view-toggle">
                             <button
-                                onClick={() => setViewMode("grid")}
-                                className={`pk-toggle-btn ${viewMode === "grid" ? "active" : ""}`}
-                                title="Grid View"
-                            >
-                                <FiGrid />
-                            </button>
-                            <button
+                                className={`toggle-btn ${viewMode === "table" ? "active" : ""}`}
                                 onClick={() => setViewMode("table")}
-                                className={`pk-toggle-btn ${viewMode === "table" ? "active" : ""}`}
                                 title="Table View"
                             >
                                 <FiList />
+                            </button>
+                            <button
+                                className={`toggle-btn ${viewMode === "grid" ? "active" : ""}`}
+                                onClick={() => setViewMode("grid")}
+                                title="Grid View"
+                            >
+                                <FiGrid />
                             </button>
                         </div>
                     </div>
@@ -614,7 +641,7 @@ function View_device() {
                         <FiAlertTriangle style={{ fontSize: "2.5rem", color: "#d97706", marginBottom: "0.85rem" }} />
                         <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: "#1a202c", marginBottom: "0.5rem" }}>Failed to Load Data</h3>
                         <p style={{ color: "#718096", marginBottom: "1.25rem", fontSize: "0.9rem" }}>{error}</p>
-                        <button onClick={loadMyDevices} style={{ background: "#635bff", color: "#ffffff", border: "none", padding: "0.6rem 1.25rem", borderRadius: "10px", fontWeight: 700, cursor: "pointer" }}>
+                        <button onClick={loadMyDevices} style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#ffffff", border: "none", padding: "0.6rem 1.25rem", borderRadius: "10px", fontWeight: 700, cursor: "pointer" }}>
                             <FiRefreshCw /> Retry
                         </button>
                     </div>
@@ -629,7 +656,7 @@ function View_device() {
                                 ? "No electronic devices match your current search query or active status filter."
                                 : "You haven't submitted any electronic devices for eco-recycling yet."}
                         </p>
-                        <Link to="/add-device" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "#635bff", color: "#ffffff", padding: "0.65rem 1.25rem", borderRadius: "10px", fontWeight: 700, textDecoration: "none" }}>
+                        <Link to="/add-device" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#ffffff", padding: "0.65rem 1.25rem", borderRadius: "10px", fontWeight: 700, textDecoration: "none" }}>
                             <FiPlusCircle /> Submit Your First Device
                         </Link>
                     </div>
@@ -641,6 +668,7 @@ function View_device() {
                             const deviceId = item.deviceId || item.id || index;
                             const status = getStatusStyle(item.status, item);
                             const category = getCategoryConfig(item.brand, item.model);
+                            const title = getDeviceTitle(item.brand, item.model);
 
                             return (
                                 <div key={deviceId} className="vd-device-card">
@@ -650,7 +678,7 @@ function View_device() {
                                             {frontPhotoUrl ? (
                                                 <img
                                                     src={frontPhotoUrl}
-                                                    alt={`${item.brand} ${item.model}`}
+                                                    alt={title}
                                                     className="vd-card-img"
                                                     onError={(e) => {
                                                         e.target.style.display = "none";
@@ -663,25 +691,16 @@ function View_device() {
 
                                             {/* Photo Fallback */}
                                             <div className="vd-card-media-fallback" style={{ display: frontPhotoUrl ? "none" : "flex" }}>
-                                                <div style={{ fontSize: "1.8rem", marginBottom: "0.2rem" }}>
+                                                <div style={{ fontSize: "1.85rem", marginBottom: "0.25rem", color: "#059669" }}>
                                                     {category.icon}
                                                 </div>
-                                                <span style={{ fontSize: "0.775rem", fontWeight: 600 }}>{category.name}</span>
+                                                <span style={{ fontSize: "0.775rem", fontWeight: 600, color: "#64748b" }}>{category.name}</span>
                                             </div>
-
-                                            {/* Status Badge */}
-                                            <div className="vd-card-status-badge" style={{ background: status.bg, color: status.color }}>
-                                                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: status.dot }}></span>
-                                                {status.label}
-                                            </div>
-
-                                            {/* Tag ID Badge */}
-                                            <div className="vd-card-tag-id"></div>
                                         </div>
 
                                         {/* Card Body */}
                                         <div className="vd-card-body">
-                                            <h3 className="vd-card-title">{item.brand} {item.model}</h3>
+                                            <h3 className="vd-card-title">{title}</h3>
                                             <span className="vd-card-sub">
                                                 {item.modelNumber ? `Model: ${item.modelNumber}` : (item.serialNumber ? `SN: ${item.serialNumber}` : "Registered Electronics")}
                                             </span>
@@ -692,6 +711,21 @@ function View_device() {
                                                 {item.weight && <span className="vd-chip">Weight: <strong>{item.weight} kg</strong></span>}
                                                 {item.quantity && <span className="vd-chip">Qty: <strong>{item.quantity}</strong></span>}
                                             </div>
+
+                                            {(item.completedCenterName || item.recyclingCenterName || item.refurbishmentCenterName) && (
+                                                <div className={`vd-center-banner ${isDeviceCompleted(item) ? "completed" : ""}`}>
+                                                    <div className="vd-center-banner-header">
+                                                        <FiCheckCircle style={{ color: isDeviceCompleted(item) ? "#16a34a" : "#059669", flexShrink: 0 }} />
+                                                        <span>{item.completedCenterType || "Processing Center"}: <strong>{item.completedCenterName || item.recyclingCenterName || item.refurbishmentCenterName}</strong></span>
+                                                    </div>
+                                                    {item.completedCenterCity && (
+                                                        <div className="vd-center-banner-location">
+                                                            <FiMapPin style={{ fontSize: "0.72rem", flexShrink: 0 }} />
+                                                            <span>Location: {item.completedCenterCity}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 
@@ -700,50 +734,6 @@ function View_device() {
                                         <button onClick={() => setSelectedDevice(item)} className="vd-btn-inspect">
                                             <FiEye className="vd-btn-inspect-icon" /> Inspect
                                         </button>
-                                        {(item.allocationRequested || item.AllocationRequested) && (
-                                            <button
-                                                onClick={() => setStickerModalDevice(item)}
-                                                style={{
-                                                    background: "#059669",
-                                                    color: "#ffffff",
-                                                    border: "none",
-                                                    padding: "0.45rem 0.85rem",
-                                                    borderRadius: "8px",
-                                                    fontWeight: 700,
-                                                    fontSize: "0.8rem",
-                                                    display: "inline-flex",
-                                                    alignItems: "center",
-                                                    gap: "0.35rem",
-                                                    cursor: "pointer",
-                                                    boxShadow: "0 2px 4px rgba(5, 150, 105, 0.25)"
-                                                }}
-                                                title="Print Pickup Tag Sticker"
-                                            >
-                                                <FiPrinter /> Pickup Sticker
-                                            </button>
-                                        )}
-                                        {!item.allocationRequested && !item.AllocationRequested && isAcceptedStatus(item.status) && (
-                                            <button
-                                                onClick={() => handleRequestAllocation(item)}
-                                                style={{
-                                                    background: "#635bff",
-                                                    color: "#ffffff",
-                                                    border: "none",
-                                                    padding: "0.45rem 0.85rem",
-                                                    borderRadius: "8px",
-                                                    fontWeight: 700,
-                                                    fontSize: "0.8rem",
-                                                    display: "inline-flex",
-                                                    alignItems: "center",
-                                                    gap: "0.35rem",
-                                                    cursor: "pointer",
-                                                    boxShadow: "0 2px 4px rgba(99, 91, 255, 0.25)"
-                                                }}
-                                                title="Request Allocation"
-                                            >
-                                                <FiCpu /> Request Allocation
-                                            </button>
-                                        )}
                                         {(item.status || "").toLowerCase() === "inactive" || (item.status || "").toLowerCase() === "deleted" ? (
                                             <button
                                                 onClick={() => restoreDevice(item)}
@@ -766,186 +756,250 @@ function View_device() {
                             );
                         })}
                     </div>
-                ) : (
-                    /* TABLE VIEW */
-                    <div className="vd-table-panel">
-                        <table className="vd-table">
-                            <thead>
-                                <tr>
-                                    <th>Tag ID</th>
-                                    <th>Brand & Model</th>
-                                    <th>Weight</th>
-                                    <th>Condition</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredDevices.map((item, index) => {
-                                    const deviceId = item.deviceId || item.id || index;
-                                    const status = getStatusStyle(item.status, item);
-                                    return (
-                                        <tr key={deviceId}>
-                                            <td>
-                                                <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#635bff" }}>#DEV-{deviceId}</span>
-                                            </td>
-                                            <td>
-                                                <div style={{ fontWeight: 700, color: "#1a202c" }}>{item.brand} {item.model}</div>
-                                                <div style={{ fontSize: "0.775rem", color: "#718096" }}>
-                                                    {item.modelNumber ? `Model: ${item.modelNumber}` : (item.serialNumber ? `SN: ${item.serialNumber}` : "Electronics")}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <strong style={{ color: "#1a202c" }}>{item.weight ? `${item.weight} kg` : "N/A"}</strong>
-                                            </td>
-                                            <td>
-                                                <strong style={{ color: "#1a202c" }}>{item.condition || "N/A"}</strong>
-                                                <div style={{ fontSize: "0.75rem", color: "#718096" }}>{item.working ? `Working: ${item.working}` : ""}</div>
-                                            </td>
-                                            <td>
-                                                 <span className="vd-card-status-badge" style={{ position: "static", display: "inline-flex", background: status.bg, color: status.color }}>
-                                                     <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: status.dot }}></span>
-                                                     {status.label}
-                                                 </span>
-                                            </td>
-                                            <td>
-                                                 <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                                                     <button
-                                                         onClick={() => setSelectedDevice(item)}
-                                                         className="vd-btn-table-inspect"
-                                                     >
-                                                         <FiEye /> Inspect
-                                                     </button>
-                                                     {!item.allocationRequested && !item.AllocationRequested && isAcceptedStatus(item.status) && (
-                                                         <button
-                                                             onClick={() => handleRequestAllocation(item)}
-                                                             style={{
-                                                                 background: "#635bff",
-                                                                 color: "#ffffff",
-                                                                 border: "none",
-                                                                 padding: "0.35rem 0.65rem",
-                                                                 borderRadius: "6px",
-                                                                 fontWeight: 700,
-                                                                 fontSize: "0.75rem",
-                                                                 display: "inline-flex",
-                                                                 alignItems: "center",
-                                                                 gap: "0.3rem",
-                                                                 cursor: "pointer"
-                                                             }}
-                                                             title="Request Allocation"
-                                                         >
-                                                             <FiCpu /> Request Allocation
-                                                         </button>
-                                                     )}
-                                                     {(item.status || "").toLowerCase() === "inactive" || (item.status || "").toLowerCase() === "deleted" ? (
-                                                         <button
-                                                             onClick={() => restoreDevice(item)}
-                                                             className="vd-btn-table-restore"
-                                                             title="Restore Device"
-                                                         >
-                                                             <FiRotateCcw /> Restore
-                                                         </button>
-                                                     ) : (
-                                                         <button
-                                                             onClick={() => setConfirmDeleteDevice(item)}
-                                                             className="vd-btn-table-delete"
-                                                             title="Delete Device"
-                                                         >
-                                                             <FiTrash2 /> Delete
-                                                         </button>
-                                                     )}
+                 ) : (
+                     /* TABLE VIEW */
+                     <div className="vd-table-panel">
+                         <table className="vd-table">
+                             <thead>
+                                 <tr>
+                                     <th>Tag ID</th>
+                                     <th>Brand &amp; Model</th>
+                                     <th>Weight</th>
+                                     <th>Condition</th>
+                                     <th>Center &amp; Status</th>
+                                     <th>Action</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 {filteredDevices.map((item, index) => {
+                                     const deviceId = item.deviceId || item.id || index;
+                                     const status = getStatusStyle(item.status, item);
+                                     return (
+                                         <tr key={deviceId}>
+                                             <td>
+                                                 <span style={{ fontFamily: "monospace", fontWeight: 700, color: "#059669" }}>#DEV-{deviceId}</span>
+                                             </td>
+                                             <td>
+                                                 <div style={{ fontWeight: 700, color: "#1a202c" }}>{getDeviceTitle(item.brand, item.model)}</div>
+                                                 <div style={{ fontSize: "0.775rem", color: "#718096" }}>
+                                                     {item.modelNumber ? `Model: ${item.modelNumber}` : (item.serialNumber ? `SN: ${item.serialNumber}` : "Electronics")}
                                                  </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </main>
+                                             </td>
+                                             <td>
+                                                 <strong style={{ color: "#1a202c" }}>{item.weight ? `${item.weight} kg` : "N/A"}</strong>
+                                             </td>
+                                             <td>
+                                                 <strong style={{ color: "#1a202c" }}>{item.condition || "N/A"}</strong>
+                                                 <div style={{ fontSize: "0.75rem", color: "#718096" }}>{item.working ? `Working: ${item.working}` : ""}</div>
+                                             </td>
+                                             <td>
+                                                  <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", alignItems: "flex-start" }}>
+                                                      <span className="vd-card-status-badge" style={{ position: "static", display: "inline-flex", background: status.bg, color: status.color }}>
+                                                          <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: status.dot }}></span>
+                                                          {status.label}
+                                                      </span>
+                                                      {(item.completedCenterName || item.recyclingCenterName || item.refurbishmentCenterName) && (
+                                                          <span style={{ fontSize: "0.725rem", color: "#64748b", fontWeight: 600 }}>
+                                                              Center: {item.completedCenterName || item.recyclingCenterName || item.refurbishmentCenterName}
+                                                          </span>
+                                                      )}
+                                                  </div>
+                                             </td>
+                                             <td>
+                                                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                                                      <button
+                                                          onClick={() => setSelectedDevice(item)}
+                                                          className="vd-btn-table-inspect"
+                                                      >
+                                                          <FiEye /> Inspect
+                                                       </button>
+                                                       {!isDeviceCompleted(item) && !item.allocationRequested && !item.AllocationRequested && isAcceptedStatus(item.status, item) && (
+                                                           <button
+                                                               onClick={() => handleRequestAllocation(item)}
+                                                               style={{
+                                                                   background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                                                                   color: "#ffffff",
+                                                                   border: "none",
+                                                                   padding: "0.35rem 0.65rem",
+                                                                   borderRadius: "6px",
+                                                                   fontWeight: 700,
+                                                                   fontSize: "0.75rem",
+                                                                   display: "inline-flex",
+                                                                   alignItems: "center",
+                                                                   gap: "0.3rem",
+                                                                   cursor: "pointer"
+                                                               }}
+                                                               title="Request Allocation"
+                                                           >
+                                                               <FiCpu /> Request Allocation
+                                                           </button>
+                                                       )}
+                                                      {(item.status || "").toLowerCase() === "inactive" || (item.status || "").toLowerCase() === "deleted" ? (
+                                                          <button
+                                                              onClick={() => restoreDevice(item)}
+                                                              className="vd-btn-table-restore"
+                                                              title="Restore Device"
+                                                          >
+                                                              <FiRotateCcw /> Restore
+                                                          </button>
+                                                      ) : (
+                                                          <button
+                                                              onClick={() => setConfirmDeleteDevice(item)}
+                                                              className="vd-btn-table-delete"
+                                                              title="Delete Device"
+                                                          >
+                                                              <FiTrash2 /> Delete
+                                                          </button>
+                                                      )}
+                                                  </div>
+                                             </td>
+                                         </tr>
+                                     );
+                                 })}
+                             </tbody>
+                         </table>
+                     </div>
+                 )}
+             </main>
 
             {/* Device Details Glass Modal */}
             {selectedDevice && (
                 <div className="vd-modal-overlay" onClick={() => setSelectedDevice(null)}>
                     <div className="vd-modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "1rem" }}>
-                            <div>
-                                <h2 style={{ fontSize: "1.35rem", fontWeight: 800, color: "#1a202c", margin: "0.3rem 0 0 0" }}>
-                                    {selectedDevice.brand} {selectedDevice.model}
+                        {/* Modal Header */}
+                        <div className="vd-modal-header">
+                            <div className="vd-modal-header-info">
+                                <span className="vd-modal-tag">Device Specification &amp; Status</span>
+                                <h2 className="vd-modal-title">
+                                    {getDeviceTitle(selectedDevice.brand, selectedDevice.model)}
                                 </h2>
                             </div>
-                            <button onClick={() => setSelectedDevice(null)} style={{ border: "none", background: "#edf2f7", borderRadius: "50%", width: "34px", height: "34px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <button 
+                                type="button" 
+                                className="vd-modal-close-icon" 
+                                onClick={() => setSelectedDevice(null)}
+                                title="Close Modal"
+                            >
                                 <FiX />
                             </button>
                         </div>
 
                         {/* Status Strip */}
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#f7fafc", padding: "0.75rem 1rem", borderRadius: "10px", marginBottom: "1.25rem" }}>
-                            <span style={{ fontWeight: 700, color: "#4a5568", fontSize: "0.85rem" }}>Current Status</span>
-                            {(() => {
-                                const st = getStatusStyle(selectedDevice.status, selectedDevice);
-                                return (
-                                    <span className="vd-card-status-badge" style={{ position: "static", display: "inline-flex", background: st.bg, color: st.color }}>
-                                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: st.dot }}></span>
-                                        {st.label}
-                                    </span>
-                                );
-                            })()}
-                        </div>
-
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.25rem", fontSize: "0.875rem" }}>
-                            <div style={{ background: "#f7fafc", padding: "0.85rem", borderRadius: "10px" }}>
-                                <span style={{ color: "#718096", fontSize: "0.75rem", display: "block", fontWeight: 700 }}>BRAND</span>
-                                <strong>{selectedDevice.brand || "N/A"}</strong>
-                            </div>
-                            <div style={{ background: "#f7fafc", padding: "0.85rem", borderRadius: "10px" }}>
-                                <span style={{ color: "#718096", fontSize: "0.75rem", display: "block", fontWeight: 700 }}>MODEL</span>
-                                <strong>{selectedDevice.model || "N/A"}</strong>
-                            </div>
-                            <div style={{ background: "#f7fafc", padding: "0.85rem", borderRadius: "10px" }}>
-                                <span style={{ color: "#718096", fontSize: "0.75rem", display: "block", fontWeight: 700 }}>CONDITION</span>
-                                <strong>{selectedDevice.condition || "N/A"}</strong>
-                            </div>
-                            <div style={{ background: "#f7fafc", padding: "0.85rem", borderRadius: "10px" }}>
-                                <span style={{ color: "#718096", fontSize: "0.75rem", display: "block", fontWeight: 700 }}>WORKING STATE</span>
-                                <strong>{selectedDevice.working || "N/A"}</strong>
-                            </div>
-                            <div style={{ background: "#f7fafc", padding: "0.85rem", borderRadius: "10px" }}>
-                                <span style={{ color: "#718096", fontSize: "0.75rem", display: "block", fontWeight: 700 }}>WEIGHT</span>
-                                <strong>{selectedDevice.weight ? `${selectedDevice.weight} kg` : "N/A"}</strong>
+                        <div className="vd-modal-status-card">
+                            <div className="vd-modal-status-label">
+                                <span className="vd-modal-status-caption">Current Status:</span>
+                                {(() => {
+                                    const st = getStatusStyle(selectedDevice.status, selectedDevice);
+                                    return (
+                                        <span className="vd-modal-status-pill" style={{ background: st.bg, color: st.color }}>
+                                            <span className="vd-modal-status-dot" style={{ background: st.dot }}></span>
+                                            {st.label}
+                                        </span>
+                                    );
+                                })()}
                             </div>
                         </div>
 
-                        
+                        {/* Center Processing Details Panel */}
+                        {(selectedDevice.completedCenterName || selectedDevice.recyclingCenterName || selectedDevice.refurbishmentCenterName || isDeviceCompleted(selectedDevice)) && (
+                            <div className="vd-modal-fulfillment-card">
+                                <div className="vd-modal-fulfillment-header">
+                                    <FiCheckCircle style={{ color: "#16a34a" }} /> Center Processing &amp; Fulfillment
+                                </div>
+                                <div className="vd-modal-fulfillment-grid">
+                                    <div className="vd-modal-fulfillment-item">
+                                        <span className="vd-modal-label">PROCESSING CENTER</span>
+                                        <strong>{selectedDevice.completedCenterName || selectedDevice.recyclingCenterName || selectedDevice.refurbishmentCenterName || "EcoCycle Processing Hub"}</strong>
+                                    </div>
+                                    <div className="vd-modal-fulfillment-item">
+                                        <span className="vd-modal-label">CENTER TYPE</span>
+                                        <strong>{selectedDevice.completedCenterType || (selectedDevice.isRecyclingCompleted ? "Recycling Center" : "Refurbishment Center")}</strong>
+                                    </div>
+                                    {selectedDevice.completedCenterCity && (
+                                        <div className="vd-modal-fulfillment-item">
+                                            <span className="vd-modal-label">LOCATION</span>
+                                            <strong>{selectedDevice.completedCenterCity}</strong>
+                                        </div>
+                                    )}
+                                    {selectedDevice.completedAt && (
+                                        <div className="vd-modal-fulfillment-item">
+                                            <span className="vd-modal-label">COMPLETED DATE</span>
+                                            <strong>{formatDate(selectedDevice.completedAt)}</strong>
+                                        </div>
+                                    )}
+                                    {selectedDevice.certificateId && (
+                                        <div className="vd-modal-fulfillment-item vd-modal-fulfillment-full">
+                                            <span className="vd-modal-label">GREEN RECYCLING CERTIFICATE</span>
+                                            <strong className="vd-modal-cert-id">{selectedDevice.certificateId}</strong>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Specs Grid */}
+                        <div className="vd-modal-specs-grid">
+                            <div className="vd-modal-spec-card">
+                                <span className="vd-modal-spec-label">Brand</span>
+                                <strong className="vd-modal-spec-val">{selectedDevice.brand || "N/A"}</strong>
+                            </div>
+                            <div className="vd-modal-spec-card">
+                                <span className="vd-modal-spec-label">Model</span>
+                                <strong className="vd-modal-spec-val">{selectedDevice.model || "N/A"}</strong>
+                            </div>
+                            <div className="vd-modal-spec-card">
+                                <span className="vd-modal-spec-label">Condition</span>
+                                <strong className="vd-modal-spec-val">{selectedDevice.condition || "N/A"}</strong>
+                            </div>
+                            <div className="vd-modal-spec-card">
+                                <span className="vd-modal-spec-label">Working State</span>
+                                <strong className="vd-modal-spec-val">{selectedDevice.working || "N/A"}</strong>
+                            </div>
+                            <div className="vd-modal-spec-card">
+                                <span className="vd-modal-spec-label">Serial Number</span>
+                                <strong className="vd-modal-spec-val">{selectedDevice.serialNumber || "N/A"}</strong>
+                            </div>
+                            <div className="vd-modal-spec-card">
+                                <span className="vd-modal-spec-label">Purchase Date</span>
+                                <strong className="vd-modal-spec-val">{selectedDevice.purchaseDate ? formatDate(selectedDevice.purchaseDate) : "N/A"}</strong>
+                            </div>
+                            <div className="vd-modal-spec-card">
+                                <span className="vd-modal-spec-label">Device Weight</span>
+                                <strong className="vd-modal-spec-val">{selectedDevice.weight ? `${selectedDevice.weight} kg` : "N/A"}</strong>
+                            </div>
+                            <div className="vd-modal-spec-card">
+                                <span className="vd-modal-spec-label">Processing Preference</span>
+                                <strong className="vd-modal-spec-val" style={{ textTransform: "capitalize" }}>{selectedDevice.processingPreference || "Valuation"}</strong>
+                            </div>
+                        </div>
 
                         {/* Photos */}
                         {(selectedDevice.frontPhoto || selectedDevice.backPhoto || selectedDevice.damagePhoto || selectedDevice.labelPhoto) && (
-                            <div>
-                                <h4 style={{ fontSize: "0.9rem", fontWeight: 800, color: "#1a202c", marginBottom: "0.75rem" }}>Inspection Photos</h4>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "0.85rem" }}>
+                            <div className="vd-modal-photos-section">
+                                <h4 className="vd-modal-section-title">Inspection Photos</h4>
+                                <div className="vd-modal-photos-grid">
                                     {selectedDevice.frontPhoto && (
-                                        <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.frontPhoto, "FrontPhotos"))} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.4rem", textAlign: "center", cursor: "pointer" }}>
-                                            <img src={getPhotoUrl(selectedDevice.frontPhoto, "FrontPhotos")} alt="Front" style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", marginBottom: "0.25rem" }} />
-                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Front View </span>
+                                        <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.frontPhoto, "FrontPhotos"))} className="vd-modal-photo-card">
+                                            <img src={getPhotoUrl(selectedDevice.frontPhoto, "FrontPhotos")} alt="Front" className="vd-modal-photo-img" />
+                                            <span className="vd-modal-photo-tag">Front View</span>
                                         </div>
                                     )}
                                     {selectedDevice.backPhoto && (
-                                        <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.backPhoto, "BackPhotos"))} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.4rem", textAlign: "center", cursor: "pointer" }}>
-                                            <img src={getPhotoUrl(selectedDevice.backPhoto, "BackPhotos")} alt="Back" style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", marginBottom: "0.25rem" }} />
-                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Rear View </span>
+                                        <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.backPhoto, "BackPhotos"))} className="vd-modal-photo-card">
+                                            <img src={getPhotoUrl(selectedDevice.backPhoto, "BackPhotos")} alt="Back" className="vd-modal-photo-img" />
+                                            <span className="vd-modal-photo-tag">Rear View</span>
                                         </div>
                                     )}
                                     {selectedDevice.damagePhoto && (
-                                        <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.damagePhoto, "DamagePhotos"))} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.4rem", textAlign: "center", cursor: "pointer" }}>
-                                            <img src={getPhotoUrl(selectedDevice.damagePhoto, "DamagePhotos")} alt="Damage" style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", marginBottom: "0.25rem" }} />
-                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Damage View </span>
+                                        <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.damagePhoto, "DamagePhotos"))} className="vd-modal-photo-card">
+                                            <img src={getPhotoUrl(selectedDevice.damagePhoto, "DamagePhotos")} alt="Damage" className="vd-modal-photo-img" />
+                                            <span className="vd-modal-photo-tag">Damage View</span>
                                         </div>
                                     )}
                                     {selectedDevice.labelPhoto && (
-                                        <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.labelPhoto, "LabelPhotos"))} style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "0.4rem", textAlign: "center", cursor: "pointer" }}>
-                                            <img src={getPhotoUrl(selectedDevice.labelPhoto, "LabelPhotos")} alt="Label" style={{ width: "100%", height: "80px", objectFit: "cover", borderRadius: "6px", marginBottom: "0.25rem" }} />
-                                            <span style={{ fontSize: "0.725rem", color: "#635bff", fontWeight: 700 }}>Label View </span>
+                                        <div onClick={() => setActivePhotoModal(getPhotoUrl(selectedDevice.labelPhoto, "LabelPhotos"))} className="vd-modal-photo-card">
+                                            <img src={getPhotoUrl(selectedDevice.labelPhoto, "LabelPhotos")} alt="Label" className="vd-modal-photo-img" />
+                                            <span className="vd-modal-photo-tag">Label View</span>
                                         </div>
                                     )}
                                 </div>
@@ -953,64 +1007,69 @@ function View_device() {
                         )}
 
                         {/* Modal Action Bar */}
-                        <div style={{ marginTop: "1.5rem", borderTop: "1px solid #e2e8f0", paddingTop: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            {(selectedDevice.allocationRequested || selectedDevice.AllocationRequested) ? (
-                                <button
-                                    onClick={() => setStickerModalDevice(selectedDevice)}
-                                    style={{
-                                        background: "#059669",
-                                        color: "#ffffff",
-                                        border: "none",
-                                        padding: "0.6rem 1.15rem",
-                                        borderRadius: "8px",
-                                        fontWeight: 700,
-                                        fontSize: "0.85rem",
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: "0.4rem",
-                                        cursor: "pointer"
-                                    }}
-                                >
-                                    <FiPrinter /> Pickup Tag Sticker
-                                </button>
-                            ) : isAcceptedStatus(selectedDevice.status) ? (
-                                <button
-                                    onClick={() => handleRequestAllocation(selectedDevice)}
-                                    style={{
-                                        background: "#635bff",
-                                        color: "#ffffff",
-                                        border: "none",
-                                        padding: "0.6rem 1.15rem",
-                                        borderRadius: "8px",
-                                        fontWeight: 700,
-                                        fontSize: "0.85rem",
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: "0.4rem",
-                                        cursor: "pointer"
-                                    }}
-                                >
-                                    <FiCpu /> Request Allocation
-                                </button>
-                            ) : <div></div>}
+                        <div className="vd-modal-actions-bar">
+                            <div className="vd-modal-actions-left">
+                                {!isDeviceCompleted(selectedDevice) && (selectedDevice.allocationRequested || selectedDevice.AllocationRequested) ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const dev = selectedDevice;
+                                            setSelectedDevice(null);
+                                            setStickerModalDevice(dev);
+                                        }}
+                                        className="vd-modal-action-btn vd-modal-btn-sticker"
+                                    >
+                                        <FiPrinter /> Pickup Tag Sticker
+                                    </button>
+                                ) : !isDeviceCompleted(selectedDevice) && isAcceptedStatus(selectedDevice.status, selectedDevice) ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const dev = selectedDevice;
+                                            setSelectedDevice(null);
+                                            handleRequestAllocation(dev);
+                                        }}
+                                        className="vd-modal-action-btn vd-modal-btn-alloc"
+                                    >
+                                        <FiCpu /> Request Allocation
+                                    </button>
+                                ) : null}
+                            </div>
 
-                            {(selectedDevice.status || "").toLowerCase() === "inactive" || (selectedDevice.status || "").toLowerCase() === "deleted" ? (
+                            <div className="vd-modal-actions-right">
+                                {(selectedDevice.status || "").toLowerCase() === "inactive" || (selectedDevice.status || "").toLowerCase() === "deleted" ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const dev = selectedDevice;
+                                            setSelectedDevice(null);
+                                            restoreDevice(dev);
+                                        }}
+                                        className="vd-modal-action-btn vd-modal-btn-restore"
+                                    >
+                                        <FiRotateCcw /> Restore Record
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const dev = selectedDevice;
+                                            setSelectedDevice(null);
+                                            setConfirmDeleteDevice(dev);
+                                        }}
+                                        className="vd-modal-action-btn vd-modal-btn-delete"
+                                    >
+                                        <FiTrash2 /> Delete Record
+                                    </button>
+                                )}
                                 <button
-                                    onClick={() => restoreDevice(selectedDevice)}
-                                    className="vd-btn-restore"
-                                    style={{ width: "auto", padding: "0.6rem 1.25rem" }}
+                                    type="button"
+                                    onClick={() => setSelectedDevice(null)}
+                                    className="vd-modal-action-btn vd-modal-btn-close"
                                 >
-                                    <FiRotateCcw /> Restore Device Record
+                                    Close
                                 </button>
-                            ) : (
-                                <button
-                                    onClick={() => setConfirmDeleteDevice(selectedDevice)}
-                                    className="vd-btn-delete"
-                                    style={{ width: "auto", padding: "0.6rem 1.25rem" }}
-                                >
-                                    <FiTrash2 /> Delete Device Record
-                                </button>
-                            )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1068,14 +1127,19 @@ function View_device() {
                     </div>
                 </div>
             )}
-            {/* Allocation Request Information Modal */}
+            {/* Allocation Request Information Modal (Multi-Step: Process Steps -> Price & Payment Share) */}
             {allocationModalDevice && (
                 <div className="vd-modal-overlay" onClick={() => setAllocationModalDevice(null)}>
-                    <div className="vd-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "560px", width: "90%", padding: "1.75rem", textAlign: "left" }}>
+                    <div className="vd-confirm-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "580px", width: "90%", padding: "1.75rem", textAlign: "left", borderRadius: "14px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", borderBottom: "1px solid #e2e8f0", paddingBottom: "0.75rem" }}>
-                            <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#1a202c", margin: 0, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                                <span>📦</span> How Allocation Works
-                            </h3>
+                            <div>
+                                <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#1a202c", margin: 0 }}>
+                                    {allocationModalStep === 1 ? "How Allocation Works" : "Price and Payment Share"}
+                                </h3>
+                                <div style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 600, marginTop: "0.2rem" }}>
+                                    Step {allocationModalStep} of 2 &bull; {allocationModalDevice.brand} {allocationModalDevice.model}
+                                </div>
+                            </div>
                             <button
                                 onClick={() => setAllocationModalDevice(null)}
                                 style={{ background: "none", border: "none", fontSize: "1.25rem", color: "#a0aec0", cursor: "pointer" }}
@@ -1084,71 +1148,116 @@ function View_device() {
                             </button>
                         </div>
 
-                        <p style={{ color: "#4a5568", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "1.1rem", fontWeight: 500, textAlign: "left" }}>
-                            When you request allocation, your device will go through these simple steps:
-                        </p>
+                        {allocationModalStep === 1 ? (
+                            /* STEP 1: Process Steps */
+                            <>
+                                <p style={{ color: "#4a5568", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "1.1rem", fontWeight: 500, textAlign: "left" }}>
+                                    When you request allocation, your device will go through these simple steps:
+                                </p>
 
-                        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.25rem", textAlign: "left" }}>
-                            <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                                <div style={{ background: "#635bff", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>1</div>
-                                <div>
-                                    <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Allocation Request</div>
-                                    <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>You submit your pickup request with your preferred date and time.</div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "1.25rem", textAlign: "left" }}>
+                                    <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                                        <div style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>1</div>
+                                        <div>
+                                            <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Allocation Request</div>
+                                            <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>You submit your pickup request with your preferred date and time.</div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                                        <div style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>2</div>
+                                        <div>
+                                            <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Admin Review &amp; Allocation</div>
+                                            <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>Our admin team reviews your request and assigns a suitable Collection Agent and Technician.</div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                                        <div style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>3</div>
+                                        <div>
+                                            <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Device Pickup</div>
+                                            <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>The assigned collection agent collects your device from your selected address.</div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                                        <div style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>4</div>
+                                        <div>
+                                            <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Inspection &amp; Valuation</div>
+                                            <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>The device is delivered to our facility, where the assigned technician inspects its condition and assesses its value.</div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                                        <div style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>5</div>
+                                        <div>
+                                            <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Processing &amp; Settlement</div>
+                                            <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>Based on the inspection, your device is sent for refurbishment or recycling with payment or certificate issued.</div>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                                <div style={{ background: "#635bff", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>2</div>
-                                <div>
-                                    <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Admin Review &amp; Allocation</div>
-                                    <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>Our admin team reviews your request and assigns a suitable Collection Agent and Technician.</div>
+                                <p style={{ color: "#4a5568", fontSize: "0.875rem", marginBottom: "1.25rem", textAlign: "center", fontWeight: 600 }}>
+                                    Click "Next" to view payment share details.
+                                </p>
+
+                                <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+                                    <button
+                                        onClick={() => setAllocationModalDevice(null)}
+                                        style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "0.6rem 1.25rem", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => setAllocationModalStep(2)}
+                                        style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#ffffff", border: "none", padding: "0.6rem 1.5rem", borderRadius: "8px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+                                    >
+                                        Next
+                                    </button>
                                 </div>
-                            </div>
+                            </>
+                        ) : (
+                            /* STEP 2: Payment Share Details */
+                            <>
+                                <p style={{ color: "#4a5568", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "1.1rem", fontWeight: 500, textAlign: "left" }}>
+                                    Review the payment share and distribution for your device processing:
+                                </p>
 
-                            <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                                <div style={{ background: "#635bff", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>3</div>
-                                <div>
-                                    <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Device Pickup</div>
-                                    <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>The assigned collection agent collects your device from your selected address.</div>
+                                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "1.1rem", marginBottom: "1.25rem" }}>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem", fontSize: "0.85rem", color: "#475569", lineHeight: 1.55 }}>
+                                        <div style={{ background: "#ffffff", padding: "0.9rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                                            <strong style={{ color: "#1a202c", fontSize: "0.9rem", display: "block", marginBottom: "0.35rem" }}>Option A: Request Valuation (Refurbishment)</strong>
+                                            Operating costs for collection, inspection, and logistics are reserved first. You receive <strong>70%</strong> of the remaining net value, while <strong>15%</strong> goes to the Recycling Center and <strong>15%</strong> to EcoCycle.
+                                        </div>
+
+                                        <div style={{ background: "#ffffff", padding: "0.9rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                                            <strong style={{ color: "#1a202c", fontSize: "0.9rem", display: "block", marginBottom: "0.35rem" }}>Option B: Responsible Recycling (Donation)</strong>
+                                            Voluntary recycling donation (no cash payout). 100% of material recovery value funds recycling operations, and you receive an official Green Recycling Certificate.
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                                <div style={{ background: "#635bff", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>4</div>
-                                <div>
-                                    <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Inspection</div>
-                                    <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>The device is delivered to our facility, where the assigned technician inspects its condition.</div>
+                                <p style={{ color: "#4a5568", fontSize: "0.875rem", marginBottom: "1.25rem", textAlign: "center", fontWeight: 600 }}>
+                                    Click "Request Allocation" to start the process.
+                                </p>
+
+                                <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+                                    <button
+                                        onClick={() => setAllocationModalStep(1)}
+                                        style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "0.6rem 1.25rem", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}
+                                    >
+                                        Back
+                                    </button>
+                                    <button
+                                        onClick={executeAllocationRequest}
+                                        disabled={submittingAllocationId === (allocationModalDevice.deviceId || allocationModalDevice.id)}
+                                        style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)", color: "#ffffff", border: "none", padding: "0.6rem 1.5rem", borderRadius: "8px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
+                                    >
+                                        {submittingAllocationId === (allocationModalDevice.deviceId || allocationModalDevice.id) ? "Submitting..." : "Request Allocation"}
+                                    </button>
                                 </div>
-                            </div>
-
-                            <div style={{ display: "flex", gap: "0.85rem", alignItems: "flex-start", background: "#f8fafc", padding: "0.75rem 0.9rem", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
-                                <div style={{ background: "#635bff", color: "#fff", width: "24px", height: "24px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0, marginTop: "2px" }}>5</div>
-                                <div>
-                                    <div style={{ fontWeight: 700, color: "#1a202c", fontSize: "0.875rem" }}>Next Processing</div>
-                                    <div style={{ color: "#64748b", fontSize: "0.825rem", marginTop: "0.15rem", lineHeight: 1.4 }}>Based on the inspection, your device is sent for refurbishment or recycling.</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <p style={{ color: "#4a5568", fontSize: "0.875rem", marginBottom: "1.25rem", textAlign: "center", fontWeight: 600 }}>
-                            Click "Request Allocation" to start the process.
-                        </p>
-
-                        <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
-                            <button
-                                onClick={() => setAllocationModalDevice(null)}
-                                style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "0.6rem 1.25rem", borderRadius: "8px", fontWeight: 600, cursor: "pointer" }}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={executeAllocationRequest}
-                                disabled={submittingAllocationId === (allocationModalDevice.deviceId || allocationModalDevice.id)}
-                                style={{ background: "#635bff", color: "#ffffff", border: "none", padding: "0.6rem 1.5rem", borderRadius: "8px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.5rem" }}
-                            >
-                                {submittingAllocationId === (allocationModalDevice.deviceId || allocationModalDevice.id) ? "Submitting..." : "Request Allocation"}
-                            </button>
-                        </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
@@ -1221,6 +1330,9 @@ function View_device() {
                                             <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem", fontSize: "0.825rem", color: "#334155" }}>
                                                 <div style={{ display: "flex" }}><span style={{ width: "90px", fontSize: "0.7rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>ITEM:</span><span style={{ color: "#0f172a", fontWeight: 700 }}>{stickerModalDevice.brand} {stickerModalDevice.model}</span></div>
                                                 <div style={{ display: "flex" }}><span style={{ width: "90px", fontSize: "0.7rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>SERIAL NO:</span><span style={{ fontFamily: "monospace", fontWeight: 700, color: "#2563eb" }}>{stickerModalDevice.serialNumber || `EC-SN-${stickerModalDevice.deviceId || stickerModalDevice.id}`}</span></div>
+                                                {stickerModalDevice.purchaseDate && (
+                                                    <div style={{ display: "flex" }}><span style={{ width: "90px", fontSize: "0.7rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>PURCHASED:</span><span style={{ color: "#0f172a", fontWeight: 700 }}>{formatDate(stickerModalDevice.purchaseDate)}</span></div>
+                                                )}
                                                 <div style={{ display: "flex" }}><span style={{ width: "90px", fontSize: "0.7rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>CONDITION:</span><span style={{ color: "#0f172a", fontWeight: 700 }}>{stickerModalDevice.condition || "Declared"} ({stickerModalDevice.working || "N/A"})</span></div>
                                             </div>
                                         </div>

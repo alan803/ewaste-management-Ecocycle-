@@ -4,8 +4,8 @@
 .pickup-details-page {
   display: flex;
   min-height: 100vh;
-  background-color: #f4f5f8;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #f8fafc;
+  font-family: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   color: #1a202c;
 }
 
@@ -49,33 +49,36 @@
 .pk-filter-tabs {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  background: #edf2f7;
+  padding: 4px;
+  border-radius: 10px;
+  gap: 3px;
   overflow-x: auto;
 }
 
 .pk-tab-btn {
-  padding: 0.45rem 0.95rem;
-  border-radius: 8px;
+  padding: 0.4rem 0.85rem;
+  border-radius: 7px;
+  border: none;
   font-size: 0.825rem;
   font-weight: 600;
-  border: 1px solid transparent;
-  background: #f1f5f9;
-  color: #64748b;
+  color: #4a5568;
+  background: transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   white-space: nowrap;
 }
 
 .pk-tab-btn:hover {
-  background: #e2e8f0;
+  background: transparent;
   color: #1e293b;
 }
 
 .pk-tab-btn.active {
-  background: #059669;
-  color: #ffffff;
-  border-color: #059669;
-  box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25);
+  background: #ffffff;
+  color: #059669;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 .pk-view-toggle {
@@ -322,26 +325,28 @@
 }
 
 .pk-btn-reschedule {
-  background: #eef2ff;
-  color: #4f46e5;
-  border-color: #c7d2fe;
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
   flex: 1;
 }
 
 .pk-btn-reschedule:hover {
-  background: #c7d2fe;
-  color: #3730a3;
+  background: #a7f3d0;
+  color: #065f46;
 }
 
 .pk-btn-track {
   background: #059669;
   color: #ffffff;
-  border-color: #059669;
+  border: none;
+  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.25);
   flex: 1.25;
 }
 
 .pk-btn-track:hover {
   background: #047857;
+  transform: translateY(-1px);
 }
 
 /* Modal Delivery Progress Timeline */

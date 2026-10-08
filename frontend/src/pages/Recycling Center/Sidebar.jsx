@@ -9,11 +9,12 @@ import {
     FiX,
     FiLayers,
     FiZap,
-    FiChevronRight
+    FiChevronRight,
+    FiTruck
 } from "react-icons/fi";
 import "./Sidebar.css";
 
-function Sidebar() {
+function Sidebar({ isLocked = false, onBlockedNav }) {
     const location = useLocation();
     const navigate = useNavigate();
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -36,7 +37,25 @@ function Sidebar() {
         return false;
     };
 
-    const handleLogout = () => {
+    const handleNavClick = (e, targetPath) => {
+        if (isLocked) {
+            e.preventDefault();
+            if (onBlockedNav) {
+                onBlockedNav(targetPath);
+            }
+            return false;
+        }
+        setMobileOpen(false);
+    };
+
+    const handleLogout = (e) => {
+        if (isLocked) {
+            e.preventDefault();
+            if (onBlockedNav) {
+                onBlockedNav("/login");
+            }
+            return false;
+        }
         localStorage.clear();
         navigate("/login");
     };
@@ -58,7 +77,7 @@ function Sidebar() {
             <aside className={`admin-sidebar ${mobileOpen ? "open" : ""}`}>
                 {/* Brand Header */}
                 <div className="admin-sb-header">
-                    <Link to="/recyclingcenter_dashboard" className="admin-sb-logo-link" onClick={closeMobileMenu}>
+                    <Link to="/recyclingcenter_dashboard" className="admin-sb-logo-link" onClick={(e) => handleNavClick(e, "/recyclingcenter_dashboard")}>
                         <div className="admin-sb-logo-icon">
                             <FaLeaf />
                         </div>
@@ -77,7 +96,7 @@ function Sidebar() {
                                 <Link
                                     to="/recyclingcenter_dashboard"
                                     className={`admin-sb-link ${isActive("/recyclingcenter_dashboard") ? "active" : ""}`}
-                                    onClick={closeMobileMenu}
+                                    onClick={(e) => handleNavClick(e, "/recyclingcenter_dashboard")}
                                 >
                                     <div className="admin-sb-icon-box icon-box--emerald">
                                         <FiLayers />
@@ -90,7 +109,7 @@ function Sidebar() {
                                 <Link
                                     to="/recycling_perform"
                                     className={`admin-sb-link ${isActive("/recycling_perform") ? "active" : ""}`}
-                                    onClick={closeMobileMenu}
+                                    onClick={(e) => handleNavClick(e, "/recycling_perform")}
                                 >
                                     <div className="admin-sb-icon-box icon-box--teal">
                                         <FiZap />
@@ -102,9 +121,23 @@ function Sidebar() {
 
                             <li className="admin-sb-item">
                                 <Link
+                                    to="/recycling_delivery"
+                                    className={`admin-sb-link ${isActive("/recycling_delivery") ? "active" : ""}`}
+                                    onClick={(e) => handleNavClick(e, "/recycling_delivery")}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--blue">
+                                        <FiTruck />
+                                    </div>
+                                    <span className="admin-sb-link-text">Inbound Deliveries</span>
+                                    {isActive("/recycling_delivery") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+
+                            <li className="admin-sb-item">
+                                <Link
                                     to="/recycle_profile"
                                     className={`admin-sb-link ${isActive("/recycle_profile") ? "active" : ""}`}
-                                    onClick={closeMobileMenu}
+                                    onClick={(e) => handleNavClick(e, "/recycle_profile")}
                                 >
                                     <div className="admin-sb-icon-box icon-box--purple">
                                         <FiUser />
@@ -119,7 +152,6 @@ function Sidebar() {
 
                 {/* Footer Section */}
                 <div className="admin-sb-footer">
-
                     <button type="button" onClick={handleLogout} className="admin-sb-link admin-sb-link--logout">
                         <div className="admin-sb-icon-box icon-box--rose">
                             <FiLogOut />

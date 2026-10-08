@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import Navbar from "./Navbar";
 import {
     FiClipboard,
+    FiBell,
     FiCheckCircle,
     FiClock,
     FiUser,
@@ -188,7 +189,7 @@ function ManageInspection() {
         if (!item) return false;
         const s = String(item.status || "").toLowerCase();
         const lcs = String(item.lifecycleStatus || "").toLowerCase();
-        return s === "completed" || lcs === "inspected";
+        return s === "completed" || lcs === "inspected" || Boolean(item.isInspected);
     };
 
     const getMediaUrl = (photoPath, defaultFolder = "uploads/inspections/photos") => {
@@ -492,13 +493,15 @@ function ManageInspection() {
 
     const inProgressCount = assignments.filter(a => {
         const s = String(a.status || "").toLowerCase();
+        const lcs = String(a.lifecycleStatus || "").toLowerCase();
+        if (s === "completed" || lcs === "inspected" || Boolean(a.isInspected)) return false;
         return s === "accepted" || s === "inprogress";
     }).length;
 
     const completedCount = assignments.filter(a => {
         const s = String(a.status || "").toLowerCase();
         const lcs = String(a.lifecycleStatus || "").toLowerCase();
-        return s === "completed" || lcs === "inspected";
+        return s === "completed" || lcs === "inspected" || Boolean(a.isInspected);
     }).length;
 
     const expiredRejectedCount = assignments.filter(a => {
@@ -506,7 +509,12 @@ function ManageInspection() {
         return s === "expired" || s === "rejected" || s === "cancelled" || s === "reassigned";
     }).length;
 
-    const overdueCount = assignments.filter(a => a.isInspectionOverdue).length;
+    const overdueCount = assignments.filter(a => {
+        const s = String(a.status || "").toLowerCase();
+        const lcs = String(a.lifecycleStatus || "").toLowerCase();
+        const isDone = s === "completed" || lcs === "inspected" || Boolean(a.isInspected);
+        return a.isInspectionOverdue && !isDone;
+    }).length;
 
     const penalizedCount = assignments.filter(a => {
         const s = String(a.status || "").toLowerCase();
@@ -517,12 +525,13 @@ function ManageInspection() {
     const filteredAssignments = assignments.filter(item => {
         const status = String(item.status || "").toLowerCase();
         const lcs = String(item.lifecycleStatus || "").toLowerCase();
+        const isDone = status === "completed" || lcs === "inspected" || Boolean(item.isInspected);
 
         if (activeTab === "Waiting" && status !== "waiting" && status !== "assigned") return false;
-        if (activeTab === "InProgress" && status !== "accepted" && status !== "inprogress") return false;
-        if (activeTab === "Completed" && status !== "completed" && lcs !== "inspected") return false;
+        if (activeTab === "InProgress" && (isDone || (status !== "accepted" && status !== "inprogress"))) return false;
+        if (activeTab === "Completed" && !isDone) return false;
         if (activeTab === "Expired" && status !== "expired" && status !== "rejected" && status !== "cancelled" && status !== "reassigned") return false;
-        if (activeTab === "Overdue" && !item.isInspectionOverdue) return false;
+        if (activeTab === "Overdue" && (!item.isInspectionOverdue || isDone)) return false;
         if (activeTab === "Penalized" && status !== "penalized" && lcs !== "inspectionpenalized") return false;
 
         if (!searchQuery.trim()) return true;
@@ -554,6 +563,7 @@ function ManageInspection() {
     const getStatusBadge = (item) => {
         const status = String(item.status || "").toLowerCase();
         const lcs = String(item.lifecycleStatus || "").toLowerCase();
+        const isDone = status === "completed" || lcs === "inspected" || Boolean(item.isInspected);
 
         const badgeStyle = {
             padding: "0.35rem 0.75rem",
@@ -568,9 +578,9 @@ function ManageInspection() {
 
         if (status === "penalized" || lcs === "inspectionpenalized") {
             return <span style={{ ...badgeStyle, background: "#fff7ed", color: "#c2410c", border: "1px solid #fdba74" }}><FiAlertTriangle /> Fine Applied - Penalized</span>;
-        } else if (item.isInspectionOverdue) {
+        } else if (item.isInspectionOverdue && !isDone) {
             return <span style={{ ...badgeStyle, background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5" }}><FiAlertTriangle /> Inspection Overdue</span>;
-        } else if (status === "completed" || lcs === "inspected") {
+        } else if (isDone) {
             return <span style={{ ...badgeStyle, background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0" }}><FiCheckCircle /> Inspected</span>;
         } else if (status === "inprogress" || status === "accepted") {
             return <span style={{ ...badgeStyle, background: "#e0f2fe", color: "#0369a1", border: "1px solid #bae6fd" }}><FiActivity /> Inspection In Progress</span>;
@@ -633,8 +643,8 @@ function ManageInspection() {
                         </div>
 
                         <div className="topbar-actions">
-                            <button className="glass-btn notification-btn" onClick={() => fetchData()} title="Sync inspection requests">
-                                <FiRefreshCw />
+                            <button className="glass-btn notification-btn" title="System Alerts">
+                                <FiBell />
                                 <span className="pulse-ping"></span>
                             </button>
 

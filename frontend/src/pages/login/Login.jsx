@@ -504,8 +504,15 @@ function Login() {
                 <span>or</span>
               </div>
 
-              <GoogleLogin
-                onSuccess={async (credentialResponse) => {
+              <div className="google-login-container">
+                <GoogleLogin
+                  width="100%"
+                  size="large"
+                  text="signin_with"
+                  shape="rectangular"
+                  theme="outline"
+                  logo_alignment="center"
+                  onSuccess={async (credentialResponse) => {
                     try {
                         const response = await axios.post(
                             "https://localhost:7102/api/Login/GoogleLogin",
@@ -609,6 +616,7 @@ function Login() {
                     }));
                 }}
             />
+              </div>
 
               <div className="login-links">
                 <p>
