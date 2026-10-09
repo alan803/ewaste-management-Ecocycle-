@@ -293,42 +293,58 @@
 .pk-footer-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
   width: 100%;
 }
 
 .pk-action-btn {
-  padding: 0.55rem 0.75rem;
+  padding: 0.52rem 0.55rem;
   border-radius: 10px;
-  font-size: 0.8rem;
+  font-size: 0.775rem;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   cursor: pointer;
   transition: all 0.15s ease;
   border: 1px solid transparent;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .pk-btn-cancel {
   background: #fee2e2;
   color: #dc2626;
   border-color: #fca5a5;
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .pk-btn-cancel:hover {
-  background: #fca5a5;
+  background: #fecaca;
   color: #991b1b;
+}
+
+.pk-btn-qr {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #bfdbfe;
+  flex: 1.15 1 0;
+  min-width: 0;
+}
+
+.pk-btn-qr:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .pk-btn-reschedule {
   background: #ecfdf5;
   color: #047857;
   border-color: #a7f3d0;
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .pk-btn-reschedule:hover {
@@ -340,8 +356,9 @@
   background: #059669;
   color: #ffffff;
   border: none;
-  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.25);
-  flex: 1.25;
+  box-shadow: 0 3px 8px rgba(5, 150, 105, 0.2);
+  flex: 1.45 1 0;
+  min-width: 0;
 }
 
 .pk-btn-track:hover {

@@ -609,6 +609,7 @@ function Pickupdetails() {
                                                         </h3>
                                                     </div>
                                                 </div>
+                                                {getDeliveryStatusBadge(req)}
                                             </div>
 
                                             {/* Collection Agent Profile Box */}
@@ -645,7 +646,9 @@ function Pickupdetails() {
                                             <div className="pk-card-details-grid">
                                                 <div className="pk-detail-item">
                                                     <span className="pk-detail-label">Request Tag</span>
-                                                    
+                                                    <span className="pk-detail-val" style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#475569" }}>
+                                                        {req.deviceQrToken || (req.inspectionRequestId ? `#INSP-${req.inspectionRequestId}` : `#DEV-${req.deviceId}`)}
+                                                    </span>
                                                 </div>
                                                 <div className="pk-detail-item">
                                                     <span className="pk-detail-label">Scheduled Date</span>
