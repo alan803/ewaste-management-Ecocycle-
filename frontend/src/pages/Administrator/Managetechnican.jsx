@@ -46,6 +46,7 @@ function Managetechnician() {
     // View Profile Detail Modal state
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [viewTech, setViewTech] = useState(null);
+    const [actionLoadingId, setActionLoadingId] = useState(null);
 
     const [fetchError, setFetchError] = useState("");
 
@@ -57,9 +58,16 @@ function Managetechnician() {
         setLoading(true);
         setFetchError("");
         try {
-            const response = await axios.get(
-                "https://ecocycle.runasp.net/api/Technician/alluser"
-            );
+            let response;
+            try {
+                response = await axios.get(
+                    "https://ecocycle.runasp.net/api/Technician/All"
+                );
+            } catch {
+                response = await axios.get(
+                    "https://ecocycle.runasp.net/api/Technician/alluser"
+                );
+            }
             setTechnicians(response.data || []);
         } catch (error) {
             console.error("Error fetching technicians:", error.response?.data || error.message);
@@ -99,9 +107,20 @@ function Managetechnician() {
         setShowDeactivate(true);
     };
 
-    const openDetailModal = (tech) => {
+    const openDetailModal = async (tech) => {
+        const techId = tech.technicianId || tech.id;
         setViewTech(tech);
         setShowDetailModal(true);
+        try {
+            const response = await axios.get(
+                `https://ecocycle.runasp.net/api/Technician/${techId}`
+            );
+            if (response.data) {
+                setViewTech(response.data);
+            }
+        } catch (err) {
+            console.error("Error fetching technician full details:", err);
+        }
     };
 
     const deactivateTechnician = async () => {
@@ -150,14 +169,27 @@ function Managetechnician() {
     };
 
     const acceptTechnician = async (id) => {
+        setActionLoadingId(id);
         try {
             await axios.post(
                 `https://ecocycle.runasp.net/api/Technician/Accept/${id}`
             );
+            setTechnicians(prev =>
+                prev.map(tech =>
+                    (tech.technicianId || tech.id) === id
+                        ? { ...tech, status: "Active" }
+                        : tech
+                )
+            );
+            if (viewTech && (viewTech.technicianId || viewTech.id) === id) {
+                setViewTech(prev => ({ ...prev, status: "Active" }));
+            }
             fetchTechnicians();
         } catch (error) {
             console.error("Error accepting technician:", error);
             alert(error.response?.data?.message || "Failed to accept technician.");
+        } finally {
+            setActionLoadingId(null);
         }
     };
 
