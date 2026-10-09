@@ -511,7 +511,7 @@ function Login() {
                   text="signin_with"
                   shape="rectangular"
                   theme="outline"
-                  logo_alignment="center"
+                  logo_alignment="left"
                   onSuccess={async (credentialResponse) => {
                     try {
                         const response = await axios.post(
