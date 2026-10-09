@@ -602,9 +602,6 @@ function Manage_userprofile() {
                                 <div className="profile-banner-info">
                                     <h2>{userName}</h2>
                                     <div className="profile-banner-tags">
-                                        <span className="profile-tag verified">
-                                            <FiCheckCircle /> Verified Eco Citizen
-                                        </span>
                                         {profile?.email && (
                                             <span className="profile-tag email">
                                                 <FiMail /> {profile.email}
