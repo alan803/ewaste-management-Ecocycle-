@@ -508,10 +508,10 @@ function Login() {
                 <GoogleLogin
                   width="380"
                   size="large"
-                  text="signin_with"
+                  text="continue_with"
                   shape="rectangular"
                   theme="outline"
-                  logo_alignment="left"
+                  logo_alignment="center"
                   onSuccess={async (credentialResponse) => {
                     try {
                         const response = await axios.post(
