@@ -506,7 +506,7 @@ function Login() {
 
               <div className="google-login-container">
                 <GoogleLogin
-                  width="100%"
+                  width="380"
                   size="large"
                   text="signin_with"
                   shape="rectangular"
