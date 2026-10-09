@@ -1291,9 +1291,9 @@ function Pickups() {
                                                     <FiCheckCircle /> Deliver to Center
                                                 </button>
                                             ) : statusLower === "awaitingtechnicianapproval" || item.deliveryStatus === "PendingVerification" ? (
-                                                <div className="status-completed-pill" style={{ background: "#fffbeb", color: "#b45309", border: "1px solid #fde68a", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.35rem", padding: "0 8px", borderRadius: "9px", fontSize: "0.75rem", fontWeight: 700, whiteSpace: "nowrap", height: "38px", boxSizing: "border-box", flex: "1 1 auto", minWidth: 0 }}>
+                                                <div className="status-awaiting-pill" title="Awaiting Technician Verification">
                                                     <FiClock style={{ flexShrink: 0, fontSize: "0.85rem" }} />
-                                                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Awaiting Tech Verification</span>
+                                                    <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Awaiting Approval</span>
                                                 </div>
                                             ) : (statusLower === "handoverrejected" || item.deliveryStatus === "HandoverRejected" || item.lifecycleStatus === "HandoverRejected") ? (
                                                 <button
@@ -1302,7 +1302,7 @@ function Pickups() {
                                                     disabled={processingId === `deliver-${item.collectionAssignmentId}`}
                                                     onClick={() => handleOpenCompleteDeliveryModal(item)}
                                                 >
-                                                    <FiRefreshCw /> Resend Verification Request
+                                                    <FiRefreshCw /> Resend
                                                 </button>
                                             ) : null}
 
