@@ -378,8 +378,9 @@ function View_device() {
 
     const isAcceptedStatus = (status, item = null) => {
         if (item && isDeviceCompleted(item)) return false;
-        const s = (status || "").toLowerCase();
-        return s === "accepted" || s === "approved" || s === "active";
+        const s = (status || "").toLowerCase().trim();
+        const lcs = (item?.lifecycleStatus || "").toLowerCase().trim();
+        return s === "accepted" || s === "approved" || s === "active" || lcs === "accepted" || lcs === "approved";
     };
 
     const getDeviceTitle = (brand, model) => {
@@ -734,6 +735,24 @@ function View_device() {
                                         <button onClick={() => setSelectedDevice(item)} className="vd-btn-inspect">
                                             <FiEye className="vd-btn-inspect-icon" /> Inspect
                                         </button>
+                                        {!isDeviceCompleted(item) && !item.allocationRequested && !item.AllocationRequested && isAcceptedStatus(item.status, item) && (
+                                            <button
+                                                onClick={() => handleRequestAllocation(item)}
+                                                className="vd-btn-alloc"
+                                                title="Request Allocation"
+                                            >
+                                                <FiCpu /> Request Allocation
+                                            </button>
+                                        )}
+                                        {!isDeviceCompleted(item) && (item.allocationRequested || item.AllocationRequested) && isAcceptedStatus(item.status, item) && (
+                                            <button
+                                                onClick={() => setStickerModalDevice(item)}
+                                                className="vd-btn-sticker"
+                                                title="Print Shipping Sticker"
+                                            >
+                                                <FiPrinter /> Tag Sticker
+                                            </button>
+                                        )}
                                         {(item.status || "").toLowerCase() === "inactive" || (item.status || "").toLowerCase() === "deleted" ? (
                                             <button
                                                 onClick={() => restoreDevice(item)}
