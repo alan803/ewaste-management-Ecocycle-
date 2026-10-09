@@ -1160,7 +1160,7 @@ Regards,<br>
         <div style=""margin-top: 24px;
                     text-align: center;"">
 
-            <a href=""https://localhost:7102""
+            <a href=""https://ewaste-management-ecocycle-gbc9-sepia.vercel.app/collectionagent/pickups""
                style=""background: #059669;
                       color: #ffffff;
                       text-decoration: none;
@@ -1169,7 +1169,7 @@ Regards,<br>
                       border-radius: 8px;
                       display: inline-block;"">
 
-                [ Start Pickup ]
+                [ View & Start Pickup ]
 
             </a>
 

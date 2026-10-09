@@ -878,7 +878,7 @@ namespace EcoCycle.Controllers
                         originalWeightKg = request.Device?.Weight ?? 15,
                         totalRecoveredWeightKg = process.TotalRecoveredWeight ?? 0,
                         totalMaterialValue = process.TotalMaterialValue ?? 0,
-                        verificationUrl = $"https://localhost:5173/verify-certificate/{certificateId}"
+                        verificationUrl = $"https://ewaste-management-ecocycle-gbc9-sepia.vercel.app/certificates"
                     }
                 });
             }

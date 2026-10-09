@@ -470,7 +470,7 @@ namespace EcoCycle.API.Controllers
         </div>
 
         <div style=""margin-top: 24px; text-align: center;"">
-            <a href=""https://localhost:7102"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ Start Pickup ]</a>
+            <a href=""https://ewaste-management-ecocycle-gbc9-sepia.vercel.app/collectionagent/pickups"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ View & Start Pickup ]</a>
         </div>
 
         <p style=""margin-top: 24px; font-size: 12px; color: #64748b;"">
@@ -1445,7 +1445,7 @@ namespace EcoCycle.API.Controllers
         </div>
 
         <div style=""margin-top: 24px; text-align: center;"">
-            <a href=""https://localhost:7102"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ Start Pickup ]</a>
+            <a href=""https://ewaste-management-ecocycle-gbc9-sepia.vercel.app/collectionagent/pickups"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ View & Start Pickup ]</a>
         </div>
 
         <p style=""margin-top: 24px; font-size: 12px; color: #64748b;"">
@@ -2102,7 +2102,7 @@ namespace EcoCycle.API.Controllers
         </div>
 
         <div style=""margin-top: 24px; text-align: center;"">
-            <a href=""https://localhost:7102"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ Start Pickup ]</a>
+            <a href=""https://ewaste-management-ecocycle-gbc9-sepia.vercel.app/collectionagent/pickups"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ View & Start Pickup ]</a>
         </div>
 
         <p style=""margin-top: 24px; font-size: 12px; color: #64748b;"">
@@ -2319,7 +2319,7 @@ namespace EcoCycle.API.Controllers
         </div>
 
         <div style=""margin-top: 24px; text-align: center;"">
-            <a href=""https://localhost:7102"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ Start Pickup ]</a>
+            <a href=""https://ewaste-management-ecocycle-gbc9-sepia.vercel.app/collectionagent/pickups"" style=""background: #059669; color: #ffffff; text-decoration: none; padding: 12px 24px; font-weight: bold; border-radius: 8px; display: inline-block;"">[ View & Start Pickup ]</a>
         </div>
 
         <p style=""margin-top: 24px; font-size: 12px; color: #64748b;"">
