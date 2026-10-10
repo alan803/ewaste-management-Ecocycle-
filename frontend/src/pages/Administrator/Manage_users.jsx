@@ -769,18 +769,8 @@ function Manage_users() {
                                     </div>
 
                                     <div className="detail-item">
-                                        <label>Email Address</label>
-                                        <span>{viewUser.login?.email || viewUser.email || "N/A"}</span>
-                                    </div>
-
-                                    <div className="detail-item">
-                                        <label>Phone Number</label>
-                                        <span>{viewUser.phoneNumber || "N/A"}</span>
-                                    </div>
-
-                                    <div className="detail-item">
                                         <label>Gender</label>
-                                        <span>{viewUser.gender || "N/A"}</span>
+                                        <span style={{ textTransform: "capitalize" }}>{viewUser.gender || "N/A"}</span>
                                     </div>
 
                                     <div className="detail-item">
@@ -789,13 +779,18 @@ function Manage_users() {
                                     </div>
 
                                     <div className="detail-item">
+                                        <label>Phone Number</label>
+                                        <span>{viewUser.phoneNumber || "N/A"}</span>
+                                    </div>
+
+                                    <div className="detail-item">
                                         <label>Registered Date</label>
                                         <span>{formatDate(viewUser.createdAt)}</span>
                                     </div>
 
-                                    <div className="detail-item">
-                                        <label>Pincode</label>
-                                        <span>{viewUser.pincode || "N/A"}</span>
+                                    <div className="detail-item full-width-detail">
+                                        <label>Email Address</label>
+                                        <span>{viewUser.login?.email || viewUser.email || "N/A"}</span>
                                     </div>
 
                                     <div className="detail-item">
@@ -808,9 +803,14 @@ function Manage_users() {
                                         <span>{viewUser.district || "N/A"}</span>
                                     </div>
 
-                                    <div className="detail-item full-width-detail">
+                                    <div className="detail-item">
                                         <label>State</label>
                                         <span>{viewUser.state || "N/A"}</span>
+                                    </div>
+
+                                    <div className="detail-item">
+                                        <label>Pincode</label>
+                                        <span>{viewUser.pincode || "N/A"}</span>
                                     </div>
 
                                     <div className="detail-item full-width-detail">

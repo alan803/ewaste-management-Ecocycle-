@@ -713,111 +713,101 @@ function CollectionAgent_signup()
                         <div className="form-section">
                             <h3>Personal Details</h3>
                             <div className="collectionagent-form-grid">
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>First Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter your first name"
-                                            name="firstname"
-                                            value={form_dta.firstname}
-                                            onChange={handleInputChange}
-                                            className={error.firstname_er ? "input-error" : ""}
-                                        />
-                                        {error.firstname_er && <div className="error-message">{error.firstname_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>Last Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter your last name"
-                                            name="lastname"
-                                            value={form_dta.lastname}
-                                            onChange={handleInputChange}
-                                            className={error.lastname_er ? "input-error" : ""}
-                                        />
-                                        {error.lastname_er && <div className="error-message">{error.lastname_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>Email</label>
-                                        <input
-                                            type="email"
-                                            placeholder="Enter your email"
-                                            name="email"
-                                            value={form_dta.email}
-                                            onChange={handleInputChange}
-                                            className={error.email_er ? "input-error" : ""}
-                                        />
-                                        {error.email_er && <div className="error-message">{error.email_er}</div>}
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>First Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter your first name"
+                                        name="firstname"
+                                        value={form_dta.firstname}
+                                        onChange={handleInputChange}
+                                        className={error.firstname_er ? "input-error" : ""}
+                                    />
+                                    {error.firstname_er && <div className="error-message">{error.firstname_er}</div>}
                                 </div>
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Phone Number</label>
-                                        <input
-                                            type="tel"
-                                            placeholder="Enter your phone number"
-                                            name="phone"
-                                            value={form_dta.phone}
-                                            onChange={handleInputChange}
-                                            className={error.phone_er ? "input-error" : ""}
-                                        />
-                                        {error.phone_er && <div className="error-message">{error.phone_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>Alternate Phone</label>
-                                        <input
-                                            type="tel"
-                                            placeholder="Alternate phone number"
-                                            name="alternatePhone"
-                                            value={form_dta.alternatePhone}
-                                            onChange={handleInputChange}
-                                            className={error.alternatePhone_er ? "input-error" : ""}
-                                        />
-                                        {error.alternatePhone_er && <div className="error-message">{error.alternatePhone_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>Profile Picture</label>
-                                        <input
-                                            type="file"
-                                            name="ProfilePicture"
-                                            accept="image/jpeg,image/png"
-                                            onChange={handleInputChange}
-                                            className={error.ProfilePicture_er ? "input-error" : ""}
-                                        />
-                                        {error.ProfilePicture_er && <div className="error-message">{error.ProfilePicture_er}</div>}
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>Phone Number</label>
+                                    <input
+                                        type="tel"
+                                        placeholder="Enter your phone number"
+                                        name="phone"
+                                        value={form_dta.phone}
+                                        onChange={handleInputChange}
+                                        className={error.phone_er ? "input-error" : ""}
+                                    />
+                                    {error.phone_er && <div className="error-message">{error.phone_er}</div>}
                                 </div>
-                            </div>
-                            <div className="collectionagent-form-grid">
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Date of Birth</label>
-                                        <input
-                                            type="date"
-                                            name="dob"
-                                            value={form_dta.dob}
-                                            onChange={handleInputChange}
-                                            className={error.dob_er ? "input-error" : ""}
-                                        />
-                                        {error.dob_er && <div className="error-message">{error.dob_er}</div>}
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>Last Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter your last name"
+                                        name="lastname"
+                                        value={form_dta.lastname}
+                                        onChange={handleInputChange}
+                                        className={error.lastname_er ? "input-error" : ""}
+                                    />
+                                    {error.lastname_er && <div className="error-message">{error.lastname_er}</div>}
                                 </div>
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Gender</label>
-                                        <select
-                                            name="gender"
-                                            value={form_dta.gender}
-                                            onChange={handleInputChange}
-                                            className={error.gender_er ? "input-error" : ""}
-                                        >
-                                            <option value="">Select gender</option>
-                                            <option value="Male">Male</option>
-                                            <option value="Female">Female</option>
-                                        </select>
-                                        {error.gender_er && <div className="error-message">{error.gender_er}</div>}
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>Alternate Phone</label>
+                                    <input
+                                        type="tel"
+                                        placeholder="Alternate phone number"
+                                        name="alternatePhone"
+                                        value={form_dta.alternatePhone}
+                                        onChange={handleInputChange}
+                                        className={error.alternatePhone_er ? "input-error" : ""}
+                                    />
+                                    {error.alternatePhone_er && <div className="error-message">{error.alternatePhone_er}</div>}
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>Email</label>
+                                    <input
+                                        type="email"
+                                        placeholder="Enter your email"
+                                        name="email"
+                                        value={form_dta.email}
+                                        onChange={handleInputChange}
+                                        className={error.email_er ? "input-error" : ""}
+                                    />
+                                    {error.email_er && <div className="error-message">{error.email_er}</div>}
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>Profile Picture</label>
+                                    <input
+                                        type="file"
+                                        name="ProfilePicture"
+                                        accept="image/jpeg,image/png"
+                                        onChange={handleInputChange}
+                                        className={error.ProfilePicture_er ? "input-error" : ""}
+                                    />
+                                    {error.ProfilePicture_er && <div className="error-message">{error.ProfilePicture_er}</div>}
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>Date of Birth</label>
+                                    <input
+                                        type="date"
+                                        name="dob"
+                                        value={form_dta.dob}
+                                        onChange={handleInputChange}
+                                        className={error.dob_er ? "input-error" : ""}
+                                    />
+                                    {error.dob_er && <div className="error-message">{error.dob_er}</div>}
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>Gender</label>
+                                    <select
+                                        name="gender"
+                                        value={form_dta.gender}
+                                        onChange={handleInputChange}
+                                        className={error.gender_er ? "input-error" : ""}
+                                    >
+                                        <option value="">Select gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                    </select>
+                                    {error.gender_er && <div className="error-message">{error.gender_er}</div>}
                                 </div>
                             </div>
                         </div>
@@ -827,32 +817,28 @@ function CollectionAgent_signup()
                         <div className="form-section">
                             <h3>Identity Verification</h3>
                             <div className="collectionagent-form-grid">
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Aadhaar Number</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter Aadhaar number"
-                                            name="adhaarNumber"
-                                            value={form_dta.adhaarNumber}
-                                            onChange={handleInputChange}
-                                            className={error.adhaarNumber_er ? "input-error" : ""}
-                                        />
-                                        {error.adhaarNumber_er && <div className="error-message">{error.adhaarNumber_er}</div>}
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>Aadhaar Number</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter Aadhaar number"
+                                        name="adhaarNumber"
+                                        value={form_dta.adhaarNumber}
+                                        onChange={handleInputChange}
+                                        className={error.adhaarNumber_er ? "input-error" : ""}
+                                    />
+                                    {error.adhaarNumber_er && <div className="error-message">{error.adhaarNumber_er}</div>}
                                 </div>
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Aadhaar Proof</label>
-                                        <input
-                                            type="file"
-                                            name="adhaarProof"
-                                            accept="image/jpeg,image/png,application/pdf"
-                                            onChange={handleInputChange}
-                                            className={error.adhaarProof_er ? "input-error" : ""}
-                                        />
-                                        {error.adhaarProof_er && <div className="error-message">{error.adhaarProof_er}</div>}
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>Aadhaar Proof</label>
+                                    <input
+                                        type="file"
+                                        name="adhaarProof"
+                                        accept="image/jpeg,image/png,application/pdf"
+                                        onChange={handleInputChange}
+                                        className={error.adhaarProof_er ? "input-error" : ""}
+                                    />
+                                    {error.adhaarProof_er && <div className="error-message">{error.adhaarProof_er}</div>}
                                 </div>
                             </div>
                         </div>
@@ -862,69 +848,65 @@ function CollectionAgent_signup()
                         <div className="form-section">
                             <h3>Address Details</h3>
                             <div className="collectionagent-form-grid">
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Address</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter your full address"
-                                            name="address"
-                                            value={form_dta.address}
-                                            onChange={handleInputChange}
-                                            className={error.address_er ? "input-error" : ""}
-                                        />
-                                        {error.address_er && <div className="error-message">{error.address_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>PIN Code</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter 6-digit PIN code"
-                                            name="pincode"
-                                            value={form_dta.pincode}
-                                            onChange={handleInputChange}
-                                            maxLength={6}
-                                            className={error.pincode_er || pincodeError ? "input-error" : ""}
-                                        />
-                                        {pincodeLoading && <div className="loading-text">Fetching location...</div>}
-                                        {pincodeError && <div className="error-message">{pincodeError}</div>}
-                                        {error.pincode_er && <div className="error-message">{error.pincode_er}</div>}
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>Address</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter your full address"
+                                        name="address"
+                                        value={form_dta.address}
+                                        onChange={handleInputChange}
+                                        className={error.address_er ? "input-error" : ""}
+                                    />
+                                    {error.address_er && <div className="error-message">{error.address_er}</div>}
                                 </div>
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>State</label>
-                                        <input
-                                            type="text"
-                                            name="state"
-                                            value={form_dta.state}
-                                            onChange={handleInputChange}
-                                            readOnly
-                                            className="readonly-field"
-                                        />
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>District</label>
-                                        <input
-                                            type="text"
-                                            name="district"
-                                            value={form_dta.district}
-                                            onChange={handleInputChange}
-                                            readOnly
-                                            className="readonly-field"
-                                        />
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>City/Taluk</label>
-                                        <input
-                                            type="text"
-                                            name="city"
-                                            value={form_dta.city}
-                                            onChange={handleInputChange}
-                                            readOnly
-                                            className="readonly-field"
-                                        />
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>State</label>
+                                    <input
+                                        type="text"
+                                        name="state"
+                                        value={form_dta.state}
+                                        onChange={handleInputChange}
+                                        readOnly
+                                        className="readonly-field"
+                                    />
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>PIN Code</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter 6-digit PIN code"
+                                        name="pincode"
+                                        value={form_dta.pincode}
+                                        onChange={handleInputChange}
+                                        maxLength={6}
+                                        className={error.pincode_er || pincodeError ? "input-error" : ""}
+                                    />
+                                    {pincodeLoading && <div className="loading-text">Fetching location...</div>}
+                                    {pincodeError && <div className="error-message">{pincodeError}</div>}
+                                    {error.pincode_er && <div className="error-message">{error.pincode_er}</div>}
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>District</label>
+                                    <input
+                                        type="text"
+                                        name="district"
+                                        value={form_dta.district}
+                                        onChange={handleInputChange}
+                                        readOnly
+                                        className="readonly-field"
+                                    />
+                                </div>
+                                <div className="collectionagent-field" style={{ gridColumn: "1 / -1" }}>
+                                    <label>City/Taluk</label>
+                                    <input
+                                        type="text"
+                                        name="city"
+                                        value={form_dta.city}
+                                        onChange={handleInputChange}
+                                        readOnly
+                                        className="readonly-field"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -934,82 +916,78 @@ function CollectionAgent_signup()
                         <div className="form-section">
                             <h3>Vehicle Details</h3>
                             <div className="collectionagent-form-grid">
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Vehicle Type</label>
-                                        <select
-                                            name="vehicleType"
-                                            value={form_dta.vehicleType}
-                                            onChange={handleInputChange}
-                                            className={error.vehicleType_er ? "input-error" : ""}
-                                        >
-                                            <option value="">Select vehicle type</option>
-                                            <option value="Bike">Bike</option>
-                                            <option value="Scooter">Scooter</option>
-                                            <option value="Van">Van</option>
-                                            <option value="Mini Truck">Mini Truck</option>
-                                        </select>
-                                        {error.vehicleType_er && <div className="error-message">{error.vehicleType_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>Vehicle Number</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter vehicle number"
-                                            name="vehicleNumber"
-                                            value={form_dta.vehicleNumber}
-                                            onChange={handleInputChange}
-                                            className={error.vehicleNumber_er ? "input-error" : ""}
-                                        />
-                                        {error.vehicleNumber_er && <div className="error-message">{error.vehicleNumber_er}</div>}
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>Vehicle Type</label>
+                                    <select
+                                        name="vehicleType"
+                                        value={form_dta.vehicleType}
+                                        onChange={handleInputChange}
+                                        className={error.vehicleType_er ? "input-error" : ""}
+                                    >
+                                        <option value="">Select vehicle type</option>
+                                        <option value="Bike">Bike</option>
+                                        <option value="Scooter">Scooter</option>
+                                        <option value="Van">Van</option>
+                                        <option value="Mini Truck">Mini Truck</option>
+                                    </select>
+                                    {error.vehicleType_er && <div className="error-message">{error.vehicleType_er}</div>}
                                 </div>
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Driving License Number</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter license number"
-                                            name="licenseNumber"
-                                            value={form_dta.licenseNumber}
-                                            onChange={handleInputChange}
-                                            className={error.licenseNumber_er ? "input-error" : ""}
-                                        />
-                                        {error.licenseNumber_er && <div className="error-message">{error.licenseNumber_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>Vehicle Insurance</label>
-                                        <input
-                                            type="file"
-                                            name="vehicleInsurance"
-                                            accept="image/jpeg,image/png,application/pdf"
-                                            onChange={handleInputChange}
-                                            className={error.vehicleInsurance_er ? "input-error" : ""}
-                                        />
-                                        {error.vehicleInsurance_er && <div className="error-message">{error.vehicleInsurance_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>Vehicle Pollution Certificate</label>
-                                        <input
-                                            type="file"
-                                            name="vehiclePollution"
-                                            accept="image/jpeg,image/png,application/pdf"
-                                            onChange={handleInputChange}
-                                            className={error.vehiclePollution_er ? "input-error" : ""}
-                                        />
-                                        {error.vehiclePollution_er && <div className="error-message">{error.vehiclePollution_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>Vehicle Photo</label>
-                                        <input
-                                            type="file"
-                                            name="vehiclePhoto"
-                                            accept="image/jpeg,image/png,application/pdf"
-                                            onChange={handleInputChange}
-                                            className={error.vehiclePhoto_er ? "input-error" : ""}
-                                        />
-                                        {error.vehiclePhoto_er && <div className="error-message">{error.vehiclePhoto_er}</div>}
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>Driving License Number</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter license number"
+                                        name="licenseNumber"
+                                        value={form_dta.licenseNumber}
+                                        onChange={handleInputChange}
+                                        className={error.licenseNumber_er ? "input-error" : ""}
+                                    />
+                                    {error.licenseNumber_er && <div className="error-message">{error.licenseNumber_er}</div>}
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>Vehicle Number</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter vehicle number"
+                                        name="vehicleNumber"
+                                        value={form_dta.vehicleNumber}
+                                        onChange={handleInputChange}
+                                        className={error.vehicleNumber_er ? "input-error" : ""}
+                                    />
+                                    {error.vehicleNumber_er && <div className="error-message">{error.vehicleNumber_er}</div>}
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>Vehicle Insurance</label>
+                                    <input
+                                        type="file"
+                                        name="vehicleInsurance"
+                                        accept="image/jpeg,image/png,application/pdf"
+                                        onChange={handleInputChange}
+                                        className={error.vehicleInsurance_er ? "input-error" : ""}
+                                    />
+                                    {error.vehicleInsurance_er && <div className="error-message">{error.vehicleInsurance_er}</div>}
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>Vehicle Pollution Certificate</label>
+                                    <input
+                                        type="file"
+                                        name="vehiclePollution"
+                                        accept="image/jpeg,image/png,application/pdf"
+                                        onChange={handleInputChange}
+                                        className={error.vehiclePollution_er ? "input-error" : ""}
+                                    />
+                                    {error.vehiclePollution_er && <div className="error-message">{error.vehiclePollution_er}</div>}
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>Vehicle Photo</label>
+                                    <input
+                                        type="file"
+                                        name="vehiclePhoto"
+                                        accept="image/jpeg,image/png,application/pdf"
+                                        onChange={handleInputChange}
+                                        className={error.vehiclePhoto_er ? "input-error" : ""}
+                                    />
+                                    {error.vehiclePhoto_er && <div className="error-message">{error.vehiclePhoto_er}</div>}
                                 </div>
                             </div>
                         </div>
@@ -1019,57 +997,53 @@ function CollectionAgent_signup()
                         <div className="form-section">
                             <h3>Bank Details</h3>
                             <div className="collectionagent-form-grid">
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Account Holder Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Account holder name"
-                                            name="accountHolder"
-                                            value={form_dta.accountHolder}
-                                            onChange={handleInputChange}
-                                            className={error.accountHolder_er ? "input-error" : ""}
-                                        />
-                                        {error.accountHolder_er && <div className="error-message">{error.accountHolder_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>Bank Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Bank name"
-                                            name="bankName"
-                                            value={form_dta.bankName}
-                                            onChange={handleInputChange}
-                                            className={error.bankName_er ? "input-error" : ""}
-                                        />
-                                        {error.bankName_er && <div className="error-message">{error.bankName_er}</div>}
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>Account Holder Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Account holder name"
+                                        name="accountHolder"
+                                        value={form_dta.accountHolder}
+                                        onChange={handleInputChange}
+                                        className={error.accountHolder_er ? "input-error" : ""}
+                                    />
+                                    {error.accountHolder_er && <div className="error-message">{error.accountHolder_er}</div>}
                                 </div>
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Account Number</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Bank account number"
-                                            name="accountNumber"
-                                            value={form_dta.accountNumber}
-                                            onChange={handleInputChange}
-                                            className={error.accountNumber_er ? "input-error" : ""}
-                                        />
-                                        {error.accountNumber_er && <div className="error-message">{error.accountNumber_er}</div>}
-                                    </div>
-                                    <div className="collectionagent-field">
-                                        <label>IFSC Code</label>
-                                        <input
-                                            type="text"
-                                            placeholder="IFSC code"
-                                            name="ifscCode"
-                                            value={form_dta.ifscCode}
-                                            onChange={handleInputChange}
-                                            className={error.ifscCode_er ? "input-error" : ""}
-                                        />
-                                        {error.ifscCode_er && <div className="error-message">{error.ifscCode_er}</div>}
-                                    </div>
+                                <div className="collectionagent-field">
+                                    <label>Account Number</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Bank account number"
+                                        name="accountNumber"
+                                        value={form_dta.accountNumber}
+                                        onChange={handleInputChange}
+                                        className={error.accountNumber_er ? "input-error" : ""}
+                                    />
+                                    {error.accountNumber_er && <div className="error-message">{error.accountNumber_er}</div>}
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>Bank Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Bank name"
+                                        name="bankName"
+                                        value={form_dta.bankName}
+                                        onChange={handleInputChange}
+                                        className={error.bankName_er ? "input-error" : ""}
+                                    />
+                                    {error.bankName_er && <div className="error-message">{error.bankName_er}</div>}
+                                </div>
+                                <div className="collectionagent-field">
+                                    <label>IFSC Code</label>
+                                    <input
+                                        type="text"
+                                        placeholder="IFSC code"
+                                        name="ifscCode"
+                                        value={form_dta.ifscCode}
+                                        onChange={handleInputChange}
+                                        className={error.ifscCode_er ? "input-error" : ""}
+                                    />
+                                    {error.ifscCode_er && <div className="error-message">{error.ifscCode_er}</div>}
                                 </div>
                             </div>
                         </div>
@@ -1079,53 +1053,49 @@ function CollectionAgent_signup()
                         <div className="form-section">
                             <h3>Login Details</h3>
                             <div className="collectionagent-form-grid">
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Password</label>
-                                        <div className="password-input-wrapper">
-                                            <input
-                                                type={showPassword ? "text" : "password"}
-                                                placeholder="Enter your password"
-                                                name="password"
-                                                value={form_dta.password}
-                                                onChange={handleInputChange}
-                                                className={error.password_er ? "input-error" : ""}
-                                            />
-                                            <button
-                                                type="button"
-                                                className="password-toggle-btn"
-                                                onClick={togglePasswordVisibility}
-                                                aria-label={showPassword ? "Hide password" : "Show password"}
-                                            >
-                                                {showPassword ? <FaEyeSlash /> : <FaEye />}
-                                            </button>
-                                        </div>
-                                        {error.password_er && <div className="error-message">{error.password_er}</div>}
+                                <div className="collectionagent-field">
+                                    <label>Password</label>
+                                    <div className="password-input-wrapper">
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="Enter your password"
+                                            name="password"
+                                            value={form_dta.password}
+                                            onChange={handleInputChange}
+                                            className={error.password_er ? "input-error" : ""}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="password-toggle-btn"
+                                            onClick={togglePasswordVisibility}
+                                            aria-label={showPassword ? "Hide password" : "Show password"}
+                                        >
+                                            {showPassword ? <FaEyeSlash /> : <FaEye />}
+                                        </button>
                                     </div>
+                                    {error.password_er && <div className="error-message">{error.password_er}</div>}
                                 </div>
-                                <div className="collectionagent-form-column">
-                                    <div className="collectionagent-field">
-                                        <label>Confirm Password</label>
-                                        <div className="password-input-wrapper">
-                                            <input
-                                                type={showConfirmPassword ? "text" : "password"}
-                                                placeholder="Confirm your password"
-                                                name="confirmPassword"
-                                                value={form_dta.confirmPassword}
-                                                onChange={handleInputChange}
-                                                className={error.confirmPassword_er ? "input-error" : ""}
-                                            />
-                                            <button
-                                                type="button"
-                                                className="password-toggle-btn"
-                                                onClick={toggleConfirmPasswordVisibility}
-                                                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                                            >
-                                                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                                            </button>
-                                        </div>
-                                        {error.confirmPassword_er && <div className="error-message">{error.confirmPassword_er}</div>}
+                                <div className="collectionagent-field">
+                                    <label>Confirm Password</label>
+                                    <div className="password-input-wrapper">
+                                        <input
+                                            type={showConfirmPassword ? "text" : "password"}
+                                            placeholder="Confirm your password"
+                                            name="confirmPassword"
+                                            value={form_dta.confirmPassword}
+                                            onChange={handleInputChange}
+                                            className={error.confirmPassword_er ? "input-error" : ""}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="password-toggle-btn"
+                                            onClick={toggleConfirmPasswordVisibility}
+                                            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                                        >
+                                            {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                                        </button>
                                     </div>
+                                    {error.confirmPassword_er && <div className="error-message">{error.confirmPassword_er}</div>}
                                 </div>
                             </div>
                         </div>

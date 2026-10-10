@@ -24,7 +24,9 @@ import {
     FiCalendar,
     FiCheckCircle,
     FiGrid,
-    FiList
+    FiList,
+    FiExternalLink,
+    FiImage
 } from "react-icons/fi";
 import "./Manage_users.css";
 
@@ -919,352 +921,300 @@ function Managetechnician() {
 
                 {/* VIEW FULL PROFILE DETAIL MODAL */}
                 {showDetailModal && viewTech && (
-                    <div className="modal-overlay" style={{ alignItems: "center", justifyContent: "center", padding: "1.5rem" }}>
-                        <div className="modal-card" style={{ maxWidth: "1100px", width: "100%", borderRadius: "20px", background: "#ffffff", boxShadow: "0 25px 50px -12px rgba(15, 23, 42, 0.35)", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "90vh" }}>
-                            {/* Fixed Modal Header */}
-                            <div className="modal-header" style={{ padding: "1.25rem 1.75rem", background: "#ffffff", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-                                <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                                    <FiShield style={{ color: "#2563eb", fontSize: "1.35rem" }} /> Technician Profile & Details
-                                </h3>
+                    <div className="modal-overlay" onClick={() => { setShowDetailModal(false); setViewTech(null); }}>
+                        <div className="device-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "950px", width: "95%" }}>
+                            <div className="modal-header">
+                                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                                    {getPhotoSrc(viewTech) ? (
+                                        <img
+                                            src={getPhotoSrc(viewTech)}
+                                            alt="Profile"
+                                            className="user-avatar-img"
+                                            style={{ width: "50px", height: "50px", borderRadius: "12px", objectFit: "cover" }}
+                                        />
+                                    ) : (
+                                        <div className="user-avatar-mini" style={{ width: "50px", height: "50px", borderRadius: "12px", fontSize: "1.2rem" }}>
+                                            {getInitials(viewTech.firstName, viewTech.lastName)}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <h2>{`${viewTech.firstName || ""} ${viewTech.lastName || ""}`.trim() || "Technician Profile"}</h2>
+                                        <p className="panel-subtitle">Technician ID: #TECH-{viewTech.technicianId || viewTech.id} | Email: {viewTech.login?.email || "N/A"}</p>
+                                    </div>
+                                </div>
                                 <button
                                     className="modal-close-btn"
                                     onClick={() => {
                                         setShowDetailModal(false);
                                         setViewTech(null);
                                     }}
-                                    style={{ background: "#f1f5f9", border: "none", width: "32px", height: "32px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#64748b" }}
                                 >
-                                    <FiX style={{ fontSize: "1.1rem" }} />
+                                    <FiX />
                                 </button>
                             </div>
 
-                            {/* Scrollable Modal Body */}
-                            <div className="modal-body" style={{ padding: "1.5rem 1.75rem", overflowY: "auto", flex: 1 }}>
-                                {/* Top Profile Summary Bar */}
-                                <div className="user-summary-box" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)", borderRadius: "14px", padding: "1.25rem 1.5rem", border: "1px solid #cbd5e1", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <div className="user-profile-cell" style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
-                                        {getPhotoSrc(viewTech) ? (
-                                            <img
-                                                src={getPhotoSrc(viewTech)}
-                                                alt=""
-                                                className="user-avatar-img"
-                                                style={{ width: "60px", height: "60px", borderRadius: "14px", objectFit: "cover", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}
-                                            />
-                                        ) : (
-                                            <div className="user-avatar-mini" style={{ width: "60px", height: "60px", borderRadius: "14px", fontSize: "1.35rem", fontWeight: 700 }}>
-                                                {getInitials(viewTech.firstName, viewTech.lastName)}
-                                            </div>
-                                        )}
-                                        <div className="user-info">
-                                            <span className="user-name" style={{ fontSize: "1.2rem", fontWeight: 800, color: "#0f172a" }}>
-                                                {`${viewTech.firstName || ""} ${viewTech.lastName || ""}`.trim() || "Technician Profile"}
-                                            </span>
-                                            <span className="user-email" style={{ fontSize: "0.875rem", color: "#64748b", display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.2rem" }}>
-                                                {viewTech.login?.email || "N/A"}
-                                                <span style={{ padding: "0.15rem 0.5rem", borderRadius: "6px", background: "#e2e8f0", color: "#334155", fontWeight: 700, fontSize: "0.75rem" }}>
-                                                    ID: #TECH-{viewTech.technicianId}
-                                                </span>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                                        {getStatusBadge(viewTech.status)}
-                                    </div>
+                            <div className="device-details-grid">
+                                <div className="detail-item">
+                                    <label>First Name</label>
+                                    <span>{viewTech.firstName || "N/A"}</span>
                                 </div>
-
-                                {/* 2-COLUMN SIDE-BY-SIDE GRID */}
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))", gap: "1.5rem" }}>
-                                    {/* LEFT SIDE: Personal & Employment Details */}
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                                        {/* Personal Details Card */}
-                                        <div style={{ background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)", borderRadius: "16px", padding: "1.35rem", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.03)" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", paddingBottom: "0.6rem", borderBottom: "1px solid #f1f5f9" }}>
-                                                <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
-                                                    <FiUser />
-                                                </div>
-                                                <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", margin: 0, letterSpacing: "0.02em" }}>
-                                                    Personal & Account Information
-                                                </h4>
-                                            </div>
-
-                                            <div className="detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>First Name</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.firstName || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Last Name</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.lastName || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Phone Number</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.phoneNumber || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Gender</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.gender || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item" style={{ gridColumn: "span 2" }}>
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Email Address</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.login?.email || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Date of Birth</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{formatDate(viewTech.dateOfBirth)}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Registration Date</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{formatDate(viewTech.createdAt)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Employment & Work Details Card */}
-                                        <div style={{ background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)", borderRadius: "16px", padding: "1.35rem", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.03)" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", paddingBottom: "0.6rem", borderBottom: "1px solid #f1f5f9" }}>
-                                                <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "#f3e8ff", color: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
-                                                    <FiBriefcase />
-                                                </div>
-                                                <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", margin: 0, letterSpacing: "0.02em" }}>
-                                                    Employment & Center Details
-                                                </h4>
-                                            </div>
-
-                                            <div className="detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                                                <div className="detail-item" style={{ gridColumn: "span 2" }}>
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Inspection Center Name</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.inspectionCenterName || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Employee ID</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a", fontFamily: "monospace" }}>{viewTech.employeeId || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Job Title</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.jobTitle || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Date of Joining</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{formatDate(viewTech.dateOfJoining)}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Experience Years</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.experienceYears !== undefined && viewTech.experienceYears !== null ? `${viewTech.experienceYears} Years` : "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item" style={{ gridColumn: "span 2" }}>
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Specialization</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.specialization || "N/A"}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* RIGHT SIDE: Address, Certifications & Documents */}
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                                        {/* Address Card */}
-                                        <div style={{ background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)", borderRadius: "16px", padding: "1.35rem", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.03)" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", paddingBottom: "0.6rem", borderBottom: "1px solid #f1f5f9" }}>
-                                                <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "#fffbeb", color: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
-                                                    <FiMapPin />
-                                                </div>
-                                                <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", margin: 0, letterSpacing: "0.02em" }}>
-                                                    Address & Location
-                                                </h4>
-                                            </div>
-
-                                            <div className="detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                                                <div className="detail-item" style={{ gridColumn: "span 2" }}>
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Street Address</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.address || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>City</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.city || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>District</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.district || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>State</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.state || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Pin Code</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.pinCode || "N/A"}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Certification & ID Info Card */}
-                                        <div style={{ background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)", borderRadius: "16px", padding: "1.35rem", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.03)" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", paddingBottom: "0.6rem", borderBottom: "1px solid #f1f5f9" }}>
-                                                <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "#f0fdf4", color: "#16a34a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
-                                                    <FiAward />
-                                                </div>
-                                                <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", margin: 0, letterSpacing: "0.02em" }}>
-                                                    Certification & Government ID
-                                                </h4>
-                                            </div>
-
-                                            <div className="detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                                                <div className="detail-item" style={{ gridColumn: "span 2" }}>
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Issuing Institute</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.issuingInstitute || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Certificate No.</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a", fontFamily: "monospace" }}>{viewTech.certificateNumber || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Issue Date</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{formatDate(viewTech.certificateIssueDate)}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Expiry Date</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{formatDate(viewTech.certificateExpiryDate)}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Gov ID Type</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewTech.governmentIdType || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item" style={{ gridColumn: "span 2" }}>
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Gov ID Number</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a", fontFamily: "monospace" }}>{viewTech.governmentIdNumber || "N/A"}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Verification Documents Card */}
-                                        {(getGovernmentIdPath(viewTech) || getEmployeeIdCardPath(viewTech) || getTechnicalCertificatePath(viewTech) || getResumePath(viewTech) || getPhotoSrc(viewTech)) && (
-                                            <div style={{ background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)", borderRadius: "16px", padding: "1.35rem", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.03)" }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", paddingBottom: "0.6rem", borderBottom: "1px solid #f1f5f9" }}>
-                                                    <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "#ecfeff", color: "#06b6d4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
-                                                        <FiFileText />
-                                                    </div>
-                                                    <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", margin: 0, letterSpacing: "0.02em" }}>
-                                                        Verification Documents
-                                                    </h4>
-                                                </div>
-
-                                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-                                                    {getGovernmentIdPath(viewTech) && (
-                                                        <a
-                                                            href={getGovernmentIdPath(viewTech)}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            {viewTech.governmentIdType || "Gov ID"} Doc ↗
-                                                        </a>
-                                                    )}
-                                                    {getEmployeeIdCardPath(viewTech) && (
-                                                        <a
-                                                            href={getEmployeeIdCardPath(viewTech)}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            Employee ID Card ↗
-                                                        </a>
-                                                    )}
-                                                    {getTechnicalCertificatePath(viewTech) && (
-                                                        <a
-                                                            href={getTechnicalCertificatePath(viewTech)}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            Technical Cert ↗
-                                                        </a>
-                                                    )}
-                                                    {getResumePath(viewTech) && (
-                                                        <a
-                                                            href={getResumePath(viewTech)}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            Resume / CV ↗
-                                                        </a>
-                                                    )}
-                                                    {getPhotoSrc(viewTech) && (
-                                                        <a
-                                                            href={getPhotoSrc(viewTech)}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            Profile Photo ↗
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                <div className="detail-item">
+                                    <label>Last Name</label>
+                                    <span>{viewTech.lastName || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Email Address</label>
+                                    <span>{viewTech.login?.email || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Phone Number</label>
+                                    <span>{viewTech.phoneNumber || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Gender</label>
+                                    <span>{viewTech.gender || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Date of Birth</label>
+                                    <span>{formatDate(viewTech.dateOfBirth)}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Inspection Center Name</label>
+                                    <span>{viewTech.inspectionCenterName || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Employee ID</label>
+                                    <span>{viewTech.employeeId || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Job Title</label>
+                                    <span>{viewTech.jobTitle || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Date of Joining</label>
+                                    <span>{formatDate(viewTech.dateOfJoining)}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Experience Years</label>
+                                    <span>{viewTech.experienceYears !== undefined && viewTech.experienceYears !== null ? `${viewTech.experienceYears} Years` : "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Specialization</label>
+                                    <span>{viewTech.specialization || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Street Address</label>
+                                    <span>{viewTech.address || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>City</label>
+                                    <span>{viewTech.city || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>District</label>
+                                    <span>{viewTech.district || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>State</label>
+                                    <span>{viewTech.state || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Pin Code</label>
+                                    <span>{viewTech.pinCode || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Gov ID Type</label>
+                                    <span>{viewTech.governmentIdType || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Gov ID Number</label>
+                                    <span>{viewTech.governmentIdNumber || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Issuing Institute</label>
+                                    <span>{viewTech.issuingInstitute || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Certificate Number</label>
+                                    <span>{viewTech.certificateNumber || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Certificate Issue Date</label>
+                                    <span>{formatDate(viewTech.certificateIssueDate)}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Certificate Expiry Date</label>
+                                    <span>{formatDate(viewTech.certificateExpiryDate)}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Status</label>
+                                    <span>{getStatusBadge(viewTech.status)}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Registration Date</label>
+                                    <span>{formatDate(viewTech.createdAt)}</span>
                                 </div>
                             </div>
 
-                            {/* Fixed Modal Footer */}
-                            <div className="modal-footer" style={{ padding: "1rem 1.75rem", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "flex-end", gap: "0.75rem", flexShrink: 0 }}>
+                            {(getGovernmentIdPath(viewTech) || getEmployeeIdCardPath(viewTech) || getTechnicalCertificatePath(viewTech) || getResumePath(viewTech) || getPhotoSrc(viewTech)) && (
+                                <div className="device-photos-section">
+                                    <h4>
+                                        <FiFileText style={{ color: "var(--primary)" }} /> Uploaded Verification Documents
+                                    </h4>
+                                    <div className="photos-grid">
+                                        {getGovernmentIdPath(viewTech) && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={getGovernmentIdPath(viewTech)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title={`View ${viewTech.governmentIdType || "Government ID"}`}
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiShield />
+                                                    </div>
+                                                    <span>{viewTech.governmentIdType || "Gov ID"} Proof</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                        {getEmployeeIdCardPath(viewTech) && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={getEmployeeIdCardPath(viewTech)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title="View Employee ID Card"
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiFileText />
+                                                    </div>
+                                                    <span>Employee ID Card</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                        {getTechnicalCertificatePath(viewTech) && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={getTechnicalCertificatePath(viewTech)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title="View Technical Certificate"
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiAward />
+                                                    </div>
+                                                    <span>Technical Certificate</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                        {getResumePath(viewTech) && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={getResumePath(viewTech)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title="View Resume"
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiFileText />
+                                                    </div>
+                                                    <span>Resume / CV</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                        {getPhotoSrc(viewTech) && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={getPhotoSrc(viewTech)}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title="View Profile Photo"
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiImage />
+                                                    </div>
+                                                    <span>Profile Photo</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem", marginTop: "1.25rem", paddingTop: "0.85rem", borderTop: "1px solid #e2e8f0" }}>
                                 <button
-                                    className="btn-secondary"
+                                    className="pill-btn"
                                     onClick={() => {
                                         setShowDetailModal(false);
                                         setViewTech(null);
                                     }}
-                                    style={{ padding: "0.6rem 1.5rem", borderRadius: "10px", fontWeight: 600 }}
+                                    style={{ padding: "0.45rem 0.9rem", borderRadius: "6px", cursor: "pointer", fontWeight: 600, fontSize: "0.8rem" }}
                                 >
                                     Close
                                 </button>
                                 {(viewTech.status || "").toLowerCase() === "pending" && (
                                     <>
                                         <button
+                                            className="action-btn-text action-btn-text--approve"
                                             onClick={() => {
                                                 const id = viewTech.technicianId || viewTech.id;
                                                 setShowDetailModal(false);
                                                 setViewTech(null);
                                                 acceptTechnician(id);
                                             }}
-                                            style={{
-                                                padding: "0.6rem 1.25rem",
-                                                background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
-                                                color: "#ffffff",
-                                                border: "none",
-                                                borderRadius: "10px",
-                                                fontWeight: 700,
-                                                fontSize: "0.875rem",
-                                                cursor: "pointer"
-                                            }}
                                         >
-                                            Approve Technician
+                                            Approve Account
                                         </button>
                                         <button
+                                            className="action-btn-text action-btn-text--reject"
                                             onClick={() => {
                                                 const target = viewTech;
                                                 setShowDetailModal(false);
                                                 setViewTech(null);
                                                 openRejectModal(target);
                                             }}
-                                            style={{
-                                                padding: "0.6rem 1.25rem",
-                                                background: "#fef2f2",
-                                                color: "#dc2626",
-                                                border: "1px solid #fca5a5",
-                                                borderRadius: "10px",
-                                                fontWeight: 700,
-                                                fontSize: "0.875rem",
-                                                cursor: "pointer"
-                                            }}
                                         >
-                                            Reject Technician
+                                            Reject Application
                                         </button>
                                     </>
+                                )}
+                                {((viewTech.status || "").toLowerCase() === "active" || (viewTech.status || "").toLowerCase() === "approved") && (
+                                    <button
+                                        className="action-btn-text action-btn-text--deactivate"
+                                        onClick={() => {
+                                            const target = viewTech;
+                                            setShowDetailModal(false);
+                                            setViewTech(null);
+                                            openDeactivateModal(target);
+                                        }}
+                                        style={{ padding: "0.45rem 0.9rem", borderRadius: "6px", fontSize: "0.8rem" }}
+                                    >
+                                        Deactivate Account
+                                    </button>
+                                )}
+                                {(viewTech.status || "").toLowerCase() === "inactive" && (
+                                    <button
+                                        className="action-btn-text action-btn-text--activate"
+                                        onClick={() => {
+                                            const id = viewTech.technicianId || viewTech.id;
+                                            setShowDetailModal(false);
+                                            setViewTech(null);
+                                            activateTechnician(id);
+                                        }}
+                                        style={{ padding: "0.45rem 0.9rem", borderRadius: "6px", fontSize: "0.8rem" }}
+                                    >
+                                        Activate Account
+                                    </button>
                                 )}
                             </div>
                         </div>

@@ -19,7 +19,10 @@ import {
     FiGrid,
     FiList,
     FiUserCheck,
-    FiUserX
+    FiUserX,
+    FiExternalLink,
+    FiImage,
+    FiTruck
 } from "react-icons/fi";
 import "./Manage_users.css";
 
@@ -893,7 +896,9 @@ function ManageCollectionAgent() {
 
                             {(getAadhaarProofPath(selectedAgent) || getInsurancePath(selectedAgent) || getPollutionPath(selectedAgent) || getVehiclePhotoPath(selectedAgent) || getPhotoSrc(selectedAgent)) && (
                                 <div className="device-photos-section">
-                                    <h4>Uploaded Verification Documents</h4>
+                                    <h4>
+                                        <FiFileText style={{ color: "var(--primary)" }} /> Uploaded Verification Documents
+                                    </h4>
                                     <div className="photos-grid">
                                         {getAadhaarProofPath(selectedAgent) && (
                                             <div className="photo-card">
@@ -902,8 +907,13 @@ function ManageCollectionAgent() {
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="document-link-btn"
+                                                    title="View Aadhaar Proof"
                                                 >
-                                                    Aadhaar Proof ↗
+                                                    <div className="doc-icon-box">
+                                                        <FiShield />
+                                                    </div>
+                                                    <span>Aadhaar Proof</span>
+                                                    <FiExternalLink className="ext-icon" />
                                                 </a>
                                             </div>
                                         )}
@@ -914,8 +924,13 @@ function ManageCollectionAgent() {
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="document-link-btn"
+                                                    title="View Vehicle Insurance"
                                                 >
-                                                    Vehicle Insurance ↗
+                                                    <div className="doc-icon-box">
+                                                        <FiFileText />
+                                                    </div>
+                                                    <span>Vehicle Insurance</span>
+                                                    <FiExternalLink className="ext-icon" />
                                                 </a>
                                             </div>
                                         )}
@@ -926,8 +941,13 @@ function ManageCollectionAgent() {
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="document-link-btn"
+                                                    title="View Pollution Certificate"
                                                 >
-                                                    Vehicle Pollution Cert ↗
+                                                    <div className="doc-icon-box">
+                                                        <FiAward />
+                                                    </div>
+                                                    <span>Pollution Cert</span>
+                                                    <FiExternalLink className="ext-icon" />
                                                 </a>
                                             </div>
                                         )}
@@ -938,8 +958,13 @@ function ManageCollectionAgent() {
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="document-link-btn"
+                                                    title="View Vehicle Photo"
                                                 >
-                                                    Vehicle Photo ↗
+                                                    <div className="doc-icon-box">
+                                                        <FiTruck />
+                                                    </div>
+                                                    <span>Vehicle Photo</span>
+                                                    <FiExternalLink className="ext-icon" />
                                                 </a>
                                             </div>
                                         )}
@@ -950,8 +975,13 @@ function ManageCollectionAgent() {
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="document-link-btn"
+                                                    title="View Profile Photo"
                                                 >
-                                                    Profile Photo ↗
+                                                    <div className="doc-icon-box">
+                                                        <FiImage />
+                                                    </div>
+                                                    <span>Profile Photo</span>
+                                                    <FiExternalLink className="ext-icon" />
                                                 </a>
                                             </div>
                                         )}

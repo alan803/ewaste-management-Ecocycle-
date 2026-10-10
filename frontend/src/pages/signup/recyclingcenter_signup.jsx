@@ -915,57 +915,53 @@ function RecyclingCenter_signup() {
                             <div className="form-section">
                                 <h3>Basic Information</h3>
                                 <div className="refurbishmentcenter-form-grid">
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Center Name</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Enter center name"
-                                                name="centerName"
-                                                value={form_dta.centerName}
-                                                onChange={handleInputChange}
-                                                className={error.centerName_er ? "input-error" : ""}
-                                            />
-                                            {error.centerName_er && <div className="error-message">{error.centerName_er}</div>}
-                                        </div>
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Owner Name</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Enter owner name"
-                                                name="ownerName"
-                                                value={form_dta.ownerName}
-                                                onChange={handleInputChange}
-                                                className={error.ownerName_er ? "input-error" : ""}
-                                            />
-                                            {error.ownerName_er && <div className="error-message">{error.ownerName_er}</div>}
-                                        </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Center Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter center name"
+                                            name="centerName"
+                                            value={form_dta.centerName}
+                                            onChange={handleInputChange}
+                                            className={error.centerName_er ? "input-error" : ""}
+                                        />
+                                        {error.centerName_er && <div className="error-message">{error.centerName_er}</div>}
                                     </div>
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Phone Number</label>
-                                            <input
-                                                type="tel"
-                                                placeholder="Enter phone number"
-                                                name="phoneNumber"
-                                                value={form_dta.phoneNumber}
-                                                onChange={handleInputChange}
-                                                className={error.phoneNumber_er ? "input-error" : ""}
-                                            />
-                                            {error.phoneNumber_er && <div className="error-message">{error.phoneNumber_er}</div>}
-                                        </div>
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Email</label>
-                                            <input
-                                                type="email"
-                                                placeholder="Enter email"
-                                                name="email"
-                                                value={form_dta.email}
-                                                onChange={handleInputChange}
-                                                className={error.email_er ? "input-error" : ""}
-                                            />
-                                            {error.email_er && <div className="error-message">{error.email_er}</div>}
-                                        </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Phone Number</label>
+                                        <input
+                                            type="tel"
+                                            placeholder="Enter phone number"
+                                            name="phoneNumber"
+                                            value={form_dta.phoneNumber}
+                                            onChange={handleInputChange}
+                                            className={error.phoneNumber_er ? "input-error" : ""}
+                                        />
+                                        {error.phoneNumber_er && <div className="error-message">{error.phoneNumber_er}</div>}
+                                    </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Owner Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter owner name"
+                                            name="ownerName"
+                                            value={form_dta.ownerName}
+                                            onChange={handleInputChange}
+                                            className={error.ownerName_er ? "input-error" : ""}
+                                        />
+                                        {error.ownerName_er && <div className="error-message">{error.ownerName_er}</div>}
+                                    </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Email</label>
+                                        <input
+                                            type="email"
+                                            placeholder="Enter email"
+                                            name="email"
+                                            value={form_dta.email}
+                                            onChange={handleInputChange}
+                                            className={error.email_er ? "input-error" : ""}
+                                        />
+                                        {error.email_er && <div className="error-message">{error.email_er}</div>}
                                     </div>
                                 </div>
                             </div>
@@ -975,63 +971,59 @@ function RecyclingCenter_signup() {
                             <div className="form-section">
                                 <h3>Business Information</h3>
                                 <div className="refurbishmentcenter-form-grid">
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Business Registration Number</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Enter registration no eg:KA9876543210123"
-                                                name="businessRegistrationNumber"
-                                                value={form_dta.businessRegistrationNumber}
-                                                onChange={handleInputChange}
-                                                className={error.businessRegistrationNumber_er ? "input-error" : ""}
-                                            />
-                                            {error.businessRegistrationNumber_er && <div className="error-message">{error.businessRegistrationNumber_er}</div>}
-                                        </div>
-                                        <div className="refurbishmentcenter-field">
-                                            <label>GST Number</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Enter GST number eg: 22AAAAA0000A1Z5"
-                                                name="gstNumber"
-                                                value={form_dta.gstNumber}
-                                                onChange={handleInputChange}
-                                                maxLength={15}
-                                                className={error.gstNumber_er ? "input-error" : ""}
-                                            />
-                                            {error.gstNumber_er && (
-                                                <div className="error-message">
-                                                    {error.gstNumber_er}
-                                                </div>
-                                            )}
-                                        </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Business Registration Number</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter registration no eg:KA9876543210123"
+                                            name="businessRegistrationNumber"
+                                            value={form_dta.businessRegistrationNumber}
+                                            onChange={handleInputChange}
+                                            className={error.businessRegistrationNumber_er ? "input-error" : ""}
+                                        />
+                                        {error.businessRegistrationNumber_er && <div className="error-message">{error.businessRegistrationNumber_er}</div>}
                                     </div>
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Years of Experience</label>
-                                            <input
-                                                type="number"
-                                                placeholder="Enter years"
-                                                name="experienceYears"
-                                                value={form_dta.experienceYears}
-                                                onChange={handleInputChange}
-                                                min="0"
-                                                className={error.experienceYears_er ? "input-error" : ""}
-                                            />
-                                            {error.experienceYears_er && <div className="error-message">{error.experienceYears_er}</div>}
-                                        </div>
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Recycler Registration Number</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Enter registration number eg:CPCB/REC/2023/102"
-                                                name="recyclerRegistrationNumber"
-                                                value={form_dta.recyclerRegistrationNumber}
-                                                onChange={handleInputChange}
-                                                className={error.recyclerRegistrationNumber_er ? "input-error" : ""}
-                                            />
-                                            {error.recyclerRegistrationNumber_er && <div className="error-message">{error.recyclerRegistrationNumber_er}</div>}
-                                        </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Years of Experience</label>
+                                        <input
+                                            type="number"
+                                            placeholder="Enter years"
+                                            name="experienceYears"
+                                            value={form_dta.experienceYears}
+                                            onChange={handleInputChange}
+                                            min="0"
+                                            className={error.experienceYears_er ? "input-error" : ""}
+                                        />
+                                        {error.experienceYears_er && <div className="error-message">{error.experienceYears_er}</div>}
+                                    </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>GST Number</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter GST number eg: 22AAAAA0000A1Z5"
+                                            name="gstNumber"
+                                            value={form_dta.gstNumber}
+                                            onChange={handleInputChange}
+                                            maxLength={15}
+                                            className={error.gstNumber_er ? "input-error" : ""}
+                                        />
+                                        {error.gstNumber_er && (
+                                            <div className="error-message">
+                                                {error.gstNumber_er}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Recycler Registration Number</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter registration number eg:CPCB/REC/2023/102"
+                                            name="recyclerRegistrationNumber"
+                                            value={form_dta.recyclerRegistrationNumber}
+                                            onChange={handleInputChange}
+                                            className={error.recyclerRegistrationNumber_er ? "input-error" : ""}
+                                        />
+                                        {error.recyclerRegistrationNumber_er && <div className="error-message">{error.recyclerRegistrationNumber_er}</div>}
                                     </div>
                                 </div>
                             </div>
@@ -1041,107 +1033,101 @@ function RecyclingCenter_signup() {
                             <div className="form-section">
                                 <h3>Address Details</h3>
                                 <div className="refurbishmentcenter-form-grid">
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Building Number</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Enter building number"
-                                                name="buildingNumber"
-                                                value={form_dta.buildingNumber}
-                                                onChange={handleInputChange}
-                                                className={error.buildingNumber_er ? "input-error" : ""}
-                                            />
-                                            {error.buildingNumber_er && <div className="error-message">{error.buildingNumber_er}</div>}
-                                        </div>
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Street</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Enter street"
-                                                name="street"
-                                                value={form_dta.street}
-                                                onChange={handleInputChange}
-                                                className={error.street_er ? "input-error" : ""}
-                                            />
-                                            {error.street_er && <div className="error-message">{error.street_er}</div>}
-                                        </div>
-                                        <div className="refurbishmentcenter-field">
-                                            <label>PIN Code</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Enter 6-digit PIN code"
-                                                name="pincode"
-                                                value={form_dta.pincode}
-                                                onChange={handleInputChange}
-                                                maxLength={6}
-                                                className={error.pincode_er || pincodeError ? "input-error" : ""}
-                                            />
-                                            {pincodeLoading && <div className="loading-text">Fetching location...</div>}
-                                            {pincodeError && <div className="error-message">{pincodeError}</div>}
-                                            {error.pincode_er && <div className="error-message">{error.pincode_er}</div>}
-                                        </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Building Number</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter building number"
+                                            name="buildingNumber"
+                                            value={form_dta.buildingNumber}
+                                            onChange={handleInputChange}
+                                            className={error.buildingNumber_er ? "input-error" : ""}
+                                        />
+                                        {error.buildingNumber_er && <div className="error-message">{error.buildingNumber_er}</div>}
                                     </div>
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>State</label>
-                                            <input
-                                                type="text"
-                                                name="state"
-                                                value={form_dta.state}
-                                                readOnly
-                                                className={
-                                                    error.state_er
-                                                        ? "input-error"
-                                                        : "readonly-field"
-                                                }
-                                            />
-                                            {error.state_er && (
-                                                <div className="error-message">
-                                                    {error.state_er}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="refurbishmentcenter-field">
-                                            <label>District</label>
-                                            <input
-                                                type="text"
-                                                name="district"
-                                                value={form_dta.district}
-                                                readOnly
-                                                className={
-                                                    error.district_er
-                                                        ? "input-error"
-                                                        : "readonly-field"
-                                                }
-                                            />
-                                            {error.district_er && (
-                                                <div className="error-message">
-                                                    {error.district_er}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="refurbishmentcenter-field">
-                                            <label>City</label>
-                                            <input
-                                                type="text"
-                                                name="city"
-                                                value={form_dta.city}
-                                                readOnly
-                                                className={
-                                                    error.city_er
-                                                        ? "input-error"
-                                                        : "readonly-field"
-                                                }
-                                            />
-                                            {error.city_er && (
-                                                <div className="error-message">
-                                                    {error.city_er}
-                                                </div>
-                                            )}
-                                        </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>State</label>
+                                        <input
+                                            type="text"
+                                            name="state"
+                                            value={form_dta.state}
+                                            readOnly
+                                            className={
+                                                error.state_er
+                                                    ? "input-error"
+                                                    : "readonly-field"
+                                            }
+                                        />
+                                        {error.state_er && (
+                                            <div className="error-message">
+                                                {error.state_er}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Street</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter street"
+                                            name="street"
+                                            value={form_dta.street}
+                                            onChange={handleInputChange}
+                                            className={error.street_er ? "input-error" : ""}
+                                        />
+                                        {error.street_er && <div className="error-message">{error.street_er}</div>}
+                                    </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>District</label>
+                                        <input
+                                            type="text"
+                                            name="district"
+                                            value={form_dta.district}
+                                            readOnly
+                                            className={
+                                                error.district_er
+                                                    ? "input-error"
+                                                    : "readonly-field"
+                                            }
+                                        />
+                                        {error.district_er && (
+                                            <div className="error-message">
+                                                {error.district_er}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>PIN Code</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Enter 6-digit PIN code"
+                                            name="pincode"
+                                            value={form_dta.pincode}
+                                            onChange={handleInputChange}
+                                            maxLength={6}
+                                            className={error.pincode_er || pincodeError ? "input-error" : ""}
+                                        />
+                                        {pincodeLoading && <div className="loading-text">Fetching location...</div>}
+                                        {pincodeError && <div className="error-message">{pincodeError}</div>}
+                                        {error.pincode_er && <div className="error-message">{error.pincode_er}</div>}
+                                    </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>City</label>
+                                        <input
+                                            type="text"
+                                            name="city"
+                                            value={form_dta.city}
+                                            readOnly
+                                            className={
+                                                error.city_er
+                                                    ? "input-error"
+                                                    : "readonly-field"
+                                            }
+                                        />
+                                        {error.city_er && (
+                                            <div className="error-message">
+                                                {error.city_er}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1234,38 +1220,34 @@ function RecyclingCenter_signup() {
                             <div className="form-section">
                                 <h3>Operational Details & Materials</h3>
                                 <div className="refurbishmentcenter-form-grid">
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Pickup Available</label>
-                                            <select
-                                                name="pickupAvailable"
-                                                value={form_dta.pickupAvailable}
-                                                onChange={handleInputChange}
-                                                className={error.pickupAvailable_er ? "input-error" : ""}
-                                            >
-                                                <option value="">Select</option>
-                                                <option value="Yes">Yes</option>
-                                                <option value="No">No</option>
-                                            </select>
-                                            {error.pickupAvailable_er && <div className="error-message">{error.pickupAvailable_er}</div>}
-                                        </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Pickup Available</label>
+                                        <select
+                                            name="pickupAvailable"
+                                            value={form_dta.pickupAvailable}
+                                            onChange={handleInputChange}
+                                            className={error.pickupAvailable_er ? "input-error" : ""}
+                                        >
+                                            <option value="">Select</option>
+                                            <option value="Yes">Yes</option>
+                                            <option value="No">No</option>
+                                        </select>
+                                        {error.pickupAvailable_er && <div className="error-message">{error.pickupAvailable_er}</div>}
                                     </div>
 
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Hazardous Waste Handling</label>
-                                            <select
-                                                name="hazardousWasteHandling"
-                                                value={form_dta.hazardousWasteHandling}
-                                                onChange={handleInputChange}
-                                                className={error.hazardousWasteHandling_er ? "input-error" : ""}
-                                            >
-                                                <option value="">Select</option>
-                                                <option value="Yes">Yes</option>
-                                                <option value="No">No</option>
-                                            </select>
-                                            {error.hazardousWasteHandling_er && <div className="error-message">{error.hazardousWasteHandling_er}</div>}
-                                        </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Hazardous Waste Handling</label>
+                                        <select
+                                            name="hazardousWasteHandling"
+                                            value={form_dta.hazardousWasteHandling}
+                                            onChange={handleInputChange}
+                                            className={error.hazardousWasteHandling_er ? "input-error" : ""}
+                                        >
+                                            <option value="">Select</option>
+                                            <option value="Yes">Yes</option>
+                                            <option value="No">No</option>
+                                        </select>
+                                        {error.hazardousWasteHandling_er && <div className="error-message">{error.hazardousWasteHandling_er}</div>}
                                     </div>
                                 </div>
 
@@ -1354,89 +1336,85 @@ function RecyclingCenter_signup() {
                             <div className="form-section">
                                 <h3>Documents</h3>
                                 <div className="refurbishmentcenter-form-grid">
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Business Registration Certificate</label>
-                                            <input
-                                                type="file"
-                                                name="businessRegistrationCertificate"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                onChange={handleInputChange}
-                                                className={error.businessRegistrationCertificate_er ? "input-error" : ""}
-                                            />
-                                            {error.businessRegistrationCertificate_er && <div className="error-message">{error.businessRegistrationCertificate_er}</div>}
-                                        </div>
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Recycler Registration Certificate</label>
-                                            <input
-                                                type="file"
-                                                name="recyclerRegistrationCertificate"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                onChange={handleInputChange}
-                                                className={error.recyclerRegistrationCertificate_er ? "input-error" : ""}
-                                            />
-                                            {error.recyclerRegistrationCertificate_er && <div className="error-message">{error.recyclerRegistrationCertificate_er}</div>}
-                                        </div>
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Consent to Operate (CTO)</label>
-                                            <input
-                                                type="file"
-                                                name="consentToOperate"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                onChange={handleInputChange}
-                                                className={error.consentToOperate_er ? "input-error" : ""}
-                                            />
-                                            {error.consentToOperate_er && <div className="error-message">{error.consentToOperate_er}</div>}
-                                        </div>
-                                        {form_dta.hazardousWasteHandling === "Yes" && (
-                                            <div className="refurbishmentcenter-field">
-                                                <label>Hazardous Waste Authorization</label>
-                                                <input
-                                                    type="file"
-                                                    name="hazardousWasteAuthorization"
-                                                    accept=".pdf,.jpg,.jpeg,.png"
-                                                    onChange={handleInputChange}
-                                                    className={error.hazardousWasteAuthorization_er ? "input-error" : ""}
-                                                />
-                                                {error.hazardousWasteAuthorization_er && <div className="error-message">{error.hazardousWasteAuthorization_er}</div>}
-                                            </div>
-                                        )}
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Business Registration Certificate</label>
+                                        <input
+                                            type="file"
+                                            name="businessRegistrationCertificate"
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            onChange={handleInputChange}
+                                            className={error.businessRegistrationCertificate_er ? "input-error" : ""}
+                                        />
+                                        {error.businessRegistrationCertificate_er && <div className="error-message">{error.businessRegistrationCertificate_er}</div>}
                                     </div>
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Address Proof</label>
-                                            <input
-                                                type="file"
-                                                name="addressProof"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                onChange={handleInputChange}
-                                                className={error.addressProof_er ? "input-error" : ""}
-                                            />
-                                            {error.addressProof_er && <div className="error-message">{error.addressProof_er}</div>}
-                                        </div>
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Center Photo</label>
-                                            <input
-                                                type="file"
-                                                name="centerPhoto"
-                                                accept=".jpg,.jpeg,.png"
-                                                onChange={handleInputChange}
-                                                className={error.centerPhoto_er ? "input-error" : ""}
-                                            />
-                                            {error.centerPhoto_er && <div className="error-message">{error.centerPhoto_er}</div>}
-                                        </div>
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Authorized Person ID</label>
-                                            <input
-                                                type="file"
-                                                name="authorizedPersonId"
-                                                accept=".pdf,.jpg,.jpeg,.png"
-                                                onChange={handleInputChange}
-                                                className={error.authorizedPersonId_er ? "input-error" : ""}
-                                            />
-                                            {error.authorizedPersonId_er && <div className="error-message">{error.authorizedPersonId_er}</div>}
-                                        </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Address Proof</label>
+                                        <input
+                                            type="file"
+                                            name="addressProof"
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            onChange={handleInputChange}
+                                            className={error.addressProof_er ? "input-error" : ""}
+                                        />
+                                        {error.addressProof_er && <div className="error-message">{error.addressProof_er}</div>}
                                     </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Recycler Registration Certificate</label>
+                                        <input
+                                            type="file"
+                                            name="recyclerRegistrationCertificate"
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            onChange={handleInputChange}
+                                            className={error.recyclerRegistrationCertificate_er ? "input-error" : ""}
+                                        />
+                                        {error.recyclerRegistrationCertificate_er && <div className="error-message">{error.recyclerRegistrationCertificate_er}</div>}
+                                    </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Center Photo</label>
+                                        <input
+                                            type="file"
+                                            name="centerPhoto"
+                                            accept=".jpg,.jpeg,.png"
+                                            onChange={handleInputChange}
+                                            className={error.centerPhoto_er ? "input-error" : ""}
+                                        />
+                                        {error.centerPhoto_er && <div className="error-message">{error.centerPhoto_er}</div>}
+                                    </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Consent to Operate (CTO)</label>
+                                        <input
+                                            type="file"
+                                            name="consentToOperate"
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            onChange={handleInputChange}
+                                            className={error.consentToOperate_er ? "input-error" : ""}
+                                        />
+                                        {error.consentToOperate_er && <div className="error-message">{error.consentToOperate_er}</div>}
+                                    </div>
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Authorized Person ID</label>
+                                        <input
+                                            type="file"
+                                            name="authorizedPersonId"
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            onChange={handleInputChange}
+                                            className={error.authorizedPersonId_er ? "input-error" : ""}
+                                        />
+                                        {error.authorizedPersonId_er && <div className="error-message">{error.authorizedPersonId_er}</div>}
+                                    </div>
+                                    {form_dta.hazardousWasteHandling === "Yes" && (
+                                        <div className="refurbishmentcenter-field" style={{ gridColumn: "1 / -1" }}>
+                                            <label>Hazardous Waste Authorization</label>
+                                            <input
+                                                type="file"
+                                                name="hazardousWasteAuthorization"
+                                                accept=".pdf,.jpg,.jpeg,.png"
+                                                onChange={handleInputChange}
+                                                className={error.hazardousWasteAuthorization_er ? "input-error" : ""}
+                                            />
+                                            {error.hazardousWasteAuthorization_er && <div className="error-message">{error.hazardousWasteAuthorization_er}</div>}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -1446,87 +1424,81 @@ function RecyclingCenter_signup() {
                                 <h3>Login Details</h3>
                                 <div className="refurbishmentcenter-form-grid">
                                     {/* PASSWORD */}
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Password</label>
-                                            <div className="password-input-wrapper">
-                                                <input
-                                                    type={showPassword ? "text" : "password"}
-                                                    placeholder="Create password"
-                                                    name="password"
-                                                    value={form_dta.password}
-                                                    onChange={handleInputChange}
-                                                    className={
-                                                        touched.password && error.password_er
-                                                            ? "input-error"
-                                                            : ""
-                                                    }
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="password-toggle-btn"
-                                                    onClick={togglePasswordVisibility}
-                                                    aria-label={
-                                                        showPassword
-                                                            ? "Hide password"
-                                                            : "Show password"
-                                                    }
-                                                >
-                                                    {showPassword ? <FaEyeSlash /> : <FaEye />}
-                                                </button>
-                                            </div>
-                                            {touched.password && error.password_er && (
-                                                <div className="error-message">
-                                                    {error.password_er}
-                                                </div>
-                                            )}
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Password</label>
+                                        <div className="password-input-wrapper">
+                                            <input
+                                                type={showPassword ? "text" : "password"}
+                                                placeholder="Create password"
+                                                name="password"
+                                                value={form_dta.password}
+                                                onChange={handleInputChange}
+                                                className={
+                                                    error.password_er
+                                                        ? "input-error"
+                                                        : ""
+                                                }
+                                            />
+                                            <button
+                                                type="button"
+                                                className="password-toggle-btn"
+                                                onClick={togglePasswordVisibility}
+                                                aria-label={
+                                                    showPassword
+                                                        ? "Hide password"
+                                                        : "Show password"
+                                                }
+                                            >
+                                                {showPassword ? <FaEyeSlash /> : <FaEye />}
+                                            </button>
                                         </div>
+                                        {error.password_er && (
+                                            <div className="error-message">
+                                                {error.password_er}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* CONFIRM PASSWORD */}
-                                    <div className="refurbishmentcenter-form-column">
-                                        <div className="refurbishmentcenter-field">
-                                            <label>Confirm Password</label>
-                                            <div className="password-input-wrapper">
-                                                <input
-                                                    type={
-                                                        showConfirmPassword
-                                                            ? "text"
-                                                            : "password"
-                                                    }
-                                                    placeholder="Confirm password"
-                                                    name="confirmPassword"
-                                                    value={form_dta.confirmPassword}
-                                                    onChange={handleInputChange}
-                                                    className={
-                                                        touched.confirmPassword &&
-                                                        error.confirmPassword_er
-                                                            ? "input-error"
-                                                            : ""
-                                                    }
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="password-toggle-btn"
-                                                    onClick={toggleConfirmPasswordVisibility}
-                                                    aria-label={
-                                                        showConfirmPassword
-                                                            ? "Hide password"
-                                                            : "Show password"
-                                                    }
-                                                >
-                                                    {showConfirmPassword
-                                                        ? <FaEyeSlash />
-                                                        : <FaEye />}
-                                                </button>
-                                            </div>
-                                            {touched.confirmPassword &&
-                                                error.confirmPassword_er && (
-                                                    <div className="error-message">
-                                                        {error.confirmPassword_er}
-                                                    </div>
-                                                )}
+                                    <div className="refurbishmentcenter-field">
+                                        <label>Confirm Password</label>
+                                        <div className="password-input-wrapper">
+                                            <input
+                                                type={
+                                                    showConfirmPassword
+                                                        ? "text"
+                                                        : "password"
+                                                }
+                                                placeholder="Confirm password"
+                                                name="confirmPassword"
+                                                value={form_dta.confirmPassword}
+                                                onChange={handleInputChange}
+                                                className={
+                                                    error.confirmPassword_er
+                                                        ? "input-error"
+                                                        : ""
+                                                }
+                                            />
+                                            <button
+                                                type="button"
+                                                className="password-toggle-btn"
+                                                onClick={toggleConfirmPasswordVisibility}
+                                                aria-label={
+                                                    showConfirmPassword
+                                                        ? "Hide password"
+                                                        : "Show password"
+                                                }
+                                            >
+                                                {showConfirmPassword
+                                                    ? <FaEyeSlash />
+                                                    : <FaEye />}
+                                            </button>
                                         </div>
+                                        {error.confirmPassword_er && (
+                                            <div className="error-message">
+                                                {error.confirmPassword_er}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

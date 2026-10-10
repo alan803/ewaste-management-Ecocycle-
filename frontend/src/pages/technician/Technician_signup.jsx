@@ -727,62 +727,54 @@ function Technician_signup()
                         <div className="form-section">
                             <h3>Personal Details</h3>
                             <div className="technician-form-grid">
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>First Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter your first name"
-                                            name="firstName"
-                                            value={form_dta.firstName}
-                                            onChange={handleInputChange}
-                                            className={error.firstName_er ? "input-error" : ""}
-                                        />
-                                        {error.firstName_er && <div className="error-message">{error.firstName_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Last Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter your last name"
-                                            name="lastName"
-                                            value={form_dta.lastName}
-                                            onChange={handleInputChange}
-                                            className={error.lastName_er ? "input-error" : ""}
-                                        />
-                                        {error.lastName_er && <div className="error-message">{error.lastName_er}</div>}
-                                    </div>
+                                <div className="technician-field">
+                                    <label>First Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter your first name"
+                                        name="firstName"
+                                        value={form_dta.firstName}
+                                        onChange={handleInputChange}
+                                        className={error.firstName_er ? "input-error" : ""}
+                                    />
+                                    {error.firstName_er && <div className="error-message">{error.firstName_er}</div>}
                                 </div>
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Phone Number</label>
-                                        <input
-                                            type="tel"
-                                            placeholder="Enter your phone number"
-                                            name="phoneNumber"
-                                            value={form_dta.phoneNumber}
-                                            onChange={handleInputChange}
-                                            className={error.phoneNumber_er ? "input-error" : ""}
-                                        />
-                                        {error.phoneNumber_er && <div className="error-message">{error.phoneNumber_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Profile Photo</label>
-                                        <input
-                                            type="file"
-                                            name="profilePhoto"
-                                            accept="image/jpeg,image/png"
-                                            onChange={handleInputChange}
-                                            className={error.profilePhoto_er ? "input-error" : ""}
-                                        />
-                                        {error.profilePhoto_er && <div className="error-message">{error.profilePhoto_er}</div>}
-                                    </div>
+                                <div className="technician-field">
+                                    <label>Last Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter your last name"
+                                        name="lastName"
+                                        value={form_dta.lastName}
+                                        onChange={handleInputChange}
+                                        className={error.lastName_er ? "input-error" : ""}
+                                    />
+                                    {error.lastName_er && <div className="error-message">{error.lastName_er}</div>}
                                 </div>
-                            </div>
-
-                            {/* Full Width Email Field */}
-                            <div className="technician-form-grid">
-                                <div className="technician-field technician-email-full">
+                                <div className="technician-field">
+                                    <label>Phone Number</label>
+                                    <input
+                                        type="tel"
+                                        placeholder="Enter your phone number"
+                                        name="phoneNumber"
+                                        value={form_dta.phoneNumber}
+                                        onChange={handleInputChange}
+                                        className={error.phoneNumber_er ? "input-error" : ""}
+                                    />
+                                    {error.phoneNumber_er && <div className="error-message">{error.phoneNumber_er}</div>}
+                                </div>
+                                <div className="technician-field">
+                                    <label>Profile Photo</label>
+                                    <input
+                                        type="file"
+                                        name="profilePhoto"
+                                        accept="image/jpeg,image/png"
+                                        onChange={handleInputChange}
+                                        className={error.profilePhoto_er ? "input-error" : ""}
+                                    />
+                                    {error.profilePhoto_er && <div className="error-message">{error.profilePhoto_er}</div>}
+                                </div>
+                                <div className="technician-field technician-email-full" style={{ gridColumn: "1 / -1" }}>
                                     <label>Email</label>
                                     <input
                                         type="email"
@@ -794,37 +786,30 @@ function Technician_signup()
                                     />
                                     {error.email_er && <div className="error-message">{error.email_er}</div>}
                                 </div>
-                            </div>
-
-                            <div className="technician-form-grid">
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Date of Birth</label>
-                                        <input
-                                            type="date"
-                                            name="dateOfBirth"
-                                            value={form_dta.dateOfBirth}
-                                            onChange={handleInputChange}
-                                            className={error.dateOfBirth_er ? "input-error" : ""}
-                                        />
-                                        {error.dateOfBirth_er && <div className="error-message">{error.dateOfBirth_er}</div>}
-                                    </div>
+                                <div className="technician-field">
+                                    <label>Date of Birth</label>
+                                    <input
+                                        type="date"
+                                        name="dateOfBirth"
+                                        value={form_dta.dateOfBirth}
+                                        onChange={handleInputChange}
+                                        className={error.dateOfBirth_er ? "input-error" : ""}
+                                    />
+                                    {error.dateOfBirth_er && <div className="error-message">{error.dateOfBirth_er}</div>}
                                 </div>
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Gender</label>
-                                        <select
-                                            name="gender"
-                                            value={form_dta.gender}
-                                            onChange={handleInputChange}
-                                            className={error.gender_er ? "input-error" : ""}
-                                        >
-                                            <option value="">Select gender</option>
-                                            <option value="Male">Male</option>
-                                            <option value="Female">Female</option>
-                                        </select>
-                                        {error.gender_er && <div className="error-message">{error.gender_er}</div>}
-                                    </div>
+                                <div className="technician-field">
+                                    <label>Gender</label>
+                                    <select
+                                        name="gender"
+                                        value={form_dta.gender}
+                                        onChange={handleInputChange}
+                                        className={error.gender_er ? "input-error" : ""}
+                                    >
+                                        <option value="">Select gender</option>
+                                        <option value="Male">Male</option>
+                                        <option value="Female">Female</option>
+                                    </select>
+                                    {error.gender_er && <div className="error-message">{error.gender_er}</div>}
                                 </div>
                             </div>
                         </div>
@@ -847,69 +832,65 @@ function Technician_signup()
                                 </div>
                             </div>
                             <div className="technician-form-grid">
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Shop / Facility Address</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter your full shop / inspection facility address"
-                                            name="address"
-                                            value={form_dta.address}
-                                            onChange={handleInputChange}
-                                            className={error.address_er ? "input-error" : ""}
-                                        />
-                                        {error.address_er && <div className="error-message">{error.address_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Shop PIN Code</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter 6-digit shop PIN code"
-                                            name="pinCode"
-                                            value={form_dta.pinCode}
-                                            onChange={handleInputChange}
-                                            maxLength={6}
-                                            className={error.pinCode_er || pincodeError ? "input-error" : ""}
-                                        />
-                                        {pincodeLoading && <div className="loading-text">Fetching shop location...</div>}
-                                        {pincodeError && <div className="error-message">{pincodeError}</div>}
-                                        {error.pinCode_er && <div className="error-message">{error.pinCode_er}</div>}
-                                    </div>
+                                <div className="technician-field" style={{ gridColumn: "1 / -1" }}>
+                                    <label>Shop / Facility Address</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter your full shop / inspection facility address"
+                                        name="address"
+                                        value={form_dta.address}
+                                        onChange={handleInputChange}
+                                        className={error.address_er ? "input-error" : ""}
+                                    />
+                                    {error.address_er && <div className="error-message">{error.address_er}</div>}
                                 </div>
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Shop State</label>
-                                        <input
-                                            type="text"
-                                            name="state"
-                                            value={form_dta.state}
-                                            onChange={handleInputChange}
-                                            readOnly
-                                            className="readonly-field"
-                                        />
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Shop District</label>
-                                        <input
-                                            type="text"
-                                            name="district"
-                                            value={form_dta.district}
-                                            onChange={handleInputChange}
-                                            readOnly
-                                            className="readonly-field"
-                                        />
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Shop City / Town</label>
-                                        <input
-                                            type="text"
-                                            name="city"
-                                            value={form_dta.city}
-                                            onChange={handleInputChange}
-                                            readOnly
-                                            className="readonly-field"
-                                        />
-                                    </div>
+                                <div className="technician-field">
+                                    <label>Shop PIN Code</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter 6-digit shop PIN code"
+                                        name="pinCode"
+                                        value={form_dta.pinCode}
+                                        onChange={handleInputChange}
+                                        maxLength={6}
+                                        className={error.pinCode_er || pincodeError ? "input-error" : ""}
+                                    />
+                                    {pincodeLoading && <div className="loading-text">Fetching shop location...</div>}
+                                    {pincodeError && <div className="error-message">{pincodeError}</div>}
+                                    {error.pinCode_er && <div className="error-message">{error.pinCode_er}</div>}
+                                </div>
+                                <div className="technician-field">
+                                    <label>Shop State</label>
+                                    <input
+                                        type="text"
+                                        name="state"
+                                        value={form_dta.state}
+                                        onChange={handleInputChange}
+                                        readOnly
+                                        className="readonly-field"
+                                    />
+                                </div>
+                                <div className="technician-field">
+                                    <label>Shop District</label>
+                                    <input
+                                        type="text"
+                                        name="district"
+                                        value={form_dta.district}
+                                        onChange={handleInputChange}
+                                        readOnly
+                                        className="readonly-field"
+                                    />
+                                </div>
+                                <div className="technician-field">
+                                    <label>Shop City / Town</label>
+                                    <input
+                                        type="text"
+                                        name="city"
+                                        value={form_dta.city}
+                                        onChange={handleInputChange}
+                                        readOnly
+                                        className="readonly-field"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -919,86 +900,82 @@ function Technician_signup()
                         <div className="form-section">
                             <h3>Employment Details</h3>
                             <div className="technician-form-grid">
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Shop / Inspection Center Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter shop / inspection center name"
-                                            name="inspectionCenterName"
-                                            value={form_dta.inspectionCenterName}
-                                            onChange={handleInputChange}
-                                            className={error.inspectionCenterName_er ? "input-error" : ""}
-                                        />
-                                        {error.inspectionCenterName_er && <div className="error-message">{error.inspectionCenterName_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Employee ID</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter employee ID"
-                                            name="employeeId"
-                                            value={form_dta.employeeId}
-                                            onChange={handleInputChange}
-                                            className={error.employeeId_er ? "input-error" : ""}
-                                        />
-                                        {error.employeeId_er && <div className="error-message">{error.employeeId_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Job Title</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter job title"
-                                            name="jobTitle"
-                                            value={form_dta.jobTitle}
-                                            onChange={handleInputChange}
-                                            className={error.jobTitle_er ? "input-error" : ""}
-                                        />
-                                        {error.jobTitle_er && <div className="error-message">{error.jobTitle_er}</div>}
-                                    </div>
+                                <div className="technician-field">
+                                    <label>Shop / Inspection Center Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter shop / inspection center name"
+                                        name="inspectionCenterName"
+                                        value={form_dta.inspectionCenterName}
+                                        onChange={handleInputChange}
+                                        className={error.inspectionCenterName_er ? "input-error" : ""}
+                                    />
+                                    {error.inspectionCenterName_er && <div className="error-message">{error.inspectionCenterName_er}</div>}
                                 </div>
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Date of Joining</label>
-                                        <input
-                                            type="date"
-                                            name="dateOfJoining"
-                                            value={form_dta.dateOfJoining}
-                                            onChange={handleInputChange}
-                                            className={error.dateOfJoining_er ? "input-error" : ""}
-                                        />
-                                        {error.dateOfJoining_er && <div className="error-message">{error.dateOfJoining_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Years of Experience</label>
-                                        <input
-                                            type="number"
-                                            placeholder="Enter years of experience"
-                                            name="experienceYears"
-                                            value={form_dta.experienceYears}
-                                            onChange={handleInputChange}
-                                            min="0"
-                                            className={error.experienceYears_er ? "input-error" : ""}
-                                        />
-                                        {error.experienceYears_er && <div className="error-message">{error.experienceYears_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Specialization</label>
-                                        <select
-                                            name="specialization"
-                                            value={form_dta.specialization}
-                                            onChange={handleInputChange}
-                                            className={error.specialization_er ? "input-error" : ""}
-                                        >
-                                            <option value="">Select specialization</option>
-                                            <option value="Mobile Devices">Mobile Devices</option>
-                                            <option value="Laptops & PCs">Laptops & PCs</option>
-                                            <option value="Home Appliances">Home Appliances</option>
-                                            <option value="Industrial Electronics">Industrial Electronics</option>
-                                            <option value="Networking Equipment">Networking Equipment</option>
-                                        </select>
-                                        {error.specialization_er && <div className="error-message">{error.specialization_er}</div>}
-                                    </div>
+                                <div className="technician-field">
+                                    <label>Employee ID</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter employee ID"
+                                        name="employeeId"
+                                        value={form_dta.employeeId}
+                                        onChange={handleInputChange}
+                                        className={error.employeeId_er ? "input-error" : ""}
+                                    />
+                                    {error.employeeId_er && <div className="error-message">{error.employeeId_er}</div>}
+                                </div>
+                                <div className="technician-field">
+                                    <label>Job Title</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter job title"
+                                        name="jobTitle"
+                                        value={form_dta.jobTitle}
+                                        onChange={handleInputChange}
+                                        className={error.jobTitle_er ? "input-error" : ""}
+                                    />
+                                    {error.jobTitle_er && <div className="error-message">{error.jobTitle_er}</div>}
+                                </div>
+                                <div className="technician-field">
+                                    <label>Date of Joining</label>
+                                    <input
+                                        type="date"
+                                        name="dateOfJoining"
+                                        value={form_dta.dateOfJoining}
+                                        onChange={handleInputChange}
+                                        className={error.dateOfJoining_er ? "input-error" : ""}
+                                    />
+                                    {error.dateOfJoining_er && <div className="error-message">{error.dateOfJoining_er}</div>}
+                                </div>
+                                <div className="technician-field">
+                                    <label>Years of Experience</label>
+                                    <input
+                                        type="number"
+                                        placeholder="Enter years of experience"
+                                        name="experienceYears"
+                                        value={form_dta.experienceYears}
+                                        onChange={handleInputChange}
+                                        min="0"
+                                        className={error.experienceYears_er ? "input-error" : ""}
+                                    />
+                                    {error.experienceYears_er && <div className="error-message">{error.experienceYears_er}</div>}
+                                </div>
+                                <div className="technician-field">
+                                    <label>Specialization</label>
+                                    <select
+                                        name="specialization"
+                                        value={form_dta.specialization}
+                                        onChange={handleInputChange}
+                                        className={error.specialization_er ? "input-error" : ""}
+                                    >
+                                        <option value="">Select specialization</option>
+                                        <option value="Mobile Devices">Mobile Devices</option>
+                                        <option value="Laptops & PCs">Laptops & PCs</option>
+                                        <option value="Home Appliances">Home Appliances</option>
+                                        <option value="Industrial Electronics">Industrial Electronics</option>
+                                        <option value="Networking Equipment">Networking Equipment</option>
+                                    </select>
+                                    {error.specialization_er && <div className="error-message">{error.specialization_er}</div>}
                                 </div>
                             </div>
                         </div>
@@ -1008,55 +985,51 @@ function Technician_signup()
                         <div className="form-section">
                             <h3>Certification Details</h3>
                             <div className="technician-form-grid">
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Issuing Institute</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter issuing institute"
-                                            name="issuingInstitute"
-                                            value={form_dta.issuingInstitute}
-                                            onChange={handleInputChange}
-                                            className={error.issuingInstitute_er ? "input-error" : ""}
-                                        />
-                                        {error.issuingInstitute_er && <div className="error-message">{error.issuingInstitute_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Certificate Number</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter certificate number"
-                                            name="certificateNumber"
-                                            value={form_dta.certificateNumber}
-                                            onChange={handleInputChange}
-                                            className={error.certificateNumber_er ? "input-error" : ""}
-                                        />
-                                        {error.certificateNumber_er && <div className="error-message">{error.certificateNumber_er}</div>}
-                                    </div>
+                                <div className="technician-field">
+                                    <label>Issuing Institute</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter issuing institute"
+                                        name="issuingInstitute"
+                                        value={form_dta.issuingInstitute}
+                                        onChange={handleInputChange}
+                                        className={error.issuingInstitute_er ? "input-error" : ""}
+                                    />
+                                    {error.issuingInstitute_er && <div className="error-message">{error.issuingInstitute_er}</div>}
                                 </div>
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Certificate Issue Date</label>
-                                        <input
-                                            type="date"
-                                            name="certificateIssueDate"
-                                            value={form_dta.certificateIssueDate}
-                                            onChange={handleInputChange}
-                                            className={error.certificateIssueDate_er ? "input-error" : ""}
-                                        />
-                                        {error.certificateIssueDate_er && <div className="error-message">{error.certificateIssueDate_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Certificate Expiry Date (Optional)</label>
-                                        <input
-                                            type="date"
-                                            name="certificateExpiryDate"
-                                            value={form_dta.certificateExpiryDate}
-                                            onChange={handleInputChange}
-                                            className={error.certificateExpiryDate_er ? "input-error" : ""}
-                                        />
-                                        {error.certificateExpiryDate_er && <div className="error-message">{error.certificateExpiryDate_er}</div>}
-                                    </div>
+                                <div className="technician-field">
+                                    <label>Certificate Number</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter certificate number"
+                                        name="certificateNumber"
+                                        value={form_dta.certificateNumber}
+                                        onChange={handleInputChange}
+                                        className={error.certificateNumber_er ? "input-error" : ""}
+                                    />
+                                    {error.certificateNumber_er && <div className="error-message">{error.certificateNumber_er}</div>}
+                                </div>
+                                <div className="technician-field">
+                                    <label>Certificate Issue Date</label>
+                                    <input
+                                        type="date"
+                                        name="certificateIssueDate"
+                                        value={form_dta.certificateIssueDate}
+                                        onChange={handleInputChange}
+                                        className={error.certificateIssueDate_er ? "input-error" : ""}
+                                    />
+                                    {error.certificateIssueDate_er && <div className="error-message">{error.certificateIssueDate_er}</div>}
+                                </div>
+                                <div className="technician-field">
+                                    <label>Certificate Expiry Date (Optional)</label>
+                                    <input
+                                        type="date"
+                                        name="certificateExpiryDate"
+                                        value={form_dta.certificateExpiryDate}
+                                        onChange={handleInputChange}
+                                        className={error.certificateExpiryDate_er ? "input-error" : ""}
+                                    />
+                                    {error.certificateExpiryDate_er && <div className="error-message">{error.certificateExpiryDate_er}</div>}
                                 </div>
                             </div>
                         </div>
@@ -1066,70 +1039,66 @@ function Technician_signup()
                         <div className="form-section">
                             <h3>Identity Verification</h3>
                             <div className="technician-form-grid">
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Government ID Type</label>
-                                        <select
-                                            name="governmentIdType"
-                                            value={form_dta.governmentIdType}
-                                            onChange={handleInputChange}
-                                            className={error.governmentIdType_er ? "input-error" : ""}
-                                        >
-                                            <option value="">Select ID type</option>
-                                            <option value="Aadhaar">Aadhaar</option>
-                                            <option value="PAN">PAN Card</option>
-                                            <option value="Driving Licence">Driving Licence</option>
-                                            <option value="Passport">Passport</option>
-                                        </select>
-                                        {error.governmentIdType_er && <div className="error-message">{error.governmentIdType_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Government ID Number</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Enter ID number"
-                                            name="governmentIdNumber"
-                                            value={form_dta.governmentIdNumber}
-                                            onChange={handleInputChange}
-                                            className={error.governmentIdNumber_er ? "input-error" : ""}
-                                        />
-                                        {error.governmentIdNumber_er && <div className="error-message">{error.governmentIdNumber_er}</div>}
-                                    </div>
+                                <div className="technician-field">
+                                    <label>Government ID Type</label>
+                                    <select
+                                        name="governmentIdType"
+                                        value={form_dta.governmentIdType}
+                                        onChange={handleInputChange}
+                                        className={error.governmentIdType_er ? "input-error" : ""}
+                                    >
+                                        <option value="">Select ID type</option>
+                                        <option value="Aadhaar">Aadhaar</option>
+                                        <option value="PAN">PAN Card</option>
+                                        <option value="Driving Licence">Driving Licence</option>
+                                        <option value="Passport">Passport</option>
+                                    </select>
+                                    {error.governmentIdType_er && <div className="error-message">{error.governmentIdType_er}</div>}
                                 </div>
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Government ID Upload</label>
-                                        <input
-                                            type="file"
-                                            name="governmentIdFile"
-                                            accept="image/jpeg,image/png,application/pdf"
-                                            onChange={handleInputChange}
-                                            className={error.governmentIdFile_er ? "input-error" : ""}
-                                        />
-                                        {error.governmentIdFile_er && <div className="error-message">{error.governmentIdFile_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Employee ID Card Upload</label>
-                                        <input
-                                            type="file"
-                                            name="employeeIdCard"
-                                            accept="image/jpeg,image/png,application/pdf"
-                                            onChange={handleInputChange}
-                                            className={error.employeeIdCard_er ? "input-error" : ""}
-                                        />
-                                        {error.employeeIdCard_er && <div className="error-message">{error.employeeIdCard_er}</div>}
-                                    </div>
-                                    <div className="technician-field">
-                                        <label>Technical Certificate Upload</label>
-                                        <input
-                                            type="file"
-                                            name="technicalCertificate"
-                                            accept="image/jpeg,image/png,application/pdf"
-                                            onChange={handleInputChange}
-                                            className={error.technicalCertificate_er ? "input-error" : ""}
-                                        />
-                                        {error.technicalCertificate_er && <div className="error-message">{error.technicalCertificate_er}</div>}
-                                    </div>
+                                <div className="technician-field">
+                                    <label>Government ID Number</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Enter ID number"
+                                        name="governmentIdNumber"
+                                        value={form_dta.governmentIdNumber}
+                                        onChange={handleInputChange}
+                                        className={error.governmentIdNumber_er ? "input-error" : ""}
+                                    />
+                                    {error.governmentIdNumber_er && <div className="error-message">{error.governmentIdNumber_er}</div>}
+                                </div>
+                                <div className="technician-field">
+                                    <label>Government ID Upload</label>
+                                    <input
+                                        type="file"
+                                        name="governmentIdFile"
+                                        accept="image/jpeg,image/png,application/pdf"
+                                        onChange={handleInputChange}
+                                        className={error.governmentIdFile_er ? "input-error" : ""}
+                                    />
+                                    {error.governmentIdFile_er && <div className="error-message">{error.governmentIdFile_er}</div>}
+                                </div>
+                                <div className="technician-field">
+                                    <label>Employee ID Card Upload</label>
+                                    <input
+                                        type="file"
+                                        name="employeeIdCard"
+                                        accept="image/jpeg,image/png,application/pdf"
+                                        onChange={handleInputChange}
+                                        className={error.employeeIdCard_er ? "input-error" : ""}
+                                    />
+                                    {error.employeeIdCard_er && <div className="error-message">{error.employeeIdCard_er}</div>}
+                                </div>
+                                <div className="technician-field" style={{ gridColumn: "1 / -1" }}>
+                                    <label>Technical Certificate Upload</label>
+                                    <input
+                                        type="file"
+                                        name="technicalCertificate"
+                                        accept="image/jpeg,image/png,application/pdf"
+                                        onChange={handleInputChange}
+                                        className={error.technicalCertificate_er ? "input-error" : ""}
+                                    />
+                                    {error.technicalCertificate_er && <div className="error-message">{error.technicalCertificate_er}</div>}
                                 </div>
                             </div>
                         </div>
@@ -1139,53 +1108,49 @@ function Technician_signup()
                         <div className="form-section">
                             <h3>Login Details</h3>
                             <div className="technician-form-grid">
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Password</label>
-                                        <div className="password-input-wrapper">
-                                            <input
-                                                type={showPassword ? "text" : "password"}
-                                                placeholder="Enter your password"
-                                                name="password"
-                                                value={form_dta.password}
-                                                onChange={handleInputChange}
-                                                className={error.password_er ? "input-error" : ""}
-                                            />
-                                            <button
-                                                type="button"
-                                                className="password-toggle-btn"
-                                                onClick={togglePasswordVisibility}
-                                                aria-label={showPassword ? "Hide password" : "Show password"}
-                                            >
-                                                {showPassword ? <FaEyeSlash /> : <FaEye />}
-                                            </button>
-                                        </div>
-                                        {error.password_er && <div className="error-message">{error.password_er}</div>}
+                                <div className="technician-field">
+                                    <label>Password</label>
+                                    <div className="password-input-wrapper">
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            placeholder="Enter your password"
+                                            name="password"
+                                            value={form_dta.password}
+                                            onChange={handleInputChange}
+                                            className={error.password_er ? "input-error" : ""}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="password-toggle-btn"
+                                            onClick={togglePasswordVisibility}
+                                            aria-label={showPassword ? "Hide password" : "Show password"}
+                                        >
+                                            {showPassword ? <FaEyeSlash /> : <FaEye />}
+                                        </button>
                                     </div>
+                                    {error.password_er && <div className="error-message">{error.password_er}</div>}
                                 </div>
-                                <div className="technician-form-column">
-                                    <div className="technician-field">
-                                        <label>Confirm Password</label>
-                                        <div className="password-input-wrapper">
-                                            <input
-                                                type={showConfirmPassword ? "text" : "password"}
-                                                placeholder="Re-enter your password"
-                                                name="confirmPassword"
-                                                value={form_dta.confirmPassword}
-                                                onChange={handleInputChange}
-                                                className={error.confirmPassword_er ? "input-error" : ""}
-                                            />
-                                            <button
-                                                type="button"
-                                                className="password-toggle-btn"
-                                                onClick={toggleConfirmPasswordVisibility}
-                                                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                                            >
-                                                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                                            </button>
-                                        </div>
-                                        {error.confirmPassword_er && <div className="error-message">{error.confirmPassword_er}</div>}
+                                <div className="technician-field">
+                                    <label>Confirm Password</label>
+                                    <div className="password-input-wrapper">
+                                        <input
+                                            type={showConfirmPassword ? "text" : "password"}
+                                            placeholder="Re-enter your password"
+                                            name="confirmPassword"
+                                            value={form_dta.confirmPassword}
+                                            onChange={handleInputChange}
+                                            className={error.confirmPassword_er ? "input-error" : ""}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="password-toggle-btn"
+                                            onClick={toggleConfirmPasswordVisibility}
+                                            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                                        >
+                                            {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                                        </button>
                                     </div>
+                                    {error.confirmPassword_er && <div className="error-message">{error.confirmPassword_er}</div>}
                                 </div>
                             </div>
                         </div>

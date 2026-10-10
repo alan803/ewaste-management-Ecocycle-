@@ -21,7 +21,10 @@ import {
     FiCpu,
     FiPackage,
     FiGrid,
-    FiList
+    FiList,
+    FiExternalLink,
+    FiImage,
+    FiAward
 } from "react-icons/fi";
 import "./Manage_users.css";
 
@@ -119,9 +122,35 @@ function Managerecyclingcenter() {
         setShowDeactivate(true);
     };
 
-    const openDetailModal = (center) => {
+    const openDetailModal = async (center) => {
+        const centerId = center.recyclingCenterId || center.id;
         setViewCenter(center);
         setShowDetailModal(true);
+        try {
+            const response = await axios.get(
+                `https://ecocycle.runasp.net/api/RecyclingCenter/${centerId}`
+            );
+            if (response.data) {
+                setViewCenter(response.data);
+            }
+        } catch (err) {
+            console.error("Error fetching recycling center full details:", err);
+        }
+    };
+
+    const formatDate = (dateString) => {
+        if (!dateString) return "N/A";
+        try {
+            const d = new Date(dateString);
+            if (isNaN(d.getTime())) return dateString;
+            return d.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric"
+            });
+        } catch {
+            return dateString;
+        }
     };
 
     const deactivateCenter = async () => {
@@ -834,383 +863,326 @@ function Managerecyclingcenter() {
 
                 {/* VIEW FULL PROFILE DETAIL MODAL */}
                 {showDetailModal && viewCenter && (
-                    <div className="modal-overlay" style={{ alignItems: "center", justifyContent: "center", padding: "1.5rem" }}>
-                        <div className="modal-card" style={{ maxWidth: "1100px", width: "100%", borderRadius: "20px", background: "#ffffff", boxShadow: "0 25px 50px -12px rgba(15, 23, 42, 0.35)", overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: "90vh" }}>
-                            {/* Fixed Modal Header */}
-                            <div className="modal-header" style={{ padding: "1.25rem 1.75rem", background: "#ffffff", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-                                <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                                    <FiShield style={{ color: "#2563eb", fontSize: "1.35rem" }} /> Recycling Center Profile & Details
-                                </h3>
+                    <div className="modal-overlay" onClick={() => { setShowDetailModal(false); setViewCenter(null); }}>
+                        <div className="device-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "950px", width: "95%" }}>
+                            <div className="modal-header">
+                                <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+                                    {getPhotoSrc(viewCenter) ? (
+                                        <img
+                                            src={getPhotoSrc(viewCenter)}
+                                            alt="Profile"
+                                            className="user-avatar-img"
+                                            style={{ width: "50px", height: "50px", borderRadius: "12px", objectFit: "cover" }}
+                                        />
+                                    ) : (
+                                        <div className="user-avatar-mini" style={{ width: "50px", height: "50px", borderRadius: "12px", fontSize: "1.2rem" }}>
+                                            {getInitials(viewCenter.centerName, viewCenter.ownerName)}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <h2>{viewCenter.centerName || "Recycling Center"}</h2>
+                                        <p className="panel-subtitle">Center ID: #RC-{viewCenter.recyclingCenterId || viewCenter.id} | Email: {viewCenter.login?.email || "N/A"}</p>
+                                    </div>
+                                </div>
                                 <button
                                     className="modal-close-btn"
                                     onClick={() => {
                                         setShowDetailModal(false);
                                         setViewCenter(null);
                                     }}
-                                    style={{ background: "#f1f5f9", border: "none", width: "32px", height: "32px", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#64748b" }}
                                 >
-                                    <FiX style={{ fontSize: "1.1rem" }} />
+                                    <FiX />
                                 </button>
                             </div>
 
-                            {/* Scrollable Modal Body */}
-                            <div className="modal-body" style={{ padding: "1.5rem 1.75rem", overflowY: "auto", flex: 1 }}>
-                                {/* Top Center Profile Summary Bar */}
-                                <div className="user-summary-box" style={{ background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)", borderRadius: "14px", padding: "1.25rem 1.5rem", border: "1px solid #cbd5e1", marginBottom: "1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                    <div className="user-profile-cell" style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
-                                        {getPhotoSrc(viewCenter) ? (
-                                            <img
-                                                src={getPhotoSrc(viewCenter)}
-                                                alt=""
-                                                className="user-avatar-img"
-                                                style={{ width: "60px", height: "60px", borderRadius: "14px", objectFit: "cover", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)" }}
-                                            />
-                                        ) : (
-                                            <div className="user-avatar-mini" style={{ width: "60px", height: "60px", borderRadius: "14px", fontSize: "1.35rem", fontWeight: 700 }}>
-                                                {getInitials(viewCenter.centerName, viewCenter.ownerName)}
-                                            </div>
-                                        )}
-                                        <div className="user-info">
-                                            <span className="user-name" style={{ fontSize: "1.2rem", fontWeight: 800, color: "#0f172a" }}>
-                                                {viewCenter.centerName}
-                                            </span>
-                                            <span className="user-email" style={{ fontSize: "0.875rem", color: "#64748b", display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.2rem" }}>
-                                                {viewCenter.login?.email || "N/A"}
-                                                <span style={{ padding: "0.15rem 0.5rem", borderRadius: "6px", background: "#e2e8f0", color: "#334155", fontWeight: 700, fontSize: "0.75rem" }}>
-                                                    ID: #RC-{viewCenter.recyclingCenterId}
-                                                </span>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                                        {getStatusBadge(viewCenter.status)}
-                                    </div>
+                            <div className="device-details-grid">
+                                <div className="detail-item">
+                                    <label>Center Name</label>
+                                    <span>{viewCenter.centerName || "N/A"}</span>
                                 </div>
-
-                                {/* 2-COLUMN SIDE-BY-SIDE GRID */}
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))", gap: "1.5rem" }}>
-                                    {/* LEFT SIDE: Center Information & Processes */}
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                                        {/* Center Information Card */}
-                                        <div style={{ background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)", borderRadius: "16px", padding: "1.35rem", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.03)" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", paddingBottom: "0.6rem", borderBottom: "1px solid #f1f5f9" }}>
-                                                <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
-                                                    <FiRefreshCw />
-                                                </div>
-                                                <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", margin: 0, letterSpacing: "0.02em" }}>
-                                                    Center Information
-                                                </h4>
-                                            </div>
-
-                                            <div className="detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                                                <div className="detail-item" style={{ gridColumn: "span 2" }}>
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Center Name</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.centerName || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Owner Name</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.ownerName || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Phone Number</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.phoneNumber || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item" style={{ gridColumn: "span 2" }}>
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Email Address</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.login?.email || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Business Reg. No.</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a", fontFamily: "monospace" }}>{viewCenter.businessRegistrationNumber || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Recycler Reg. No.</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a", fontFamily: "monospace" }}>{viewCenter.recyclerRegistrationNumber || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>GST Number</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a", fontFamily: "monospace" }}>{viewCenter.gstNumber || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Experience</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.experienceYears !== undefined && viewCenter.experienceYears !== null ? `${viewCenter.experienceYears} Years` : "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Pickup Available</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.pickupAvailable || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Hazardous Waste Handling</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.hazardousWasteHandling || "N/A"}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Processes & Material Capabilities Card */}
-                                        <div style={{ background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)", borderRadius: "16px", padding: "1.35rem", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.03)" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", paddingBottom: "0.6rem", borderBottom: "1px solid #f1f5f9" }}>
-                                                <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "#f3e8ff", color: "#8b5cf6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
-                                                    <FiPackage />
-                                                </div>
-                                                <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", margin: 0, letterSpacing: "0.02em" }}>
-                                                    Processes & Materials Capabilities
-                                                </h4>
-                                            </div>
-
-                                            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                                                <div>
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.4rem" }}>Device Types Accepted</label>
-                                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-                                                        {viewCenter.deviceTypes ? (
-                                                            viewCenter.deviceTypes.split(",").map((item, idx) => (
-                                                                <span key={idx} style={{ padding: "0.3rem 0.6rem", borderRadius: "8px", background: "#eff6ff", color: "#1d4ed8", fontSize: "0.8rem", fontWeight: 600 }}>
-                                                                    {item.trim()}
-                                                                </span>
-                                                            ))
-                                                        ) : (
-                                                            <span style={{ fontSize: "0.925rem", color: "#64748b" }}>N/A</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div>
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.4rem" }}>Recycling Processes</label>
-                                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-                                                        {viewCenter.recyclingProcesses ? (
-                                                            viewCenter.recyclingProcesses.split(",").map((item, idx) => (
-                                                                <span key={idx} style={{ padding: "0.3rem 0.6rem", borderRadius: "8px", background: "#f0fdf4", color: "#15803d", fontSize: "0.8rem", fontWeight: 600 }}>
-                                                                    {item.trim()}
-                                                                </span>
-                                                            ))
-                                                        ) : (
-                                                            <span style={{ fontSize: "0.925rem", color: "#64748b" }}>N/A</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {viewCenter.recoveredMaterials && (
-                                                    <div>
-                                                        <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.4rem" }}>Recovered Materials</label>
-                                                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-                                                            {viewCenter.recoveredMaterials.split(",").map((item, idx) => (
-                                                                <span key={idx} style={{ padding: "0.3rem 0.6rem", borderRadius: "8px", background: "#fff7ed", color: "#c2410c", fontSize: "0.8rem", fontWeight: 600 }}>
-                                                                    {item.trim()}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {viewCenter.hazardousWasteTypes && (
-                                                    <div>
-                                                        <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.4rem" }}>Hazardous Waste Types</label>
-                                                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
-                                                            {viewCenter.hazardousWasteTypes.split(",").map((item, idx) => (
-                                                                <span key={idx} style={{ padding: "0.3rem 0.6rem", borderRadius: "8px", background: "#fef2f2", color: "#b91c1c", fontSize: "0.8rem", fontWeight: 600 }}>
-                                                                    {item.trim()}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+                                <div className="detail-item">
+                                    <label>Owner Name</label>
+                                    <span>{viewCenter.ownerName || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Email Address</label>
+                                    <span>{viewCenter.login?.email || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Phone Number</label>
+                                    <span>{viewCenter.phoneNumber || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Business Reg. No.</label>
+                                    <span>{viewCenter.businessRegistrationNumber || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Recycler Reg. No.</label>
+                                    <span>{viewCenter.recyclerRegistrationNumber || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>GST Number</label>
+                                    <span>{viewCenter.gstNumber || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Experience</label>
+                                    <span>{viewCenter.experienceYears !== undefined && viewCenter.experienceYears !== null ? `${viewCenter.experienceYears} Years` : "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Pickup Available</label>
+                                    <span>{viewCenter.pickupAvailable || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Hazardous Waste Handling</label>
+                                    <span>{viewCenter.hazardousWasteHandling || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Device Types Accepted</label>
+                                    <span>{viewCenter.deviceTypes || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Recycling Processes</label>
+                                    <span>{viewCenter.recyclingProcesses || "N/A"}</span>
+                                </div>
+                                {viewCenter.recoveredMaterials && (
+                                    <div className="detail-item">
+                                        <label>Recovered Materials</label>
+                                        <span>{viewCenter.recoveredMaterials || "N/A"}</span>
                                     </div>
-
-                                    {/* RIGHT SIDE: Address & Verification Documents */}
-                                    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                                        {/* Address & Location Card */}
-                                        <div style={{ background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)", borderRadius: "16px", padding: "1.35rem", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.03)" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", paddingBottom: "0.6rem", borderBottom: "1px solid #f1f5f9" }}>
-                                                <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "#fffbeb", color: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
-                                                    <FiMapPin />
-                                                </div>
-                                                <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", margin: 0, letterSpacing: "0.02em" }}>
-                                                    Address & Location
-                                                </h4>
-                                            </div>
-
-                                            <div className="detail-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Building Number</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.buildingNumber || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Street</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.street || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>City</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.city || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>District</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.district || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>State</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.state || "N/A"}</span>
-                                                </div>
-                                                <div className="detail-item">
-                                                    <label style={{ fontSize: "0.75rem", fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "0.25rem" }}>Pincode</label>
-                                                    <span style={{ fontSize: "0.925rem", fontWeight: 600, color: "#0f172a" }}>{viewCenter.pincode || "N/A"}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Verification Documents Card */}
-                                        {(viewCenter.businessRegistrationCertificate || viewCenter.recyclerRegistrationCertificate || viewCenter.consentToOperate || viewCenter.hazardousWasteAuthorization || viewCenter.addressProof || viewCenter.authorizedPersonId || viewCenter.centerPhoto) && (
-                                            <div style={{ background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)", borderRadius: "16px", padding: "1.35rem", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.03)" }}>
-                                                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "1rem", paddingBottom: "0.6rem", borderBottom: "1px solid #f1f5f9" }}>
-                                                    <div style={{ width: "34px", height: "34px", borderRadius: "10px", background: "#ecfeff", color: "#06b6d4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1rem" }}>
-                                                        <FiFileText />
-                                                    </div>
-                                                    <h4 style={{ fontSize: "0.95rem", fontWeight: 700, color: "#1e293b", margin: 0, letterSpacing: "0.02em" }}>
-                                                        Verification Documents
-                                                    </h4>
-                                                </div>
-
-                                                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem" }}>
-                                                    {viewCenter.businessRegistrationCertificate && (
-                                                        <a
-                                                            href={`https://ecocycle.runasp.net/uploads/recycling/buisness registration certificate/${viewCenter.businessRegistrationCertificate}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            Business Reg Cert ↗
-                                                        </a>
-                                                    )}
-                                                    {viewCenter.recyclerRegistrationCertificate && (
-                                                        <a
-                                                            href={`https://ecocycle.runasp.net/uploads/recycling/recycler registration certificate/${viewCenter.recyclerRegistrationCertificate}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            Recycler Reg Cert ↗
-                                                        </a>
-                                                    )}
-                                                    {viewCenter.consentToOperate && (
-                                                        <a
-                                                            href={`https://ecocycle.runasp.net/uploads/recycling/Consent To Operate/${viewCenter.consentToOperate}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            Consent To Operate ↗
-                                                        </a>
-                                                    )}
-                                                    {viewCenter.hazardousWasteAuthorization && (
-                                                        <a
-                                                            href={`https://ecocycle.runasp.net/uploads/recycling/Hazardous Waste Authorization/${viewCenter.hazardousWasteAuthorization}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            Hazardous Waste Auth ↗
-                                                        </a>
-                                                    )}
-                                                    {viewCenter.addressProof && (
-                                                        <a
-                                                            href={`https://ecocycle.runasp.net/uploads/recycling/Address Proof/${viewCenter.addressProof}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            Address Proof ↗
-                                                        </a>
-                                                    )}
-                                                    {viewCenter.authorizedPersonId && (
-                                                        <a
-                                                            href={`https://ecocycle.runasp.net/uploads/recycling/AuthorizedPersonId/${viewCenter.authorizedPersonId}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            Authorized Person ID ↗
-                                                        </a>
-                                                    )}
-                                                    {viewCenter.centerPhoto && (
-                                                        <a
-                                                            href={`https://ecocycle.runasp.net/uploads/recycling/Center Photo/${viewCenter.centerPhoto}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="document-link-btn"
-                                                            style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 1rem", borderRadius: "10px", background: "#ffffff", color: "#2563eb", fontSize: "0.825rem", fontWeight: 700, textDecoration: "none", border: "1px solid #cbd5e1", boxShadow: "0 2px 4px rgba(0,0,0,0.03)" }}
-                                                        >
-                                                            Center Photo ↗
-                                                        </a>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
+                                )}
+                                {viewCenter.hazardousWasteTypes && (
+                                    <div className="detail-item">
+                                        <label>Hazardous Waste Types</label>
+                                        <span>{viewCenter.hazardousWasteTypes || "N/A"}</span>
                                     </div>
+                                )}
+                                <div className="detail-item">
+                                    <label>Building Number</label>
+                                    <span>{viewCenter.buildingNumber || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Street</label>
+                                    <span>{viewCenter.street || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>City</label>
+                                    <span>{viewCenter.city || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>District</label>
+                                    <span>{viewCenter.district || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>State</label>
+                                    <span>{viewCenter.state || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Pin Code</label>
+                                    <span>{viewCenter.pincode || "N/A"}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Status</label>
+                                    <span>{getStatusBadge(viewCenter.status)}</span>
+                                </div>
+                                <div className="detail-item">
+                                    <label>Registration Date</label>
+                                    <span>{formatDate(viewCenter.createdAt)}</span>
                                 </div>
                             </div>
 
-                            {/* Fixed Modal Footer */}
-                            <div className="modal-footer" style={{ padding: "1rem 1.75rem", background: "#f8fafc", borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "flex-end", gap: "0.75rem", flexShrink: 0 }}>
+                            {(viewCenter.businessRegistrationCertificate || viewCenter.recyclerRegistrationCertificate || viewCenter.consentToOperate || viewCenter.hazardousWasteAuthorization || viewCenter.addressProof || viewCenter.authorizedPersonId || viewCenter.centerPhoto) && (
+                                <div className="device-photos-section">
+                                    <h4>
+                                        <FiFileText style={{ color: "var(--primary)" }} /> Uploaded Verification Documents
+                                    </h4>
+                                    <div className="photos-grid">
+                                        {viewCenter.businessRegistrationCertificate && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={viewCenter.businessRegistrationCertificate.startsWith("http") ? viewCenter.businessRegistrationCertificate : `https://ecocycle.runasp.net/uploads/recycling/buisness registration certificate/${viewCenter.businessRegistrationCertificate}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title="View Business Registration Certificate"
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiFileText />
+                                                    </div>
+                                                    <span>Business Reg Cert</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                        {viewCenter.recyclerRegistrationCertificate && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={viewCenter.recyclerRegistrationCertificate.startsWith("http") ? viewCenter.recyclerRegistrationCertificate : `https://ecocycle.runasp.net/uploads/recycling/recycler registration certificate/${viewCenter.recyclerRegistrationCertificate}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title="View Recycler Registration Certificate"
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiAward />
+                                                    </div>
+                                                    <span>Recycler Reg Cert</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                        {viewCenter.consentToOperate && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={viewCenter.consentToOperate.startsWith("http") ? viewCenter.consentToOperate : `https://ecocycle.runasp.net/uploads/recycling/Consent To Operate/${viewCenter.consentToOperate}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title="View Consent To Operate"
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiShield />
+                                                    </div>
+                                                    <span>Consent To Operate</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                        {viewCenter.hazardousWasteAuthorization && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={viewCenter.hazardousWasteAuthorization.startsWith("http") ? viewCenter.hazardousWasteAuthorization : `https://ecocycle.runasp.net/uploads/recycling/Hazardous Waste Authorization/${viewCenter.hazardousWasteAuthorization}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title="View Hazardous Waste Authorization"
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiAlertTriangle />
+                                                    </div>
+                                                    <span>Hazardous Waste Auth</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                        {viewCenter.addressProof && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={viewCenter.addressProof.startsWith("http") ? viewCenter.addressProof : `https://ecocycle.runasp.net/uploads/recycling/Address Proof/${viewCenter.addressProof}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title="View Address Proof"
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiMapPin />
+                                                    </div>
+                                                    <span>Address Proof</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                        {viewCenter.authorizedPersonId && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={viewCenter.authorizedPersonId.startsWith("http") ? viewCenter.authorizedPersonId : `https://ecocycle.runasp.net/uploads/recycling/AuthorizedPersonId/${viewCenter.authorizedPersonId}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title="View Authorized Person ID"
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiShield />
+                                                    </div>
+                                                    <span>Authorized Person ID</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                        {viewCenter.centerPhoto && (
+                                            <div className="photo-card">
+                                                <a
+                                                    href={viewCenter.centerPhoto.startsWith("http") ? viewCenter.centerPhoto : `https://ecocycle.runasp.net/uploads/recycling/Center Photo/${viewCenter.centerPhoto}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="document-link-btn"
+                                                    title="View Center Photo"
+                                                >
+                                                    <div className="doc-icon-box">
+                                                        <FiImage />
+                                                    </div>
+                                                    <span>Center Photo</span>
+                                                    <FiExternalLink className="ext-icon" />
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem", marginTop: "1.25rem", paddingTop: "0.85rem", borderTop: "1px solid #e2e8f0" }}>
                                 <button
-                                    className="btn-secondary"
+                                    className="pill-btn"
                                     onClick={() => {
                                         setShowDetailModal(false);
                                         setViewCenter(null);
                                     }}
-                                    style={{ padding: "0.6rem 1.5rem", borderRadius: "10px", fontWeight: 600 }}
+                                    style={{ padding: "0.45rem 0.9rem", borderRadius: "6px", cursor: "pointer", fontWeight: 600, fontSize: "0.8rem" }}
                                 >
                                     Close
                                 </button>
                                 {isPendingStatus(viewCenter.status) && (
                                     <>
                                         <button
+                                            className="action-btn-text action-btn-text--approve"
                                             onClick={() => {
                                                 const id = viewCenter.recyclingCenterId || viewCenter.id;
                                                 setShowDetailModal(false);
                                                 setViewCenter(null);
                                                 acceptCenter(id);
                                             }}
-                                            style={{
-                                                padding: "0.6rem 1.25rem",
-                                                background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
-                                                color: "#ffffff",
-                                                border: "none",
-                                                borderRadius: "10px",
-                                                fontWeight: 700,
-                                                fontSize: "0.875rem",
-                                                cursor: "pointer"
-                                            }}
                                         >
-                                            Approve Center
+                                            Approve Account
                                         </button>
                                         <button
+                                            className="action-btn-text action-btn-text--reject"
                                             onClick={() => {
-                                                const id = viewCenter.recyclingCenterId || viewCenter.id;
                                                 const target = viewCenter;
                                                 setShowDetailModal(false);
                                                 setViewCenter(null);
                                                 openRejectModal(target);
                                             }}
-                                            style={{
-                                                padding: "0.6rem 1.25rem",
-                                                background: "#fef2f2",
-                                                color: "#dc2626",
-                                                border: "1px solid #fca5a5",
-                                                borderRadius: "10px",
-                                                fontWeight: 700,
-                                                fontSize: "0.875rem",
-                                                cursor: "pointer"
-                                            }}
                                         >
-                                            Reject Center
+                                            Reject Application
                                         </button>
                                     </>
+                                )}
+                                {isActiveStatus(viewCenter.status) && (
+                                    <button
+                                        className="action-btn-text action-btn-text--deactivate"
+                                        onClick={() => {
+                                            const target = viewCenter;
+                                            setShowDetailModal(false);
+                                            setViewCenter(null);
+                                            openDeactivateModal(target);
+                                        }}
+                                        style={{ padding: "0.45rem 0.9rem", borderRadius: "6px", fontSize: "0.8rem" }}
+                                    >
+                                        Deactivate Account
+                                    </button>
+                                )}
+                                {isInactiveStatus(viewCenter.status) && (
+                                    <button
+                                        className="action-btn-text action-btn-text--activate"
+                                        onClick={() => {
+                                            const id = viewCenter.recyclingCenterId || viewCenter.id;
+                                            setShowDetailModal(false);
+                                            setViewCenter(null);
+                                            activateCenter(id);
+                                        }}
+                                        style={{ padding: "0.45rem 0.9rem", borderRadius: "6px", fontSize: "0.8rem" }}
+                                    >
+                                        Activate Account
+                                    </button>
                                 )}
                             </div>
                         </div>

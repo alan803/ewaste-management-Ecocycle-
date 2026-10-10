@@ -737,49 +737,103 @@
 }
 
 .device-photos-section {
-  margin-top: 0.5rem;
-  padding-top: 0.65rem;
-  border-top: 1px solid #f1f5f9;
+  margin-top: 1.25rem;
+  padding-top: 1.15rem;
+  border-top: 1px solid #e2e8f0;
 }
 
 .device-photos-section h4 {
-  font-size: 0.8rem;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 0.95rem;
   font-weight: 700;
-  margin: 0 0 0.5rem 0;
-  color: var(--secondary);
+  margin: 0 0 0.85rem 0;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .photos-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.75rem;
 }
 
 .photo-card {
   display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
+  width: 100%;
 }
 
 .document-link-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 8px;
-  background: #f1f5f9;
-  color: var(--primary-dark);
-  font-size: 0.775rem;
-  font-weight: 700;
-  text-decoration: none;
-  border: 1px solid #cbd5e1;
-  transition: all 0.2s ease;
+  gap: 0.75rem;
+  padding: 0.65rem 0.95rem;
+  width: 100%;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none !important;
+  border: 1.5px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+  white-space: nowrap;
 }
 
 .document-link-btn:hover {
-  background: var(--primary);
+  background: #f0fdf4;
+  color: #047857;
+  border-color: #10b981;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.document-link-btn .doc-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.document-link-btn:hover .doc-icon-box {
+  background: #10b981;
   color: #ffffff;
-  border-color: var(--primary);
+}
+
+.document-link-btn span {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-link-btn:hover span {
+  color: #047857;
+}
+
+.document-link-btn .ext-icon {
+  font-size: 0.95rem;
+  color: #94a3b8;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.document-link-btn:hover .ext-icon {
+  color: #059669;
+  transform: translate(2px, -2px);
 }
 
 /* Responsive Queries */

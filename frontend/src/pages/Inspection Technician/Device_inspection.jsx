@@ -882,42 +882,39 @@ function DeviceInspection() {
                 <style>
                     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
                     * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-                    body { margin: 0; padding: 24px; background: #ffffff; color: #0f172a; }
-                    .report-container { max-width: 800px; margin: 0 auto; border: 2px solid #059669; border-radius: 16px; padding: 28px; background: #ffffff; }
-                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 18px; margin-bottom: 20px; }
-                    .brand { font-size: 24px; font-weight: 800; color: #059669; letter-spacing: -0.5px; }
-                    .sub-brand { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1px; }
+                    body { margin: 0; padding: 20px; background: #ffffff; color: #0f172a; }
+                    .report-container { max-width: 820px; margin: 0 auto; border: 2px solid #059669; border-radius: 14px; padding: 22px 26px; background: #ffffff; }
+                    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; margin-bottom: 14px; }
+                    .brand { font-size: 22px; font-weight: 800; color: #059669; letter-spacing: -0.5px; }
+                    .sub-brand { font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
                     .doc-title { text-align: right; }
-                    .doc-title h2 { margin: 0; font-size: 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; }
-                    .doc-title p { margin: 4px 0 0 0; font-size: 11px; color: #64748b; font-weight: 600; }
+                    .doc-title h2 { margin: 0; font-size: 15px; font-weight: 800; color: #0f172a; text-transform: uppercase; }
+                    .doc-title p { margin: 3px 0 0 0; font-size: 10.5px; color: #64748b; font-weight: 600; }
                     
-                    .hero-banner { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; }
-                    .hero-dev-title { font-size: 20px; font-weight: 800; color: #065f46; margin: 0 0 4px 0; }
-                    .hero-dev-meta { font-size: 12px; color: #047857; font-weight: 600; }
+                    .hero-banner { background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 10px; padding: 12px 18px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+                    .hero-dev-title { font-size: 18px; font-weight: 800; color: #065f46; margin: 0 0 2px 0; }
+                    .hero-dev-meta { font-size: 11.5px; color: #047857; font-weight: 600; }
 
-                    .section-title { font-size: 12px; font-weight: 800; color: #059669; text-transform: uppercase; letter-spacing: 1px; margin: 22px 0 10px 0; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px; }
-                    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-                    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; }
+                    .section-title { font-size: 11.5px; font-weight: 800; color: #059669; text-transform: uppercase; letter-spacing: 0.8px; margin: 14px 0 8px 0; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px; }
+                    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
                     
-                    .info-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; }
-                    .info-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 2px; }
-                    .info-val { font-size: 13px; font-weight: 800; color: #0f172a; word-break: break-word; }
+                    .info-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; }
+                    .info-label { font-size: 9px; font-weight: 700; color: #64748b; text-transform: uppercase; margin-bottom: 3px; }
+                    .info-val { font-size: 12px; font-weight: 800; color: #0f172a; word-break: break-word; }
 
-                    .stamp-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
-                    .stamp-box { border: 1.5px dashed #059669; border-radius: 6px; padding: 4px 10px; text-align: center; color: #059669; }
-                    .stamp-title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+                    .stamp-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 16px; border-top: 1.5px solid #e2e8f0; padding-top: 10px; }
+                    .stamp-box { border: 1.5px dashed #059669; border-radius: 8px; padding: 5px 12px; text-align: center; color: #059669; }
+                    .stamp-title { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
                     .stamp-sub { font-size: 7.5px; font-weight: 700; margin-top: 1px; }
                     .signature-box { text-align: right; }
-                    .sig-line { width: 120px; border-bottom: 1px solid #0f172a; margin-bottom: 2px; display: inline-block; }
-                    .sig-name { font-size: 10px; font-weight: 800; color: #0f172a; }
+                    .sig-line { width: 130px; border-bottom: 1px solid #0f172a; margin-bottom: 3px; display: inline-block; }
+                    .sig-name { font-size: 10.5px; font-weight: 800; color: #0f172a; }
                     .sig-role { font-size: 8.5px; color: #64748b; font-weight: 600; }
 
-                    .footer-notice { margin-top: 10px; font-size: 8px; text-align: center; color: #94a3b8; font-weight: 600; border-top: 1px solid #f1f5f9; padding-top: 6px; }
-
                     @media print {
-                        @page { margin: 0; size: auto; }
-                        body { padding: 24px; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        .report-container { border: none; padding: 0; }
+                        @page { margin: 8mm 10mm; size: A4 portrait; }
+                        html, body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                        .report-container { border: 1.5px solid #059669; border-radius: 12px; padding: 18px 22px; max-width: 100%; width: 100%; }
                     }
                 </style>
             </head>
@@ -935,8 +932,11 @@ function DeviceInspection() {
                     </div>
 
                     <div class="hero-banner">
-                        <h1 class="hero-dev-title">${dev.brand} ${dev.model}</h1>
-                        <div class="hero-dev-meta">Device Record ID: <strong>#DEV-${String(dev.deviceId).padStart(3, "0")}</strong> • Category: <strong>${dev.categoryName || "E-Waste"}</strong></div>
+                        <div>
+                            <h1 class="hero-dev-title">${dev.brand} ${dev.model}</h1>
+                            <div class="hero-dev-meta">Category: <strong>${dev.categoryName || "E-Waste"}</strong></div>
+                        </div>
+                        <div class="hero-dev-meta" style="font-size: 13.5px;">Device ID: <strong>#DEV-${String(dev.deviceId).padStart(3, "0")}</strong></div>
                     </div>
 
                     <div class="section-title">1. Device Master Specifications (Device Table)</div>
@@ -961,24 +961,17 @@ function DeviceInspection() {
                             <div class="info-label">Device Category</div>
                             <div class="info-val">${dev.categoryName || "E-Waste"}</div>
                         </div>
-                    </div>
-
-                    <div class="grid-4" style="margin-top: 10px;">
                         <div class="info-card">
                             <div class="info-label">Quantity & Weight</div>
                             <div class="info-val">${dev.weight || 1} kg (${dev.quantity || 1} unit)</div>
                         </div>
                         <div class="info-card">
-                            <div class="info-label">Declared Condition</div>
-                            <div class="info-val">${dev.condition || "Used"}</div>
-                        </div>
-                        <div class="info-card">
-                            <div class="info-label">Working State</div>
-                            <div class="info-val">${dev.working || "Functional"}</div>
+                            <div class="info-label">Working & Condition</div>
+                            <div class="info-val">${dev.working || "Yes"} • ${dev.condition || "Used"}</div>
                         </div>
                         <div class="info-card">
                             <div class="info-label">Processing Preference</div>
-                            <div class="info-val">${dev.processingPreference || "Eco Recycling"}</div>
+                            <div class="info-val">${dev.processingPreference || "Recycling"}</div>
                         </div>
                     </div>
 
@@ -1004,29 +997,29 @@ function DeviceInspection() {
 
                     ${(dev.frontPhoto || dev.backPhoto || dev.damagePhoto || dev.labelPhoto) ? `
                         <div class="section-title">3. Device Photo Evidence (Uploaded Files)</div>
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 10px;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 8px;">
                             ${dev.frontPhoto ? `
-                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; text-align: center;">
-                                    <span style="display: block; font-size: 10px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Front View Photo</span>
-                                    <img src="${getMediaUrl(dev.frontPhoto, "uploads/devices/FrontPhotos")}" alt="Front Photo" style="max-width: 100%; max-height: 180px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1;" />
+                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; text-align: center;">
+                                    <span style="display: block; font-size: 9px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 5px;">Front View Photo</span>
+                                    <img src="${getMediaUrl(dev.frontPhoto, "uploads/devices/FrontPhotos")}" alt="Front Photo" style="width: 100%; height: 140px; border-radius: 6px; object-fit: cover; border: 1px solid #cbd5e1; display: block;" />
                                 </div>
                             ` : ""}
                             ${dev.backPhoto ? `
-                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; text-align: center;">
-                                    <span style="display: block; font-size: 10px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Back View Photo</span>
-                                    <img src="${getMediaUrl(dev.backPhoto, "uploads/devices/BackPhotos")}" alt="Back Photo" style="max-width: 100%; max-height: 180px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1;" />
+                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; text-align: center;">
+                                    <span style="display: block; font-size: 9px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 5px;">Back View Photo</span>
+                                    <img src="${getMediaUrl(dev.backPhoto, "uploads/devices/BackPhotos")}" alt="Back Photo" style="width: 100%; height: 140px; border-radius: 6px; object-fit: cover; border: 1px solid #cbd5e1; display: block;" />
                                 </div>
                             ` : ""}
                             ${dev.damagePhoto ? `
-                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; text-align: center;">
-                                    <span style="display: block; font-size: 10px; font-weight: 800; color: #dc2626; text-transform: uppercase; margin-bottom: 6px;">Damage / Broken Photo</span>
-                                    <img src="${getMediaUrl(dev.damagePhoto, "uploads/devices/DamagePhotos")}" alt="Damage Photo" style="max-width: 100%; max-height: 180px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1;" />
+                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; text-align: center;">
+                                    <span style="display: block; font-size: 9px; font-weight: 800; color: #dc2626; text-transform: uppercase; margin-bottom: 5px;">Damage / Broken Photo</span>
+                                    <img src="${getMediaUrl(dev.damagePhoto, "uploads/devices/DamagePhotos")}" alt="Damage Photo" style="width: 100%; height: 140px; border-radius: 6px; object-fit: cover; border: 1px solid #cbd5e1; display: block;" />
                                 </div>
                             ` : ""}
                             ${dev.labelPhoto ? `
-                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; text-align: center;">
-                                    <span style="display: block; font-size: 10px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 6px;">Serial / Label Photo</span>
-                                    <img src="${getMediaUrl(dev.labelPhoto, "uploads/devices/LabelPhotos")}" alt="Serial Label Photo" style="max-width: 100%; max-height: 180px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1;" />
+                                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; text-align: center;">
+                                    <span style="display: block; font-size: 9px; font-weight: 800; color: #475569; text-transform: uppercase; margin-bottom: 5px;">Serial / Label Photo</span>
+                                    <img src="${getMediaUrl(dev.labelPhoto, "uploads/devices/LabelPhotos")}" alt="Serial Label Photo" style="width: 100%; height: 140px; border-radius: 6px; object-fit: cover; border: 1px solid #cbd5e1; display: block;" />
                                 </div>
                             ` : ""}
                         </div>
@@ -1042,10 +1035,6 @@ function DeviceInspection() {
                             <div class="sig-name">System Master Record</div>
                             <div class="sig-role">EcoCycle Device Database</div>
                         </div>
-                    </div>
-
-                    <div class="footer-notice">
-                        Official Device Master Specification Record • EcoCycle E-Waste Management System (Device ID: #DEV-${dev.deviceId}).
                     </div>
                 </div>
 
