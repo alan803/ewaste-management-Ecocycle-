@@ -35,52 +35,6 @@ namespace EcoCycle.API.Controllers
             return 0;
         }
 
-        private async Task<List<int>> GetValidLoginIdsAsync(int loginId)
-        {
-            var ids = new HashSet<int> { loginId };
-
-            var rc = await db.RecyclingCenter.FirstOrDefaultAsync(c => c.LoginId == loginId || c.RecyclingCenterId == loginId);
-            if (rc == null)
-            {
-                rc = await db.RecyclingCenter.FirstOrDefaultAsync();
-            }
-            if (rc != null)
-            {
-                if (rc.LoginId > 0) ids.Add(rc.LoginId);
-                if (rc.RecyclingCenterId > 0) ids.Add(rc.RecyclingCenterId);
-            }
-
-            var rfc = await db.RefurbishmentCenter.FirstOrDefaultAsync(c => c.LoginId == loginId || c.RefurbishmentCenterId == loginId);
-            if (rfc != null)
-            {
-                if (rfc.LoginId > 0) ids.Add(rfc.LoginId);
-                if (rfc.RefurbishmentCenterId > 0) ids.Add(rfc.RefurbishmentCenterId);
-            }
-
-            var tech = await db.Technician.FirstOrDefaultAsync(t => t.LoginId == loginId || t.TechnicianId == loginId);
-            if (tech != null)
-            {
-                if (tech.LoginId > 0) ids.Add(tech.LoginId);
-                if (tech.TechnicianId > 0) ids.Add(tech.TechnicianId);
-            }
-
-            var agent = await db.CollectionAgents.FirstOrDefaultAsync(a => a.LoginId == loginId || a.CollectionAgentId == loginId);
-            if (agent != null)
-            {
-                if (agent.LoginId > 0) ids.Add(agent.LoginId);
-                if (agent.CollectionAgentId > 0) ids.Add(agent.CollectionAgentId);
-            }
-
-            var user = await db.Users.FirstOrDefaultAsync(u => u.LoginId == loginId || u.UserId == loginId);
-            if (user != null)
-            {
-                if (user.LoginId > 0) ids.Add(user.LoginId);
-                if (user.UserId > 0) ids.Add(user.UserId);
-            }
-
-            return ids.ToList();
-        }
-
         [HttpGet("my_notifications")]
         [Authorize]
         public async Task<IActionResult> GetMyNotifications()
@@ -91,10 +45,8 @@ namespace EcoCycle.API.Controllers
                 return Unauthorized(new { message = "Invalid login session." });
             }
 
-            var validLoginIds = await GetValidLoginIdsAsync(loginId);
-
-            // Auto-check and persist Overdue Pickup notifications for Citizens
-            var user = await db.Users.FirstOrDefaultAsync(u => validLoginIds.Contains(u.LoginId) || validLoginIds.Contains(u.UserId));
+            // Auto-check and persist Overdue Pickup notifications for Citizens ONLY
+            var user = await db.Users.FirstOrDefaultAsync(u => u.LoginId == loginId);
             if (user != null)
             {
                 var today = DateTime.Today;
@@ -120,7 +72,7 @@ namespace EcoCycle.API.Controllers
                     string notifMsg = $"The scheduled pickup date ({device.PickupDate:dd MMM yyyy}) for your device {device.Brand} {device.Model} has passed. Please check your pickup details or contact support.";
 
                     bool alreadyNotified = await db.Notification.AnyAsync(n =>
-                        validLoginIds.Contains(n.LoginId) &&
+                        n.LoginId == loginId &&
                         n.Title == notifTitle &&
                         n.Message.Contains(device.Brand) &&
                         n.Message.Contains(device.Model) &&
@@ -147,24 +99,10 @@ namespace EcoCycle.API.Controllers
                 }
             }
 
-            // Auto-check and persist Recycling Center allocation notifications
-            var recyclingCenter = await db.RecyclingCenter.FirstOrDefaultAsync(c => validLoginIds.Contains(c.LoginId) || validLoginIds.Contains(c.RecyclingCenterId));
-            if (recyclingCenter == null)
-            {
-                recyclingCenter = await db.RecyclingCenter.FirstOrDefaultAsync();
-            }
-
+            // Auto-check and persist Recycling Center allocation notifications ONLY if logged in as Recycling Center
+            var recyclingCenter = await db.RecyclingCenter.FirstOrDefaultAsync(c => c.LoginId == loginId);
             if (recyclingCenter != null)
             {
-                if (recyclingCenter.LoginId > 0 && !validLoginIds.Contains(recyclingCenter.LoginId))
-                {
-                    validLoginIds.Add(recyclingCenter.LoginId);
-                }
-                if (recyclingCenter.RecyclingCenterId > 0 && !validLoginIds.Contains(recyclingCenter.RecyclingCenterId))
-                {
-                    validLoginIds.Add(recyclingCenter.RecyclingCenterId);
-                }
-
                 var centerRequests = await db.RecyclingCenterRequests
                     .Include(r => r.Device)
                     .Where(r => r.RecyclingCenterId == recyclingCenter.RecyclingCenterId && (r.Status == "Assigned" || r.Status == "Accepted"))
@@ -177,7 +115,7 @@ namespace EcoCycle.API.Controllers
                     string notifTitle = "New Device Allocated for Recycling";
 
                     bool alreadyNotified = await db.Notification.AnyAsync(n =>
-                        validLoginIds.Contains(n.LoginId) &&
+                        n.LoginId == loginId &&
                         n.Title == notifTitle &&
                         n.Message.Contains(deviceName) &&
                         n.Status);
@@ -186,7 +124,7 @@ namespace EcoCycle.API.Controllers
                     {
                         db.Notification.Add(new Notification
                         {
-                            LoginId = recyclingCenter.LoginId > 0 ? recyclingCenter.LoginId : loginId,
+                            LoginId = loginId,
                             Title = notifTitle,
                             Message = $"Device '{deviceName}' (#{req.DeviceId}) has been allocated to your recycling center. Please respond before deadline.",
                             Isread = false,
@@ -204,7 +142,7 @@ namespace EcoCycle.API.Controllers
             }
 
             var notifications = await db.Notification
-                .Where(n => validLoginIds.Contains(n.LoginId) && n.Status)
+                .Where(n => n.LoginId == loginId && n.Status)
                 .OrderByDescending(n => n.CreatedAt)
                 .Select(n => new
                 {
@@ -227,12 +165,10 @@ namespace EcoCycle.API.Controllers
             int loginId = GetCurrentLoginId();
             if (loginId == 0) return Unauthorized();
 
-            var validLoginIds = await GetValidLoginIdsAsync(loginId);
-
             var notification = await db.Notification
                 .FirstOrDefaultAsync(n =>
                     n.NotificationId == notificationId &&
-                    validLoginIds.Contains(n.LoginId));
+                    n.LoginId == loginId);
 
             if (notification == null)
             {
@@ -252,10 +188,8 @@ namespace EcoCycle.API.Controllers
             int loginId = GetCurrentLoginId();
             if (loginId == 0) return Unauthorized();
 
-            var validLoginIds = await GetValidLoginIdsAsync(loginId);
-
             var notifications = await db.Notification
-                .Where(n => validLoginIds.Contains(n.LoginId) && !n.Isread)
+                .Where(n => n.LoginId == loginId && !n.Isread)
                 .ToListAsync();
 
             foreach (var notification in notifications)
@@ -275,12 +209,10 @@ namespace EcoCycle.API.Controllers
             int loginId = GetCurrentLoginId();
             if (loginId == 0) return Unauthorized();
 
-            var validLoginIds = await GetValidLoginIdsAsync(loginId);
-
             var notification = await db.Notification
                 .FirstOrDefaultAsync(n =>
                     n.NotificationId == notificationId &&
-                    validLoginIds.Contains(n.LoginId));
+                    n.LoginId == loginId);
 
             if (notification == null)
             {
@@ -300,10 +232,8 @@ namespace EcoCycle.API.Controllers
             int loginId = GetCurrentLoginId();
             if (loginId == 0) return Unauthorized();
 
-            var validLoginIds = await GetValidLoginIdsAsync(loginId);
-
             var notifications = await db.Notification
-                .Where(n => validLoginIds.Contains(n.LoginId) && n.Status)
+                .Where(n => n.LoginId == loginId && n.Status)
                 .ToListAsync();
 
             foreach (var notification in notifications)

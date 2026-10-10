@@ -1337,28 +1337,23 @@ function CollectionAgentDashboard() {
                 </div>
             )}
 
-            {/* Today's Pickups Reminder Modal */}
+            {/* Today's Pickups Reminder Modal (Matching Details Modal Background & Header) */}
             {showReminderModal && (
-                <div className="modal-overlay" onClick={() => setShowReminderModal(false)}>
-                    <div className="clean-modal reminder-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header reminder-header">
-                            <div className="reminder-header-title">
-                                <div className="reminder-icon-badge">
-                                    <FiBell className="reminder-bell-ring" />
-                                </div>
-                                <div>
-                                    <h2>Today's Pickup Reminder</h2>
-                                    <p className="modal-sub">
-                                        Date: <strong>{todaysReminder?.date ? new Date(todaysReminder.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</strong> &bull; Total Scheduled: <strong>{reminderList.length} Pickups</strong>
-                                    </p>
-                                </div>
+                <div className="pro-modal-overlay" onClick={() => setShowReminderModal(false)}>
+                    <div className="pro-modal-dialog" style={{ maxWidth: "680px" }} onClick={(e) => e.stopPropagation()}>
+                        <div className="pro-modal-header">
+                            <div>
+                                <h2>Today's Pickup Reminder</h2>
+                                <span className="sub-txt">
+                                    Date: <strong>{todaysReminder?.date ? new Date(todaysReminder.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</strong> &bull; Total Scheduled: <strong>{reminderList.length} Pickups</strong>
+                                </span>
                             </div>
-                            <button className="close-btn" onClick={() => setShowReminderModal(false)}>
+                            <button className="pro-close-btn" onClick={() => setShowReminderModal(false)}>
                                 <FiX />
                             </button>
                         </div>
 
-                        <div className="reminder-modal-body">
+                        <div className="pro-modal-body" style={{ maxHeight: "70vh", overflowY: "auto", padding: "18px" }}>
                             {reminderList.length > 0 ? (
                                 <>
                                     <div className="reminder-alert-banner">
@@ -1472,17 +1467,18 @@ function CollectionAgentDashboard() {
                             )}
                         </div>
 
-                        <div className="modal-footer">
+                        <div className="pro-modal-footer">
                             <button
                                 type="button"
-                                className="btn btn-secondary"
+                                className="btn-close-modal"
                                 onClick={() => setShowReminderModal(false)}
                             >
                                 Dismiss
                             </button>
                             <button
                                 type="button"
-                                className="btn btn-success"
+                                className="btn-call-modal"
+                                style={{ background: "#059669", color: "#ffffff", borderColor: "#059669" }}
                                 onClick={() => setShowReminderModal(false)}
                             >
                                 Acknowledge & Open Dashboard

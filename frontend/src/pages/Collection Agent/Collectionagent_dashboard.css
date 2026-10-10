@@ -1778,32 +1778,14 @@
 .agent-kpi-badge.rose-pill { background: #ffe4e6; color: #e11d48; border: 1px solid #fecdd3; }
 .agent-kpi-card.rose-accent:hover { border-color: #fda4af; box-shadow: 0 12px 30px -5px rgba(225, 29, 72, 0.15); }
 
-/* Today's Pickup Reminder Modal */
-.reminder-modal {
-  max-width: 720px;
-  background: #ffffff;
+/* Today's Pickup Reminder Modal (Uses .pro-modal layout) */
+.reminder-pickup-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.15rem;
+  transition: all 0.2s ease;
 }
-
-.reminder-header-title {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.reminder-icon-badge {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.4rem;
-  box-shadow: 0 8px 18px rgba(225, 29, 72, 0.3);
-}
-
-/* Ringing Bell Animation for Reminder Bell Only */
 .reminder-bell-ring {
   display: inline-block;
   transform-origin: top center;

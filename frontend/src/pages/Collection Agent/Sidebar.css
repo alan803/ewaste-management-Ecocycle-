@@ -27,7 +27,7 @@
 }
 
 .agent-sidebar-aside {
-  width: 220px;
+  width: 205px;
   height: 100vh;
   background: #ffffff;
   border-right: 1px solid #e2e8f0;
@@ -36,11 +36,11 @@
   justify-content: space-between;
   position: sticky;
   top: 0;
-  padding: 1.1rem 0.85rem;
+  padding: 0.95rem 0.75rem;
   box-sizing: border-box;
   z-index: 50;
   font-family: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 0.84rem;
+  font-size: 0.76rem;
   flex-shrink: 0;
   box-shadow: 2px 0 12px -3px rgba(15, 23, 42, 0.03);
 }
@@ -56,10 +56,10 @@
 .agent-sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding-bottom: 0.95rem;
+  gap: 0.55rem;
+  padding-bottom: 0.8rem;
   border-bottom: 1px solid #f1f5f9;
-  margin-bottom: 0.95rem;
+  margin-bottom: 0.8rem;
   text-decoration: none;
   transition: transform 0.2s ease;
 }
@@ -69,15 +69,15 @@
 }
 
 .agent-brand-badge {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   flex-shrink: 0;
   box-shadow: 0 4px 12px rgba(5, 150, 105, 0.28);
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -94,7 +94,7 @@
 
 .agent-brand-title {
   font-family: "Space Grotesk", sans-serif;
-  font-size: 1.05rem;
+  font-size: 0.92rem;
   font-weight: 800;
   color: #0f172a;
   margin: 0;
@@ -104,7 +104,7 @@
 
 .agent-brand-sub {
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   color: #059669;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -127,18 +127,18 @@
 }
 
 .agent-nav-group {
-  margin-bottom: 1.1rem;
+  margin-bottom: 0.95rem;
 }
 
 .agent-group-title {
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 0.65rem;
+  font-size: 0.58rem;
   font-weight: 800;
   text-transform: uppercase;
   color: #94a3b8;
   letter-spacing: 0.08em;
-  margin-bottom: 0.35rem;
-  padding-left: 0.45rem;
+  margin-bottom: 0.25rem;
+  padding-left: 0.4rem;
   display: block;
 }
 
@@ -148,19 +148,19 @@
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.15rem;
 }
 
 .agent-sidebar-link {
   font-family: "Plus Jakarta Sans", "Inter", sans-serif;
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.55rem 0.75rem;
-  border-radius: 9px;
+  gap: 0.55rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
   color: #475569;
   text-decoration: none;
-  font-size: 0.835rem;
+  font-size: 0.76rem;
   font-weight: 600;
   transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid transparent;
@@ -181,7 +181,7 @@
 }
 
 .agent-sidebar-icon {
-  font-size: 1.05rem;
+  font-size: 0.92rem;
   display: flex;
   align-items: center;
   flex-shrink: 0;
@@ -217,8 +217,8 @@
 .agent-sidebar-bottom {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  padding-top: 0.75rem;
+  gap: 0.65rem;
+  padding-top: 0.65rem;
   border-top: 1px solid #f1f5f9;
 }
 
@@ -226,8 +226,8 @@
 .agent-vehicle-card {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   color: #ffffff;
-  border-radius: 12px;
-  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  padding: 0.6rem 0.7rem;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -236,22 +236,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem;
 }
 
 .agent-fleet-lbl {
-  font-size: 0.625rem;
+  font-size: 0.56rem;
   font-weight: 800;
   color: #94a3b8;
   letter-spacing: 0.06em;
 }
 
 .agent-fleet-badge {
-  font-size: 0.625rem;
+  font-size: 0.56rem;
   font-weight: 700;
   color: #10b981;
   background: rgba(16, 185, 129, 0.15);
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -259,7 +259,7 @@
 }
 
 .agent-vehicle-name {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #f8fafc;
   white-space: nowrap;
@@ -268,18 +268,18 @@
 }
 
 .agent-vehicle-sub {
-  font-size: 0.675rem;
+  font-size: 0.6rem;
   color: #94a3b8;
   font-weight: 500;
-  margin-top: 0.2rem;
+  margin-top: 0.15rem;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
 }
 
 .agent-bat-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: #10b981;
   box-shadow: 0 0 6px #10b981;
@@ -293,8 +293,8 @@
   justify-content: space-between;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 0.4rem 0.55rem;
+  border-radius: 9px;
+  padding: 0.35rem 0.5rem;
   transition: all 0.2s ease;
 }
 
@@ -306,19 +306,19 @@
 .agent-user-link {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.5rem;
   text-decoration: none;
   min-width: 0;
   flex: 1;
 }
 
 .agent-user-avatar {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: linear-gradient(135deg, #059669, #10b981);
   color: #ffffff;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -340,7 +340,7 @@
 }
 
 .agent-user-name {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #0f172a;
   white-space: nowrap;
@@ -350,7 +350,7 @@
 }
 
 .agent-user-role {
-  font-size: 0.65rem;
+  font-size: 0.58rem;
   color: #64748b;
   font-weight: 600;
 }
@@ -359,10 +359,10 @@
   background: transparent;
   border: none;
   color: #94a3b8;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
+  padding: 3px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
