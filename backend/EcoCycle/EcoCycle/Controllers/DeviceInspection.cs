@@ -308,11 +308,17 @@ namespace EcoCycle.Controllers
                 device.Status = "Accepted";
 
                 // Create Notification for Citizen
-                if (device.User != null && device.User.Login != null)
+                int citizenLoginId = device.User?.Login?.LoginId ?? device.User?.LoginId ?? 0;
+                if (citizenLoginId == 0 && device.UserId > 0)
+                {
+                    var u = await db.Users.Include(x => x.Login).FirstOrDefaultAsync(x => x.UserId == device.UserId);
+                    citizenLoginId = u?.LoginId > 0 ? u.LoginId : (u?.Login?.LoginId ?? 0);
+                }
+                if (citizenLoginId > 0)
                 {
                     var notif = new Notification
                     {
-                        LoginId = device.User.Login.LoginId,
+                        LoginId = citizenLoginId,
                         Title = "Device Inspection Completed",
                         Message = $"Inspection completed for your {device.Brand} {device.Model} (Device #{device.DeviceId}). Assigned Grade: {dto.QualityGrade}. Decision: {dto.WasteDestination}.",
                         Isread = false,
@@ -320,6 +326,31 @@ namespace EcoCycle.Controllers
                         CreatedAt = now
                     };
                     db.Notification.Add(notif);
+                }
+
+                // Create Notification for Technician
+                int techLoginId = 0;
+                if (inspection.TechnicianId > 0)
+                {
+                    var t = await db.Technician.FirstOrDefaultAsync(tech => tech.TechnicianId == inspection.TechnicianId);
+                    techLoginId = t?.LoginId ?? 0;
+                }
+                else if (inspReq.TechnicianId.HasValue && inspReq.TechnicianId.Value > 0)
+                {
+                    var t = await db.Technician.FirstOrDefaultAsync(tech => tech.TechnicianId == inspReq.TechnicianId.Value);
+                    techLoginId = t?.LoginId ?? 0;
+                }
+                if (techLoginId > 0)
+                {
+                    db.Notification.Add(new Notification
+                    {
+                        LoginId = techLoginId,
+                        Title = "Inspection Report Submitted",
+                        Message = $"Inspection report for {device.Brand} {device.Model} (Device #{device.DeviceId}) was submitted successfully. Destination: {dto.WasteDestination}.",
+                        Isread = false,
+                        Status = true,
+                        CreatedAt = now
+                    });
                 }
 
                 await db.SaveChangesAsync();

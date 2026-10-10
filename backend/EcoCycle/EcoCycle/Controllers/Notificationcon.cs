@@ -150,6 +150,7 @@ namespace EcoCycle.API.Controllers
                     title = n.Title,
                     message = n.Message,
                     isRead = n.Isread,
+                    isread = n.Isread,
                     status = n.Status,
                     createdAt = n.CreatedAt
                 })
@@ -159,11 +160,12 @@ namespace EcoCycle.API.Controllers
         }
 
         [HttpPut("mark_asread/{notificationId}")]
+        [HttpPost("mark_asread/{notificationId}")]
         [Authorize]
         public async Task<IActionResult> markasread(int notificationId)
         {
             int loginId = GetCurrentLoginId();
-            if (loginId == 0) return Unauthorized();
+            if (loginId == 0) return Unauthorized(new { message = "Invalid session." });
 
             var notification = await db.Notification
                 .FirstOrDefaultAsync(n =>
@@ -178,15 +180,17 @@ namespace EcoCycle.API.Controllers
             notification.Isread = true;
             await db.SaveChangesAsync();
 
-            return Ok(new { message = "Notification marked as read." });
+            return Ok(new { message = "Notification marked as read.", notificationId });
         }
 
         [HttpGet("mark_asread")]
+        [HttpPut("mark_asread")]
+        [HttpPost("mark_asread")]
         [Authorize]
         public async Task<IActionResult> MarkAsRead()
         {
             int loginId = GetCurrentLoginId();
-            if (loginId == 0) return Unauthorized();
+            if (loginId == 0) return Unauthorized(new { message = "Invalid session." });
 
             var notifications = await db.Notification
                 .Where(n => n.LoginId == loginId && !n.Isread)
@@ -199,15 +203,17 @@ namespace EcoCycle.API.Controllers
 
             await db.SaveChangesAsync();
 
-            return Ok(new { message = "Notifications marked as read." });
+            return Ok(new { message = "All unread notifications marked as read.", count = notifications.Count });
         }
 
         [HttpPut("delete_selected/{notificationId}")]
+        [HttpDelete("delete_selected/{notificationId}")]
+        [HttpPost("delete_selected/{notificationId}")]
         [Authorize]
         public async Task<IActionResult> deleteselected(int notificationId)
         {
             int loginId = GetCurrentLoginId();
-            if (loginId == 0) return Unauthorized();
+            if (loginId == 0) return Unauthorized(new { message = "Invalid session." });
 
             var notification = await db.Notification
                 .FirstOrDefaultAsync(n =>
@@ -222,15 +228,17 @@ namespace EcoCycle.API.Controllers
             notification.Status = false;
             await db.SaveChangesAsync();
 
-            return Ok(new { message = "Notification deleted." });
+            return Ok(new { message = "Notification deleted.", notificationId });
         }
 
         [HttpGet("clearall")]
+        [HttpDelete("clearall")]
+        [HttpPost("clearall")]
         [Authorize]
         public async Task<IActionResult> ClearAll()
         {
             int loginId = GetCurrentLoginId();
-            if (loginId == 0) return Unauthorized();
+            if (loginId == 0) return Unauthorized(new { message = "Invalid session." });
 
             var notifications = await db.Notification
                 .Where(n => n.LoginId == loginId && n.Status)
@@ -243,7 +251,7 @@ namespace EcoCycle.API.Controllers
 
             await db.SaveChangesAsync();
 
-            return Ok(new { message = "All notifications cleared." });
+            return Ok(new { message = "All notifications cleared.", count = notifications.Count });
         }
     }
 }
