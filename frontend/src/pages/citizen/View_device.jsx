@@ -218,10 +218,50 @@ function View_device() {
         try {
             const token = localStorage.getItem("token");
             if (!token) return;
-            const response = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
-                headers: { Authorization: `Bearer ${token}` }
+            const [notifRes, devRes] = await Promise.all([
+                axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
+                    headers: { Authorization: `Bearer ${token}` }
+                }),
+                axios.get("https://ecocycle.runasp.net/api/Device/MyDevices", {
+                    headers: { Authorization: `Bearer ${token}` }
+                }).catch(() => ({ data: [] }))
+            ]);
+            const raw = notifRes.data || [];
+            const citizenDevices = Array.isArray(devRes.data) ? devRes.data : [];
+
+            let currentLoginId = localStorage.getItem("loginId");
+            if (!currentLoginId && token) {
+                try {
+                    const payload = JSON.parse(atob(token.split(".")[1]));
+                    currentLoginId = payload.sub || payload.nameid || payload.LoginId;
+                } catch (e) {}
+            }
+            const currentUserName = (localStorage.getItem("citizen_fullName") || localStorage.getItem("firstName") || "").toLowerCase().trim();
+
+            const notifs = raw.filter(n => {
+                const notifLoginId = n.loginId ?? n.LoginId;
+                if (notifLoginId && currentLoginId && String(notifLoginId) !== String(currentLoginId)) return false;
+                const msg = (n.message ?? n.Message ?? "").toLowerCase();
+                const title = (n.title ?? n.Title ?? "").toLowerCase();
+
+                if (currentUserName && currentUserName.length > 2 && msg.startsWith("hello ")) {
+                    const firstWords = msg.replace("hello ", "").split(/[,.!]/)[0].trim();
+                    if (firstWords && !currentUserName.includes(firstWords.split(" ")[0]) && !firstWords.includes(currentUserName.split(" ")[0])) return false;
+                }
+
+                const devIdMatch = msg.match(/(?:device\s*#|device\s*id\s*#?|#)(\d+)/i) || title.match(/(?:device\s*#|#)(\d+)/i);
+                if (devIdMatch) {
+                    const matchedDevId = parseInt(devIdMatch[1], 10);
+                    const userOwnsDevice = citizenDevices.some(d => (d.deviceId ?? d.DeviceId ?? d.id) === matchedDevId);
+                    if (!userOwnsDevice) return false;
+                } else if (citizenDevices.length === 0) {
+                    const isDeviceNotif = title.includes("inspection") || title.includes("handover") || title.includes("pickup") || title.includes("device") || msg.includes("handover") || msg.includes("inspection") || msg.includes("pickup");
+                    if (isDeviceNotif) return false;
+                }
+
+                return true;
             });
-            setNotifications(response.data || []);
+            setNotifications(notifs);
         } catch (err) {
             console.error("Error fetching notifications:", err);
         }

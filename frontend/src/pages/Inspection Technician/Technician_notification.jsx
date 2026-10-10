@@ -80,18 +80,96 @@ function Technician_notification() {
       );
 
       const raw = Array.isArray(response.data) ? response.data : [];
-      const data = raw.map((n) => ({
-        notificationId: n.notificationId ?? n.NotificationId ?? n.id,
-        title: n.title ?? n.Title ?? "System Notification",
-        message: n.message ?? n.Message ?? "",
-        isRead: n.isRead !== undefined ? n.isRead : (n.isread !== undefined ? n.isread : n.Isread),
-        status: n.status !== undefined ? n.status : n.Status,
-        createdAt: n.createdAt ?? n.CreatedAt ?? n.created_at
-      }));
+      let currentLoginId = localStorage.getItem("loginId");
+      if (!currentLoginId && token) {
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          currentLoginId = payload.sub || payload.nameid || payload.LoginId;
+        } catch (e) {}
+      }
+      const currentUserName = (localStorage.getItem("citizen_fullName") || localStorage.getItem("firstName") || "").toLowerCase().trim();
+
+      let citizenDevices = [];
+      if (isCitizen) {
+        try {
+          const devRes = await axios.get("https://ecocycle.runasp.net/api/Device/MyDevices", {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          citizenDevices = Array.isArray(devRes.data) ? devRes.data : [];
+        } catch (e) {
+          console.warn("Could not fetch citizen devices for notification matching", e);
+        }
+      }
+
+      const data = raw
+        .filter((n) => {
+          const notifLoginId = n.loginId ?? n.LoginId;
+          if (notifLoginId && currentLoginId && String(notifLoginId) !== String(currentLoginId)) {
+            return false;
+          }
+          const msg = (n.message ?? n.Message ?? "").toLowerCase();
+          const title = (n.title ?? n.Title ?? "").toLowerCase();
+
+          // 1. If greeting another citizen by name, filter out
+          if (currentUserName && currentUserName.length > 2 && msg.startsWith("hello ")) {
+            const firstWords = msg.replace("hello ", "").split(/[,.!]/)[0].trim();
+            if (firstWords && !currentUserName.includes(firstWords.split(" ")[0]) && !firstWords.includes(currentUserName.split(" ")[0])) {
+              return false;
+            }
+          }
+
+          // 2. If citizen notification relates to a device, verify citizen owns the device
+          if (isCitizen) {
+            const devIdMatch = msg.match(/(?:device\s*#|device\s*id\s*#?|#)(\d+)/i) || title.match(/(?:device\s*#|#)(\d+)/i);
+            if (devIdMatch) {
+              const matchedDevId = parseInt(devIdMatch[1], 10);
+              const userOwnsDevice = citizenDevices.some((d) => (d.deviceId ?? d.DeviceId ?? d.id) === matchedDevId);
+              if (!userOwnsDevice) {
+                return false;
+              }
+            } else if (citizenDevices.length === 0) {
+              // Citizen has 0 registered devices, so device lifecycle notices do not belong to them
+              const isDeviceNotif =
+                title.includes("inspection") ||
+                title.includes("handover") ||
+                title.includes("pickup") ||
+                title.includes("device") ||
+                msg.includes("handover") ||
+                msg.includes("inspection") ||
+                msg.includes("pickup");
+              if (isDeviceNotif) {
+                return false;
+              }
+            } else {
+              // Check if any of citizen's devices matches the brand or model mentioned
+              const matchesAnyBrandOrModel = citizenDevices.some((d) => {
+                const b = (d.brand || d.Brand || "").toLowerCase();
+                const m = (d.model || d.Model || "").toLowerCase();
+                return (b && (msg.includes(b) || title.includes(b))) || (m && (msg.includes(m) || title.includes(m)));
+              });
+              if (!matchesAnyBrandOrModel) {
+                return false;
+              }
+            }
+          }
+
+          return true;
+        })
+        .map((n) => ({
+          notificationId: n.notificationId ?? n.NotificationId ?? n.id,
+          loginId: n.loginId ?? n.LoginId,
+          title: n.title ?? n.Title ?? "System Notification",
+          message: n.message ?? n.Message ?? "",
+          isRead: n.isRead !== undefined ? n.isRead : (n.isread !== undefined ? n.isread : n.Isread),
+          status: n.status !== undefined ? n.status : n.Status,
+          createdAt: n.createdAt ?? n.CreatedAt ?? n.created_at
+        }));
       setNotifications(data);
 
       if (data.length > 0 && !selectedId) {
         setSelectedId(data[0].notificationId);
+      } else if (data.length === 0) {
+        setSelectedId(null);
       }
     } catch (err) {
       console.error("Error fetching notifications:", err);
