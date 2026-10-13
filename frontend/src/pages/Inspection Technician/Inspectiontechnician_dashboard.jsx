@@ -135,12 +135,13 @@ function Inspectiontechnician_dashboard() {
         fetchUnreadNotificationsCount();
         try {
             const token = localStorage.getItem("token");
-            const techId = localStorage.getItem("technicianId") ||
-                           localStorage.getItem("userId") ||
-                           localStorage.getItem("loginId") || 1;
+            if (!token) {
+                navigate("/");
+                return;
+            }
             
             const response = await axios.get(
-                `https://ecocycle.runasp.net/api/Inspection/technicain/${techId}`,
+                "https://ecocycle.runasp.net/api/Inspection/my-requests",
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -484,6 +485,86 @@ response.data.forEach((req) => {
             Boolean(item.deliveredAt) ||
             Boolean(item.receivedAt)
         );
+    };
+
+    const checkIsHandoverCompleted = (req) => {
+        if (!req) return false;
+
+        // 1. Check in deliveries array (from /api/Inspection/my-deliveries)
+        const delivery = deliveries.find(
+            (d) => (d.deviceId && d.deviceId === req.deviceId) ||
+                   (d.inspectionRequestId && d.inspectionRequestId === req.inspectionRequestId)
+        );
+
+        if (delivery) {
+            const delStat = String(delivery.deliveryStatus || "").toLowerCase();
+            const cas = String(delivery.status || "").toLowerCase();
+            const lcs = String(delivery.lifecycleStatus || "").toLowerCase();
+
+            // If handover verification is explicitly pending, rejected, or delivery is still in transit
+            if (
+                delStat === "pendingverification" ||
+                cas === "awaitingtechnicianapproval" ||
+                lcs === "handoverpendingverification" ||
+                delStat === "handoverrejected" ||
+                cas === "handoverrejected" ||
+                lcs === "handoverrejected" ||
+                delStat === "intransit" ||
+                delStat === "pending" ||
+                cas === "intransit" ||
+                cas === "outfordelivery" ||
+                cas === "pickupstarted" ||
+                cas === "pickedup"
+            ) {
+                return false;
+            }
+
+            // If confirmed delivered & physically received by technician
+            if (
+                delStat === "delivered" ||
+                cas === "deliveredtocenter" ||
+                lcs === "atinspectioncenter" ||
+                lcs === "receivedatcenter" ||
+                lcs === "inspected" ||
+                lcs.includes("refurbish") ||
+                lcs.includes("recycl") ||
+                Boolean(delivery.isInspected) ||
+                Boolean(delivery.inspectionCompleted) ||
+                Boolean(delivery.deliveredAt)
+            ) {
+                return true;
+            }
+        }
+
+        // 2. Check req.device lifecycle status
+        const devLife = String(req.device?.lifecycleStatus || "").toLowerCase();
+        const reqStat = String(req.status || "").toLowerCase();
+
+        if (
+            devLife === "handoverpendingverification" ||
+            devLife === "handoverrejected" ||
+            devLife === "intransit" ||
+            devLife === "pending" ||
+            devLife === "scheduled" ||
+            devLife === "pickupstarted" ||
+            devLife === "pickedup" ||
+            devLife === "assigned"
+        ) {
+            return false;
+        }
+
+        if (
+            devLife === "atinspectioncenter" ||
+            devLife === "receivedatcenter" ||
+            devLife === "inspected" ||
+            devLife.includes("refurbish") ||
+            devLife.includes("recycl") ||
+            reqStat === "completed"
+        ) {
+            return true;
+        }
+
+        return false;
     };
 
     const inspectionDevicesToComplete = [
@@ -896,27 +977,54 @@ response.data.forEach((req) => {
                                                                 );
                                                             })()}
 
-                                                            {(req.status?.toLowerCase() === "accepted" || req.status?.toLowerCase() === "inprogress" || req.status?.toLowerCase() === "in progress") && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => navigate(`/technician_inspection/${req.deviceId}`)}
-                                                                    style={{
-                                                                        display: "inline-flex",
-                                                                        alignItems: "center",
-                                                                        gap: "5px",
-                                                                        backgroundColor: "#059669",
-                                                                        color: "white",
-                                                                        border: "none",
-                                                                        padding: "7px 12px",
-                                                                        borderRadius: "5px",
-                                                                        cursor: "pointer",
-                                                                        fontWeight: 600,
-                                                                        fontSize: "0.8rem"
-                                                                    }}
-                                                                >
-                                                                    <FiCheckCircle /> Inspect
-                                                                </button>
-                                                            )}
+                                                            {(req.status?.toLowerCase() === "accepted" || req.status?.toLowerCase() === "inprogress" || req.status?.toLowerCase() === "in progress") && (() => {
+                                                                const isHandoverDone = checkIsHandoverCompleted(req);
+                                                                if (!isHandoverDone) {
+                                                                    return (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => navigate("/technician-delivery")}
+                                                                            style={{
+                                                                                display: "inline-flex",
+                                                                                alignItems: "center",
+                                                                                gap: "5px",
+                                                                                backgroundColor: "#fef3c7",
+                                                                                color: "#92400e",
+                                                                                border: "1px solid #fde68a",
+                                                                                padding: "7px 12px",
+                                                                                borderRadius: "5px",
+                                                                                cursor: "pointer",
+                                                                                fontWeight: 600,
+                                                                                fontSize: "0.8rem"
+                                                                            }}
+                                                                            title="Handover verification pending. Click to complete handover verification in Deliveries Hub before inspecting."
+                                                                        >
+                                                                            <FiClock /> Awaiting Handover
+                                                                        </button>
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => navigate("/technician/device-inspection")}
+                                                                        style={{
+                                                                            display: "inline-flex",
+                                                                            alignItems: "center",
+                                                                            gap: "5px",
+                                                                            backgroundColor: "#059669",
+                                                                            color: "white",
+                                                                            border: "none",
+                                                                            padding: "7px 12px",
+                                                                            borderRadius: "5px",
+                                                                            cursor: "pointer",
+                                                                            fontWeight: 600,
+                                                                            fontSize: "0.8rem"
+                                                                        }}
+                                                                    >
+                                                                        <FiCheckCircle /> Inspect
+                                                                    </button>
+                                                                );
+                                                            })()}
 
                                                             {(req.status?.toLowerCase() === "rejected" || req.status?.toLowerCase() === "declined") && (
                                                                 <span style={{ fontSize: "0.75rem", color: "#e11d48", fontWeight: 700, background: "#fff1f2", padding: "0.25rem 0.55rem", borderRadius: "5px", border: "1px solid #fecdd3" }} title={req.rejectionReason || "Declined"}>
@@ -1011,15 +1119,46 @@ response.data.forEach((req) => {
                                                     );
                                                 })()}
 
-                                                {(req.status?.toLowerCase() === "accepted" || req.status?.toLowerCase() === "inprogress" || req.status?.toLowerCase() === "in progress") && (
-                                                    <button
-                                                        className="btn btn-success"
-                                                        style={{ flex: 1, minWidth: 0, background: "#059669", color: "white" }}
-                                                        onClick={() => navigate(`/technician_inspection/${req.deviceId}`)}
-                                                    >
-                                                        <FiCheckCircle /> Inspect
-                                                    </button>
-                                                )}
+                                                {(req.status?.toLowerCase() === "accepted" || req.status?.toLowerCase() === "inprogress" || req.status?.toLowerCase() === "in progress") && (() => {
+                                                    const isHandoverDone = checkIsHandoverCompleted(req);
+                                                    if (!isHandoverDone) {
+                                                        return (
+                                                            <button
+                                                                type="button"
+                                                                className="btn"
+                                                                style={{
+                                                                    flex: 1,
+                                                                    minWidth: 0,
+                                                                    display: "inline-flex",
+                                                                    alignItems: "center",
+                                                                    justifyContent: "center",
+                                                                    gap: "4px",
+                                                                    backgroundColor: "#fef3c7",
+                                                                    color: "#92400e",
+                                                                    border: "1px solid #fde68a",
+                                                                    padding: "0.35rem 0.6rem",
+                                                                    borderRadius: "6px",
+                                                                    fontSize: "0.75rem",
+                                                                    fontWeight: 600,
+                                                                    cursor: "pointer"
+                                                                }}
+                                                                onClick={() => navigate("/technician-delivery")}
+                                                                title="Handover verification pending. Click to complete handover verification in Deliveries Hub before inspecting."
+                                                            >
+                                                                <FiClock /> Awaiting Handover
+                                                            </button>
+                                                        );
+                                                    }
+                                                    return (
+                                                        <button
+                                                            className="btn btn-success"
+                                                            style={{ flex: 1, minWidth: 0, background: "#059669", color: "white" }}
+                                                            onClick={() => navigate("/technician/device-inspection")}
+                                                        >
+                                                            <FiCheckCircle /> Inspect
+                                                        </button>
+                                                    );
+                                                })()}
 
                                                 {(req.status?.toLowerCase() === "rejected" || req.status?.toLowerCase() === "declined") && (
                                                     <span style={{ fontSize: "0.75rem", color: "#e11d48", fontWeight: 700, background: "#fff1f2", padding: "0.35rem 0.6rem", borderRadius: "6px", border: "1px solid #fecdd3", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: 1 }}>
@@ -1113,7 +1252,7 @@ response.data.forEach((req) => {
                                             </h4>
                                             <div style={{ fontSize: "0.8rem", color: "#475569", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
                                                 <div><strong>Device Tag Code:</strong> <span style={{ color: "#059669", fontWeight: 700 }}>#EC-{selectedRequest.device?.deviceId}</span></div>
-                                                <div><strong>Delivery Status:</strong> {(selectedRequest.device?.lifecycleStatus === "ReceivedAtCenter" || selectedRequest.device?.lifecycleStatus === "AtInspectionCenter" || selectedRequest.device?.lifecycleStatus === "Inspected" || selectedRequest.device?.lifecycleStatus?.includes("Refurbish") || selectedRequest.device?.lifecycleStatus?.includes("Recycl") || selectedRequest.status === "Completed") ? <span style={{ color: "#16a34a", fontWeight: 700 }}>Delivered</span> : <span style={{ color: "#2563eb", fontWeight: 700 }}>In Transit</span>}</div>
+                                                <div><strong>Delivery Status:</strong> {checkIsHandoverCompleted(selectedRequest) ? <span style={{ color: "#16a34a", fontWeight: 700 }}>Delivered &amp; Verified</span> : <span style={{ color: "#2563eb", fontWeight: 700 }}>Awaiting Handover Verification</span>}</div>
                                                 <div><strong>Condition:</strong> {selectedRequest.status === "Completed" || selectedRequest.device?.lifecycleStatus === "Inspected" ? <span style={{ color: "#059669", fontWeight: 700 }}>✓ Inspected</span> : <span style={{ color: "#d97706", fontWeight: 700 }}>Pending Inspection</span>}</div>
                                                 <div><strong>Inspection Started:</strong> {selectedRequest.status === "Completed" || selectedRequest.device?.lifecycleStatus === "Inspected" ? <span style={{ color: "#059669", fontWeight: 700 }}>Yes (Completed)</span> : selectedRequest.status === "InProgress" ? <span style={{ color: "#2563eb", fontWeight: 700 }}>Yes (In Progress)</span> : <span style={{ color: "#64748b", fontWeight: 700 }}>No</span>}</div>
                                             </div>
@@ -1209,6 +1348,32 @@ response.data.forEach((req) => {
                                         </>
                                     );
                                 })()}
+                                {(selectedRequest.status?.toLowerCase() === "accepted" || selectedRequest.status?.toLowerCase() === "inprogress" || selectedRequest.status?.toLowerCase() === "in progress") && (
+                                    checkIsHandoverCompleted(selectedRequest) ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-success"
+                                            onClick={() => {
+                                                setSelectedRequest(null);
+                                                navigate("/technician/device-inspection");
+                                            }}
+                                        >
+                                            <FiCheckCircle /> Inspect Device
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="btn"
+                                            style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a", fontWeight: 600 }}
+                                            onClick={() => {
+                                                setSelectedRequest(null);
+                                                navigate("/technician-delivery");
+                                            }}
+                                        >
+                                            <FiClock /> Verify Handover in Hub ↗
+                                        </button>
+                                    )
+                                )}
                                 <button className="btn btn-secondary" onClick={() => setSelectedRequest(null)}>
                                     Close
                                 </button>

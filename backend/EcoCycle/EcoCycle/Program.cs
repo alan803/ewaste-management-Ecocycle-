@@ -59,8 +59,6 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-app.MapGet("/", () => Results.Ok(new { status = "Online", message = "EcoCycle ASP.NET Core API is live!" }));
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -75,6 +73,8 @@ app.UseCors("AllowReact");
 app.UseAuthentication();
 
 app.UseAuthorization();
+
+app.MapGet("/", () => Results.Ok(new { status = "Online", message = "EcoCycle ASP.NET Core API is live!" }));
 
 using (var scope = app.Services.CreateScope())
 {

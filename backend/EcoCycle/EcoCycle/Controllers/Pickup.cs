@@ -599,6 +599,10 @@ namespace EcoCycle.API.Controllers
 
                 assignment.Status = "Completed";
                 assignment.UpdatedAt = DateTime.Now;
+                if (!assignment.PickedUpAt.HasValue)
+                {
+                    assignment.PickedUpAt = DateTime.Now;
+                }
 
                 if (assignment.Device != null)
                 {
@@ -980,6 +984,10 @@ namespace EcoCycle.API.Controllers
 
                 assignment.Status = "DeliveredToCenter";
                 assignment.UpdatedAt = DateTime.Now;
+                if (!assignment.DeliveredAt.HasValue)
+                {
+                    assignment.DeliveredAt = delivery.DeliveredAt ?? DateTime.Now;
+                }
 
                 if (assignment.Device != null)
                 {
@@ -1151,6 +1159,10 @@ namespace EcoCycle.API.Controllers
                 // 2. Update CollectionAssignment Status to DeliveredToCenter
                 assignment.Status = "DeliveredToCenter";
                 assignment.UpdatedAt = DateTime.Now;
+                if (!assignment.DeliveredAt.HasValue)
+                {
+                    assignment.DeliveredAt = delivery.DeliveredAt ?? DateTime.Now;
+                }
 
                 // 3. Update Device Lifecycle Status & Status
                 if (assignment.Device != null)

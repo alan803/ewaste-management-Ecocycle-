@@ -781,7 +781,7 @@ function View_device() {
                                                 className="vd-btn-alloc"
                                                 title="Request Allocation"
                                             >
-                                                <FiCpu /> Request Allocation
+                                                <FiCpu style={{ fontSize: "0.8rem", flexShrink: 0 }} /> <span>Request Allocation</span>
                                             </button>
                                         )}
                                         {!isDeviceCompleted(item) && (item.allocationRequested || item.AllocationRequested) && isAcceptedStatus(item.status, item) && (

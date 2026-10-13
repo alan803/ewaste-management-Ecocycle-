@@ -190,6 +190,8 @@ function App() {
             <Route path="/technician/inspect" element={<DeviceInspection/>}/>
             <Route path="/technician/device-inspection" element={<DeviceInspection/>}/>
             <Route path="/technician-inspect" element={<DeviceInspection/>}/>
+            <Route path="/technician_inspection/:id" element={<DeviceInspection/>}/>
+            <Route path="/technician_inspection" element={<DeviceInspection/>}/>
             <Route path="/device-inspection" element={<DeviceInspection/>}/>
             <Route path="/device_inspection" element={<DeviceInspection/>}/>
             <Route path="/technician-device-inspection" element={<DeviceInspection/>}/>

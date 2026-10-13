@@ -347,12 +347,15 @@ function CitizenDashboard() {
         }
     };
 
-        const isDeviceCollectedFromUser = (req) => {
+    const isDeviceCollectedFromUser = (req) => {
         if (!req) return false;
         const cas = String(req.collectionAssignmentStatus || req.assignmentStatus || req.status || "").toLowerCase();
         const lcs = String(req.lifecycleStatus || "").toLowerCase();
+        const pickStat = String(req.pickupStatus || "").toLowerCase();
         return (
             req.pickedUpAt != null ||
+            req.pickupVerified === true ||
+            ["completed", "verified"].includes(pickStat) ||
             ["completed", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "delivered", "deliveredtocenter"].includes(cas) ||
             ["pickedup", "collected", "intransit", "handoverpendingverification", "atinspectioncenter", "delivered"].includes(lcs)
         );
@@ -1044,7 +1047,7 @@ function CitizenDashboard() {
                                         const isAgentAssigned = Boolean(selectedPickupDetails.collectionAgentName) || cas === "assigned" || cas === "pending";
 
                                         // Step 3: Citizen Pickup Completed
-                                        const isCitizenPickupDone = selectedPickupDetails.pickedUpAt != null || ["completed", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "delivered", "deliveredtocenter"].includes(cas) || ["pickedup", "collected", "intransit", "handoverpendingverification", "atinspectioncenter", "delivered"].includes(lcs);
+                                        const isCitizenPickupDone = selectedPickupDetails.pickedUpAt != null || selectedPickupDetails.pickupVerified === true || ["completed", "verified"].includes(String(selectedPickupDetails.pickupStatus || "").toLowerCase()) || ["completed", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "delivered", "deliveredtocenter"].includes(cas) || ["pickedup", "collected", "intransit", "handoverpendingverification", "atinspectioncenter", "delivered"].includes(lcs);
 
                                         // Step 4: Transit Active or Completed
                                         const isTransitActiveOrDone = delStat === "intransit" || delStat === "pendingverification" || delStat === "delivered" || selectedPickupDetails.deliveryStartedAt != null || cas === "intransit" || cas === "deliveredtocenter" || lcs === "intransit" || lcs === "atinspectioncenter";
@@ -1129,9 +1132,11 @@ function CitizenDashboard() {
                                                             ? `Scheduled for pickup on ${formatDate(selectedPickupDetails.pickupDate)} (${selectedPickupDetails.timeSlot || "Scheduled slot"})`
                                                             : "Scheduled upon agent acceptance"}
                                                     </div>
-                                                    {(selectedPickupDetails.pickedUpAt || selectedPickupDetails.pickupStartedAt || selectedPickupDetails.startedAt) && (
-                                                        <div className="pk-step-time">{formatDate(selectedPickupDetails.pickedUpAt || selectedPickupDetails.pickupStartedAt || selectedPickupDetails.startedAt)}</div>
-                                                    )}
+                                                    {selectedPickupDetails.pickedUpAt ? (
+                                                        <div className="pk-step-time">Picked Up: {formatDate(selectedPickupDetails.pickedUpAt)}</div>
+                                                    ) : (selectedPickupDetails.pickupStartedAt || selectedPickupDetails.startedAt) ? (
+                                                        <div className="pk-step-time">Started: {formatDate(selectedPickupDetails.pickupStartedAt || selectedPickupDetails.startedAt)}</div>
+                                                    ) : null}
                                                 </div>
 
                                                 {/* Step 4: In Transit to Inspection Center */}
@@ -1148,7 +1153,7 @@ function CitizenDashboard() {
                                                             : `Destination: ${techCenter}`}
                                                     </div>
                                                     {selectedPickupDetails.deliveryStartedAt && (
-                                                        <div className="pk-step-time">{formatDate(selectedPickupDetails.deliveryStartedAt)}</div>
+                                                        <div className="pk-step-time">Departed: {formatDate(selectedPickupDetails.deliveryStartedAt)}</div>
                                                     )}
                                                 </div>
 
@@ -1179,7 +1184,7 @@ function CitizenDashboard() {
                                                             : "Pending final receipt & verification by Inspection Officer"}
                                                     </div>
                                                     {isDeliveredToTech && selectedPickupDetails.deliveredAt && (
-                                                        <div className="pk-step-time">{formatDate(selectedPickupDetails.deliveredAt)}</div>
+                                                        <div className="pk-step-time">Delivered: {formatDate(selectedPickupDetails.deliveredAt)}</div>
                                                     )}
                                                 </div>
                                             </>
@@ -1187,6 +1192,45 @@ function CitizenDashboard() {
                                     })()}
                                 </div>
                             </div>
+
+                            {/* Stage 2: Technician -> Refurbishment/Recycling Center Progress (Separated) */}
+                            {selectedPickupDetails.centerAssignmentId && (
+                                <div style={{
+                                    marginBottom: "1.25rem",
+                                    background: "#f0fdfa",
+                                    border: "1px solid #ccfbf1",
+                                    borderRadius: "14px",
+                                    padding: "1rem"
+                                }}>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                            <FiRefreshCw style={{ color: "#0f766e", fontSize: "1rem" }} />
+                                            <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#134e4a" }}>
+                                                Stage 2: Facility Transfer &amp; Recovery
+                                            </span>
+                                        </div>
+                                        <span style={{
+                                            fontSize: "0.725rem",
+                                            fontWeight: 700,
+                                            padding: "0.2rem 0.6rem",
+                                            borderRadius: "9999px",
+                                            background: String(selectedPickupDetails.centerAssignmentStatus).toLowerCase() === "deliveredtocenter" || selectedPickupDetails.centerDeliveredAt ? "#dcfce7" : "#e0f2fe",
+                                            color: String(selectedPickupDetails.centerAssignmentStatus).toLowerCase() === "deliveredtocenter" || selectedPickupDetails.centerDeliveredAt ? "#166534" : "#0369a1"
+                                        }}>
+                                            {String(selectedPickupDetails.centerAssignmentStatus).toLowerCase() === "deliveredtocenter" || selectedPickupDetails.centerDeliveredAt ? "Delivered to Center" : (selectedPickupDetails.centerAssignmentStatus || "In Progress")}
+                                        </span>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: "0.775rem", color: "#0f766e" }}>
+                                        Following technical inspection, device was allocated for transfer to {selectedPickupDetails.centerAssignmentType === "TechnicianToRefurbishmentCenter" ? "Refurbishment Center" : "Recycling Center"}
+                                        {selectedPickupDetails.centerAgentName ? ` via collection agent ${capitalizeWords(selectedPickupDetails.centerAgentName)}.` : "."}
+                                    </p>
+                                    {selectedPickupDetails.centerDeliveredAt && (
+                                        <div style={{ fontSize: "0.725rem", color: "#115e59", marginTop: "0.3rem", fontWeight: 600 }}>
+                                            Center Delivery Recorded: {formatDate(selectedPickupDetails.centerDeliveredAt)}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Modal Footer */}

@@ -613,22 +613,115 @@ namespace EcoCycle.API.Controllers
                 await db.SaveChangesAsync();
             }
         }
+        [Microsoft.AspNetCore.Authorization.Authorize]
+        [HttpGet("my-requests")]
+        public async Task<IActionResult> GetMyRequests()
+        {
+            await CheckAndUpdateExpiredInspectionRequests();
 
+            var loginIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+                            ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)
+                            ?? User.FindFirst("sub")
+                            ?? User.FindFirst("nameid");
+
+            if (loginIdClaim == null || !int.TryParse(loginIdClaim.Value, out int loginId))
+            {
+                return Unauthorized(new { message = "User identity not found or invalid." });
+            }
+
+            var tech = await db.Technician
+                .FirstOrDefaultAsync(t => t.LoginId == loginId);
+
+            if (tech == null)
+            {
+                return NotFound(new { message = "Technician profile not found for the authenticated user." });
+            }
+
+            int targetTechId = tech.TechnicianId;
+
+            var rawRequests = await db.InspectionRequest
+                .Include(x => x.Device)
+                    .ThenInclude(d => d.Category)
+                .Include(x => x.Device)
+                    .ThenInclude(d => d.User)
+                .Where(x =>
+                    x.TechnicianId == targetTechId &&
+                    x.Device.Status != "Inactive" &&
+                    x.Device.Status != "Deleted")
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync();
+
+            var deviceIds = rawRequests.Select(r => r.DeviceId).ToList();
+            var reqIds = rawRequests.Select(r => r.InspectionRequestId).ToList();
+
+            var inspections = await db.Inspection
+                .Where(i => deviceIds.Contains(i.DeviceId) || reqIds.Contains(i.InspectionRequestId))
+                .ToListAsync();
+
+            var requests = rawRequests.Select(x => {
+                var insp = inspections.FirstOrDefault(i => i.InspectionRequestId == x.InspectionRequestId) ?? inspections.FirstOrDefault(i => i.InspectionRequestId == 0 && i.DeviceId == x.DeviceId);
+                
+                string effectiveStatus = (insp != null && !string.IsNullOrWhiteSpace(insp.Status) && insp.Status != "NotStarted" && insp.Status != "Pending")
+                    ? insp.Status
+                    : x.Status;
+
+                DateTime? calcDeadline = insp?.InspectionDeadline ?? (x.AssignedAt.HasValue ? x.AssignedAt.Value.AddDays(3) : x.CreatedAt.AddDays(3));
+                return new
+                {
+                    inspectionRequestId = x.InspectionRequestId,
+                    deviceId = x.DeviceId,
+                    technicianId = x.TechnicianId,
+                    status = effectiveStatus,
+                    assignedAt = x.AssignedAt,
+                    responseDeadline = x.ResponseDeadline,
+                    inspectionDeadline = calcDeadline,
+                    respondedAt = x.RespondedAt,
+                    rejectionReason = x.RejectionReason,
+                    reassignmentCount = x.ReassignmentCount,
+                    createdAt = x.CreatedAt,
+                    updatedAt = x.UpdatedAt,
+                    device = x.Device
+                };
+            })
+            .Where(r => !string.Equals(r.status, "Reassigned", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(r.status, "Penalized", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(r.status, "Cancelled", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+            return Ok(requests);
+        }
+
+        [Microsoft.AspNetCore.Authorization.Authorize]
         [HttpGet("technicain/{technicianId}")]
         public async Task<IActionResult> GetTechnicianRequests(
             int technicianId)
         {
             await CheckAndUpdateExpiredInspectionRequests();
 
-            var tech = await db.Technician
-                .FirstOrDefaultAsync(
-                    t => t.TechnicianId == technicianId ||
-                         t.LoginId == technicianId);
+            var loginIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+                            ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)
+                            ?? User.FindFirst("sub")
+                            ?? User.FindFirst("nameid");
 
-            int targetTechId =
-                tech != null
-                    ? tech.TechnicianId
-                    : technicianId;
+            if (loginIdClaim == null || !int.TryParse(loginIdClaim.Value, out int loginId))
+            {
+                return Unauthorized(new { message = "User identity not found." });
+            }
+
+            var callerTech = await db.Technician.FirstOrDefaultAsync(t => t.LoginId == loginId);
+            var roleClaim = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            bool isAdmin = string.Equals(roleClaim, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(roleClaim, "Administrator", StringComparison.OrdinalIgnoreCase);
+
+            if (!isAdmin)
+            {
+                if (callerTech == null || (callerTech.TechnicianId != technicianId && callerTech.LoginId != technicianId))
+                {
+                    return Forbid();
+                }
+            }
+
+            int targetTechId = callerTech != null ? callerTech.TechnicianId : technicianId;
 
             var rawRequests = await db.InspectionRequest
                 .Include(x => x.Device)
@@ -691,32 +784,23 @@ namespace EcoCycle.API.Controllers
 
             try
             {
-                var loginIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
-                if (loginIdClaim == null)
-                {
-                    return Unauthorized(new { message = "User identity not found." });
-                }
+                var loginIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)
+                                ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)
+                                ?? User.FindFirst("sub")
+                                ?? User.FindFirst("nameid");
 
-                if (!int.TryParse(loginIdClaim.Value, out int loginId))
+                if (loginIdClaim == null || !int.TryParse(loginIdClaim.Value, out int loginId))
                 {
-                    return Unauthorized(new { message = "Invalid user identity." });
+                    return Unauthorized(new { message = "User identity not found or invalid." });
                 }
 
                 var tech = await db.Technician
                     .Include(t => t.Login)
-                    .FirstOrDefaultAsync(t => t.LoginId == loginId || t.TechnicianId == loginId);
+                    .FirstOrDefaultAsync(t => t.LoginId == loginId);
 
                 if (tech == null)
                 {
-                    tech = await db.Technician
-                        .Include(t => t.Login)
-                        .FirstOrDefaultAsync(t => t.Status == "Approved" || t.Status == "Active")
-                        ?? await db.Technician.Include(t => t.Login).FirstOrDefaultAsync();
-                }
-
-                if (tech == null)
-                {
-                    return Ok(new List<object>());
+                    return NotFound(new { message = "Technician profile not found for the authenticated user." });
                 }
 
                 int targetTechId = tech.TechnicianId;
@@ -744,6 +828,19 @@ namespace EcoCycle.API.Controllers
                 {
                     var dev = x.Device;
                     if (dev == null || processedDeviceIds.Contains(dev.DeviceId)) continue;
+
+                    // Verify that this technician is still the current active technician for this device
+                    var latestReqForDevice = await db.InspectionRequest
+                        .Where(ir => ir.DeviceId == dev.DeviceId && ir.Status != "Cancelled" && ir.Status != "Rejected")
+                        .OrderByDescending(ir => ir.InspectionRequestId)
+                        .FirstOrDefaultAsync();
+
+                    if (latestReqForDevice != null && latestReqForDevice.TechnicianId != targetTechId)
+                    {
+                        // Device has been reassigned to another technician
+                        continue;
+                    }
+
                     processedDeviceIds.Add(dev.DeviceId);
 
                     var allCas = dev.CollectionAssignments?.OrderByDescending(caItem => caItem.CreatedAt).ToList() ?? new List<CollectionAssignment>();
@@ -857,136 +954,149 @@ namespace EcoCycle.API.Controllers
                     });
                 }
 
-                // Also fetch active devices with CollectionAssignments allocated to this technician ONLY if accepted
-                var allCaList = await db.CollectionAssignments
-                    .Include(ca => ca.Device)
-                        .ThenInclude(d => d.Category)
-                    .Include(ca => ca.Device)
-                        .ThenInclude(d => d.User)
-                    .Include(ca => ca.Device)
-                        .ThenInclude(d => d.InspectionRequests)
-                    .Include(ca => ca.CollectionAgent)
-                    .Where(ca => ca.Device != null && ca.Device.Status != "Inactive" && ca.Device.Status != "Deleted")
-                    .OrderByDescending(ca => ca.CreatedAt)
+                // Query 2: Active devices with CollectionAssignments allocated to this technician ONLY if candidate devices belong to this technician
+                var candidateDevIds = await db.InspectionRequest
+                    .Where(r => r.TechnicianId == targetTechId && 
+                               (r.Status == "Accepted" || r.Status == "InProgress" || r.Status == "Completed"))
+                    .Select(r => r.DeviceId)
+                    .Distinct()
                     .ToListAsync();
 
-                foreach (var ca in allCaList)
+                var remainingDevIds = candidateDevIds.Where(id => !processedDeviceIds.Contains(id)).ToList();
+
+                if (remainingDevIds.Any())
                 {
-                    var dev = ca.Device;
-                    if (dev == null || processedDeviceIds.Contains(dev.DeviceId)) continue;
+                    var targetedCas = await db.CollectionAssignments
+                        .Include(ca => ca.Device)
+                            .ThenInclude(d => d.Category)
+                        .Include(ca => ca.Device)
+                            .ThenInclude(d => d.User)
+                        .Include(ca => ca.Device)
+                            .ThenInclude(d => d.InspectionRequests)
+                        .Include(ca => ca.CollectionAgent)
+                        .Where(ca => remainingDevIds.Contains(ca.DeviceId) && ca.Device != null && ca.Device.Status != "Inactive" && ca.Device.Status != "Deleted")
+                        .OrderByDescending(ca => ca.CreatedAt)
+                        .ToListAsync();
 
-                    var latestInspReq = dev.InspectionRequests?
-                        .OrderByDescending(ir => ir.CreatedAt)
-                        .FirstOrDefault();
-
-                    // Only include if latest inspection request is assigned to targetTechId AND HAS BEEN ACCEPTED
-                    if (latestInspReq != null && 
-                        latestInspReq.TechnicianId == targetTechId && 
-                        (latestInspReq.Status == "Accepted" || latestInspReq.Status == "InProgress" || latestInspReq.Status == "Completed"))
+                    foreach (var ca in targetedCas)
                     {
-                        processedDeviceIds.Add(dev.DeviceId);
-                        Delivery? delObj = null;
-                        try
+                        var dev = ca.Device;
+                        if (dev == null || processedDeviceIds.Contains(dev.DeviceId)) continue;
+
+                        var latestInspReq = dev.InspectionRequests?
+                            .Where(ir => ir.Status != "Cancelled" && ir.Status != "Rejected")
+                            .OrderByDescending(ir => ir.InspectionRequestId)
+                            .FirstOrDefault();
+
+                        // Only include if latest inspection request is assigned to targetTechId AND HAS BEEN ACCEPTED
+                        if (latestInspReq != null && 
+                            latestInspReq.TechnicianId == targetTechId && 
+                            (latestInspReq.Status == "Accepted" || latestInspReq.Status == "InProgress" || latestInspReq.Status == "Completed"))
                         {
-                            delObj = await db.Deliveries.FirstOrDefaultAsync(d => d.CollectionAssignmentId == ca.CollectionAssignmentId);
+                            processedDeviceIds.Add(dev.DeviceId);
+                            Delivery? delObj = null;
+                            try
+                            {
+                                delObj = await db.Deliveries.FirstOrDefaultAsync(d => d.CollectionAssignmentId == ca.CollectionAssignmentId);
+                            }
+                            catch { }
+
+                            var inspObj = await db.Inspection.FirstOrDefaultAsync(i => i.DeviceId == dev.DeviceId || i.InspectionRequestId == latestInspReq.InspectionRequestId);
+                            bool isInspected = inspObj != null && (inspObj.Status == "Completed" || inspObj.InspectionCompletedAt != null || !string.IsNullOrEmpty(inspObj.OverallCondition) || inspObj.OverallScore > 0);
+                            bool isInspectionInProgress = !isInspected && inspObj != null && (inspObj.Status == "InProgress" || inspObj.InspectionStartedAt != null);
+
+                            string caStatus = ca.Status ?? "Scheduled";
+                            string delStatus = delObj != null ? delObj.Status : (caStatus == "Completed" ? "Pending" : caStatus == "OutForDelivery" ? "InTransit" : caStatus == "DeliveredToCenter" ? "Delivered" : "Pending");
+
+                            if (isInspected || dev.LifecycleStatus == "AtInspectionCenter" || dev.LifecycleStatus == "Inspected" || (dev.LifecycleStatus != null && (dev.LifecycleStatus.Contains("Refurbish") || dev.LifecycleStatus.Contains("Recycl"))))
+                            {
+                                caStatus = "DeliveredToCenter";
+                                delStatus = "Delivered";
+                            }
+
+                            var allCas = dev.CollectionAssignments?.OrderByDescending(caItem => caItem.CreatedAt).ToList() ?? new List<CollectionAssignment>();
+                            var prevCa = allCas.Skip(1).FirstOrDefault(p => p.Status == "Failed" || p.Status == "PickupFailed" || p.Status == "Cancelled" || p.Status == "Rejected" || p.Status == "Expired");
+
+                            bool hasPreviousFailedPickup = prevCa != null;
+                            string previousFailureReason = prevCa?.RejectionReason ?? "";
+                            string previousAgentName = prevCa?.CollectionAgent != null ? $"{prevCa.CollectionAgent.FirstName} {prevCa.CollectionAgent.LastName}".Trim() : "";
+
+                            result.Add(new
+                            {
+                                deviceId = dev.DeviceId,
+                                inspectionRequestId = (int?)latestInspReq.InspectionRequestId,
+                                collectionAssignmentId = ca.CollectionAssignmentId,
+
+                                brand = dev.Brand,
+                                model = dev.Model,
+                                modelNumber = dev.ModelNumber,
+                                serialNumber = dev.SerialNumber,
+                                purchaseDate = dev.PurchaseDate,
+                                deviceQrToken = !string.IsNullOrEmpty(dev.DeviceQrToken) ? dev.DeviceQrToken : $"ECOQR-DEV-{dev.DeviceId}",
+                                categoryName = dev.Category?.CategoryName ?? "E-Waste",
+                                quantity = dev.Quantity,
+                                weight = dev.Weight,
+                                condition = dev.Condition,
+                                working = dev.Working,
+                                physicalDamage = dev.PhysicalDamage,
+                                displayCondition = dev.DisplayCondition,
+                                batteryCondition = dev.BatteryCondition,
+                                accessories = dev.Accessories,
+                                charger = dev.Charger,
+                                ownership = dev.Ownership,
+                                ownershipConfirmed = dev.OwnershipConfirmed,
+                                processingPreference = dev.ProcessingPreference,
+                                frontPhoto = dev.FrontPhoto,
+                                backPhoto = dev.BackPhoto,
+                                damagePhoto = dev.DamagePhoto,
+                                labelPhoto = dev.LabelPhoto,
+
+                                customerName = dev.User != null ? $"{dev.User.FirstName} {dev.User.LastName}".Trim() : "Citizen",
+                                customerPhone = dev.User?.PhoneNumber ?? "",
+                                address = dev.Address,
+                                landmark = dev.Landmark,
+                                city = dev.User?.City ?? "",
+                                district = dev.User?.District ?? "",
+                                state = dev.User?.State ?? "",
+                                pincode = dev.User?.Pincode ?? "",
+
+                                pickupDate = dev.PickupDate,
+                                timeSlot = dev.TimeSlot,
+                                pickupInstructions = dev.PickupInstructions,
+
+                                status = caStatus,
+                                deliveryStatus = delStatus,
+                                lifecycleStatus = isInspected ? "Inspected" : dev.LifecycleStatus,
+                                requestStatus = isInspected ? "Completed" : latestInspReq.Status,
+
+                                isInspected = isInspected,
+                                inspectionCompleted = isInspected,
+                                qualityGrade = inspObj?.OverallCondition,
+                                overallScore = inspObj?.OverallScore,
+                                inspectionStartedAt = inspObj?.InspectionStartedAt ?? (isInspected ? (inspObj?.CreatedAt ?? latestInspReq.CreatedAt) : null),
+                                inspectionCompletedAt = inspObj?.InspectionCompletedAt,
+
+                                hasPreviousFailedPickup = hasPreviousFailedPickup,
+                                previousFailureReason = previousFailureReason,
+                                previousAgentName = previousAgentName,
+
+                                collectionAgentId = ca.CollectionAgentId,
+                                collectionAgentName = ca.CollectionAgent != null ? $"{ca.CollectionAgent.FirstName} {ca.CollectionAgent.LastName}".Trim() : "Assigned Agent",
+                                collectionAgentPhone = ca.CollectionAgent?.Phone ?? ca.CollectionAgent?.AlternatePhone ?? "",
+                                collectionAgentAltPhone = ca.CollectionAgent?.AlternatePhone,
+                                collectionAgentPhoto = ca.CollectionAgent?.ProfilePicture,
+
+                                inspectionCenterName = tech.InspectionCenterName ?? "EcoCycle Inspection Hub",
+                                technicianAddress = tech.Address,
+                                technicianPhone = tech.PhoneNumber,
+
+                                assignedAt = ca.AssignedAt ?? ca.CreatedAt,
+                                startedAt = ca.AssignedAt,
+                                deliveredAt = delObj?.DeliveredAt,
+                                inspectionDeadline = inspObj?.InspectionDeadline ?? (delObj?.DeliveredAt?.AddDays(3) ?? (ca.AssignedAt?.AddDays(3) ?? dev.CreatedAt.AddDays(3))),
+                                createdAt = dev.CreatedAt
+                            });
                         }
-                        catch { }
-
-                        var inspObj = await db.Inspection.FirstOrDefaultAsync(i => i.DeviceId == dev.DeviceId || i.InspectionRequestId == latestInspReq.InspectionRequestId);
-                        bool isInspected = inspObj != null && (inspObj.Status == "Completed" || inspObj.InspectionCompletedAt != null || !string.IsNullOrEmpty(inspObj.OverallCondition) || inspObj.OverallScore > 0);
-                        bool isInspectionInProgress = !isInspected && inspObj != null && (inspObj.Status == "InProgress" || inspObj.InspectionStartedAt != null);
-
-                        string caStatus = ca.Status ?? "Scheduled";
-                        string delStatus = delObj != null ? delObj.Status : (caStatus == "Completed" ? "Pending" : caStatus == "OutForDelivery" ? "InTransit" : caStatus == "DeliveredToCenter" ? "Delivered" : "Pending");
-
-                        if (isInspected || dev.LifecycleStatus == "AtInspectionCenter" || dev.LifecycleStatus == "Inspected" || (dev.LifecycleStatus != null && (dev.LifecycleStatus.Contains("Refurbish") || dev.LifecycleStatus.Contains("Recycl"))))
-                        {
-                            caStatus = "DeliveredToCenter";
-                            delStatus = "Delivered";
-                        }
-
-                        var allCas = dev.CollectionAssignments?.OrderByDescending(caItem => caItem.CreatedAt).ToList() ?? new List<CollectionAssignment>();
-                        var prevCa = allCas.Skip(1).FirstOrDefault(p => p.Status == "Failed" || p.Status == "PickupFailed" || p.Status == "Cancelled" || p.Status == "Rejected" || p.Status == "Expired");
-
-                        bool hasPreviousFailedPickup = prevCa != null;
-                        string previousFailureReason = prevCa?.RejectionReason ?? "";
-                        string previousAgentName = prevCa?.CollectionAgent != null ? $"{prevCa.CollectionAgent.FirstName} {prevCa.CollectionAgent.LastName}".Trim() : "";
-
-                        result.Add(new
-                        {
-                            deviceId = dev.DeviceId,
-                            inspectionRequestId = (int?)latestInspReq.InspectionRequestId,
-                            collectionAssignmentId = ca.CollectionAssignmentId,
-
-                            brand = dev.Brand,
-                            model = dev.Model,
-                            modelNumber = dev.ModelNumber,
-                            serialNumber = dev.SerialNumber,
-                            purchaseDate = dev.PurchaseDate,
-                            deviceQrToken = !string.IsNullOrEmpty(dev.DeviceQrToken) ? dev.DeviceQrToken : $"ECOQR-DEV-{dev.DeviceId}",
-                            categoryName = dev.Category?.CategoryName ?? "E-Waste",
-                            quantity = dev.Quantity,
-                            weight = dev.Weight,
-                            condition = dev.Condition,
-                            working = dev.Working,
-                            physicalDamage = dev.PhysicalDamage,
-                            displayCondition = dev.DisplayCondition,
-                            batteryCondition = dev.BatteryCondition,
-                            accessories = dev.Accessories,
-                            charger = dev.Charger,
-                            ownership = dev.Ownership,
-                            ownershipConfirmed = dev.OwnershipConfirmed,
-                            processingPreference = dev.ProcessingPreference,
-                            frontPhoto = dev.FrontPhoto,
-                            backPhoto = dev.BackPhoto,
-                            damagePhoto = dev.DamagePhoto,
-                            labelPhoto = dev.LabelPhoto,
-
-                            customerName = dev.User != null ? $"{dev.User.FirstName} {dev.User.LastName}".Trim() : "Citizen",
-                            customerPhone = dev.User?.PhoneNumber ?? "",
-                            address = dev.Address,
-                            landmark = dev.Landmark,
-                            city = dev.User?.City ?? "",
-                            district = dev.User?.District ?? "",
-                            state = dev.User?.State ?? "",
-                            pincode = dev.User?.Pincode ?? "",
-
-                            pickupDate = dev.PickupDate,
-                            timeSlot = dev.TimeSlot,
-                            pickupInstructions = dev.PickupInstructions,
-
-                            status = caStatus,
-                            deliveryStatus = delStatus,
-                            lifecycleStatus = isInspected ? "Inspected" : dev.LifecycleStatus,
-                            requestStatus = isInspected ? "Completed" : latestInspReq.Status,
-
-                            isInspected = isInspected,
-                            inspectionCompleted = isInspected,
-                            qualityGrade = inspObj?.OverallCondition,
-                            overallScore = inspObj?.OverallScore,
-                            inspectionStartedAt = inspObj?.InspectionStartedAt ?? (isInspected ? (inspObj?.CreatedAt ?? latestInspReq.CreatedAt) : null),
-                            inspectionCompletedAt = inspObj?.InspectionCompletedAt,
-
-                            hasPreviousFailedPickup = hasPreviousFailedPickup,
-                            previousFailureReason = previousFailureReason,
-                            previousAgentName = previousAgentName,
-
-                            collectionAgentId = ca.CollectionAgentId,
-                            collectionAgentName = ca.CollectionAgent != null ? $"{ca.CollectionAgent.FirstName} {ca.CollectionAgent.LastName}".Trim() : "Assigned Agent",
-                            collectionAgentPhone = ca.CollectionAgent?.Phone ?? ca.CollectionAgent?.AlternatePhone ?? "",
-                            collectionAgentAltPhone = ca.CollectionAgent?.AlternatePhone,
-                            collectionAgentPhoto = ca.CollectionAgent?.ProfilePicture,
-
-                            inspectionCenterName = tech.InspectionCenterName ?? "EcoCycle Inspection Hub",
-                            technicianAddress = tech.Address,
-                            technicianPhone = tech.PhoneNumber,
-
-                            assignedAt = ca.AssignedAt ?? ca.CreatedAt,
-                            startedAt = ca.AssignedAt,
-                            deliveredAt = delObj?.DeliveredAt,
-                            inspectionDeadline = inspObj?.InspectionDeadline ?? (delObj?.DeliveredAt?.AddDays(3) ?? (ca.AssignedAt?.AddDays(3) ?? dev.CreatedAt.AddDays(3))),
-                            createdAt = dev.CreatedAt
-                        });
                     }
                 }
 
@@ -2482,6 +2592,16 @@ namespace EcoCycle.API.Controllers
             });
         }
 
+        private static bool IsCitizenAssignment(CollectionAssignment ca)
+        {
+            if (string.IsNullOrWhiteSpace(ca.AssignmentType))
+            {
+                return !string.Equals(ca.SourceType, "Technician Center", StringComparison.OrdinalIgnoreCase);
+            }
+            return !string.Equals(ca.AssignmentType, "TechnicianToRecyclingCenter", StringComparison.OrdinalIgnoreCase) &&
+                   !string.Equals(ca.AssignmentType, "TechnicianToRefurbishmentCenter", StringComparison.OrdinalIgnoreCase);
+        }
+
         [Microsoft.AspNetCore.Authorization.Authorize]
         [HttpGet("my-pickup-requests")]
         public async Task<IActionResult> GetMyPickupRequests()
@@ -2514,6 +2634,30 @@ namespace EcoCycle.API.Controllers
                     .OrderByDescending(d => d.CreatedAt)
                     .ToListAsync();
 
+                // Fetch Deliveries and Pickups records for all collection assignments
+                var assignmentIds = devices
+                    .SelectMany(d => d.CollectionAssignments)
+                    .Where(ca => ca.CollectionAssignmentId.HasValue)
+                    .Select(ca => ca.CollectionAssignmentId!.Value)
+                    .Distinct()
+                    .ToList();
+
+                var deliveriesList = await db.Deliveries
+                    .Where(del => assignmentIds.Contains(del.CollectionAssignmentId))
+                    .ToListAsync();
+
+                var deliveriesMap = deliveriesList
+                    .GroupBy(del => del.CollectionAssignmentId)
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(del => del.CreatedAt).FirstOrDefault());
+
+                var pickupsList = await db.Pickups
+                    .Where(p => assignmentIds.Contains(p.CollectionAssignmentId))
+                    .ToListAsync();
+
+                var pickupsMap = pickupsList
+                    .GroupBy(p => p.CollectionAssignmentId)
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.CreatedAt).FirstOrDefault());
+
                 // Auto-repair any devices mistakenly marked as DueDatePassed despite having active inspection/collection
                 bool hasUpdates = false;
                 var today = DateTime.Today;
@@ -2527,6 +2671,25 @@ namespace EcoCycle.API.Controllers
 
                 foreach (var d in devices)
                 {
+                    var citizenAssignments = d.CollectionAssignments
+                        .Where(ca => IsCitizenAssignment(ca))
+                        .OrderByDescending(ca => ca.CreatedAt)
+                        .ToList();
+
+                    var latestCitizenCa = citizenAssignments.FirstOrDefault(ca =>
+                        !string.Equals(ca.Status, "Expired", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(ca.Status, "Cancelled", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(ca.Status, "Rejected", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(ca.Status, "Reassigned", StringComparison.OrdinalIgnoreCase)
+                    ) ?? citizenAssignments.FirstOrDefault();
+
+                    EcoCycle.API.Models.Pickup? citizenPickupForRepair = null;
+                    if (latestCitizenCa?.CollectionAssignmentId != null &&
+                        pickupsMap.TryGetValue(latestCitizenCa.CollectionAssignmentId.Value, out var cpRepair))
+                    {
+                        citizenPickupForRepair = cpRepair;
+                    }
+
                     if (d.LifecycleStatus == "DueDatePassed")
                     {
                         if (!string.IsNullOrEmpty(d.ProcessingDecision) || (d.InspectionRequests != null && d.InspectionRequests.Any(ir => ir.Status == "Accepted" || ir.Status == "Completed")))
@@ -2541,7 +2704,13 @@ namespace EcoCycle.API.Controllers
                             hasUpdates = true;
                             continue;
                         }
-                        if (d.CollectionAssignments != null && d.CollectionAssignments.Any(ca => ca.Status == "Assigned" || ca.Status == "Accepted" || ca.Status == "PickupStarted"))
+                        if (citizenPickupForRepair != null && (citizenPickupForRepair.PickedUpAt != null || string.Equals(citizenPickupForRepair.Status, "Completed", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            d.LifecycleStatus = "Collected";
+                            hasUpdates = true;
+                            continue;
+                        }
+                        if (latestCitizenCa != null && (latestCitizenCa.Status == "Assigned" || latestCitizenCa.Status == "Accepted" || latestCitizenCa.Status == "PickupStarted"))
                         {
                             d.LifecycleStatus = "CollectionAssigned";
                             hasUpdates = true;
@@ -2549,9 +2718,10 @@ namespace EcoCycle.API.Controllers
                         }
                     }
 
-                    var latestCa = d.CollectionAssignments.OrderByDescending(ca => ca.CreatedAt).FirstOrDefault();
-                    string caStatus = latestCa?.Status?.ToLower() ?? "";
-                    bool isDone = caStatus == "completed" || caStatus == "delivered" || caStatus == "pickedup";
+                    string citCaStatus = (latestCitizenCa?.Status ?? "").ToLower().Trim();
+                    bool isDone = citCaStatus == "completed" || citCaStatus == "delivered" || citCaStatus == "pickedup" || citCaStatus == "deliveredtocenter" ||
+                                  (citizenPickupForRepair?.PickedUpAt != null) ||
+                                  (citizenPickupForRepair?.Status?.ToLower() == "completed");
                     string lcs = (d.LifecycleStatus ?? "").ToLower().Trim();
 
                     if (!isDone &&
@@ -2572,39 +2742,58 @@ namespace EcoCycle.API.Controllers
                     await db.SaveChangesAsync();
                 }
 
-                // Fetch Deliveries records for these collection assignments
-                var assignmentIds = devices
-                    .SelectMany(d => d.CollectionAssignments)
-                    .Where(ca => ca.CollectionAssignmentId.HasValue)
-                    .Select(ca => ca.CollectionAssignmentId!.Value)
-                    .ToList();
-
-                var deliveriesList = await db.Deliveries
-                    .Where(del => assignmentIds.Contains(del.CollectionAssignmentId))
-                    .ToListAsync();
-
-                var deliveriesMap = deliveriesList
-                    .GroupBy(del => del.CollectionAssignmentId)
-                    .ToDictionary(g => g.Key, g => g.OrderByDescending(del => del.CreatedAt).FirstOrDefault());
-
                 var result = devices.Select(d => {
                     var latestInsp = d.InspectionRequests.OrderByDescending(ir => ir.CreatedAt).FirstOrDefault();
-                    var latestAssignment = d.CollectionAssignments.OrderByDescending(ca => ca.CreatedAt).FirstOrDefault();
 
-                    Delivery? latestDelivery = null;
-                    if (latestAssignment?.CollectionAssignmentId != null && deliveriesMap.TryGetValue(latestAssignment.CollectionAssignmentId.Value, out var foundDel))
+                    // Stage 1: Citizen-to-Technician assignment
+                    var citizenAssignments = d.CollectionAssignments
+                        .Where(ca => IsCitizenAssignment(ca))
+                        .OrderByDescending(ca => ca.CreatedAt)
+                        .ToList();
+
+                    var citizenAssignment = citizenAssignments.FirstOrDefault(ca =>
+                        !string.Equals(ca.Status, "Expired", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(ca.Status, "Cancelled", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(ca.Status, "Rejected", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(ca.Status, "Reassigned", StringComparison.OrdinalIgnoreCase)
+                    ) ?? citizenAssignments.FirstOrDefault();
+
+                    // Stage 2: Technician-to-Center assignment (if exists)
+                    var centerAssignment = d.CollectionAssignments
+                        .Where(ca => !IsCitizenAssignment(ca))
+                        .OrderByDescending(ca => ca.CreatedAt)
+                        .FirstOrDefault();
+
+                    EcoCycle.API.Models.Pickup? citizenPickup = null;
+                    Delivery? citizenDelivery = null;
+                    if (citizenAssignment?.CollectionAssignmentId != null)
                     {
-                        latestDelivery = foundDel;
+                        if (pickupsMap.TryGetValue(citizenAssignment.CollectionAssignmentId.Value, out var cp))
+                            citizenPickup = cp;
+                        if (deliveriesMap.TryGetValue(citizenAssignment.CollectionAssignmentId.Value, out var cd))
+                            citizenDelivery = cd;
                     }
 
-                    bool isAgentAccepted = latestAssignment != null && (
-                        string.Equals(latestAssignment.Status, "Accepted", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(latestAssignment.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(latestAssignment.Status, "PickedUp", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(latestAssignment.Status, "InTransit", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(latestAssignment.Status, "AwaitingTechnicianApproval", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(latestAssignment.Status, "DeliveredToCenter", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(latestAssignment.Status, "Delivered", StringComparison.OrdinalIgnoreCase)
+                    EcoCycle.API.Models.Pickup? centerPickup = null;
+                    Delivery? centerDelivery = null;
+                    if (centerAssignment?.CollectionAssignmentId != null)
+                    {
+                        if (pickupsMap.TryGetValue(centerAssignment.CollectionAssignmentId.Value, out var cenP))
+                            centerPickup = cenP;
+                        if (deliveriesMap.TryGetValue(centerAssignment.CollectionAssignmentId.Value, out var cenD))
+                            centerDelivery = cenD;
+                    }
+
+                    bool isAgentAccepted = citizenAssignment != null && (
+                        string.Equals(citizenAssignment.Status, "Accepted", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(citizenAssignment.Status, "PickupStarted", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(citizenAssignment.Status, "Completed", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(citizenAssignment.Status, "PickedUp", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(citizenAssignment.Status, "OutForDelivery", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(citizenAssignment.Status, "InTransit", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(citizenAssignment.Status, "AwaitingTechnicianApproval", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(citizenAssignment.Status, "DeliveredToCenter", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(citizenAssignment.Status, "Delivered", StringComparison.OrdinalIgnoreCase)
                     );
 
                     var tech = latestInsp?.Technician;
@@ -2612,6 +2801,14 @@ namespace EcoCycle.API.Controllers
                     string techCenterAddress = tech != null && !string.IsNullOrWhiteSpace(tech.Address) 
                         ? $"{tech.Address}{(string.IsNullOrWhiteSpace(tech.City) ? "" : ", City: " + tech.City)}{(string.IsNullOrWhiteSpace(tech.PinCode) ? "" : " - PIN: " + tech.PinCode)}"
                         : "EcoCycle Central Hub, Processing Center";
+
+                    DateTime? pickedUpAt = citizenPickup?.PickedUpAt ?? citizenAssignment?.PickedUpAt;
+                    DateTime? pickupStartedAt = citizenPickup?.StartedAt ?? citizenAssignment?.PickupStartedAt;
+                    DateTime? deliveredAt = citizenDelivery?.DeliveredAt ?? citizenAssignment?.DeliveredAt;
+                    string? deliveryStatus = citizenDelivery?.Status ?? (string.Equals(citizenAssignment?.Status, "DeliveredToCenter", StringComparison.OrdinalIgnoreCase) ? "Delivered" : citizenAssignment?.Status);
+                    DateTime? deliveryStartedAt = citizenDelivery?.StartedAt;
+
+                    var agent = citizenAssignment?.CollectionAgent;
 
                     return new
                     {
@@ -2641,20 +2838,41 @@ namespace EcoCycle.API.Controllers
                         assignedTechnicianCenterName = techCenterName,
                         assignedTechnicianCenterAddress = techCenterAddress,
                         assignedTechnicianPhone = tech?.PhoneNumber,
+
+                        // Stage 1: Citizen Pickup & Delivery to Technician
+                        collectionAssignmentId = citizenAssignment?.CollectionAssignmentId,
+                        assignmentType = citizenAssignment?.AssignmentType ?? "CustomerToTechnician",
                         collectionAgentAccepted = isAgentAccepted,
-                        collectionAssignmentStatus = latestAssignment != null ? latestAssignment.Status : null,
-                        collectionAgentName = latestAssignment?.CollectionAgent != null ? $"{latestAssignment.CollectionAgent.FirstName} {latestAssignment.CollectionAgent.LastName}" : null,
-                        collectionAgentPhone = latestAssignment?.CollectionAgent != null ? (latestAssignment.CollectionAgent.Phone ?? latestAssignment.CollectionAgent.AlternatePhone) : null,
-                        collectionAgentAltPhone = latestAssignment?.CollectionAgent?.AlternatePhone,
-                        collectionAgentPhoto = latestAssignment?.CollectionAgent?.ProfilePicture,
-                        vehicleNumber = latestAssignment?.CollectionAgent?.VehicleNumber,
-                        vehicleType = latestAssignment?.CollectionAgent?.VehicleType,
+                        collectionAssignmentStatus = citizenAssignment != null ? citizenAssignment.Status : null,
+                        collectionAgentName = agent != null ? $"{agent.FirstName} {agent.LastName}".Trim() : null,
+                        collectionAgentPhone = agent != null ? (agent.Phone ?? agent.AlternatePhone) : null,
+                        collectionAgentAltPhone = agent?.AlternatePhone,
+                        collectionAgentPhoto = agent?.ProfilePicture,
+                        vehicleNumber = agent?.VehicleNumber,
+                        vehicleType = agent?.VehicleType,
                         deviceQrToken = !string.IsNullOrEmpty(d.DeviceQrToken) ? d.DeviceQrToken : $"ECOQR-DEV-{d.DeviceId}",
-                        acceptedAt = latestAssignment?.AcceptedAt,
-                        pickedUpAt = latestAssignment?.PickedUpAt,
-                        deliveredAt = latestDelivery?.DeliveredAt ?? latestAssignment?.DeliveredAt,
-                        deliveryStatus = latestDelivery?.Status ?? (latestAssignment?.Status == "DeliveredToCenter" ? "Delivered" : latestAssignment?.Status),
-                        deliveryStartedAt = latestDelivery?.StartedAt
+                        acceptedAt = citizenAssignment?.AcceptedAt,
+                        pickupStartedAt = pickupStartedAt,
+                        pickedUpAt = pickedUpAt,
+                        pickupStatus = citizenPickup?.Status,
+                        pickupVerified = citizenPickup?.DeviceVerified ?? false,
+                        pickupProofPhoto = citizenPickup?.ProofPhotoPath,
+                        deliveredAt = deliveredAt,
+                        deliveryStatus = deliveryStatus,
+                        deliveryStartedAt = deliveryStartedAt,
+
+                        // Stage 2: Technician -> Refurbishment/Recycling Center (Separated)
+                        centerAssignmentId = centerAssignment?.CollectionAssignmentId,
+                        centerAssignmentType = centerAssignment?.AssignmentType,
+                        centerAssignmentStatus = centerAssignment?.Status,
+                        centerAgentName = centerAssignment?.CollectionAgent != null ? $"{centerAssignment.CollectionAgent.FirstName} {centerAssignment.CollectionAgent.LastName}".Trim() : null,
+                        centerAgentPhone = centerAssignment?.CollectionAgent?.Phone,
+                        centerVehicleNumber = centerAssignment?.CollectionAgent?.VehicleNumber,
+                        centerAcceptedAt = centerAssignment?.AcceptedAt,
+                        centerPickupStartedAt = centerPickup?.StartedAt ?? centerAssignment?.PickupStartedAt,
+                        centerPickedUpAt = centerPickup?.PickedUpAt ?? centerAssignment?.PickedUpAt,
+                        centerDeliveredAt = centerDelivery?.DeliveredAt ?? centerAssignment?.DeliveredAt,
+                        centerDeliveryStatus = centerDelivery?.Status ?? (string.Equals(centerAssignment?.Status, "DeliveredToCenter", StringComparison.OrdinalIgnoreCase) ? "Delivered" : centerAssignment?.Status)
                     };
                 }).ToList();
 

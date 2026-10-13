@@ -147,8 +147,10 @@ function Pickupdetails() {
 
         return (
             req.pickedUpAt != null ||
+            req.pickupVerified === true ||
+            String(req.pickupStatus || "").toLowerCase() === "completed" ||
             ["completed", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "deliveredtocenter", "delivered"].includes(cas) ||
-            ["pickedup", "collected", "intransit", "handoverpendingverification", "atinspectioncenter", "delivered"].includes(lcs) ||
+            ["pickedup", "collected", "intransit", "handoverpendingverification", "atinspectioncenter", "delivered", "inspected", "inspectioncompleted", "recycled", "refurbished"].includes(lcs) ||
             ["intransit", "pendingverification", "delivered"].includes(delStat)
         );
     };
@@ -520,7 +522,7 @@ function Pickupdetails() {
             return <span className="status-pill status-progress" style={{ ...badgeStyle, background: "#fef3c7", color: "#b45309", borderColor: "#fde68a" }}><FiClock style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Handover Verification</span>;
         } else if (delStat === "intransit" || cas === "intransit" || lcs === "intransit" || cas === "outfordelivery") {
             return <span className="status-pill status-progress" style={{ ...badgeStyle, background: "#eff6ff", color: "#1d4ed8", borderColor: "#bfdbfe" }}><FiTruck style={{ fontSize: "0.75rem", flexShrink: 0 }} /> In Transit to Hub</span>;
-        } else if (req.pickedUpAt != null || cas === "completed" || cas === "pickedup" || lcs === "pickedup" || lcs === "collected") {
+        } else if (isDeviceCollectedFromUser(req)) {
             return <span className="status-pill status-progress" style={{ ...badgeStyle, background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0" }}><FiCheckCircle style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Picked Up</span>;
         } else if (cas === "pickupstarted" || cas === "en route" || cas === "enroute" || lcs === "enroute") {
             return <span className="status-pill status-progress" style={{ ...badgeStyle, background: "#eff6ff", color: "#1d4ed8", borderColor: "#bfdbfe" }}><FiTruck style={{ fontSize: "0.75rem", flexShrink: 0 }} /> Agent En Route</span>;
@@ -1178,9 +1180,11 @@ function Pickupdetails() {
                                                             ? `Scheduled for pickup on ${formatDate(selectedPickup.pickupDate)} (${selectedPickup.timeSlot || "Scheduled slot"})`
                                                             : "Scheduled upon agent acceptance"}
                                                     </div>
-                                                    {(selectedPickup.pickedUpAt || selectedPickup.pickupStartedAt || selectedPickup.startedAt) && (
-                                                        <div className="pk-step-time">{formatDate(selectedPickup.pickedUpAt || selectedPickup.pickupStartedAt || selectedPickup.startedAt)}</div>
-                                                    )}
+                                                    {selectedPickup.pickedUpAt ? (
+                                                        <div className="pk-step-time">Picked Up: {formatDate(selectedPickup.pickedUpAt)}</div>
+                                                    ) : (selectedPickup.pickupStartedAt || selectedPickup.startedAt) ? (
+                                                        <div className="pk-step-time">Started: {formatDate(selectedPickup.pickupStartedAt || selectedPickup.startedAt)}</div>
+                                                    ) : null}
                                                 </div>
 
                                                 {/* Step 4: In Transit to Inspection Center */}
@@ -1197,7 +1201,7 @@ function Pickupdetails() {
                                                             : `Destination: ${techCenter}`}
                                                     </div>
                                                     {selectedPickup.deliveryStartedAt && (
-                                                        <div className="pk-step-time">{formatDate(selectedPickup.deliveryStartedAt)}</div>
+                                                        <div className="pk-step-time">Departed: {formatDate(selectedPickup.deliveryStartedAt)}</div>
                                                     )}
                                                 </div>
 
@@ -1228,7 +1232,7 @@ function Pickupdetails() {
                                                             : "Pending final receipt & verification by Inspection Officer"}
                                                     </div>
                                                     {isDeliveredToTech && selectedPickup.deliveredAt && (
-                                                        <div className="pk-step-time">{formatDate(selectedPickup.deliveredAt)}</div>
+                                                        <div className="pk-step-time">Delivered: {formatDate(selectedPickup.deliveredAt)}</div>
                                                     )}
                                                 </div>
                                             </>
@@ -1236,6 +1240,45 @@ function Pickupdetails() {
                                     })()}
                                  </div>
                             </div>
+
+                            {/* Stage 2: Technician -> Refurbishment/Recycling Center Progress (Separated) */}
+                            {selectedPickup.centerAssignmentId && (
+                                <div style={{
+                                    marginBottom: "1.25rem",
+                                    background: "#f0fdfa",
+                                    border: "1px solid #ccfbf1",
+                                    borderRadius: "14px",
+                                    padding: "1rem"
+                                }}>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.4rem" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                            <FiRefreshCw style={{ color: "#0f766e", fontSize: "1rem" }} />
+                                            <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#134e4a" }}>
+                                                Stage 2: Facility Transfer &amp; Recovery
+                                            </span>
+                                        </div>
+                                        <span style={{
+                                            fontSize: "0.725rem",
+                                            fontWeight: 700,
+                                            padding: "0.2rem 0.6rem",
+                                            borderRadius: "9999px",
+                                            background: String(selectedPickup.centerAssignmentStatus).toLowerCase() === "deliveredtocenter" || selectedPickup.centerDeliveredAt ? "#dcfce7" : "#e0f2fe",
+                                            color: String(selectedPickup.centerAssignmentStatus).toLowerCase() === "deliveredtocenter" || selectedPickup.centerDeliveredAt ? "#166534" : "#0369a1"
+                                        }}>
+                                            {String(selectedPickup.centerAssignmentStatus).toLowerCase() === "deliveredtocenter" || selectedPickup.centerDeliveredAt ? "Delivered to Center" : (selectedPickup.centerAssignmentStatus || "In Progress")}
+                                        </span>
+                                    </div>
+                                    <p style={{ margin: 0, fontSize: "0.775rem", color: "#0f766e" }}>
+                                        Following technical inspection, device was allocated for transfer to {selectedPickup.centerAssignmentType === "TechnicianToRefurbishmentCenter" ? "Refurbishment Center" : "Recycling Center"}
+                                        {selectedPickup.centerAgentName ? ` via collection agent ${capitalizeWords(selectedPickup.centerAgentName)}.` : "."}
+                                    </p>
+                                    {selectedPickup.centerDeliveredAt && (
+                                        <div style={{ fontSize: "0.725rem", color: "#115e59", marginTop: "0.3rem", fontWeight: 600 }}>
+                                            Center Delivery Recorded: {formatDate(selectedPickup.centerDeliveredAt)}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Modal Footer */}
