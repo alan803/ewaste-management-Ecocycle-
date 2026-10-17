@@ -1093,3 +1093,212 @@
   flex-shrink: 0 !important;
 }
 
+/* ==========================================================================
+   Table View & Column Width Optimization (Fix Congested Feeling)
+   ========================================================================== */
+
+.admin-pickup-page .glass-table-wrapper {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow-x: auto;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+}
+
+.admin-pickup-page .glass-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  min-width: 1050px;
+}
+
+.admin-pickup-page .glass-table th {
+  padding: 0.85rem 0.9rem !important;
+  font-size: 0.725rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: #475569 !important;
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  white-space: nowrap !important;
+}
+
+.admin-pickup-page .glass-table td {
+  padding: 0.85rem 0.9rem !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  vertical-align: middle !important;
+}
+
+.admin-pickup-page .glass-table .table-row-hover:hover {
+  background: #f8fafc !important;
+}
+
+/* Column 1: # */
+.admin-pickup-page .glass-table th:nth-child(1),
+.admin-pickup-page .glass-table td:nth-child(1) {
+  width: 44px;
+  text-align: center;
+}
+
+/* Column 2: Tracking ID */
+.admin-pickup-page .glass-table th:nth-child(2),
+.admin-pickup-page .glass-table td:nth-child(2) {
+  width: 135px;
+  white-space: nowrap;
+}
+
+/* Column 3: Device / Shipment */
+.admin-pickup-page .glass-table th:nth-child(3),
+.admin-pickup-page .glass-table td:nth-child(3) {
+  width: 180px;
+  max-width: 200px;
+}
+
+.admin-pickup-page .glass-table td:nth-child(3) .user-name {
+  font-weight: 700 !important;
+  font-size: 0.875rem !important;
+  color: #0f172a !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.admin-pickup-page .glass-table td:nth-child(3) .user-email {
+  font-size: 0.76rem !important;
+  color: #64748b !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+/* Column 4: Collection Agent */
+.admin-pickup-page .glass-table th:nth-child(4),
+.admin-pickup-page .glass-table td:nth-child(4) {
+  width: 155px;
+  max-width: 175px;
+}
+
+.admin-pickup-page .glass-table td:nth-child(4) .user-name {
+  font-weight: 700 !important;
+  font-size: 0.875rem !important;
+  color: #0f172a !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.admin-pickup-page .glass-table td:nth-child(4) .user-email {
+  font-size: 0.76rem !important;
+  color: #64748b !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+/* Column 5: Origin Customer (Fixing Congested Feeling & Long Address Blowout) */
+.admin-pickup-page .glass-table th:nth-child(5),
+.admin-pickup-page .glass-table td:nth-child(5) {
+  width: 240px;
+  max-width: 260px;
+}
+
+.admin-pickup-page .glass-table td:nth-child(5) .user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-width: 240px;
+}
+
+.admin-pickup-page .glass-table td:nth-child(5) .user-name {
+  font-weight: 700 !important;
+  font-size: 0.875rem !important;
+  color: #0f172a !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.admin-pickup-page .glass-table td:nth-child(5) .user-email {
+  font-size: 0.75rem !important;
+  color: #64748b !important;
+  line-height: 1.35 !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+  white-space: normal !important;
+}
+
+/* Column 6: Destination Hub */
+.admin-pickup-page .glass-table th:nth-child(6),
+.admin-pickup-page .glass-table td:nth-child(6) {
+  width: 200px;
+  max-width: 220px;
+}
+
+.admin-pickup-page .glass-table td:nth-child(6) .user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-width: 200px;
+}
+
+.admin-pickup-page .glass-table td:nth-child(6) .user-name {
+  font-weight: 700 !important;
+  font-size: 0.875rem !important;
+  color: #0f172a !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.admin-pickup-page .glass-table td:nth-child(6) .user-email {
+  font-size: 0.75rem !important;
+  color: #64748b !important;
+  line-height: 1.35 !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+  white-space: normal !important;
+}
+
+/* Column 7: Status */
+.admin-pickup-page .glass-table th:nth-child(7),
+.admin-pickup-page .glass-table td:nth-child(7) {
+  width: 140px;
+  white-space: nowrap;
+}
+
+/* Column 8: Actions */
+.admin-pickup-page .glass-table th:nth-child(8),
+.admin-pickup-page .glass-table td:nth-child(8) {
+  width: 170px;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.admin-pickup-page .action-btns-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  flex-wrap: nowrap;
+}
+

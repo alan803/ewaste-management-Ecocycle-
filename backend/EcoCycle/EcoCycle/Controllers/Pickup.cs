@@ -32,93 +32,115 @@ namespace EcoCycle.API.Controllers
 
         private async Task<(int loginId, string email, string name, string address)> GetDeviceOwnerDetailsAsync(Device? device)
         {
-            if (device == null) return (0, "", "Valued Customer", "");
-
-            User? user = device.User;
-            if (user == null && device.UserId > 0)
+            if (device == null || device.UserId <= 0)
             {
-                user = await db.Users
-                    .Include(u => u.Login)
-                    .FirstOrDefaultAsync(u => u.UserId == device.UserId || u.LoginId == device.UserId);
+                return (0, "", "Valued Customer", device?.Address ?? "");
             }
 
-            if (user != null)
-            {
-                int lId = user.LoginId > 0 ? user.LoginId : (user.Login?.LoginId ?? 0);
-                string emailStr = user.Login?.Email ?? "";
-                if (string.IsNullOrWhiteSpace(emailStr) && lId > 0)
-                {
-                    var l = await db.Login.FirstOrDefaultAsync(x => x.LoginId == lId);
-                    emailStr = l?.Email ?? "";
-                }
-                string fullName = $"{user.FirstName} {user.LastName}".Trim();
-                if (string.IsNullOrWhiteSpace(fullName)) fullName = "Valued Customer";
-                string addr = !string.IsNullOrWhiteSpace(device.Address) ? device.Address : user.Address;
+            // Resolve ownership using the persisted foreign key, not a potentially stale
+            // or incorrectly populated navigation property on an assignment/device object.
+            var user = await db.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.UserId == device.UserId);
 
-                return (lId, emailStr, fullName, addr);
-            }
-            else if (device.UserId > 0)
+            if (user == null)
             {
-                var l = await db.Login.FirstOrDefaultAsync(x => x.LoginId == device.UserId);
-                if (l != null)
-                {
-                    return (l.LoginId, l.Email ?? "", "Valued Customer", device.Address ?? "");
-                }
+                Console.WriteLine($"[OTP Owner Resolution] No User row found for DeviceId={device.DeviceId}, UserId={device.UserId}.");
+                return (0, "", "Valued Customer", device.Address ?? "");
             }
 
-            return (0, "", "Valued Customer", device.Address ?? "");
+            // User.LoginId is the Login table primary key. Resolve that exact row explicitly.
+            int loginId = user.LoginId;
+            var login = loginId > 0
+                ? await db.Login.AsNoTracking().FirstOrDefaultAsync(l => l.LoginId == loginId)
+                : null;
+
+            string email = login?.Email?.Trim() ?? "";
+            string fullName = $"{user.FirstName} {user.LastName}".Trim();
+            if (string.IsNullOrWhiteSpace(fullName)) fullName = "Valued Customer";
+            string address = !string.IsNullOrWhiteSpace(device.Address)
+                ? device.Address
+                : (user.Address ?? "");
+
+            Console.WriteLine(
+                $"[OTP Owner Resolution] DeviceId={device.DeviceId}, Device.UserId={device.UserId}, " +
+                $"ResolvedUserId={user.UserId}, ResolvedLoginId={loginId}, HasEmail={!string.IsNullOrWhiteSpace(email)}.");
+
+            return (loginId, email, fullName, address);
         }
 
-        private async Task<(int loginId, string email, string name, string address, bool isReassignedFromTech)> GetPickupOriginDetailsAsync(Device device)
+        private async Task<(int loginId, string email, string name, string address, bool isReassignedFromTech)> GetPickupOriginDetailsAsync(Device? device, CollectionAssignment? assignment = null)
         {
+            if (device == null && assignment != null && assignment.DeviceId > 0)
+            {
+                device = await db.Device.Include(d => d.User).ThenInclude(u => u.Login).FirstOrDefaultAsync(d => d.DeviceId == assignment.DeviceId);
+            }
             if (device == null) return (0, "", "Valued Customer", "", false);
 
-            var priorReq = await db.InspectionRequest
-                .Include(ir => ir.Technician)
-                    .ThenInclude(t => t!.Login)
-                .Where(ir => ir.DeviceId == device.DeviceId &&
-                             ir.Technician != null &&
-                             (ir.Status == "Reassigned" || ir.Status == "Penalized" || ir.Status == "Expired" || ir.Status == "Rejected"))
-                .OrderByDescending(ir => ir.CreatedAt)
-                .FirstOrDefaultAsync();
+            string assignType = (assignment?.AssignmentType ?? "").Trim();
+            bool isCustomerPickup = string.Equals(assignType, "CustomerToTechnician", StringComparison.OrdinalIgnoreCase) ||
+                                    string.Equals(assignType, "CitizenToTechnician", StringComparison.OrdinalIgnoreCase) ||
+                                    string.Equals(assignment?.SourceType?.Trim(), "Citizen", StringComparison.OrdinalIgnoreCase) ||
+                                    string.Equals(assignment?.SourceType?.Trim(), "Customer", StringComparison.OrdinalIgnoreCase);
 
-            var oldTech = priorReq?.Technician;
-            if (oldTech == null)
+            // If assignment is CustomerToTechnician or origin is Citizen/Customer, origin is strictly the Citizen device owner
+            if (isCustomerPickup)
             {
-                var priorInsp = await db.Inspection
-                    .Include(i => i.Technician)
+                var (lId, uEmail, uName, uAddr) = await GetDeviceOwnerDetailsAsync(device);
+                return (lId, uEmail, uName, uAddr, false);
+            }
+
+            // Only check prior technician if assignment is specifically reassigned from a technician (e.g. TechnicianToTechnician)
+            if (string.Equals(assignType, "TechnicianToTechnician", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(assignment?.SourceType?.Trim(), "Technician Center", StringComparison.OrdinalIgnoreCase))
+            {
+                var priorReq = await db.InspectionRequest
+                    .Include(ir => ir.Technician)
                         .ThenInclude(t => t!.Login)
-                    .Where(i => i.DeviceId == device.DeviceId && i.Technician != null && (i.Status == "Penalized" || i.Status == "Reassigned"))
-                    .OrderByDescending(i => i.CreatedAt)
+                    .Where(ir => ir.DeviceId == device.DeviceId &&
+                                 ir.Technician != null &&
+                                 (ir.Status == "Reassigned" || ir.Status == "Penalized" || ir.Status == "Expired" || ir.Status == "Rejected"))
+                    .OrderByDescending(ir => ir.CreatedAt)
                     .FirstOrDefaultAsync();
-                oldTech = priorInsp?.Technician;
+
+                var oldTech = priorReq?.Technician;
+                if (oldTech == null)
+                {
+                    var priorInsp = await db.Inspection
+                        .Include(i => i.Technician)
+                            .ThenInclude(t => t!.Login)
+                        .Where(i => i.DeviceId == device.DeviceId && i.Technician != null && (i.Status == "Penalized" || i.Status == "Reassigned"))
+                        .OrderByDescending(i => i.CreatedAt)
+                        .FirstOrDefaultAsync();
+                    oldTech = priorInsp?.Technician;
+                }
+
+                if (oldTech == null)
+                {
+                    var penaltyRecord = await db.technicianPenalties
+                        .Include(p => p.Technician)
+                            .ThenInclude(t => t!.Login)
+                        .Where(p => p.DeviceId == device.DeviceId && p.Technician != null)
+                        .OrderByDescending(p => p.CreatedAt)
+                        .FirstOrDefaultAsync();
+                    oldTech = penaltyRecord?.Technician;
+                }
+
+                if (oldTech != null)
+                {
+                    int techLoginId = oldTech.LoginId > 0 ? oldTech.LoginId : (oldTech.Login?.LoginId ?? 0);
+                    string techEmail = oldTech.Login?.Email ?? "";
+                    string techName = $"{oldTech.FirstName} {oldTech.LastName} ({oldTech.InspectionCenterName ?? "Penalized Inspection Hub"})".Trim();
+                    string techAddress = !string.IsNullOrWhiteSpace(oldTech.Address)
+                        ? $"{oldTech.Address}{(string.IsNullOrWhiteSpace(oldTech.City) ? "" : ", " + oldTech.City)}{(string.IsNullOrWhiteSpace(oldTech.PinCode) ? "" : " - PIN: " + oldTech.PinCode)}"
+                        : (oldTech.InspectionCenterName ?? "Previous Inspection Center Address");
+
+                    return (techLoginId, techEmail, techName, techAddress, true);
+                }
             }
 
-            if (oldTech == null)
-            {
-                var penaltyRecord = await db.technicianPenalties
-                    .Include(p => p.Technician)
-                        .ThenInclude(t => t!.Login)
-                    .Where(p => p.DeviceId == device.DeviceId && p.Technician != null)
-                    .OrderByDescending(p => p.CreatedAt)
-                    .FirstOrDefaultAsync();
-                oldTech = penaltyRecord?.Technician;
-            }
-
-            if (oldTech != null)
-            {
-                int techLoginId = oldTech.LoginId > 0 ? oldTech.LoginId : (oldTech.Login?.LoginId ?? 0);
-                string techEmail = oldTech.Login?.Email ?? "";
-                string techName = $"{oldTech.FirstName} {oldTech.LastName} ({oldTech.InspectionCenterName ?? "Penalized Inspection Hub"})".Trim();
-                string techAddress = !string.IsNullOrWhiteSpace(oldTech.Address)
-                    ? $"{oldTech.Address}{(string.IsNullOrWhiteSpace(oldTech.City) ? "" : ", " + oldTech.City)}{(string.IsNullOrWhiteSpace(oldTech.PinCode) ? "" : " - PIN: " + oldTech.PinCode)}"
-                    : (oldTech.InspectionCenterName ?? "Previous Inspection Center Address");
-
-                return (techLoginId, techEmail, techName, techAddress, true);
-            }
-
-            var (lId, uEmail, uName, uAddr) = await GetDeviceOwnerDetailsAsync(device);
-            return (lId, uEmail, uName, uAddr, false);
+            var (cId, cEmail, cName, cAddr) = await GetDeviceOwnerDetailsAsync(device);
+            return (cId, cEmail, cName, cAddr, false);
         }
 
         private async Task<(int loginId, string email, string name, string centerName)> GetAssignedTechnicianDetailsAsync(int deviceId)
@@ -159,32 +181,18 @@ namespace EcoCycle.API.Controllers
                 tech = insp?.Technician;
             }
 
-            if (tech == null)
-            {
-                tech = await db.Technician
-                    .Include(t => t.Login)
-                    .Where(t => t.Status == "Approved" || t.Status == "Active")
-                    .OrderBy(t => t.TechnicianId)
-                    .FirstOrDefaultAsync() ?? await db.Technician.Include(t => t.Login).OrderBy(t => t.TechnicianId).FirstOrDefaultAsync();
-            }
-
             if (tech != null)
             {
-                int lId = tech.LoginId > 0 ? tech.LoginId : ((tech.Login != null && tech.Login.LoginId > 0) ? tech.Login.LoginId : tech.TechnicianId);
+                int lId = tech.LoginId > 0 ? tech.LoginId : (tech.Login?.LoginId ?? 0);
                 string emailStr = tech.Login?.Email ?? "";
                 if (string.IsNullOrWhiteSpace(emailStr) && lId > 0)
                 {
                     var l = await db.Login.FirstOrDefaultAsync(x => x.LoginId == lId);
                     emailStr = l?.Email ?? "";
                 }
-                if (string.IsNullOrWhiteSpace(emailStr) && tech.TechnicianId > 0)
+                if (string.IsNullOrWhiteSpace(emailStr) && tech.LoginId > 0)
                 {
                     var l = await db.Login.FirstOrDefaultAsync(x => x.LoginId == tech.LoginId);
-                    emailStr = l?.Email ?? "";
-                }
-                if (string.IsNullOrWhiteSpace(emailStr))
-                {
-                    var l = await db.Login.Include(x => x.Role).FirstOrDefaultAsync(x => x.Role != null && x.Role.Name == "Technician" && !string.IsNullOrEmpty(x.Email));
                     emailStr = l?.Email ?? "";
                 }
 
@@ -209,9 +217,13 @@ namespace EcoCycle.API.Controllers
             }
             if (recycler == null)
             {
-                recycler = await db.RecyclingCenter
-                    .Include(r => r.Login)
+                var recReq = await db.RecyclingCenterRequests
+                    .Include(r => r.RecyclingCenter)
+                        .ThenInclude(c => c.Login)
+                    .Where(r => r.DeviceId == assignment.DeviceId && r.Status != "Rejected")
+                    .OrderByDescending(r => r.CreatedAt)
                     .FirstOrDefaultAsync();
+                recycler = recReq?.RecyclingCenter;
             }
 
             if (recycler != null)
@@ -230,6 +242,44 @@ namespace EcoCycle.API.Controllers
             }
 
             return (0, "", "Recycling Center", "Recycling Center");
+        }
+
+        private async Task<(int loginId, string email, string centerName, string ownerName)> GetRefurbishmentCenterDetailsAsync(CollectionAssignment assignment)
+        {
+            RefurbishmentCenter? refurb = null;
+            if (assignment.RefurbishmentCenterId.HasValue && assignment.RefurbishmentCenterId.Value > 0)
+            {
+                refurb = await db.RefurbishmentCenter
+                    .Include(r => r.Login)
+                    .FirstOrDefaultAsync(r => r.RefurbishmentCenterId == assignment.RefurbishmentCenterId.Value);
+            }
+            if (refurb == null)
+            {
+                var refurbReq = await db.RefurbishmentRequests
+                    .Include(r => r.RefurbishmentCenter)
+                        .ThenInclude(c => c.Login)
+                    .Where(r => r.DeviceId == assignment.DeviceId && r.Status != "Rejected")
+                    .OrderByDescending(r => r.CreatedAt)
+                    .FirstOrDefaultAsync();
+                refurb = refurbReq?.RefurbishmentCenter;
+            }
+
+            if (refurb != null)
+            {
+                int lId = refurb.LoginId > 0 ? refurb.LoginId : (refurb.Login?.LoginId ?? 0);
+                string emailStr = refurb.Login?.Email ?? "";
+                if (string.IsNullOrWhiteSpace(emailStr) && lId > 0)
+                {
+                    var l = await db.Login.FirstOrDefaultAsync(x => x.LoginId == lId);
+                    emailStr = l?.Email ?? "";
+                }
+                string cName = !string.IsNullOrWhiteSpace(refurb.CenterName) ? refurb.CenterName : "Refurbishment Center";
+                string oName = !string.IsNullOrWhiteSpace(refurb.OwnerName) ? refurb.OwnerName : cName;
+
+                return (lId, emailStr, cName, oName);
+            }
+
+            return (0, "", "Refurbishment Center", "Refurbishment Center");
         }
 
         [HttpPost("start/{assignmentId}")]
@@ -287,11 +337,13 @@ namespace EcoCycle.API.Controllers
                 string deviceName = assignment.Device != null ? $"{assignment.Device.Brand} {assignment.Device.Model}".Trim() : "E-Waste Item";
 
                 bool isTechToRecycler = string.Equals(assignment.AssignmentType, "TechnicianToRecyclingCenter", StringComparison.OrdinalIgnoreCase);
+                bool isTechToRefurbisher = string.Equals(assignment.AssignmentType, "TechnicianToRefurbishmentCenter", StringComparison.OrdinalIgnoreCase);
 
-                if (isTechToRecycler)
+                if (isTechToRecycler || isTechToRefurbisher)
                 {
-                    // Technician -> Recycling Center Pickup: Send notification & email strictly to Technician who accepted allocation of the device
+                    // Technician -> Center Pickup: Send notification & email strictly to Technician who accepted allocation of the device
                     var (techLoginId, techEmail, techName, centerName) = await GetAssignedTechnicianDetailsAsync(assignment.DeviceId);
+                    string destLabel = isTechToRecycler ? "recycling center" : "refurbishment center";
 
                     if (techLoginId > 0)
                     {
@@ -299,7 +351,7 @@ namespace EcoCycle.API.Controllers
                         {
                             LoginId = techLoginId,
                             Title = "E-Waste Collection Agent En Route for Pickup",
-                            Message = $"Hello {techName}, collection agent {agentName} has started pickup for device {deviceName} from your inspection center for delivery to recycling center. Please ensure the device is ready for handover.",
+                            Message = $"Hello {techName}, collection agent {agentName} has started pickup for device {deviceName} from your inspection center for delivery to {destLabel}. Please ensure the device is ready for handover.",
                             Isread = false,
                             Status = true,
                             CreatedAt = DateTime.Now
@@ -320,7 +372,7 @@ namespace EcoCycle.API.Controllers
                                     </div>
                                     <div style='color: #0f172a;'>
                                         <p>Hello <strong>{techName}</strong>,</p>
-                                        <p>A collection agent has started the pickup process for device <strong>{deviceName}</strong> from your inspection center (<strong>{centerName}</strong>) for delivery to the recycling center.</p>
+                                        <p>A collection agent has started the pickup process for device <strong>{deviceName}</strong> from your inspection center (<strong>{centerName}</strong>) for delivery to the {destLabel}.</p>
                                         
                                         <div style='background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 20px 0;'>
                                             <h4 style='margin: 0 0 10px 0; color: #1d4ed8;'>Pickup Assignment Details</h4>
@@ -352,7 +404,7 @@ namespace EcoCycle.API.Controllers
                 }
 
                 // Default: Pickup from Origin (Citizen Customer or Old Penalized Technician)
-                var (userLoginId, userEmail, customerName, pickupAddress, isReassignedFromTech) = await GetPickupOriginDetailsAsync(assignment.Device);
+                var (userLoginId, userEmail, customerName, pickupAddress, isReassignedFromTech) = await GetPickupOriginDetailsAsync(assignment.Device, assignment);
 
                 // 1. Send In-App Notification to device owner (Citizen)
                 if (userLoginId > 0)
@@ -430,7 +482,16 @@ namespace EcoCycle.API.Controllers
             }
         }
 
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, (string Otp, DateTime SentAt)> OtpStore = new();
+        private class ActiveOtpRecord
+        {
+            public string Otp { get; set; } = string.Empty;
+            public DateTime SentAt { get; set; }
+            public int RecipientLoginId { get; set; }
+            public string RecipientRole { get; set; } = string.Empty;
+            public string RecipientEmail { get; set; } = string.Empty;
+        }
+
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, ActiveOtpRecord> OtpStore = new();
 
         public class VerifyOtpDto
         {
@@ -444,46 +505,220 @@ namespace EcoCycle.API.Controllers
             {
                 var assignment = await db.CollectionAssignments
                     .Include(x => x.Device)
+                        .ThenInclude(d => d.User)
+                            .ThenInclude(u => u.Login)
+                    .Include(x => x.RecyclingCenter)
+                        .ThenInclude(r => r.Login)
+                    .Include(x => x.RefurbishmentCenter)
+                        .ThenInclude(r => r.Login)
                     .FirstOrDefaultAsync(x => x.CollectionAssignmentId == assignmentId);
 
                 if (assignment == null)
                 {
-                    return NotFound(new { message = "Collection assignment not found." });
+                    return NotFound(new { message = $"Collection assignment #{assignmentId} not found." });
+                }
+
+                // Ensure Device and its Citizen User are loaded
+                if (assignment.Device == null && assignment.DeviceId > 0)
+                {
+                    assignment.Device = await db.Device
+                        .Include(d => d.User)
+                            .ThenInclude(u => u.Login)
+                        .FirstOrDefaultAsync(d => d.DeviceId == assignment.DeviceId);
+                }
+
+                string rawAssignType = (assignment.AssignmentType ?? "").Trim();
+                string cleanTarget = (target ?? "").Trim().ToLowerInvariant();
+
+                bool isCustomerToTech = string.Equals(rawAssignType, "CustomerToTechnician", StringComparison.OrdinalIgnoreCase) ||
+                                        string.Equals(rawAssignType, "CitizenToTechnician", StringComparison.OrdinalIgnoreCase);
+                bool isTechToRecycler = string.Equals(rawAssignType, "TechnicianToRecyclingCenter", StringComparison.OrdinalIgnoreCase);
+                bool isTechToRefurbisher = string.Equals(rawAssignType, "TechnicianToRefurbishmentCenter", StringComparison.OrdinalIgnoreCase);
+
+                // Reject missing or unsupported assignment types without guessing
+                if (!isCustomerToTech && !isTechToRecycler && !isTechToRefurbisher)
+                {
+                    Console.WriteLine($"[SendHandoverOtp Inconsistent Error]: Assignment #{assignmentId} has missing or unrecognized AssignmentType '{assignment.AssignmentType}'.");
+                    return BadRequest(new
+                    {
+                        message = $"Assignment #{assignmentId} has invalid or unrecognized AssignmentType '{assignment.AssignmentType}'. Cannot determine OTP recipient."
+                    });
                 }
 
                 string? recipientEmail = null;
                 int recipientLoginId = 0;
+                string recipientRole = "";
 
-                if (string.Equals(target, "technician", StringComparison.OrdinalIgnoreCase))
+                if (cleanTarget == "technician")
                 {
-                    // Send OTP to Technician for delivery handover
+                    recipientRole = "Technician";
                     var (techLoginId, techEmail, techName, centerName) = await GetAssignedTechnicianDetailsAsync(assignment.DeviceId);
-                    recipientEmail = techEmail;
+                    if (techLoginId <= 0 || string.IsNullOrWhiteSpace(techEmail))
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"Assigned technician account could not be resolved for Device #{assignment.DeviceId} (Assignment #{assignmentId})."
+                        });
+                    }
                     recipientLoginId = techLoginId;
+                    recipientEmail = techEmail;
+                }
+                else if (cleanTarget == "recycler" || cleanTarget == "recyclingcenter" || (cleanTarget == "center" && isTechToRecycler))
+                {
+                    if (!isTechToRecycler)
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"Assignment #{assignmentId} is '{assignment.AssignmentType}', not a recycling center delivery."
+                        });
+                    }
+                    recipientRole = "Recycling Center";
+                    var (recLoginId, recEmail, centerName, ownerName) = await GetRecyclingCenterDetailsAsync(assignment);
+                    if (recLoginId <= 0 || string.IsNullOrWhiteSpace(recEmail))
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"Recycling center account could not be resolved for Assignment #{assignmentId}."
+                        });
+                    }
+                    recipientLoginId = recLoginId;
+                    recipientEmail = recEmail;
+                }
+                else if (cleanTarget == "refurbisher" || cleanTarget == "refurbishmentcenter" || (cleanTarget == "center" && isTechToRefurbisher))
+                {
+                    if (!isTechToRefurbisher)
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"Assignment #{assignmentId} is '{assignment.AssignmentType}', not a refurbishment center delivery."
+                        });
+                    }
+                    recipientRole = "Refurbishment Center";
+                    var (refLoginId, refEmail, centerName, ownerName) = await GetRefurbishmentCenterDetailsAsync(assignment);
+                    if (refLoginId <= 0 || string.IsNullOrWhiteSpace(refEmail))
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"Refurbishment center account could not be resolved for Assignment #{assignmentId}."
+                        });
+                    }
+                    recipientLoginId = refLoginId;
+                    recipientEmail = refEmail;
+                }
+                else if (cleanTarget == "customer" || string.IsNullOrEmpty(cleanTarget))
+                {
+                    // Customer OTP is strictly valid only for CustomerToTechnician / CitizenToTechnician pickups
+                    if (!isCustomerToTech)
+                    {
+                        Console.WriteLine($"[SendHandoverOtp Inconsistent Error]: Assignment #{assignmentId} is '{assignment.AssignmentType}' but customer OTP was requested or target parameter was omitted.");
+                        return BadRequest(new
+                        {
+                            message = $"Assignment #{assignmentId} is of type '{assignment.AssignmentType}'. A target query parameter (e.g. ?target=technician, ?target=recycler, ?target=refurbisher) is required for technician-to-center handovers."
+                        });
+                    }
+
+                    recipientRole = "Customer";
+
+                    // Stage A: Follow the explicit database relationship: CollectionAssignment -> Device -> User -> LoginId
+                    if (assignment.Device == null)
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"No device record linked to Assignment #{assignmentId}."
+                        });
+                    }
+
+                    var (userLoginId, userEmail, customerName, pickupAddress) = await GetDeviceOwnerDetailsAsync(assignment.Device);
+
+                    if (userLoginId <= 0)
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"Citizen device owner account could not be resolved for Device #{assignment.DeviceId} (UserId: {assignment.Device.UserId})."
+                        });
+                    }
+
+                    if (string.IsNullOrWhiteSpace(userEmail))
+                    {
+                        return BadRequest(new
+                        {
+                            message = $"No registered email address found for citizen account (LoginId: {userLoginId}). Cannot send handover OTP."
+                        });
+                    }
+
+                    recipientLoginId = userLoginId;
+                    recipientEmail = userEmail;
                 }
                 else
                 {
-                    // Send OTP to Customer for pickup handover
-                    var (userLoginId, userEmail, customerName, pickupAddress, isReassignedFromTech) = await GetPickupOriginDetailsAsync(assignment.Device);
-                    recipientEmail = userEmail;
-                    recipientLoginId = userLoginId;
+                    return BadRequest(new
+                    {
+                        message = $"Invalid target parameter '{target}'. Supported targets are 'technician', 'recycler', 'refurbisher', 'center', or 'customer'."
+                    });
                 }
 
-                if (string.IsNullOrWhiteSpace(recipientEmail))
+                // Diagnostic routing log: confirms which role/account the deployed API selected.
+                // Do not log the OTP or recipient email.
+                Console.WriteLine(
+                    $"[Handover OTP Routing] AssignmentId={assignmentId}, DeviceId={assignment.DeviceId}, " +
+                    $"AssignmentType='{rawAssignType}', Target='{cleanTarget}', Role='{recipientRole}', " +
+                    $"RecipientLoginId={recipientLoginId}.");
+
+                // Guard: Recipient identity and email must be valid
+                if (recipientLoginId <= 0 || string.IsNullOrWhiteSpace(recipientEmail))
                 {
-                    recipientEmail = "technician@ecocycle.com";
+                    return BadRequest(new
+                    {
+                        message = "Failed to resolve a valid recipient account or registered email for OTP delivery."
+                    });
                 }
 
                 var random = new Random();
                 string generatedOtp = random.Next(1000, 9999).ToString();
 
-                OtpStore[assignmentId] = (generatedOtp, DateTime.Now);
+                // Store active OTP in memory (supersedes and invalidates any previously issued OTP for this assignment)
+                OtpStore[assignmentId] = new ActiveOtpRecord
+                {
+                    Otp = generatedOtp,
+                    SentAt = DateTime.Now,
+                    RecipientLoginId = recipientLoginId,
+                    RecipientRole = recipientRole,
+                    RecipientEmail = recipientEmail
+                };
 
                 string deviceName = assignment.Device != null
                     ? $"{assignment.Device.Brand} {assignment.Device.Model}".Trim()
                     : "E-Waste Device";
 
-                // 1. Send Handover OTP Email (safely handle email exceptions so endpoint never fails)
+                // Invalidate/supersede older unread OTP notifications for this specific recipient & device
+                try
+                {
+                    var priorUnreadOtps = await db.Notification
+                        .Where(n => n.LoginId == recipientLoginId &&
+                                    (n.Isread == false || n.Isread == null) &&
+                                    (n.Title.Contains("OTP") || n.Title.Contains("Verification")) &&
+                                    n.Message.Contains(deviceName))
+                        .ToListAsync();
+
+                    foreach (var oldNotif in priorUnreadOtps)
+                    {
+                        oldNotif.Isread = true;
+                        if (!string.IsNullOrEmpty(oldNotif.Message) && !oldNotif.Message.Contains("[Superseded"))
+                        {
+                            oldNotif.Message += " [Superseded - Expired]";
+                        }
+                    }
+                    if (priorUnreadOtps.Count > 0)
+                    {
+                        await db.SaveChangesAsync();
+                    }
+                }
+                catch (Exception oldNotifEx)
+                {
+                    Console.WriteLine($"[SendHandoverOtp Supersede Prior Notifs Warning]: {oldNotifEx.Message}");
+                }
+
+                // 1. Send Handover OTP Email (safely handle email exceptions so endpoint completes)
                 bool emailSent = false;
                 try
                 {
@@ -495,47 +730,56 @@ namespace EcoCycle.API.Controllers
                     Console.WriteLine($"[SendHandoverOtp Email Warning]: {mailEx.Message}");
                 }
 
-                // 2. Send In-App Notification to corresponding recipient (Customer or Technician)
-                if (recipientLoginId > 0)
+                // 2. Send In-App Notification to corresponding recipient (Customer, Technician, or Center)
+                try
                 {
-                    try
+                    string notifTitle = recipientRole switch
                     {
-                        bool isTech = string.Equals(target, "technician", StringComparison.OrdinalIgnoreCase);
-                        string notifTitle = isTech ? "Technician Handover Verification OTP" : "Handover Verification OTP";
-                        string notifMsg = isTech
-                            ? $"Your verification OTP for {deviceName} handover (Assignment #{assignmentId}) is {generatedOtp}. Share or enter this OTP to confirm delivery."
-                            : $"Your verification OTP for {deviceName} handover is {generatedOtp}. Share this OTP with the collection agent to complete handover.";
+                        "Technician" => "Technician Handover Verification OTP",
+                        "Recycling Center" => "Recycling Center Handover Verification OTP",
+                        "Refurbishment Center" => "Refurbishment Center Handover Verification OTP",
+                        _ => "Handover Verification OTP"
+                    };
 
-                        var notification = new Notification
-                        {
-                            LoginId = recipientLoginId,
-                            Title = notifTitle,
-                            Message = notifMsg,
-                            Isread = false,
-                            Status = true,
-                            CreatedAt = DateTime.Now
-                        };
-                        db.Notification.Add(notification);
-                        await db.SaveChangesAsync();
-                    }
-                    catch (Exception notifEx)
+                    string notifMsg = recipientRole switch
                     {
-                        Console.WriteLine($"[SendHandoverOtp Notification Warning]: {notifEx.Message}");
-                    }
+                        "Technician" => $"Your verification OTP for {deviceName} handover (Assignment #{assignmentId}) is {generatedOtp}. Share or enter this OTP to confirm delivery.",
+                        "Recycling Center" => $"Your verification OTP for {deviceName} delivery handover (Assignment #{assignmentId}) is {generatedOtp}. Share this OTP with the collection agent to confirm delivery receipt.",
+                        "Refurbishment Center" => $"Your verification OTP for {deviceName} delivery handover (Assignment #{assignmentId}) is {generatedOtp}. Share this OTP with the collection agent to confirm delivery receipt.",
+                        _ => $"Your verification OTP for {deviceName} handover is {generatedOtp}. Share this OTP with the collection agent to complete handover."
+                    };
+
+                    var notification = new Notification
+                    {
+                        LoginId = recipientLoginId,
+                        Title = notifTitle,
+                        Message = notifMsg,
+                        Isread = false,
+                        Status = true,
+                        CreatedAt = DateTime.Now
+                    };
+                    db.Notification.Add(notification);
+                    await db.SaveChangesAsync();
+                }
+                catch (Exception notifEx)
+                {
+                    Console.WriteLine($"[SendHandoverOtp Notification Warning]: {notifEx.Message}");
                 }
 
                 return Ok(new
                 {
                     message = emailSent
                         ? $"Handover OTP sent successfully to {recipientEmail} and notification delivered."
-                        : $"Handover OTP generated ({generatedOtp}) and sent to technician notification.",
+                        : $"Email delivery failed; the handover OTP was generated for the {recipientRole.ToLower()} notification. Check the recipient's in-app notification.",
                     recipientEmail = recipientEmail,
+                    recipientLoginId = recipientLoginId,
+                    recipientRole = recipientRole,
                     expiresInSeconds = 30
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error sending OTP email.", error = ex.Message });
+                return StatusCode(500, new { message = "Error sending OTP.", error = ex.Message });
             }
         }
 
@@ -549,32 +793,105 @@ namespace EcoCycle.API.Controllers
                     return BadRequest(new { message = "OTP code is required." });
                 }
 
+                var assignment = await db.CollectionAssignments
+                    .Include(a => a.Device)
+                    .Include(a => a.CollectionAgent)
+                    .FirstOrDefaultAsync(a => a.CollectionAssignmentId == assignmentId);
+
+                if (assignment == null)
+                {
+                    return NotFound(new { message = $"Collection assignment #{assignmentId} not found." });
+                }
+
+                // Caller authorization check:
+                // Only the assigned Collection Agent or an Admin is authorized to verify the assignment
+                var loginIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
+                if (loginIdClaim != null && int.TryParse(loginIdClaim.Value, out int callerLoginId) && callerLoginId > 0)
+                {
+                    bool isAdmin = User.IsInRole("Admin");
+                    int agentLoginId = assignment.CollectionAgent?.LoginId ?? 0;
+                    if (!isAdmin && agentLoginId > 0 && callerLoginId != agentLoginId)
+                    {
+                        return StatusCode(StatusCodes.Status403Forbidden, new
+                        {
+                            message = "You are not authorized to verify the handover OTP for this assignment."
+                        });
+                    }
+                }
+
                 string inputOtp = dto.Otp.Trim();
 
-                // Support master test codes for smooth field testing
-                if (inputOtp == "1234" || inputOtp == "0000")
-                {
-                    return Ok(new { message = "Handover OTP verified successfully!" });
-                }
+                // Master test codes: strictly confined to Development environment and require an active assignment
+                bool isDev = env.IsDevelopment();
+                bool isMasterCode = isDev && (inputOtp == "1234" || inputOtp == "0000");
 
                 if (!OtpStore.TryGetValue(assignmentId, out var storedData))
                 {
-                    return BadRequest(new { message = "No active OTP request found. Please click 'Send OTP to Customer Email'." });
+                    if (!isMasterCode)
+                    {
+                        return BadRequest(new { message = "No active OTP request found for this assignment. Please click 'Send OTP'." });
+                    }
                 }
 
-                var secondsElapsed = (DateTime.Now - storedData.SentAt).TotalSeconds;
-                if (secondsElapsed > 600) // 10 minutes validity window
+                if (!isMasterCode)
                 {
-                    OtpStore.TryRemove(assignmentId, out _);
-                    return BadRequest(new { message = "OTP has expired. Please click 'Resend OTP'." });
+                    var secondsElapsed = (DateTime.Now - storedData!.SentAt).TotalSeconds;
+                    if (secondsElapsed > 30) // Must match the UI and API's advertised 30-second validity.
+                    {
+                        OtpStore.TryRemove(assignmentId, out _);
+                        return BadRequest(new { message = "OTP has expired. Please click 'Resend OTP'." });
+                    }
+
+                    if (!string.Equals(storedData.Otp.Trim(), inputOtp, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return BadRequest(new { message = "Invalid OTP code. Please check the code sent to registered email / notification." });
+                    }
                 }
 
-                if (!string.Equals(storedData.Otp.Trim(), inputOtp, StringComparison.OrdinalIgnoreCase))
+                // Verification successful: invalidate active OTP from store immediately so it cannot be reused
+                int intendedRecipientLoginId = storedData?.RecipientLoginId ?? 0;
+                OtpStore.TryRemove(assignmentId, out _);
+
+                // Mark ONLY the intended recipient's active OTP notifications for this assignment/device as read
+                try
                 {
-                    return BadRequest(new { message = "Invalid OTP code. Please check the code sent to customer email." });
+                    if (assignment.Device == null && assignment.DeviceId > 0)
+                    {
+                        assignment.Device = await db.Device.FirstOrDefaultAsync(d => d.DeviceId == assignment.DeviceId);
+                    }
+
+                    // Fallback to resolve recipient if storedData was missing (e.g. master code in dev)
+                    if (intendedRecipientLoginId <= 0 && assignment.Device != null)
+                    {
+                        var (devOwnerLoginId, _, _, _) = await GetDeviceOwnerDetailsAsync(assignment.Device);
+                        intendedRecipientLoginId = devOwnerLoginId;
+                    }
+
+                    if (intendedRecipientLoginId > 0 && assignment.Device != null)
+                    {
+                        string deviceName = $"{assignment.Device.Brand} {assignment.Device.Model}".Trim();
+                        var pendingOtps = await db.Notification
+                            .Where(n => n.LoginId == intendedRecipientLoginId &&
+                                        (n.Isread == false || n.Isread == null) &&
+                                        (n.Title.Contains("OTP") || n.Title.Contains("Verification")) &&
+                                        (n.Message.Contains(deviceName) || n.Message.Contains($"#{assignmentId}")))
+                            .ToListAsync();
+
+                        foreach (var pOtp in pendingOtps)
+                        {
+                            pOtp.Isread = true;
+                        }
+                        if (pendingOtps.Count > 0)
+                        {
+                            await db.SaveChangesAsync();
+                        }
+                    }
+                }
+                catch (Exception notifMarkEx)
+                {
+                    Console.WriteLine($"[VerifyHandoverOtp Mark Read Warning]: {notifMarkEx.Message}");
                 }
 
-                // Verification successful
                 return Ok(new { message = "Handover OTP verified successfully!" });
             }
             catch (Exception ex)
@@ -788,6 +1105,7 @@ namespace EcoCycle.API.Controllers
                 // For citizen-technician -> send delivery email & notification to Technician who accepted allocation.
                 // For technician-center -> send delivery email & notification to Recycling Center allocated to device.
                 bool isTechToRecycler = string.Equals(assignment.AssignmentType, "TechnicianToRecyclingCenter", StringComparison.OrdinalIgnoreCase);
+                bool isTechToRefurbisher = string.Equals(assignment.AssignmentType, "TechnicianToRefurbishmentCenter", StringComparison.OrdinalIgnoreCase);
 
                 var agent = assignment.CollectionAgent;
                 string agentName = agent != null ? $"{agent.FirstName} {agent.LastName}".Trim() : "EcoCycle Field Officer";
@@ -851,6 +1169,68 @@ namespace EcoCycle.API.Controllers
                     return Ok(new
                     {
                         message = "Delivery started successfully. Notification and email sent to allocated recycling center.",
+                        status = assignment.Status,
+                        deliveryStatus = delivery.Status
+                    });
+                }
+                else if (isTechToRefurbisher)
+                {
+                    // Technician -> Refurbishment Center: Notify Refurbishment Center allocated to device
+                    var (refurbLoginId, refurbEmail, centerName, ownerName) = await GetRefurbishmentCenterDetailsAsync(assignment);
+
+                    if (refurbLoginId > 0)
+                    {
+                        var notification = new Notification
+                        {
+                            LoginId = refurbLoginId,
+                            Title = "Incoming E-Waste Refurbishment Delivery En Route",
+                            Message = $"Hello {centerName}, collection agent {agentName} has started delivery transit for device {deviceName} to your refurbishment facility.",
+                            Isread = false,
+                            Status = true,
+                            CreatedAt = DateTime.Now
+                        };
+                        db.Notification.Add(notification);
+                        await db.SaveChangesAsync();
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(refurbEmail))
+                    {
+                        string htmlEmailBody = $@"
+                            <html>
+                            <body style='font-family: Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px;'>
+                                <div style='max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 24px; border: 1px solid #e2e8f0;'>
+                                    <div style='text-align: center; border-bottom: 2px solid #10b981; padding-bottom: 16px; margin-bottom: 20px;'>
+                                        <h2 style='color: #10b981; margin: 0;'>EcoCycle Refurbishment Delivery Notice</h2>
+                                        <p style='color: #64748b; margin: 4px 0 0 0; font-size: 14px;'>Delivery Dispatched • Collection Agent En Route</p>
+                                    </div>
+                                    <div style='color: #0f172a;'>
+                                        <p>Hello <strong>{centerName} / {ownerName}</strong>,</p>
+                                        <p>Collection agent <strong>{agentName}</strong> has started transit to deliver collected e-waste device (<strong>{deviceName}</strong>) to your refurbishment facility.</p>
+
+                                        <div style='background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 20px 0;'>
+                                            <h4 style='margin: 0 0 10px 0; color: #1d4ed8;'>Delivery Details</h4>
+                                            <p style='margin: 4px 0;'><strong>Device:</strong> {deviceName}</p>
+                                            <p style='margin: 4px 0;'><strong>Collection Agent:</strong> {agentName}</p>
+                                            <p style='margin: 4px 0;'><strong>Assignment ID:</strong> #{assignmentId}</p>
+                                        </div>
+
+                                        <p style='margin-top: 24px;'>Best regards,<br/><strong>EcoCycle Logistics & Dispatch Team</strong></p>
+                                    </div>
+                                </div>
+                            </body>
+                            </html>
+                        ";
+
+                        await emailService.SendEmailAsync(
+                            refurbEmail,
+                            $"EcoCycle: Delivery Started for {deviceName} to Refurbishment Center (Assignment #{assignmentId})",
+                            htmlEmailBody
+                        );
+                    }
+
+                    return Ok(new
+                    {
+                        message = "Delivery started successfully. Notification and email sent to allocated refurbishment center.",
                         status = assignment.Status,
                         deliveryStatus = delivery.Status
                     });
@@ -1211,12 +1591,16 @@ namespace EcoCycle.API.Controllers
                 await db.SaveChangesAsync();
 
                 // 5. Send Notification & Email to Collection Agent
-                if (assignment.CollectionAgent != null && assignment.CollectionAgent.Login != null)
+                int agentLoginId = assignment.CollectionAgent != null 
+                    ? (assignment.CollectionAgent.LoginId > 0 ? assignment.CollectionAgent.LoginId : (assignment.CollectionAgent.Login?.LoginId ?? 0))
+                    : 0;
+
+                if (agentLoginId > 0)
                 {
                     string deviceName = assignment.Device != null ? $"{assignment.Device.Brand} {assignment.Device.Model}".Trim() : "E-Waste Item";
                     var agentNotif = new Notification
                     {
-                        LoginId = assignment.CollectionAgent.Login.LoginId,
+                        LoginId = agentLoginId,
                         Title = "Device Handover Approved & Verified!",
                         Message = $"Technician has verified & accepted device handover for {deviceName} (Device #{assignment.DeviceId}). Delivery is marked as completed.",
                         Isread = false,
@@ -1225,20 +1609,28 @@ namespace EcoCycle.API.Controllers
                     };
                     db.Notification.Add(agentNotif);
 
-                    if (!string.IsNullOrWhiteSpace(assignment.CollectionAgent.Login.Email))
+                    string agentEmail = assignment.CollectionAgent?.Login?.Email ?? "";
+                    if (string.IsNullOrWhiteSpace(agentEmail))
                     {
+                        var l = await db.Login.FirstOrDefaultAsync(x => x.LoginId == agentLoginId);
+                        agentEmail = l?.Email ?? "";
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(agentEmail))
+                    {
+                        string agentFirstName = assignment.CollectionAgent?.FirstName ?? "Collection Agent";
                         string agentEmailSub = $"EcoCycle - Handover Accepted: {deviceName}";
                         string agentEmailBody = $@"
                         <html>
                         <body style='font-family: Arial, sans-serif;'>
                             <h2 style='color: #059669;'>Device Handover Confirmed & Verified</h2>
-                            <p>Dear <strong>{assignment.CollectionAgent.FirstName}</strong>,</p>
+                            <p>Dear <strong>{agentFirstName}</strong>,</p>
                             <p>The Inspection Officer has verified and accepted the device handover for <strong>{deviceName}</strong> (Device ID #{assignment.DeviceId}).</p>
                             <p>Delivery Status: <strong>Delivered to Center (Verified)</strong></p>
                             <p>Thank you for completing this collection delivery!</p>
                         </body>
                         </html>";
-                        await emailService.SendEmailAsync(assignment.CollectionAgent.Login.Email, agentEmailSub, agentEmailBody);
+                        await emailService.SendEmailAsync(agentEmail, agentEmailSub, agentEmailBody);
                     }
                 }
 

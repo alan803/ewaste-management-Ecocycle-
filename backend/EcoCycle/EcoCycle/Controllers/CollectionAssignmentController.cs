@@ -1086,8 +1086,9 @@ namespace EcoCycle.API.Controllers
                     : "E-Waste Item";
 
                 bool isTechToRecycler = string.Equals(assignment.AssignmentType, "TechnicianToRecyclingCenter", StringComparison.OrdinalIgnoreCase);
+                bool isTechToRefurbisher = string.Equals(assignment.AssignmentType, "TechnicianToRefurbishmentCenter", StringComparison.OrdinalIgnoreCase);
 
-                if (isTechToRecycler)
+                if (isTechToRecycler || isTechToRefurbisher)
                 {
                     // For technician-center pickup: Send notification & email strictly to Technician who accepted allocation of the device
                     var inspReq = await db.InspectionRequest
@@ -1114,6 +1115,7 @@ namespace EcoCycle.API.Controllers
                     }
 
                     string techName = tech != null ? $"{tech.FirstName} {tech.LastName}".Trim() : "Inspection Technician";
+                    string destLabel = isTechToRecycler ? "recycling center" : "refurbishment center";
 
                     if (tech != null && tech.LoginId > 0)
                     {
@@ -1121,7 +1123,7 @@ namespace EcoCycle.API.Controllers
                         {
                             LoginId = tech.LoginId,
                             Title = "E-Waste Collection Agent En Route for Pickup",
-                            Message = $"Hello {techName}, collection agent {agentName} has started pickup for device {deviceName} from your inspection center for delivery to recycling center. Please ensure the device is ready for handover.",
+                            Message = $"Hello {techName}, collection agent {agentName} has started pickup for device {deviceName} from your inspection center for delivery to {destLabel}. Please ensure the device is ready for handover.",
                             Isread = false,
                             Status = true,
                             CreatedAt = DateTime.Now
@@ -1142,7 +1144,7 @@ namespace EcoCycle.API.Controllers
                                     </div>
                                     <div style='color: #0f172a;'>
                                         <p>Hello <strong>{tech?.FirstName ?? "Inspection Technician"}</strong>,</p>
-                                        <p>A collection agent has started the pickup process for device <strong>{deviceName}</strong> from your inspection center for delivery to the recycling center.</p>
+                                        <p>A collection agent has started the pickup process for device <strong>{deviceName}</strong> from your inspection center for delivery to the {destLabel}.</p>
                                         <p><strong>Device:</strong> {deviceName}<br/><strong>Collection Agent:</strong> {agentName}</p>
                                     </div>
                                 </div>

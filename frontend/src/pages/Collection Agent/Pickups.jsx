@@ -39,19 +39,19 @@ function Pickups() {
     const [isOnDuty, setIsOnDuty] = useState(true);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    
+
     // Logged-in Agent Profile
     const [agentProfile, setAgentProfile] = useState(null);
     const [unreadNotifCount, setUnreadNotifCount] = useState(0);
-    
+
     // Pickups Data belonging strictly to THIS agent
     const [pickups, setPickups] = useState([]);
-    
+
     // Filtering state
     const [activeTab, setActiveTab] = useState("All"); // All, Accepted, En Route, Completed, Pending
     const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useState("grid"); // "grid" or "table"
-    
+
     // Modal states
     const [selectedPickup, setSelectedPickup] = useState(null);
     const [completePickupTarget, setCompletePickupTarget] = useState(null);
@@ -62,14 +62,14 @@ function Pickups() {
     const [deliveryQrInput, setDeliveryQrInput] = useState("");
     const [deliveryQrVerified, setDeliveryQrVerified] = useState(false);
     const [deliveryQrError, setDeliveryQrError] = useState("");
-    
+
     // Interactive Verification Steps state for Active Handover Completion Modal
     const [qrScanInput, setQrScanInput] = useState("");
     const [qrCodeVerified, setQrCodeVerified] = useState(false);
     const [qrScanError, setQrScanError] = useState("");
     const [photoPreview, setPhotoPreview] = useState(null);
     const [photoError, setPhotoError] = useState("");
-    
+
     const [otpInput, setOtpInput] = useState("");
     const [otpVerified, setOtpVerified] = useState(false);
     const [otpError, setOtpError] = useState("");
@@ -96,7 +96,7 @@ function Pickups() {
 
     // Toast notification notice state
     const [toastNotice, setToastNotice] = useState(null);
-    
+
     // Processing state for inline actions
     const [processingId, setProcessingId] = useState(null);
 
@@ -204,16 +204,16 @@ function Pickups() {
             const compDeadline = res.data?.completionDeadline || new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
 
             setPickups(prev =>
-                prev.map(p => (p.collectionAssignmentId === assignmentId ? { 
-                    ...p, 
+                prev.map(p => (p.collectionAssignmentId === assignmentId ? {
+                    ...p,
                     status: "Accepted",
                     acceptedAt: acceptedAtDate,
                     completionDeadline: compDeadline
                 } : p))
             );
             if (selectedPickup?.collectionAssignmentId === assignmentId) {
-                setSelectedPickup(prev => prev ? { 
-                    ...prev, 
+                setSelectedPickup(prev => prev ? {
+                    ...prev,
                     status: "Accepted",
                     acceptedAt: acceptedAtDate,
                     completionDeadline: compDeadline
@@ -397,8 +397,17 @@ function Pickups() {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
+            console.info("[EcoCycle OTP routing diagnostic - technician]", {
+                assignmentId: targetObj.collectionAssignmentId,
+                deviceId: targetObj.deviceId ?? targetObj.DeviceId,
+                assignmentType: targetObj.assignmentType ?? targetObj.AssignmentType,
+                recipientRole: res.data?.recipientRole ?? null,
+                recipientLoginId: res.data?.recipientLoginId ?? null,
+                recipientEmailResolved: Boolean(res.data?.recipientEmail)
+            });
+
             setDeliveryOtpSent(true);
-            setDeliveryOtpTimer(30);
+            setDeliveryOtpTimer(Number(res.data?.expiresInSeconds) || 30);
             setDeliveryOtpInput("");
             setDeliveryOtpVerified(false);
             setToastNotice({
@@ -607,8 +616,17 @@ function Pickups() {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
+            console.info("[EcoCycle OTP routing diagnostic - customer]", {
+                assignmentId: completePickupTarget.collectionAssignmentId,
+                deviceId: completePickupTarget.deviceId ?? completePickupTarget.DeviceId,
+                assignmentType: completePickupTarget.assignmentType ?? completePickupTarget.AssignmentType,
+                recipientRole: res.data?.recipientRole ?? null,
+                recipientLoginId: res.data?.recipientLoginId ?? null,
+                recipientEmailResolved: Boolean(res.data?.recipientEmail)
+            });
+
             setOtpSent(true);
-            setOtpTimer(30); // 30-second countdown timer!
+            setOtpTimer(Number(res.data?.expiresInSeconds) || 30); // Use the backend's advertised validity.
             setOtpInput("");
             setOtpVerified(false);
             setToastNotice({
@@ -900,6 +918,27 @@ function Pickups() {
             return `${dateFormatted} (${slot})`;
         }
         return dateFormatted;
+    };
+
+    const cleanAddress = (rawAddr) => {
+        if (!rawAddr) return "Address N/A";
+        const segments = String(rawAddr)
+            .split(/[,;\n]+/)
+            .map(s => s.trim())
+            .filter(Boolean);
+
+        const seen = new Set();
+        const result = [];
+
+        for (const seg of segments) {
+            const norm = seg.toLowerCase().replace(/\s+/g, " ");
+            if (!seen.has(norm)) {
+                seen.add(norm);
+                result.push(seg);
+            }
+        }
+
+        return result.length > 0 ? result.join(", ") : rawAddr;
     };
 
     const getStatusBadge = (itemOrStatus) => {
@@ -1333,13 +1372,13 @@ function Pickups() {
                             <table className="pro-pickups-table">
                                 <thead>
                                     <tr>
-                                        <th style={{ width: "11%" }}>Task ID</th>
-                                        <th style={{ width: "22%" }}>E-Waste Item</th>
-                                        <th style={{ width: "18%" }}>Customer / Route</th>
-                                        <th style={{ width: "20%" }}>Pickup Location</th>
-                                        <th style={{ width: "14%" }}>Scheduled Slot</th>
-                                        <th style={{ width: "10%" }}>Status</th>
-                                        <th style={{ width: "5%", textAlign: "right" }}>Actions</th>
+                                        <th style={{ width: "9%", minWidth: "90px" }}>Task ID</th>
+                                        <th style={{ width: "15%", minWidth: "135px" }}>E-Waste Item</th>
+                                        <th style={{ width: "14%", minWidth: "125px" }}>Customer / Route</th>
+                                        <th style={{ width: "18%", minWidth: "150px" }}>Pickup Location</th>
+                                        <th style={{ width: "13%", minWidth: "125px" }}>Scheduled Slot</th>
+                                        <th style={{ width: "10%", minWidth: "90px" }}>Status</th>
+                                        <th style={{ width: "21%", minWidth: "210px", textAlign: "right" }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1398,11 +1437,17 @@ function Pickups() {
                                                 <td>
                                                     <div className="t-address-wrap">
                                                         <FiMapPin className="t-pin-icn" />
-                                                        <span className="t-addr-txt">
-                                                            {(item.assignmentType === "TechnicianToRefurbishmentCenter" || item.assignmentType === "TechnicianToRecyclingCenter")
+                                                        {(() => {
+                                                            const rawAddr = (item.assignmentType === "TechnicianToRefurbishmentCenter" || item.assignmentType === "TechnicianToRecyclingCenter")
                                                                 ? (item.deliveredAddress || item.technicianAddress || "Inspection Center Address")
-                                                                : `${item.address || "Address N/A"}${item.city ? `, ${item.city}` : ""}`}
-                                                        </span>
+                                                                : `${item.address || "Address N/A"}${item.city ? `, ${item.city}` : ""}${item.pincode ? ` (${item.pincode})` : ""}`;
+                                                            const cleaned = cleanAddress(rawAddr);
+                                                            return (
+                                                                <span className="t-addr-txt" title={cleaned}>
+                                                                    {cleaned}
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </td>
                                                 <td>
@@ -1662,31 +1707,31 @@ function Pickups() {
                                 </div>
                             </div>
 
-                                    {/* Important Guidelines Warning Box */}
-                                    <div className="important-warning-box">
-                                        <div className="warning-heading">
-                                            <FiAlertTriangle /> Important Guidelines
-                                        </div>
-                                        <ul className="warning-list">
-                                            <li>Do not complete the pickup if the device does not match the request.</li>
-                                            <li>Do not complete the pickup without a valid OTP.</li>
-                                            <li>Make sure the pickup photo is clear and shows the collected device.</li>
-                                        </ul>
-                                    </div>
+                            {/* Important Guidelines Warning Box */}
+                            <div className="important-warning-box">
+                                <div className="warning-heading">
+                                    <FiAlertTriangle /> Important Guidelines
                                 </div>
+                                <ul className="warning-list">
+                                    <li>Do not complete the pickup if the device does not match the request.</li>
+                                    <li>Do not complete the pickup without a valid OTP.</li>
+                                    <li>Make sure the pickup photo is clear and shows the collected device.</li>
+                                </ul>
+                            </div>
+                        </div>
 
-                                <div className="pro-modal-footer">
-                                    <button className="btn-close-modal" onClick={() => setCompletePickupTarget(null)}>
-                                        Cancel
-                                    </button>
-                                    <button
-                                        className="btn-confirm-complete"
-                                        disabled={processingId === completePickupTarget.collectionAssignmentId}
-                                        onClick={handleConfirmCompletePickup}
-                                    >
-                                        <FiCheckCircle /> Confirm & Complete Pickup
-                                    </button>
-                                </div>
+                        <div className="pro-modal-footer">
+                            <button className="btn-close-modal" onClick={() => setCompletePickupTarget(null)}>
+                                Cancel
+                            </button>
+                            <button
+                                className="btn-confirm-complete"
+                                disabled={processingId === completePickupTarget.collectionAssignmentId}
+                                onClick={handleConfirmCompletePickup}
+                            >
+                                <FiCheckCircle /> Confirm & Complete Pickup
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

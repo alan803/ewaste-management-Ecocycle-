@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import {
     FiTruck,
@@ -22,7 +22,8 @@ import {
     FiRefreshCw,
     FiNavigation,
     FiShield,
-    FiActivity
+    FiActivity,
+    FiBarChart2
 } from "react-icons/fi";
 import "./Sidebar.css";
 import "./Recycling_perform.css";
@@ -34,7 +35,7 @@ function RecyclingDelivery() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("All");
-    const [viewMode, setViewMode] = useState("grid"); // 'grid' | 'table'
+    const [viewMode, setViewMode] = useState("table"); // 'table' | 'grid'
     const [selectedDelivery, setSelectedDelivery] = useState(null);
     const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
@@ -45,9 +46,13 @@ function RecyclingDelivery() {
                localStorage.getItem("username") ||
                "Recycling Center";
     });
-    const [profilePhoto, setProfilePhoto] = useState(() => {
-        return localStorage.getItem("profilePhoto") || null;
+    const [centerId, setCenterId] = useState(() => {
+        return localStorage.getItem("recyclingCenterId") || localStorage.getItem("centerId") || null;
     });
+    const [profilePhoto, setProfilePhoto] = useState(() => {
+        return localStorage.getItem("centerPhoto") || localStorage.getItem("profilePhoto") || null;
+    });
+    const [imgError, setImgError] = useState(false);
 
     const userInitial = (centerName || "R").charAt(0).toUpperCase();
 
@@ -62,16 +67,18 @@ function RecyclingDelivery() {
         fetchCenterProfile(token);
     }, [navigate]);
 
-    const getMediaUrl = (filename, folderName = "ProfilePhotos") => {
+    const getMediaUrl = (filename, folderName = "Center Photo") => {
         if (!filename) return null;
         if (filename.startsWith("data:") || filename.startsWith("blob:") || filename.startsWith("http://") || filename.startsWith("https://")) {
             return filename;
         }
         const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
         if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://ecocycle.runasp.net/uploads/${cleanName.replace("\\", "/")}`;
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace(/\\/g, "/")}`;
         }
-        return `https://ecocycle.runasp.net/uploads/recyclingcenter/${folderName}/${cleanName}`;
+        return folderName
+            ? `https://ecocycle.runasp.net/uploads/recycling/${folderName}/${cleanName}`
+            : `https://ecocycle.runasp.net/uploads/${cleanName}`;
     };
 
     const fetchCenterProfile = async (token) => {
@@ -80,15 +87,21 @@ function RecyclingDelivery() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = res.data || {};
-            const name = data.centerName || data.name || "";
-            const photo = data.photo || data.profilePhoto || data.photoPath;
+            const name = data.CenterName || data.centerName || data.OwnerName || data.ownerName || data.name || "";
+            const photo = data.CenterPhoto || data.centerPhoto || data.Photo || data.photo || data.profilePhoto || data.photoPath;
+            const id = data.recyclingCenterId || data.centerId || data.id;
             if (name) {
                 setCenterName(name);
                 localStorage.setItem("centerName", name);
             }
             if (photo) {
                 setProfilePhoto(photo);
+                localStorage.setItem("centerPhoto", photo);
                 localStorage.setItem("profilePhoto", photo);
+            }
+            if (id) {
+                setCenterId(id);
+                localStorage.setItem("recyclingCenterId", id);
             }
         } catch {
             // Profile fetch optional
@@ -112,89 +125,122 @@ function RecyclingDelivery() {
         if (!authToken) return;
         try {
             setLoading(true);
-            const [allocRes, assignRes] = await Promise.all([
+
+            let currentCenterId = centerId || localStorage.getItem("recyclingCenterId") || localStorage.getItem("centerId");
+            let currentCenterName = centerName || localStorage.getItem("centerName");
+
+            const [allocRes, assignRes, profRes] = await Promise.all([
                 axios.get("https://ecocycle.runasp.net/api/AllocateRecyclingCenter/my-requests", {
                     headers: { Authorization: `Bearer ${authToken}` }
                 }).catch(() => ({ data: [] })),
                 axios.get("https://ecocycle.runasp.net/api/CollectionAssignment/admin/all-assignments", {
                     headers: { Authorization: `Bearer ${authToken}` }
-                }).catch(() => ({ data: [] }))
+                }).catch(() => ({ data: [] })),
+                axios.get("https://ecocycle.runasp.net/api/RecyclingCenter/myprofile", {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                }).catch(() => ({ data: {} }))
             ]);
 
-            const allocList = allocRes.data || [];
-            const assignList = assignRes.data || [];
+            if (profRes && profRes.data) {
+                const pData = profRes.data;
+                if (pData.recyclingCenterId) {
+                    currentCenterId = pData.recyclingCenterId;
+                    setCenterId(currentCenterId);
+                    localStorage.setItem("recyclingCenterId", currentCenterId);
+                }
+                if (pData.centerName) {
+                    currentCenterName = pData.centerName;
+                    setCenterName(currentCenterName);
+                    localStorage.setItem("centerName", currentCenterName);
+                }
+            }
 
-            // Combine or merge collection assignment shipment details with recycling requests
-            const assignMap = new Map();
-            assignList.forEach(a => {
-                if (a.deviceId) {
-                    assignMap.set(a.deviceId, a);
+            const allocList = Array.isArray(allocRes.data) ? allocRes.data : [];
+            const rawAssignList = Array.isArray(assignRes.data) ? assignRes.data : [];
+
+            // STRICT FILTER: Keep ONLY delivery assignments destined to this Recycling Center
+            // (AssignmentType must be TechnicianToRecyclingCenter, never CustomerToTechnician or Refurbishment)
+            const techToRecAssignments = rawAssignList.filter(a => {
+                const aType = String(a.assignmentType || "").toLowerCase();
+                if (aType !== "techniciantorecyclingcenter") return false;
+
+                // Exclude cancelled / rejected / expired assignments
+                const stat = String(a.status || "").toLowerCase();
+                if (stat === "expired" || stat === "cancelled" || stat === "rejected") return false;
+
+                const assignCenterId = a.recyclingCenterId || a.destinationCenterId;
+                const assignCenterName = (a.recyclingCenterName || "").trim().toLowerCase();
+                const myCenterName = (currentCenterName || "").trim().toLowerCase();
+
+                // If center ID is available on both, verify match
+                if (currentCenterId && assignCenterId) {
+                    if (String(assignCenterId) !== String(currentCenterId)) return false;
+                }
+
+                // If center name is available on assignment, verify match against current center name
+                if (myCenterName && myCenterName !== "recycling center" && assignCenterName && assignCenterName !== "recycling center") {
+                    if (assignCenterName !== myCenterName) return false;
+                }
+
+                return true;
+            });
+
+            // Lookup map for device allocation request details
+            const allocByDevice = new Map();
+            allocList.forEach(item => {
+                if (item.deviceId) {
+                    allocByDevice.set(item.deviceId, item);
                 }
             });
 
-            const combined = allocList.map(item => {
-                const matchedAssign = assignMap.get(item.deviceId) || {};
-                const itemWeight = item.weight ? parseFloat(item.weight) : (matchedAssign.weight ? parseFloat(matchedAssign.weight) : 0);
-
-                return {
-                    recyclingCenterRequestId: item.recyclingCenterRequestId || item.id,
-                    collectionAssignmentId: matchedAssign.collectionAssignmentId || item.collectionAssignmentId || item.recyclingCenterRequestId,
-                    deviceId: item.deviceId,
-                    brand: item.brand || matchedAssign.brand || "E-Waste",
-                    model: item.model || matchedAssign.model || "Device",
-                    categoryName: item.categoryName || matchedAssign.categoryName || "Electronics",
-                    quantity: item.quantity || matchedAssign.quantity || 1,
-                    weight: itemWeight > 0 ? itemWeight : 1.5,
-                    status: matchedAssign.status || item.status || "Assigned",
-                    deliveryStatus: matchedAssign.deliveryStatus || (item.status === "Completed" ? "delivered" : "intransit"),
-                    lifecycleStatus: item.lifecycleStatus || matchedAssign.lifecycleStatus || "allocatedtorecycling",
-                    collectionAgentName: matchedAssign.collectionAgentName || "Assigned Collection Agent",
-                    collectionAgentPhone: matchedAssign.collectionAgentPhone || "",
-                    collectionAgentPhoto: matchedAssign.collectionAgentPhoto || null,
-                    vehicleNumber: matchedAssign.vehicleNumber || "",
-                    technicianName: matchedAssign.technicianName || "Inspection Technician Hub",
-                    inspectionCenterName: matchedAssign.inspectionCenterName || "Technician Hub",
-                    technicianAddress: matchedAssign.technicianAddress || matchedAssign.deliveredAddress || "Inspection Center Address",
-                    recyclingCenterName: item.centerName || matchedAssign.recyclingCenterName || centerName,
-                    recyclingCenterAddress: item.centerAddress || matchedAssign.recyclingCenterAddress || "Recycling Facility Address",
-                    createdAt: item.createdAt || matchedAssign.createdAt,
-                    pickupStartedAt: matchedAssign.pickupStartedAt || matchedAssign.startedAt,
-                    deliveredAt: matchedAssign.deliveredAt || item.updatedAt
-                };
+            // Map latest TechnicianToRecyclingCenter assignment by deviceId so there is only one delivery per device
+            const latestAssignByDevice = new Map();
+            const sortedTechAssigns = [...techToRecAssignments].sort((a, b) => (a.collectionAssignmentId || 0) - (b.collectionAssignmentId || 0));
+            sortedTechAssigns.forEach(a => {
+                const key = a.deviceId || a.collectionAssignmentId;
+                latestAssignByDevice.set(key, a);
             });
 
-            // If allocList was empty, fallback to assignList items where assignmentType is TechnicianToRecyclingCenter
-            if (combined.length === 0 && assignList.length > 0) {
-                const filteredTechToRec = assignList.filter(a => a.assignmentType === "TechnicianToRecyclingCenter" || a.recyclingCenterName);
-                filteredTechToRec.forEach(item => {
-                    const itemWeight = item.weight ? parseFloat(item.weight) : 1.5;
-                    combined.push({
-                        recyclingCenterRequestId: item.collectionAssignmentId,
-                        collectionAssignmentId: item.collectionAssignmentId,
-                        deviceId: item.deviceId,
-                        brand: item.brand || "E-Waste",
-                        model: item.model || "Device",
-                        categoryName: item.categoryName || "Electronics",
-                        quantity: item.quantity || 1,
-                        weight: itemWeight,
-                        status: item.status || "Assigned",
-                        deliveryStatus: item.deliveryStatus || "intransit",
-                        lifecycleStatus: item.lifecycleStatus || "allocatedtorecycling",
-                        collectionAgentName: item.collectionAgentName || "Assigned Agent",
-                        collectionAgentPhone: item.collectionAgentPhone || "",
-                        collectionAgentPhoto: item.collectionAgentPhoto || null,
-                        vehicleNumber: item.vehicleNumber || "",
-                        technicianName: item.technicianName || item.inspectionCenterName || "Technician Hub",
-                        inspectionCenterName: item.inspectionCenterName || "Technician Hub",
-                        technicianAddress: item.technicianAddress || item.deliveredAddress || "Inspection Hub",
-                        recyclingCenterName: item.recyclingCenterName || centerName,
-                        recyclingCenterAddress: item.recyclingCenterAddress || "Recycling Facility",
-                        createdAt: item.createdAt,
-                        pickupStartedAt: item.pickupStartedAt || item.startedAt,
-                        deliveredAt: item.deliveredAt
-                    });
+            const combined = [];
+            latestAssignByDevice.forEach(item => {
+                const allocReq = item.deviceId ? allocByDevice.get(item.deviceId) : null;
+                const itemWeight = item.weight ? parseFloat(item.weight) : (allocReq?.weight ? parseFloat(allocReq.weight) : 1.5);
+                const itemDeliveredAt = item.deliveredAt || item.deliveryDeliveredAt || (item.status === "DeliveredToCenter" ? item.updatedAt : null);
+                const itemPickedUpAt = item.pickedUpAt || item.pickupPickedUpAt || null;
+
+                combined.push({
+                    recyclingCenterRequestId: allocReq?.recyclingCenterRequestId || item.collectionAssignmentId,
+                    collectionAssignmentId: item.collectionAssignmentId,
+                    deviceId: item.deviceId,
+                    brand: item.brand || allocReq?.brand || "E-Waste",
+                    model: item.model || allocReq?.model || "Device",
+                    categoryName: item.categoryName || allocReq?.categoryName || "Electronics",
+                    quantity: item.quantity || allocReq?.quantity || 1,
+                    weight: itemWeight > 0 ? itemWeight : 1.5,
+                    status: item.status || "Assigned",
+                    deliveryStatus: item.deliveryStatus || (item.status === "DeliveredToCenter" ? "delivered" : "intransit"),
+                    pickupStatus: item.pickupStatus || "",
+                    lifecycleStatus: allocReq?.lifecycleStatus || item.lifecycleStatus || "allocatedtorecycling",
+                    collectionAgentName: item.collectionAgentName || "Assigned Agent",
+                    collectionAgentPhone: item.collectionAgentPhone || "",
+                    collectionAgentPhoto: item.collectionAgentPhoto || null,
+                    vehicleNumber: item.vehicleNumber || "",
+                    technicianName: item.technicianName || item.inspectionCenterName || "Technician Hub",
+                    inspectionCenterName: item.inspectionCenterName || item.technicianName || "Technician Hub",
+                    technicianAddress: item.technicianAddress || item.deliveredAddress || item.address || "Inspection Hub",
+                    recyclingCenterName: item.recyclingCenterName || allocReq?.centerName || currentCenterName,
+                    recyclingCenterAddress: item.recyclingCenterAddress || allocReq?.centerAddress || "Recycling Facility",
+                    createdAt: item.createdAt || allocReq?.createdAt,
+                    assignedAt: item.assignedAt || allocReq?.assignedAt,
+                    acceptedAt: item.acceptedAt,
+                    pickupStartedAt: item.pickupStartedAt || item.startedAt,
+                    pickedUpAt: itemPickedUpAt,
+                    deliveryStartedAt: item.deliveryStartedAt,
+                    deliveredAt: itemDeliveredAt,
+                    deliveryDeliveredAt: item.deliveryDeliveredAt,
+                    deliveryDeviceVerified: item.deliveryDeviceVerified || false
                 });
-            }
+            });
 
             setDeliveries(combined);
         } catch (err) {
@@ -210,9 +256,12 @@ function RecyclingDelivery() {
         const cas = String(item.status || "").toLowerCase();
         const lcs = String(item.lifecycleStatus || "").toLowerCase();
 
-        if (item.pickupStartedAt || item.deliveredAt) return true;
+        if (item.pickupStartedAt || item.deliveredAt || item.pickedUpAt || item.deliveryDeliveredAt) return true;
 
         const startedDeliveryStatuses = [
+            "assigned",
+            "accepted",
+            "waiting",
             "pickupstarted",
             "en route",
             "pickedup",
@@ -229,14 +278,73 @@ function RecyclingDelivery() {
         return startedDeliveryStatuses.includes(delStat) || startedDeliveryStatuses.includes(cas) || startedDeliveryStatuses.includes(lcs);
     };
 
+    const checkIsDelivered = (item) => {
+        if (!item) return false;
+        const delStat = String(item.deliveryStatus || "").toLowerCase();
+        const cas = String(item.status || "").toLowerCase();
+        const lcs = String(item.lifecycleStatus || "").toLowerCase();
+        return (
+            delStat === "delivered" ||
+            cas === "deliveredtocenter" ||
+            Boolean(item.deliveryDeliveredAt) ||
+            Boolean(item.deliveredAt) ||
+            lcs === "atrecyclingcenter" ||
+            lcs === "recycled"
+        );
+    };
+
+    const checkIsPendingVerification = (item) => {
+        if (!item || checkIsDelivered(item)) return false;
+        const delStat = String(item.deliveryStatus || "").toLowerCase();
+        const cas = String(item.status || "").toLowerCase();
+        const lcs = String(item.lifecycleStatus || "").toLowerCase();
+        return (
+            delStat === "pendingverification" ||
+            cas === "pendingverification" ||
+            cas === "awaitingapproval" ||
+            cas === "awaitingtechnicianapproval" ||
+            lcs === "pendingverification" ||
+            lcs === "awaitingtechnicianapproval"
+        );
+    };
+
+    const checkIsPickedUp = (item) => {
+        if (!item) return false;
+        const cas = String(item.status || "").toLowerCase();
+        const pickStat = String(item.pickupStatus || "").toLowerCase();
+        return (
+            checkIsDelivered(item) ||
+            checkIsPendingVerification(item) ||
+            Boolean(item.pickedUpAt) ||
+            Boolean(item.pickupPickedUpAt) ||
+            pickStat === "completed" ||
+            pickStat === "pickedup" ||
+            cas === "completed" ||
+            cas === "outfordelivery" ||
+            cas === "intransit"
+        );
+    };
+
+    const checkIsInTransit = (item) => {
+        if (!item || checkIsDelivered(item) || checkIsPendingVerification(item)) return false;
+        const cas = String(item.status || "").toLowerCase();
+        const delStat = String(item.deliveryStatus || "").toLowerCase();
+        const lcs = String(item.lifecycleStatus || "").toLowerCase();
+        return (
+            checkIsPickedUp(item) ||
+            delStat === "intransit" ||
+            delStat === "outfordelivery" ||
+            cas === "intransit" ||
+            cas === "outfordelivery" ||
+            lcs === "intransit"
+        );
+    };
+
     // Filter deliveries so ONLY started deliveries are displayed on the page
     const filteredDeliveries = deliveries.filter(item => {
         if (!hasAgentStartedDelivery(item)) return false;
 
-        const cas = String(item.status || "").toLowerCase();
-        const delStat = String(item.deliveryStatus || "").toLowerCase();
-
-        const isDelivered = cas === "deliveredtocenter" || delStat === "delivered" || cas === "completed";
+        const isDelivered = checkIsDelivered(item);
         const isInTransit = !isDelivered;
 
         if (activeTab === "In Transit" && !isInTransit) return false;
@@ -244,32 +352,31 @@ function RecyclingDelivery() {
         if (activeTab === "Completed" && !isDelivered) return false;
 
         if (!searchQuery.trim()) return true;
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
         const devName = `${item.brand || ""} ${item.model || ""}`.toLowerCase();
         const catName = String(item.categoryName || "").toLowerCase();
         const agentName = String(item.collectionAgentName || "").toLowerCase();
         const techName = String(item.technicianName || "").toLowerCase();
+        const customerName = String(item.customerName || "").toLowerCase();
+        const trackingId = `trk-rec-${item.collectionAssignmentId || item.deviceId || item.recyclingCenterRequestId}`.toLowerCase();
+        const deviceId = String(item.deviceId || "").toLowerCase();
+        const reqId = String(item.recyclingCenterRequestId || "").toLowerCase();
 
         return (
             devName.includes(q) ||
             catName.includes(q) ||
             agentName.includes(q) ||
-            techName.includes(q)
+            techName.includes(q) ||
+            customerName.includes(q) ||
+            trackingId.includes(q) ||
+            deviceId.includes(q) ||
+            reqId.includes(q)
         );
     });
 
-    const inTransitCount = deliveries.filter(d => {
-        if (!hasAgentStartedDelivery(d)) return false;
-        const cas = String(d.status || "").toLowerCase();
-        const delStat = String(d.deliveryStatus || "").toLowerCase();
-        return cas !== "deliveredtocenter" && delStat !== "delivered" && cas !== "completed";
-    }).length;
+    const inTransitCount = deliveries.filter(d => hasAgentStartedDelivery(d) && !checkIsDelivered(d)).length;
 
-    const deliveredCount = deliveries.filter(d => {
-        const cas = String(d.status || "").toLowerCase();
-        const delStat = String(d.deliveryStatus || "").toLowerCase();
-        return cas === "deliveredtocenter" || delStat === "delivered" || cas === "completed";
-    }).length;
+    const deliveredCount = deliveries.filter(d => checkIsDelivered(d)).length;
 
     const totalWeight = deliveries.reduce((sum, d) => sum + ((Number(d.weight) || 0) * (Number(d.quantity) || 1)), 0);
 
@@ -283,10 +390,7 @@ function RecyclingDelivery() {
     };
 
     const getStatusBadge = (item) => {
-        const delStat = String(item.deliveryStatus || "").toLowerCase();
-        const cas = String(item.status || "").toLowerCase();
-
-        if (delStat === "delivered" || cas === "deliveredtocenter" || cas === "completed") {
+        if (checkIsDelivered(item)) {
             return (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "0.25rem 0.6rem", borderRadius: "8px", fontSize: "0.75rem", fontWeight: 700, background: "#dcfce7", color: "#15803d" }}>
                     <FiCheckCircle /> Received at Facility
@@ -294,9 +398,25 @@ function RecyclingDelivery() {
             );
         }
 
+        if (checkIsPendingVerification(item)) {
+            return (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "0.25rem 0.6rem", borderRadius: "8px", fontSize: "0.75rem", fontWeight: 700, background: "#fef3c7", color: "#b45309" }}>
+                    <FiClock /> Handover Pending Verification
+                </span>
+            );
+        }
+
+        if (checkIsInTransit(item)) {
+            return (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "0.25rem 0.6rem", borderRadius: "8px", fontSize: "0.75rem", fontWeight: 700, background: "#dbeafe", color: "#1e40af" }}>
+                    <FiTruck /> In Transit to Facility
+                </span>
+            );
+        }
+
         return (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "0.25rem 0.6rem", borderRadius: "8px", fontSize: "0.75rem", fontWeight: 700, background: "#dbeafe", color: "#1e40af" }}>
-                <FiTruck /> In Transit to Recycling Center
+            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "0.25rem 0.6rem", borderRadius: "8px", fontSize: "0.75rem", fontWeight: 700, background: "#fef3c7", color: "#b45309" }}>
+                <FiClock /> Pickup from Hub Pending
             </span>
         );
     };
@@ -313,40 +433,157 @@ function RecyclingDelivery() {
         return `https://ecocycle.runasp.net/uploads/profile/${clean}`;
     };
 
+    const formatDate = (dateVal) => {
+        if (!dateVal) return "";
+        try {
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return "";
+            return d.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric"
+            });
+        } catch {
+            return "";
+        }
+    };
+
+    const formatDateTime = (dateVal) => {
+        if (!dateVal) return "";
+        try {
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return "";
+            return d.toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric"
+            }) + ", " + d.toLocaleTimeString("en-US", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true
+            });
+        } catch {
+            return "";
+        }
+    };
+
     const getTimelineSteps = (item) => {
         if (!item) return [];
+
+        const isDelivered = checkIsDelivered(item);
+        const isPendingVerification = checkIsPendingVerification(item);
+        const isPickedUpFromHub = checkIsPickedUp(item);
+        const isInTransitToCenter = checkIsInTransit(item);
+
         const cas = String(item.status || "").toLowerCase();
-        const delStat = String(item.deliveryStatus || "").toLowerCase();
+        const pickStat = String(item.pickupStatus || "").toLowerCase();
 
-        const isDelivered = delStat === "delivered" || cas === "deliveredtocenter" || cas === "completed";
-        const isStarted = hasAgentStartedDelivery(item);
+        const isPickupStarted = isPickedUpFromHub ||
+            cas === "pickupstarted" ||
+            cas === "en route" ||
+            pickStat === "pickupstarted" ||
+            Boolean(item.pickupStartedAt);
 
-        return [
-            {
-                title: "1. Recycling Allocation Confirmed",
-                desc: item.createdAt ? `Allocated on ${new Date(item.createdAt).toLocaleDateString("en-GB")}` : "Recycling allocation confirmed",
+        const isAssigned = isPickupStarted ||
+            cas === "assigned" ||
+            cas === "accepted" ||
+            Boolean(item.collectionAgentName && item.collectionAgentName !== "Unassigned" && item.collectionAgentName !== "Assigned Collection Agent");
+
+        const allocDateStr = formatDate(item.createdAt || item.assignedAt);
+        const pickupDateStr = formatDateTime(item.pickedUpAt) || formatDate(item.pickedUpAt);
+        const deliveredDateStr = formatDateTime(item.deliveredAt || item.deliveryDeliveredAt) || formatDate(item.deliveredAt || item.deliveryDeliveredAt);
+
+        // Step 1: Recycling Allocation Confirmed
+        const step1 = {
+            title: "1. Recycling Allocation Confirmed",
+            desc: allocDateStr ? `Allocated on ${allocDateStr}` : "Recycling allocation confirmed",
+            completed: true,
+            current: false
+        };
+
+        // Step 2: Handover & Pickup from Technician Hub
+        let step2;
+        if (isPickedUpFromHub) {
+            step2 = {
+                title: "2. Handover & Pickup from Technician Hub",
+                desc: `Dispatched from ${item.technicianName || item.inspectionCenterName || "Technician Hub"}${pickupDateStr ? ` on ${pickupDateStr}` : ""}`,
                 completed: true,
                 current: false
-            },
-            {
+            };
+        } else if (isPickupStarted) {
+            step2 = {
                 title: "2. Handover & Pickup from Technician Hub",
-                desc: `Dispatched from ${item.technicianName || item.inspectionCenterName || "Technician Hub"}`,
-                completed: isStarted,
-                current: isStarted && !isDelivered
-            },
-            {
+                desc: `Agent ${item.collectionAgentName || "Agent"} en route to Technician Hub for pickup`,
+                completed: false,
+                current: true
+            };
+        } else if (isAssigned) {
+            step2 = {
+                title: "2. Handover & Pickup from Technician Hub",
+                desc: `Agent ${item.collectionAgentName || "Agent"} assigned for pickup from Technician Hub`,
+                completed: false,
+                current: true
+            };
+        } else {
+            step2 = {
+                title: "2. Handover & Pickup from Technician Hub",
+                desc: `Awaiting agent pickup from ${item.technicianName || item.inspectionCenterName || "Technician Hub"}`,
+                completed: false,
+                current: false
+            };
+        }
+
+        // Step 3: In Transit to Recycling Center
+        let step3;
+        if (isDelivered || isPendingVerification) {
+            step3 = {
                 title: "3. In Transit to Recycling Center",
-                desc: isStarted ? `En route by agent ${item.collectionAgentName || "Assigned Agent"}` : "Awaiting agent collection",
-                completed: isStarted,
-                current: isStarted && !isDelivered
-            },
-            {
+                desc: `En route by agent ${item.collectionAgentName || "Assigned Agent"}`,
+                completed: true,
+                current: false
+            };
+        } else if (isInTransitToCenter) {
+            step3 = {
+                title: "3. In Transit to Recycling Center",
+                desc: `En route to facility by agent ${item.collectionAgentName || "Assigned Agent"}${item.vehicleNumber ? ` (${item.vehicleNumber})` : ""}`,
+                completed: false,
+                current: true
+            };
+        } else {
+            step3 = {
+                title: "3. In Transit to Recycling Center",
+                desc: "Awaiting agent collection from Technician Hub",
+                completed: false,
+                current: false
+            };
+        }
+
+        // Step 4: Received at Recycling Facility
+        let step4;
+        if (isDelivered) {
+            step4 = {
                 title: "4. Received at Recycling Facility",
-                desc: isDelivered ? `Verified & received at ${item.recyclingCenterName || "Recycling Facility"}` : "Pending arrival at recycling center",
-                completed: isDelivered,
-                current: isDelivered
-            }
-        ];
+                desc: `Verified & received at ${item.recyclingCenterName || centerName || "Recycling Facility"}${deliveredDateStr ? ` on ${deliveredDateStr}` : ""}`,
+                completed: true,
+                current: false
+            };
+        } else if (isPendingVerification) {
+            step4 = {
+                title: "4. Received at Recycling Facility",
+                desc: `Agent arrived at facility; pending handover verification`,
+                completed: false,
+                current: true
+            };
+        } else {
+            step4 = {
+                title: "4. Received at Recycling Facility",
+                desc: `In transit to ${item.recyclingCenterName || centerName || "Recycling Facility"}`,
+                completed: false,
+                current: false
+            };
+        }
+
+        return [step1, step2, step3, step4];
     };
 
     return (
@@ -354,84 +591,57 @@ function RecyclingDelivery() {
             <Sidebar />
 
             <div className="rec-main-container">
-                {/* Header Bar */}
-                <div className="rec-header-bar">
-                    <div className="rec-header-actions">
-                        <div className="search-box-v2" style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                            <FiSearch className="search-icon" style={{ position: "absolute", left: "0.85rem", color: "#94a3b8", fontSize: "0.95rem" }} />
+                {/* Header Topbar */}
+                <header className="recyc-dashboard-topbar">
+                    <div className="topbar-title-group">
+                        <div className="topbar-header-row">
+                            <h1>Inbound Shipments &amp; Logistics</h1>
+                        </div>
+                        <p className="topbar-subtitle">
+                            Live agent collection tracking &amp; incoming e-waste facility transfer verification
+                        </p>
+                    </div>
+
+                    <div className="topbar-right-group">
+                        <div className="search-bar">
+                            <FiSearch className="search-icon" />
                             <input
                                 type="text"
-                                placeholder="Search device, agent, category..."
+                                placeholder="Search device, ID or customer..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                style={{
-                                    padding: "0.45rem 1rem 0.45rem 2.3rem",
-                                    border: "1px solid #e2e8f0",
-                                    borderRadius: "10px",
-                                    background: "#ffffff",
-                                    fontSize: "0.8rem",
-                                    color: "#0f172a",
-                                    width: "240px",
-                                    outline: "none",
-                                    boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
-                                }}
                             />
                         </div>
 
-                        <button className="rec-refresh-btn" onClick={() => fetchMyDeliveries()}>
-                            <FiRefreshCw /> Refresh
-                        </button>
 
                         <button
-                            className="rec-refresh-btn"
-                            style={{ position: "relative" }}
-                            title={`Notifications ${unreadNotifCount > 0 ? `(${unreadNotifCount} unread)` : ""}`}
+                            className="icon-button notif-bell-btn"
                             onClick={() => navigate("/recyclingcenter_notification")}
+                            title="Notifications"
                         >
-                            <FiBell style={{ fontSize: "1.1rem" }} />
+                            <FiBell />
                             {unreadNotifCount > 0 && (
-                                <span style={{
-                                    position: "absolute",
-                                    top: "-4px",
-                                    right: "-4px",
-                                    background: "#ef4444",
-                                    color: "#ffffff",
-                                    fontSize: "0.65rem",
-                                    fontWeight: 800,
-                                    width: "18px",
-                                    height: "18px",
-                                    borderRadius: "50%",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center"
-                                }}>
-                                    {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
-                                </span>
+                                <span className="notif-badge">{unreadNotifCount > 9 ? "9+" : unreadNotifCount}</span>
                             )}
                         </button>
 
-                        <div className="rec-user-avatar" title={centerName} style={{ cursor: "pointer" }} onClick={() => navigate("/recycle_profile")}>
-                            {profilePhoto ? (
+                        <Link to="/recycle_profile" className="profile-chip" title={`Facility Profile - ${centerName}`}>
+                            {profilePhoto && !imgError ? (
                                 <img
-                                    src={getMediaUrl(profilePhoto, "ProfilePhotos")}
+                                    src={getMediaUrl(profilePhoto, "Center Photo")}
                                     alt={centerName}
-                                    style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
-                                    onError={() => setProfilePhoto(null)}
+                                    className="profile-avatar-img"
+                                    onError={() => setImgError(true)}
                                 />
                             ) : (
-                                userInitial
+                                <div className="profile-avatar">
+                                    {(centerName || "R").charAt(0).toUpperCase()}
+                                </div>
                             )}
-                        </div>
+                            <span className="profile-name">{centerName}</span>
+                        </Link>
                     </div>
-                </div>
-
-                {/* Hero Dispatch Banner Card */}
-                <div className="rec-hero-banner">
-                    <div className="rec-hero-content">
-                        <h2><FiTruck /> Recycling Center Inbound Shipments</h2>
-                        <p>Track live agent dispatches and incoming e-waste deliveries transferred from inspection hubs to your recycling center.</p>
-                    </div>
-                </div>
+                </header>
 
                 {/* KPI Summary Cards Grid */}
                 <div className="rec-kpi-grid">
@@ -472,24 +682,39 @@ function RecyclingDelivery() {
                         <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>Live tracking for agent collection transfers from inspection hubs</p>
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", flexWrap: "wrap", marginLeft: "auto" }}>
+                    <div className="panel-controls-right" style={{ marginLeft: "auto" }}>
                         <div className="filter-pills">
-                            {["All", "In Transit", "Delivered to Center", "Completed"].map((tab) => (
+                            {[
+                                { id: "All", label: "All", count: deliveries.filter(hasAgentStartedDelivery).length },
+                                { id: "In Transit", label: "In Transit", count: inTransitCount },
+                                { id: "Delivered to Center", label: "Delivered to Center", count: deliveredCount },
+                                { id: "Completed", label: "Completed", count: deliveredCount }
+                            ].map((tab) => (
                                 <button
-                                    key={tab}
-                                    className={`pill-btn ${activeTab === tab ? "active" : ""}`}
-                                    onClick={() => setActiveTab(tab)}
+                                    key={tab.id}
+                                    className={`filter-pill-btn ${activeTab === tab.id ? "active" : ""}`}
+                                    onClick={() => setActiveTab(tab.id)}
                                 >
-                                    {tab}
+                                    {tab.label} ({tab.count})
                                 </button>
                             ))}
                         </div>
 
                         <div className="view-toggle-btns">
-                            <button className={`view-btn ${viewMode === "grid" ? "active" : ""}`} onClick={() => setViewMode("grid")} title="Grid View">
+                            <button
+                                className={`view-btn ${viewMode === "grid" ? "active" : ""}`}
+                                onClick={() => setViewMode("grid")}
+                                title="Grid View"
+                                style={viewMode === "grid" ? { background: "#059669", color: "#ffffff", boxShadow: "0 2px 8px rgba(5, 150, 105, 0.35)" } : {}}
+                            >
                                 <FiGrid />
                             </button>
-                            <button className={`view-btn ${viewMode === "table" ? "active" : ""}`} onClick={() => setViewMode("table")} title="Table View">
+                            <button
+                                className={`view-btn ${viewMode === "table" ? "active" : ""}`}
+                                onClick={() => setViewMode("table")}
+                                title="Table View"
+                                style={viewMode === "table" ? { background: "#059669", color: "#ffffff", boxShadow: "0 2px 8px rgba(5, 150, 105, 0.35)" } : {}}
+                            >
                                 <FiList />
                             </button>
                         </div>
@@ -503,16 +728,17 @@ function RecyclingDelivery() {
                         <p>Loading recycling center shipments...</p>
                     </div>
                 ) : filteredDeliveries.length === 0 ? (
-                    <div className="no-data-state">
-                        <FiBox className="no-data-icon" />
-                        <p>No active shipments found matching "{activeTab}".</p>
+                    <div className="empty-container">
+                        <FiBox style={{ fontSize: "2.5rem", color: "#cbd5e1" }} />
+                        <h4>No devices found</h4>
+                        <p>{searchQuery ? `No matches for "${searchQuery}"` : `No shipments found in "${activeTab}" category.`}</p>
                     </div>
                 ) : viewMode === "grid" ? (
                     <div className="rec-cards-grid">
                         {filteredDeliveries.map((item, index) => {
-                            const trackingId = `TRK-REC-${item.recyclingCenterRequestId || item.collectionAssignmentId || item.deviceId}`;
+                            const trackingId = `TRK-REC-${item.collectionAssignmentId || item.deviceId || item.recyclingCenterRequestId}`;
                             return (
-                                <div className="rec-delivery-card" key={item.recyclingCenterRequestId || item.collectionAssignmentId || index}>
+                                <div className="rec-delivery-card" key={item.collectionAssignmentId || item.deviceId || index}>
                                     <div>
                                         <div className="rec-card-top-row">
                                             <div className="rec-cat-icon-box">
@@ -618,9 +844,9 @@ function RecyclingDelivery() {
                             </thead>
                             <tbody>
                                 {filteredDeliveries.map((item, index) => {
-                                    const trackingId = `TRK-REC-${item.recyclingCenterRequestId || item.collectionAssignmentId || item.deviceId}`;
+                                    const trackingId = `TRK-REC-${item.collectionAssignmentId || item.deviceId || item.recyclingCenterRequestId}`;
                                     return (
-                                        <tr key={item.recyclingCenterRequestId || item.collectionAssignmentId || index} className="table-row-hover">
+                                        <tr key={item.collectionAssignmentId || item.deviceId || index} className="table-row-hover">
                                             <td style={{ fontWeight: 700, color: "#64748b" }}>{index + 1}</td>
                                             <td>
                                                 <span style={{ background: "#f1f5f9", color: "#0f172a", border: "1px solid #cbd5e1", padding: "0.2rem 0.5rem", borderRadius: "6px", fontSize: "0.725rem", fontWeight: 700, fontFamily: "monospace", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}>
@@ -692,7 +918,7 @@ function RecyclingDelivery() {
                                 <div>
                                     <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>Recycling Center Live Tracking</h3>
                                     <span style={{ fontSize: "0.775rem", opacity: 0.95, fontFamily: "monospace" }}>
-                                        TRK-REC-{selectedDelivery.recyclingCenterRequestId || selectedDelivery.deviceId} &bull; {selectedDelivery.brand} {selectedDelivery.model}
+                                        TRK-REC-{selectedDelivery.collectionAssignmentId || selectedDelivery.deviceId} &bull; {selectedDelivery.brand} {selectedDelivery.model}
                                     </span>
                                 </div>
                             </div>
@@ -723,7 +949,7 @@ function RecyclingDelivery() {
                                     <div style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" }}>Tracking ID</div>
                                     <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0f172a", fontFamily: "monospace", marginTop: "0.15rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
                                         <FiNavigation style={{ color: "#059669" }} />
-                                        TRK-REC-{selectedDelivery.recyclingCenterRequestId || selectedDelivery.deviceId}
+                                        TRK-REC-{selectedDelivery.collectionAssignmentId || selectedDelivery.deviceId}
                                     </div>
                                 </div>
                                 <div>
@@ -801,7 +1027,7 @@ function RecyclingDelivery() {
                                     {getTimelineSteps(selectedDelivery).map((step, sIdx) => (
                                         <div key={sIdx} className={`rec-timeline-step ${step.completed ? "completed" : ""} ${step.current ? "current" : ""}`}>
                                             <div className="rec-timeline-dot">
-                                                {step.completed ? <FiCheckCircle /> : (sIdx + 1)}
+                                                {step.completed ? <FiCheckCircle /> : step.current ? <FiClock /> : (sIdx + 1)}
                                             </div>
                                             <div className="rec-timeline-content">
                                                 <h5>{step.title}</h5>
@@ -811,6 +1037,33 @@ function RecyclingDelivery() {
                                     ))}
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div style={{
+                            padding: "0.85rem 1.5rem",
+                            borderTop: "1px solid #e2e8f0",
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            background: "#ffffff"
+                        }}>
+                            <button
+                                onClick={() => setSelectedDelivery(null)}
+                                style={{
+                                    background: "#059669",
+                                    color: "#ffffff",
+                                    border: "none",
+                                    borderRadius: "10px",
+                                    padding: "0.55rem 1.4rem",
+                                    fontSize: "0.875rem",
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                    boxShadow: "0 2px 6px rgba(5,150,105,0.25)",
+                                    transition: "background 0.2s ease"
+                                }}
+                            >
+                                Close Tracking
+                            </button>
                         </div>
                     </div>
                 </div>

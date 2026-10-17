@@ -1,10 +1,11 @@
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap");
+@import "./RecyclingCommon.css";
 
 .recyc-dashboard-shell {
   display: flex;
   min-height: 100vh;
   background: #f8fafc;
-  font-family: "Poppins", "Outfit", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--recyc-font-body);
   color: #0f172a;
   position: relative;
   overflow-x: hidden;
@@ -45,10 +46,11 @@
 }
 
 .topbar-title-group h1 {
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-heading);
   font-size: 1.35rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #0f172a;
+  letter-spacing: -0.02em;
   margin: 0;
   line-height: 1.2;
 }
@@ -182,7 +184,7 @@
   border-radius: 7px;
   background: linear-gradient(135deg, #10b981 0%, #0f172a 100%);
   color: #ffffff;
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-heading);
   font-size: 0.8rem;
   font-weight: 700;
   display: flex;
@@ -215,7 +217,7 @@
   color: #fff;
   font-size: 0.62rem;
   font-weight: 700;
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-body);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -256,11 +258,17 @@
 /* Metrics KPI Grid */
 .recyc-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 1rem;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1280px) {
+  .recyc-metrics-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 868px) {
   .recyc-metrics-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -293,6 +301,7 @@
 .metric-card--amber:hover { border-color: rgba(245, 158, 11, 0.4); }
 .metric-card--teal:hover { border-color: rgba(20, 184, 166, 0.4); }
 .metric-card--indigo:hover { border-color: rgba(99, 102, 241, 0.4); }
+.metric-card--rose:hover { border-color: rgba(244, 63, 94, 0.4); }
 
 .metric-icon-wrapper {
   width: 44px;
@@ -326,6 +335,11 @@
   box-shadow: 0 4px 14px rgba(99, 102, 241, 0.28);
 }
 
+.metric-card--rose .metric-icon-wrapper {
+  background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.28);
+}
+
 .metric-content {
   display: flex;
   flex-direction: column;
@@ -345,9 +359,9 @@
 }
 
 .metric-value-row h2 {
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-heading);
   font-size: 1.65rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #0f172a;
   margin: 0;
   line-height: 1;
@@ -384,9 +398,9 @@
 }
 
 .panel-title {
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-heading);
   font-size: 1.15rem;
-  font-weight: 600;
+  font-weight: 700;
   color: #0f172a;
   margin: 0 0 0.2rem;
 }
@@ -398,30 +412,280 @@
 }
 
 .filter-pills {
+  display: inline-flex !important;
+  align-items: center !important;
+  background: #f1f5f9 !important;
+  padding: 3px !important;
+  border-radius: 10px !important;
+  border: 1px solid #e2e8f0 !important;
+  gap: 4px !important;
+  flex-wrap: nowrap !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  height: 38px !important;
+  min-height: 38px !important;
+}
+
+.filter-pill-btn {
+  border: none !important;
+  background: transparent !important;
+  height: 32px !important;
+  max-height: 32px !important;
+  padding: 0 0.8rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+  border-radius: 7px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  line-height: 1 !important;
+}
+
+.filter-pill-btn.active {
+  background: #ffffff !important;
+  color: #059669 !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06) !important;
+}
+
+.panel-controls-right {
   display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* View Toggle Buttons */
+.view-toggle-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   background: #f1f5f9;
   padding: 0.25rem;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
-  gap: 0.2rem;
 }
 
-.filter-pill-btn {
+.view-btn {
   border: none;
   background: transparent;
-  padding: 0.35rem 0.8rem;
-  font-size: 0.75rem;
-  font-weight: 700;
   color: #64748b;
-  border-radius: 7px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
   cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.recyc-dashboard-shell .view-btn:hover:not(.active),
+.recyc-main-panel .view-btn:hover:not(.active),
+.view-btn:hover:not(.active) {
+  color: #059669 !important;
+  background: rgba(5, 150, 105, 0.08) !important;
+}
+
+.recyc-dashboard-shell .view-btn.active,
+.recyc-dashboard-shell .view-toggle-btns .view-btn.active,
+.recyc-main-panel .view-toggle-btns .view-btn.active,
+.view-toggle-btns .view-btn.active,
+.view-btn.active {
+  background: #059669 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35) !important;
+}
+
+/* Cards Grid View */
+.recyc-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.15rem;
+  margin-top: 0.5rem;
+}
+
+.recyc-item-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.15rem;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   transition: all 0.2s ease;
 }
 
-.filter-pill-btn.active {
-  background: #ffffff;
+.recyc-item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(5, 150, 105, 0.1);
+  border-color: #a7f3d0;
+}
+
+.recyc-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.recyc-cat-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #ecfdf5;
   color: #059669;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  border: 1px solid #d1fae5;
+}
+
+.recyc-card-brand-name {
+  margin: 0 0 0.15rem 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.recyc-card-cat-sub {
+  margin: 0;
+  font-size: 0.775rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.recyc-agent-chip-box {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+}
+
+.recyc-agent-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #059669;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.recyc-agent-name {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: block;
+}
+
+.recyc-agent-sub {
+  font-size: 0.725rem;
+  color: #64748b;
+}
+
+.btn-recyc-call {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-recyc-call:hover {
+  background: #059669;
+  color: #ffffff;
+  border-color: #059669;
+}
+
+.recyc-card-rejection-box {
+  background: #fff1f2;
+  border: 1px solid #ffe4e6;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.65rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #be123c;
+}
+
+.recyc-card-rejection-box svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  font-size: 0.85rem;
+}
+
+.recyc-card-specs-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.recyc-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.775rem;
+}
+
+.recyc-detail-row .detail-icon {
+  margin-top: 3px;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.recyc-detail-row .detail-label {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.recyc-detail-row .detail-val {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.recyc-detail-row .detail-sub {
+  font-size: 0.725rem;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.recyc-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed #e2e8f0;
 }
 
 /* Queue Table */
@@ -666,9 +930,9 @@
 
 .recyc-modal-header h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-heading);
 }
 
 .recyc-modal-header p {
@@ -693,12 +957,63 @@
 
 .recyc-modal-body {
   padding: 1.35rem 1.5rem;
+  max-height: calc(85vh - 125px);
+  overflow-y: auto;
 }
 
 .modal-info-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 0.85rem;
+}
+
+/* Modal Inspection Report Box */
+.recyc-modal-inspection-box {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 1.15rem;
+  padding: 1rem 1.25rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.recyc-modal-inspection-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.recyc-modal-inspection-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #dcfce7;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.recyc-modal-inspection-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #065f46;
+}
+
+.recyc-modal-inspection-sub {
+  font-size: 0.75rem;
+  color: #047857;
+  font-weight: 500;
+  margin-top: 2px;
 }
 
 .info-tile {

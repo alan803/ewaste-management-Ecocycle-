@@ -217,7 +217,7 @@ function RecyclingCertificateModal({ isOpen, onClose, certificateData, selectedR
     <title>EcoCycle_E-Waste_Recycling_Certificate_${certNo}.pdf</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@400;500;600;700;800;900&family=Outfit:wght@600;800;900&family=Caveat:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&family=Caveat:wght@700&display=swap" rel="stylesheet">
     <style>
         @page {
             size: A4 landscape;
@@ -233,7 +233,7 @@ function RecyclingCertificateModal({ isOpen, onClose, certificateData, selectedR
         body {
             background: #ffffff;
             color: #1e293b;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -292,9 +292,9 @@ function RecyclingCertificateModal({ isOpen, onClose, certificateData, selectedR
             font-weight: normal;
         }
         .cert-headline-sub {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Space Grotesk', sans-serif;
             font-size: 20px;
-            font-weight: 500;
+            font-weight: 600;
             color: #4a5568;
             margin: 4px 0 0 2px;
         }
@@ -349,8 +349,9 @@ function RecyclingCertificateModal({ isOpen, onClose, certificateData, selectedR
         }
         .cert-entity-name {
             font-size: 15px;
-            font-weight: 800;
+            font-weight: 700;
             color: #0f172a;
+            font-family: 'Space Grotesk', sans-serif;
             letter-spacing: 0.02em;
             text-transform: capitalize;
         }
@@ -442,9 +443,9 @@ function RecyclingCertificateModal({ isOpen, onClose, certificateData, selectedR
         }
         .ecocycle-title {
             font-size: 20px;
-            font-weight: 900;
+            font-weight: 700;
             letter-spacing: 0.06em;
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Space Grotesk', sans-serif;
             color: #ffffff;
         }
         .ecocycle-subtitle {

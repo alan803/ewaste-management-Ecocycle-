@@ -11,7 +11,9 @@ import {
     FiX,
     FiActivity,
     FiShield,
-    FiBell
+    FiBell,
+    FiTruck,
+    FiBarChart2
 } from "react-icons/fi";
 import "./Sidebar.css";
 
@@ -26,7 +28,19 @@ function Sidebar({ isLocked = false, onBlockedNav }) {
             (p === "/refurbishmentcenter_dashboard" || p === "/refurbishment_dashboard" || p === "/refurbishmententer_dashboard")) {
             return true;
         }
-        if (path !== "/refurbishmentcenter_dashboard" && p.startsWith(path)) return true;
+        if ((path === "/refurbishment_delivery" || path === "/refurbishmentcenter_delivery") && 
+            (p === "/refurbishment_delivery" || p === "/refurbishmentcenter_delivery" || p.startsWith("/refurbishment_delivery") || p.startsWith("/refurbishmentcenter_delivery"))) {
+            return true;
+        }
+        if ((path === "/refurbished_devices" || path === "/refurbished-devices" || path === "/refurbishment_repaired") && 
+            (p === "/refurbished_devices" || p === "/refurbished-devices" || p === "/refurbishment_repaired" || p.startsWith("/refurbished_devices") || p.startsWith("/refurbished-devices"))) {
+            return true;
+        }
+        if ((path === "/refurbishment_analytics" || path === "/refurbishment-analytics" || path === "/refurbishmentcenter_analytics") && 
+            (p === "/refurbishment_analytics" || p === "/refurbishment-analytics" || p === "/refurbishmentcenter_analytics" || p.startsWith("/refurbishment_analytics") || p.startsWith("/refurbishment-analytics"))) {
+            return true;
+        }
+        if (path !== "/refurbishmentcenter_dashboard" && path !== "/refurbishment_delivery" && path !== "/refurbished_devices" && path !== "/refurbishment_analytics" && p.startsWith(path)) return true;
         return false;
     };
 
@@ -52,12 +66,6 @@ function Sidebar({ isLocked = false, onBlockedNav }) {
         localStorage.clear();
         navigate("/login");
     };
-
-    const navItems = [
-        { path: "/refurbishmentcenter_dashboard", label: "Inbound Queue", icon: <FiBox /> },
-        { path: "/refurbishment_perform", label: "Refurbish Process", icon: <FiTool /> },
-        { path: "/refurbishment_profile", label: "Center Profile", icon: <FiUser /> }
-    ];
 
     return (
         <>
@@ -93,18 +101,71 @@ function Sidebar({ isLocked = false, onBlockedNav }) {
                         <div className="refurb-nav-group">
                             <span className="refurb-group-title">Facility Menu</span>
                             <ul className="refurb-sidebar-ul">
-                                {navItems.map((item) => (
-                                    <li key={item.path}>
-                                        <Link
-                                            to={item.path}
-                                            className={`refurb-sidebar-link ${isActive(item.path) ? "active" : ""} ${isLocked && !isActive(item.path) ? "nav-locked" : ""}`}
-                                            onClick={(e) => handleNavClick(e, item.path)}
-                                        >
-                                            <span className="refurb-sidebar-icon">{item.icon}</span>
-                                            <span>{item.label}</span>
-                                        </Link>
-                                    </li>
-                                ))}
+                                <li>
+                                    <Link
+                                        to="/refurbishmentcenter_dashboard"
+                                        className={`refurb-sidebar-link ${isActive("/refurbishmentcenter_dashboard") ? "active" : ""} ${isLocked && !isActive("/refurbishmentcenter_dashboard") ? "nav-locked" : ""}`}
+                                        onClick={(e) => handleNavClick(e, "/refurbishmentcenter_dashboard")}
+                                    >
+                                        <span className="refurb-sidebar-icon"><FiBox /></span>
+                                        <span>Inbound Queue</span>
+                                    </Link>
+                                </li>
+
+                                <li>
+                                    <Link
+                                        to="/refurbishment_delivery"
+                                        className={`refurb-sidebar-link ${isActive("/refurbishment_delivery") ? "active" : ""} ${isLocked && !isActive("/refurbishment_delivery") ? "nav-locked" : ""}`}
+                                        onClick={(e) => handleNavClick(e, "/refurbishment_delivery")}
+                                    >
+                                        <span className="refurb-sidebar-icon"><FiTruck /></span>
+                                        <span>Inbound Deliveries</span>
+                                    </Link>
+                                </li>
+
+                                <li>
+                                    <Link
+                                        to="/refurbishment_perform"
+                                        className={`refurb-sidebar-link ${isActive("/refurbishment_perform") ? "active" : ""} ${isLocked && !isActive("/refurbishment_perform") ? "nav-locked" : ""}`}
+                                        onClick={(e) => handleNavClick(e, "/refurbishment_perform")}
+                                    >
+                                        <span className="refurb-sidebar-icon"><FiTool /></span>
+                                        <span>Refurbish Process</span>
+                                    </Link>
+                                </li>
+
+                                <li>
+                                    <Link
+                                        to="/refurbished_devices"
+                                        className={`refurb-sidebar-link ${isActive("/refurbished_devices") ? "active" : ""} ${isLocked && !isActive("/refurbished_devices") ? "nav-locked" : ""}`}
+                                        onClick={(e) => handleNavClick(e, "/refurbished_devices")}
+                                    >
+                                        <span className="refurb-sidebar-icon"><FiCheckSquare /></span>
+                                        <span>Repaired Devices</span>
+                                    </Link>
+                                </li>
+
+                                <li>
+                                    <Link
+                                        to="/refurbishment_analytics"
+                                        className={`refurb-sidebar-link ${isActive("/refurbishment_analytics") ? "active" : ""} ${isLocked && !isActive("/refurbishment_analytics") ? "nav-locked" : ""}`}
+                                        onClick={(e) => handleNavClick(e, "/refurbishment_analytics")}
+                                    >
+                                        <span className="refurb-sidebar-icon"><FiBarChart2 /></span>
+                                        <span>Analytics &amp; Reports</span>
+                                    </Link>
+                                </li>
+
+                                <li>
+                                    <Link
+                                        to="/refurbishment_profile"
+                                        className={`refurb-sidebar-link ${isActive("/refurbishment_profile") ? "active" : ""} ${isLocked && !isActive("/refurbishment_profile") ? "nav-locked" : ""}`}
+                                        onClick={(e) => handleNavClick(e, "/refurbishment_profile")}
+                                    >
+                                        <span className="refurb-sidebar-icon"><FiUser /></span>
+                                        <span>Center Profile</span>
+                                    </Link>
+                                </li>
                             </ul>
                         </div>
 
@@ -125,15 +186,7 @@ function Sidebar({ isLocked = false, onBlockedNav }) {
                     </div>
                 </div>
 
-                {/* Bottom Facility Status Widget */}
-                <div className="refurb-status-card">
-                    <div className="refurb-status-header">
-                        <span>REPAIR BENCH #04</span>
-                        <FiActivity style={{ color: "#a78bfa" }} />
-                    </div>
-                    <div className="refurb-status-name">QC Testing Line</div>
-                    <div className="refurb-status-sub">● Facility Operational (6 Techs)</div>
-                </div>
+                
             </aside>
 
             {/* Mobile Drawer Overlay */}

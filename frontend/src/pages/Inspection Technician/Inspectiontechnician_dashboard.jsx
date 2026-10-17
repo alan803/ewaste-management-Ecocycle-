@@ -1173,10 +1173,32 @@ response.data.forEach((req) => {
                         )}
                     </div>
                 </section>
+            </div>
 
-                {/* Inspection Details Modal */}
-                {selectedRequest && (
-                    <div className="modal-overlay" onClick={() => setSelectedRequest(null)}>
+            {/* Inspection Details Modal */}
+            {selectedRequest && (
+                <div
+                    className="pro-modal-overlay modal-overlay"
+                    onClick={() => setSelectedRequest(null)}
+                    style={{
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        inset: 0,
+                        width: "100vw",
+                        height: "100vh",
+                        background: "rgba(15, 23, 42, 0.6)",
+                        backdropFilter: "blur(4px)",
+                        WebkitBackdropFilter: "blur(4px)",
+                        zIndex: 99999,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "1.5rem"
+                    }}
+                >
                         <div className="clean-modal insp-modal" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <div>
@@ -1384,7 +1406,28 @@ response.data.forEach((req) => {
 
                 {/* Decline Modal */}
                 {rejectionTarget && (
-                    <div className="modal-overlay" onClick={() => setRejectionTarget(null)}>
+                    <div
+                        className="pro-modal-overlay modal-overlay"
+                        onClick={() => setRejectionTarget(null)}
+                        style={{
+                            position: "fixed",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            inset: 0,
+                            width: "100vw",
+                            height: "100vh",
+                            background: "rgba(15, 23, 42, 0.6)",
+                            backdropFilter: "blur(4px)",
+                            WebkitBackdropFilter: "blur(4px)",
+                            zIndex: 99999,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: "1.5rem"
+                        }}
+                    >
                         <div className="clean-modal insp-modal" style={{ maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <div>
@@ -1430,7 +1473,28 @@ response.data.forEach((req) => {
 
                 {/* Today's Inspection Reminder Modal */}
                 {showReminderModal && (
-                    <div className="modal-overlay" onClick={() => setShowReminderModal(false)} style={{ zIndex: 9999 }}>
+                    <div
+                        className="pro-modal-overlay modal-overlay"
+                        onClick={() => setShowReminderModal(false)}
+                        style={{
+                            position: "fixed",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            inset: 0,
+                            width: "100vw",
+                            height: "100vh",
+                            background: "rgba(15, 23, 42, 0.6)",
+                            backdropFilter: "blur(4px)",
+                            WebkitBackdropFilter: "blur(4px)",
+                            zIndex: 99999,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: "1.5rem"
+                        }}
+                    >
                         <div className="clean-modal insp-modal reminder-modal" onClick={(e) => e.stopPropagation()}>
                             <div className="modal-header">
                                 <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
@@ -1600,7 +1664,6 @@ response.data.forEach((req) => {
                         </div>
                     </div>
                 )}
-            </div>
         </div>
     );
 }

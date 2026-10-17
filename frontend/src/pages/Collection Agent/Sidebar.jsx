@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
     FiTruck,
@@ -7,57 +7,14 @@ import {
     FiUser,
     FiLogOut,
     FiMenu,
-    FiX,
-    FiZap,
-    FiCheckCircle,
-    FiShield
+    FiX
 } from "react-icons/fi";
-import axios from "axios";
 import "./Sidebar.css";
 
 function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
-    const [profile, setProfile] = useState(null);
-
-    useEffect(() => {
-        const token = localStorage.getItem("token");
-        if (token) {
-            axios.get("https://ecocycle.runasp.net/api/CollectionAgent/myprofile", {
-                headers: { Authorization: `Bearer ${token}` }
-            })
-            .then((res) => {
-                if (res.data) {
-                    setProfile(res.data);
-                }
-            })
-            .catch(() => {});
-        }
-    }, []);
-
-    const agentName = profile?.name || 
-        profile?.firstName || 
-        localStorage.getItem("firstName") || 
-        localStorage.getItem("userName") || 
-        localStorage.getItem("username") || 
-        "Collection Agent";
-
-    const profilePhoto = profile?.photo || profile?.profilePhoto || profile?.photoPath || localStorage.getItem("profilePhoto");
-
-    const userInitial = (agentName || "A").charAt(0).toUpperCase();
-
-    const getMediaUrl = (filename) => {
-        if (!filename) return null;
-        if (filename.startsWith("http://") || filename.startsWith("https://") || filename.startsWith("blob:")) {
-            return filename;
-        }
-        const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
-        if (cleanName.includes("/") || cleanName.includes("\\")) {
-            return `https://ecocycle.runasp.net/uploads/${cleanName.replace(/\\/g, "/")}`;
-        }
-        return `https://ecocycle.runasp.net/uploads/${cleanName}`;
-    };
 
     const isActive = (path) => {
         if (path === "/collectionagent/dashboard" && (location.pathname === "/collectionagent/dashboard" || location.pathname === "/collectionagent")) return true;
@@ -73,10 +30,6 @@ function Sidebar() {
     const mainNavItems = [
         { path: "/collectionagent/dashboard", label: "Dashboard", icon: <FiHome /> },
         { path: "/collectionagent/pickups", label: "My Pickups", icon: <FiPackage /> }
-    ];
-
-    const accountNavItems = [
-        { path: "/agent-profile", label: "My Profile", icon: <FiUser /> }
     ];
 
     return (
@@ -147,21 +100,6 @@ function Sidebar() {
                                     </button>
                                 </li>
                             </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="agent-sidebar-bottom">
-                    {/* Bottom Vehicle Status Card */}
-                    <div className="agent-vehicle-card">
-                        <div className="agent-vehicle-header">
-                            <span className="agent-fleet-lbl">EV FLEET UNIT</span>
-                            <span className="agent-fleet-badge"><FiZap /> Active</span>
-                        </div>
-                        <div className="agent-vehicle-name">{profile?.vehicleNumber || "E-Truck #KA-05-4092"}</div>
-                        <div className="agent-vehicle-sub">
-                            <span className="agent-bat-dot"></span>
-                            <span>Battery 92% • Active Duty</span>
                         </div>
                     </div>
                 </div>

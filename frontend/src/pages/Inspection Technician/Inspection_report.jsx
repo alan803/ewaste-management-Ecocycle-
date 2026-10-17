@@ -8,7 +8,6 @@ import {
     FiCheckCircle,
     FiFileText,
     FiDownload,
-    FiEye,
     FiX,
     FiCpu,
     FiGrid,
@@ -827,15 +826,10 @@ function InspectionReport() {
 
                                 <div className="card-actions-footer">
                                     <button
-                                        className="action-btn action-btn--secondary"
-                                        onClick={() => setSelectedReport(item)}
-                                    >
-                                        <FiEye /> View Report
-                                    </button>
-                                    <button
                                         className="action-btn action-btn--primary"
                                         onClick={() => handleDownloadReportPdf(item)}
                                         title="Download Certified Detailed PDF Report"
+                                        style={{ width: "100%" }}
                                     >
                                         <FiDownload /> Download PDF
                                     </button>
@@ -882,12 +876,6 @@ function InspectionReport() {
                                         <td>{item.customerName}</td>
                                         <td>
                                             <div className="table-action-group">
-                                                <button
-                                                    className="table-btn table-btn--primary"
-                                                    onClick={() => setSelectedReport(item)}
-                                                >
-                                                    <FiEye /> View
-                                                </button>
                                                 <button
                                                     className="table-btn table-btn--success"
                                                     onClick={() => handleDownloadReportPdf(item)}

@@ -1184,7 +1184,7 @@ namespace EcoCycle.Controllers
                         .ThenInclude(d => d.User)
                     .Include(r => r.Device)
                         .ThenInclude(d => d.Category)
-                    .Where(r => r.RecyclingCenterId == center.RecyclingCenterId && r.Status != "Rejected" && r.Status != "Expired" && r.Status != "Cancelled")
+                    .Where(r => r.RecyclingCenterId == center.RecyclingCenterId)
                     .OrderByDescending(r => r.CreatedAt)
                     .Select(r => new
                     {

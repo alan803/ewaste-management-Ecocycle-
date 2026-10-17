@@ -10,7 +10,8 @@ import {
     FiLayers,
     FiZap,
     FiChevronRight,
-    FiTruck
+    FiTruck,
+    FiBarChart2
 } from "react-icons/fi";
 import "./Sidebar.css";
 
@@ -23,6 +24,10 @@ function Sidebar({ isLocked = false, onBlockedNav }) {
         const p = location.pathname;
         if ((path === "/recyclingcenter_dashboard" || path === "/recycling_dashboard" || path === "/recyclingenter_dashboard") && 
             (p === "/recyclingcenter_dashboard" || p === "/recycling_dashboard" || p === "/recyclingenter_dashboard")) {
+            return true;
+        }
+        if ((path === "/recycling_analytics" || path === "/recyclingcenter_analytics" || path === "/recycling/analytics") &&
+            (p === "/recycling_analytics" || p === "/recyclingcenter_analytics" || p.startsWith("/recycling_analytics") || p.startsWith("/recyclingcenter_analytics") || p.startsWith("/recycling/analytics"))) {
             return true;
         }
         if ((path === "/recycle_profile" || path === "/recyclingcenter_profile") && 
@@ -130,6 +135,20 @@ function Sidebar({ isLocked = false, onBlockedNav }) {
                                     </div>
                                     <span className="admin-sb-link-text">Inbound Deliveries</span>
                                     {isActive("/recycling_delivery") && <FiChevronRight className="admin-sb-chevron" />}
+                                </Link>
+                            </li>
+
+                            <li className="admin-sb-item">
+                                <Link
+                                    to="/recycling_analytics"
+                                    className={`admin-sb-link ${isActive("/recycling_analytics") ? "active" : ""}`}
+                                    onClick={(e) => handleNavClick(e, "/recycling_analytics")}
+                                >
+                                    <div className="admin-sb-icon-box icon-box--amber">
+                                        <FiBarChart2 />
+                                    </div>
+                                    <span className="admin-sb-link-text">Analytics &amp; Reports</span>
+                                    {isActive("/recycling_analytics") && <FiChevronRight className="admin-sb-chevron" />}
                                 </Link>
                             </li>
 

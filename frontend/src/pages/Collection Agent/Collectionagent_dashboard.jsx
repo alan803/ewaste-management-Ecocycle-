@@ -370,6 +370,27 @@ function CollectionAgentDashboard() {
         return dateFormatted;
     };
 
+    const cleanAddress = (rawAddr) => {
+        if (!rawAddr) return "Address N/A";
+        const segments = String(rawAddr)
+            .split(/[,;\n]+/)
+            .map(s => s.trim())
+            .filter(Boolean);
+
+        const seen = new Set();
+        const result = [];
+
+        for (const seg of segments) {
+            const norm = seg.toLowerCase().replace(/\s+/g, " ");
+            if (!seen.has(norm)) {
+                seen.add(norm);
+                result.push(seg);
+            }
+        }
+
+        return result.length > 0 ? result.join(", ") : rawAddr;
+    };
+
     const getStatusBadge = (itemOrStatus) => {
         let s = "";
         let delStat = "";
@@ -771,7 +792,7 @@ function CollectionAgentDashboard() {
                                                         )}
                                                         <div className="pro-info-row">
                                                             <FiMapPin className="icn pin" />
-                                                            <span className="addr-txt">{item.deliveredAddress || item.technicianAddress || "Inspection Center Address"}</span>
+                                                            <span className="addr-txt" title={cleanAddress(item.deliveredAddress || item.technicianAddress || "Inspection Center Address")}>{cleanAddress(item.deliveredAddress || item.technicianAddress || "Inspection Center Address")}</span>
                                                         </div>
                                                         <div className="pro-info-row delivery-row">
                                                             <FiTruck className="icn delivery-icn" />
@@ -792,7 +813,7 @@ function CollectionAgentDashboard() {
                                                         )}
                                                         <div className="pro-info-row">
                                                             <FiMapPin className="icn pin" />
-                                                            <span className="addr-txt">{item.deliveredAddress || item.technicianAddress || "Inspection Center Address"}</span>
+                                                            <span className="addr-txt" title={cleanAddress(item.deliveredAddress || item.technicianAddress || "Inspection Center Address")}>{cleanAddress(item.deliveredAddress || item.technicianAddress || "Inspection Center Address")}</span>
                                                         </div>
                                                         <div className="pro-info-row delivery-row">
                                                             <FiTruck className="icn delivery-icn" />
@@ -813,7 +834,7 @@ function CollectionAgentDashboard() {
                                                         )}
                                                         <div className="pro-info-row">
                                                             <FiMapPin className="icn pin" />
-                                                            <span className="addr-txt">{item.address || "Address N/A"}{item.city ? `, ${item.city}` : ""} {item.pincode ? `(${item.pincode})` : ""}</span>
+                                                            <span className="addr-txt" title={cleanAddress(`${item.address || "Address N/A"}${item.city ? `, ${item.city}` : ""} ${item.pincode ? `(${item.pincode})` : ""}`)}>{cleanAddress(`${item.address || "Address N/A"}${item.city ? `, ${item.city}` : ""} ${item.pincode ? `(${item.pincode})` : ""}`)}</span>
                                                         </div>
                                                         {(item.technicianName || item.inspectionCenterName) && (
                                                             <div className="pro-info-row delivery-row">
@@ -871,13 +892,24 @@ function CollectionAgentDashboard() {
                                                         <FiAlertTriangle /> Expired / Cancelled
                                                     </div>
                                                 ) : isPending ? (
-                                                    <button
-                                                        className="btn-pro-accept"
-                                                        disabled={processingId === item.collectionAssignmentId}
-                                                        onClick={() => handleAccept(item.collectionAssignmentId)}
-                                                    >
-                                                        <FiCheck /> Accept Task
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            className="btn-pro-accept"
+                                                            disabled={processingId === item.collectionAssignmentId}
+                                                            onClick={() => handleAccept(item.collectionAssignmentId)}
+                                                        >
+                                                            <FiCheck /> Accept Task
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="btn-pro-details"
+                                                            style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                                                            onClick={() => setRejectionTarget(item)}
+                                                            disabled={processingId === item.collectionAssignmentId}
+                                                        >
+                                                            <FiX /> Reject
+                                                        </button>
+                                                    </>
                                                 ) : isAccepted ? (
                                                     <button
                                                         className="btn-pro-start"
@@ -886,10 +918,6 @@ function CollectionAgentDashboard() {
                                                     >
                                                         <FiTruck /> Start Pickup
                                                     </button>
-                                                ) : isEnRoute ? (
-                                                    <div className="btn-pro-enroute" style={{ flex: "1 1 auto" }}>
-                                                        <FiTruck /> En Route
-                                                    </div>
                                                 ) : null}
 
                                                 <button
@@ -918,13 +946,13 @@ function CollectionAgentDashboard() {
                             <table className="pro-pickups-table">
                                 <thead>
                                     <tr>
-                                        <th style={{ width: "9%" }}>Task</th>
-                                        <th style={{ width: "23%" }}>E-Waste Item</th>
-                                        <th style={{ width: "18%" }}>Customer / Route</th>
-                                        <th style={{ width: "20%" }}>Pickup Location</th>
-                                        <th style={{ width: "15%" }}>Scheduled Slot</th>
-                                        <th style={{ width: "10%" }}>Status</th>
-                                        <th style={{ width: "5%", textAlign: "right" }}>Actions</th>
+                                        <th style={{ width: "9%", minWidth: "90px" }}>Task</th>
+                                        <th style={{ width: "15%", minWidth: "135px" }}>E-Waste Item</th>
+                                        <th style={{ width: "14%", minWidth: "125px" }}>Customer / Route</th>
+                                        <th style={{ width: "18%", minWidth: "150px" }}>Pickup Location</th>
+                                        <th style={{ width: "13%", minWidth: "125px" }}>Scheduled Slot</th>
+                                        <th style={{ width: "10%", minWidth: "90px" }}>Status</th>
+                                        <th style={{ width: "21%", minWidth: "210px", textAlign: "right" }}>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -982,11 +1010,17 @@ function CollectionAgentDashboard() {
                                                 <td>
                                                     <div className="t-address-wrap">
                                                         <FiMapPin className="t-pin-icn" />
-                                                        <span className="t-addr-txt">
-                                                            {(item.assignmentType === "TechnicianToRefurbishmentCenter" || item.assignmentType === "TechnicianToRecyclingCenter")
+                                                        {(() => {
+                                                            const rawAddr = (item.assignmentType === "TechnicianToRefurbishmentCenter" || item.assignmentType === "TechnicianToRecyclingCenter")
                                                                 ? (item.deliveredAddress || item.technicianAddress || "Inspection Center Address")
-                                                                : `${item.address || "Address N/A"}${item.city ? `, ${item.city}` : ""}`}
-                                                        </span>
+                                                                : `${item.address || "Address N/A"}${item.city ? `, ${item.city}` : ""}${item.pincode ? ` (${item.pincode})` : ""}`;
+                                                            const cleaned = cleanAddress(rawAddr);
+                                                            return (
+                                                                <span className="t-addr-txt" title={cleaned}>
+                                                                    {cleaned}
+                                                                </span>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </td>
                                                 <td>
@@ -1001,13 +1035,24 @@ function CollectionAgentDashboard() {
                                                 <td style={{ textAlign: "right" }}>
                                                     <div className="t-actions">
                                                         {isPending && (
-                                                            <button
-                                                                className="btn-pro-accept sm"
-                                                                disabled={processingId === item.collectionAssignmentId}
-                                                                onClick={() => handleAccept(item.collectionAssignmentId)}
-                                                            >
-                                                                <FiCheck /> Accept
-                                                            </button>
+                                                            <>
+                                                                <button
+                                                                    className="btn-pro-accept sm"
+                                                                    disabled={processingId === item.collectionAssignmentId}
+                                                                    onClick={() => handleAccept(item.collectionAssignmentId)}
+                                                                >
+                                                                    <FiCheck /> Accept
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="btn-pro-details sm"
+                                                                    style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                                                                    onClick={() => setRejectionTarget(item)}
+                                                                    disabled={processingId === item.collectionAssignmentId}
+                                                                >
+                                                                    <FiX /> Reject
+                                                                </button>
+                                                            </>
                                                         )}
                                                         {isAccepted && (
                                                             <button
@@ -1016,22 +1061,6 @@ function CollectionAgentDashboard() {
                                                                 onClick={() => handleStartPickup(item.collectionAssignmentId)}
                                                             >
                                                                 <FiTruck /> Start
-                                                            </button>
-                                                        )}
-                                                        {isEnRoute && (
-                                                            <div className="btn-pro-enroute sm">
-                                                                <FiTruck /> En Route
-                                                            </div>
-                                                        )}
-                                                        {isPending && (
-                                                            <button
-                                                                type="button"
-                                                                className="btn-pro-details sm"
-                                                                style={{ color: "#dc2626", borderColor: "#fecaca" }}
-                                                                onClick={() => setRejectionTarget(item)}
-                                                                disabled={processingId === item.collectionAssignmentId}
-                                                            >
-                                                                <FiX /> Decline
                                                             </button>
                                                         )}
                                                         <button
@@ -1297,7 +1326,7 @@ function CollectionAgentDashboard() {
                     <div className="clean-modal" style={{ maxWidth: "480px" }} onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <div>
-                                <h2>Decline Request</h2>
+                                <h2>Reject Request</h2>
                                 <p className="modal-sub">Assignment {rejectionTarget.collectionAssignmentId}</p>
                             </div>
                             <button className="close-btn" onClick={() => setRejectionTarget(null)}>
@@ -1308,11 +1337,11 @@ function CollectionAgentDashboard() {
                         <form onSubmit={handleRejectSubmit}>
                             <div style={{ margin: "1rem 0" }}>
                                 <label style={{ fontSize: "0.85rem", fontWeight: 700, color: "#475569", display: "block", marginBottom: "0.5rem" }}>
-                                    Reason for declining request:
+                                    Reason for rejecting request:
                                 </label>
                                 <textarea
                                     className="clean-textarea"
-                                    placeholder="Enter reason for declining..."
+                                    placeholder="Enter reason for rejecting..."
                                     value={rejectionReason}
                                     onChange={(e) => setRejectionReason(e.target.value)}
                                     required
@@ -1329,7 +1358,7 @@ function CollectionAgentDashboard() {
                                     className="btn btn-danger"
                                     disabled={processingId === rejectionTarget.collectionAssignmentId}
                                 >
-                                    Decline Request
+                                    Reject Request
                                 </button>
                             </div>
                         </form>

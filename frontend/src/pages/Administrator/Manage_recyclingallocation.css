@@ -431,8 +431,10 @@
 }
 
 @media (min-width: 769px) {
-  .modal-overlay,
-  .alloc-modal-overlay {
+  .admin-alloc-page .modal-overlay,
+  .admin-alloc-page .alloc-modal-overlay,
+  .admin-alloc-mgmt-page .modal-overlay,
+  .admin-alloc-mgmt-page .alloc-modal-overlay {
     left: 255px !important;
     width: calc(100% - 255px) !important;
   }

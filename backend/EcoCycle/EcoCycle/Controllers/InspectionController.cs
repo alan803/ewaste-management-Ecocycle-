@@ -1205,11 +1205,15 @@ namespace EcoCycle.API.Controllers
                 }
 
                 // 5. Notify Collection Agent (Notification + Email)
-                if (ca.CollectionAgent != null && ca.CollectionAgent.Login != null)
+                int agentLoginId = ca.CollectionAgent != null 
+                    ? (ca.CollectionAgent.LoginId > 0 ? ca.CollectionAgent.LoginId : (ca.CollectionAgent.Login?.LoginId ?? 0))
+                    : 0;
+
+                if (agentLoginId > 0)
                 {
                     var agentNotif = new Notification
                     {
-                        LoginId = ca.CollectionAgent.Login.LoginId,
+                        LoginId = agentLoginId,
                         Title = "Device Handover Approved",
                         Message = $"Technician verified & accepted device handover for {ca.Device?.Brand} {ca.Device?.Model} (Device #{ca.DeviceId}).",
                         Isread = false,
@@ -1218,29 +1222,46 @@ namespace EcoCycle.API.Controllers
                     };
                     db.Notification.Add(agentNotif);
 
-                    if (!string.IsNullOrWhiteSpace(ca.CollectionAgent.Login.Email))
+                    string agentEmail = ca.CollectionAgent?.Login?.Email ?? "";
+                    if (string.IsNullOrWhiteSpace(agentEmail))
                     {
+                        var l = await db.Login.FirstOrDefaultAsync(x => x.LoginId == agentLoginId);
+                        agentEmail = l?.Email ?? "";
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(agentEmail))
+                    {
+                        string agentFirstName = ca.CollectionAgent?.FirstName ?? "Collection Agent";
                         string agentEmailSub = $"EcoCycle - Handover Accepted: {ca.Device?.Brand} {ca.Device?.Model}";
                         string agentEmailBody = $@"
                         <html>
                         <body style='font-family: Arial, sans-serif;'>
                             <h2 style='color: #059669;'>Device Handover Confirmed</h2>
-                            <p>Dear <strong>{ca.CollectionAgent.FirstName}</strong>,</p>
+                            <p>Dear <strong>{agentFirstName}</strong>,</p>
                             <p>The Inspection Officer has verified and accepted the device handover for <strong>{ca.Device?.Brand} {ca.Device?.Model}</strong> (Device ID #{ca.DeviceId}).</p>
                             <p>Delivery Status: <strong>Delivered to Center</strong></p>
                             <p>Thank you for completing this collection delivery!</p>
                         </body>
                         </html>";
-                        await SendEmailAsync(ca.CollectionAgent.Login.Email, agentEmailSub, agentEmailBody);
+                        await SendEmailAsync(agentEmail, agentEmailSub, agentEmailBody);
                     }
                 }
 
                 // 6. Notify Citizen (Notification + Email)
-                if (ca.Device != null && ca.Device.User != null && ca.Device.User.Login != null)
+                User? citizenUser = ca.Device?.User;
+                if (citizenUser == null && ca.Device?.UserId > 0)
+                {
+                    citizenUser = await db.Users.Include(u => u.Login).FirstOrDefaultAsync(u => u.UserId == ca.Device.UserId);
+                }
+                int citizenLoginId = citizenUser != null 
+                    ? (citizenUser.LoginId > 0 ? citizenUser.LoginId : (citizenUser.Login?.LoginId ?? 0))
+                    : 0;
+
+                if (citizenLoginId > 0 && ca.Device != null)
                 {
                     var citizenNotif = new Notification
                     {
-                        LoginId = ca.Device.User.Login.LoginId,
+                        LoginId = citizenLoginId,
                         Title = "Device Delivered & Verified at Hub",
                         Message = $"Your e-waste device ({ca.Device.Brand} {ca.Device.Model}) has been safely received and verified by our Inspection Officer.",
                         Isread = false,
@@ -1249,19 +1270,27 @@ namespace EcoCycle.API.Controllers
                     };
                     db.Notification.Add(citizenNotif);
 
-                    if (!string.IsNullOrWhiteSpace(ca.Device.User.Login.Email))
+                    string citizenEmail = citizenUser?.Login?.Email ?? "";
+                    if (string.IsNullOrWhiteSpace(citizenEmail))
                     {
+                        var l = await db.Login.FirstOrDefaultAsync(x => x.LoginId == citizenLoginId);
+                        citizenEmail = l?.Email ?? "";
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(citizenEmail))
+                    {
+                        string citizenFirstName = citizenUser?.FirstName ?? "Valued Customer";
                         string citizenEmailSub = $"EcoCycle - Device Received at Inspection Hub";
                         string citizenEmailBody = $@"
                         <html>
                         <body style='font-family: Arial, sans-serif;'>
                             <h2 style='color: #059669;'>Device Delivered to Inspection Center</h2>
-                            <p>Dear <strong>{ca.Device.User.FirstName}</strong>,</p>
+                            <p>Dear <strong>{citizenFirstName}</strong>,</p>
                             <p>Your listed e-waste device <strong>{ca.Device.Brand} {ca.Device.Model}</strong> has arrived at our inspection facility and was successfully verified by the Inspection Officer.</p>
                             <p>Our team will now perform technical evaluations and recycling processing.</p>
                         </body>
                         </html>";
-                        await SendEmailAsync(ca.Device.User.Login.Email, citizenEmailSub, citizenEmailBody);
+                        await SendEmailAsync(citizenEmail, citizenEmailSub, citizenEmailBody);
                     }
                 }
 
@@ -1385,11 +1414,15 @@ namespace EcoCycle.API.Controllers
                 }
 
                 // 4. Notify Collection Agent (Notification + Email)
-                if (ca.CollectionAgent != null && ca.CollectionAgent.Login != null)
+                int agentLoginId = ca.CollectionAgent != null 
+                    ? (ca.CollectionAgent.LoginId > 0 ? ca.CollectionAgent.LoginId : (ca.CollectionAgent.Login?.LoginId ?? 0))
+                    : 0;
+
+                if (agentLoginId > 0)
                 {
                     var agentNotif = new Notification
                     {
-                        LoginId = ca.CollectionAgent.Login.LoginId,
+                        LoginId = agentLoginId,
                         Title = "⚠️ Technician Rejected Device Handover",
                         Message = $"Technician rejected device handover for {ca.Device?.Brand} {ca.Device?.Model}. Reason: {reason}. Notes: {description}",
                         Isread = false,
@@ -1398,30 +1431,47 @@ namespace EcoCycle.API.Controllers
                     };
                     db.Notification.Add(agentNotif);
 
-                    if (!string.IsNullOrWhiteSpace(ca.CollectionAgent.Login.Email))
+                    string agentEmail = ca.CollectionAgent?.Login?.Email ?? "";
+                    if (string.IsNullOrWhiteSpace(agentEmail))
                     {
+                        var l = await db.Login.FirstOrDefaultAsync(x => x.LoginId == agentLoginId);
+                        agentEmail = l?.Email ?? "";
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(agentEmail))
+                    {
+                        string agentFirstName = ca.CollectionAgent?.FirstName ?? "Collection Agent";
                         string agentEmailSub = $"⚠️ Action Required: Handover Rejected for {ca.Device?.Brand} {ca.Device?.Model}";
                         string agentEmailBody = $@"
                         <html>
                         <body style='font-family: Arial, sans-serif;'>
                             <h2 style='color: #dc2626;'>Technician Rejected Device Handover</h2>
-                            <p>Dear <strong>{ca.CollectionAgent.FirstName}</strong>,</p>
+                            <p>Dear <strong>{agentFirstName}</strong>,</p>
                             <p>The Inspection Officer rejected the device handover for <strong>{ca.Device?.Brand} {ca.Device?.Model}</strong> (Device ID #{ca.DeviceId}).</p>
                             <p><strong>Reason:</strong> <span style='color: #dc2626; font-weight: bold;'>{reason}</span></p>
                             {(string.IsNullOrWhiteSpace(description) ? "" : $"<p><strong>Technician Notes:</strong> {description}</p>")}
                             <p>Please review and resolve the issue with the device or contact the customer / inspection officer.</p>
                         </body>
                         </html>";
-                        await SendEmailAsync(ca.CollectionAgent.Login.Email, agentEmailSub, agentEmailBody);
+                        await SendEmailAsync(agentEmail, agentEmailSub, agentEmailBody);
                     }
                 }
 
                 // 5. Notify Citizen (Notification)
-                if (ca.Device != null && ca.Device.User != null && ca.Device.User.Login != null)
+                User? citizenUser = ca.Device?.User;
+                if (citizenUser == null && ca.Device?.UserId > 0)
+                {
+                    citizenUser = await db.Users.Include(u => u.Login).FirstOrDefaultAsync(u => u.UserId == ca.Device.UserId);
+                }
+                int citizenLoginId = citizenUser != null 
+                    ? (citizenUser.LoginId > 0 ? citizenUser.LoginId : (citizenUser.Login?.LoginId ?? 0))
+                    : 0;
+
+                if (citizenLoginId > 0 && ca.Device != null)
                 {
                     var citizenNotif = new Notification
                     {
-                        LoginId = ca.Device.User.Login.LoginId,
+                        LoginId = citizenLoginId,
                         Title = "Handover Discrepancy Reported",
                         Message = $"Inspection officer reported an issue ({reason}) during handover for your {ca.Device.Brand} {ca.Device.Model}. Collection agent is reviewing.",
                         Isread = false,

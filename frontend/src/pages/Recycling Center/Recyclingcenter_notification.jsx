@@ -25,6 +25,7 @@ function Recyclingcenter_notification() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [authError, setAuthError] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedId, setSelectedId] = useState(null);
@@ -43,6 +44,7 @@ function Recyclingcenter_notification() {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
+        setAuthError(true);
         setLoading(false);
         setRefreshing(false);
         return;
@@ -57,6 +59,7 @@ function Recyclingcenter_notification() {
         }
       );
 
+      setAuthError(false);
       const raw = Array.isArray(response.data) ? response.data : [];
       const data = raw.map((n) => ({
         notificationId: n.notificationId ?? n.NotificationId ?? n.id,
@@ -73,6 +76,9 @@ function Recyclingcenter_notification() {
       }
     } catch (err) {
       console.error("Error fetching recycling center notifications:", err);
+      if (err.response?.status === 401) {
+        setAuthError(true);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -287,6 +293,54 @@ function Recyclingcenter_notification() {
           </div>
         </header>
 
+        {/* Session Expired / Auth Error Notice */}
+        {authError && (
+          <div style={{
+            margin: "0 0 1.25rem 0",
+            padding: "0.9rem 1.25rem",
+            background: "#fff1f2",
+            border: "1px solid #fecdd3",
+            borderRadius: "14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "1rem",
+            flexWrap: "wrap",
+            boxShadow: "0 2px 8px rgba(225, 29, 72, 0.08)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <FiAlertCircle style={{ fontSize: "1.4rem", color: "#e11d48", flexShrink: 0 }} />
+              <div>
+                <strong style={{ display: "block", fontSize: "0.9rem", color: "#9f1239" }}>
+                  Session Expired (401 Unauthorized)
+                </strong>
+                <span style={{ fontSize: "0.825rem", color: "#be123c" }}>
+                  Your authentication session has expired. Please log in again to retrieve your facility notifications.
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="inbox-btn"
+              style={{
+                background: "#059669",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "10px",
+                padding: "0.5rem 1.15rem",
+                fontWeight: "700",
+                cursor: "pointer"
+              }}
+              onClick={() => {
+                localStorage.clear();
+                navigate("/");
+              }}
+            >
+              Log In Again
+            </button>
+          </div>
+        )}
+
         {/* Toolbar Controls */}
         <div className="inbox-toolbar">
           <div>
@@ -297,27 +351,82 @@ function Recyclingcenter_notification() {
           <div className="inbox-toolbar-right">
             <div className="filter-pills">
               <button
-                className={`pill-btn ${activeTab === "all" ? "active" : ""}`}
+                className={`filter-pill-btn recyc-pill-btn ${activeTab === "all" ? "active" : ""}`}
                 onClick={() => setActiveTab("all")}
+                style={
+                  activeTab === "all"
+                    ? {
+                        background: "#059669",
+                        color: "#ffffff",
+                        border: "none",
+                        boxShadow: "0 2px 8px rgba(5, 150, 105, 0.35)",
+                      }
+                    : { border: "none" }
+                }
               >
                 All Inbox
-                <span className="tab-badge">{notifications.length}</span>
+                <span
+                  className="tab-badge"
+                  style={
+                    activeTab === "all"
+                      ? { background: "rgba(255, 255, 255, 0.25)", color: "#ffffff" }
+                      : {}
+                  }
+                >
+                  {notifications.length}
+                </span>
               </button>
 
               <button
-                className={`pill-btn ${activeTab === "unread" ? "active" : ""}`}
+                className={`filter-pill-btn recyc-pill-btn ${activeTab === "unread" ? "active" : ""}`}
                 onClick={() => setActiveTab("unread")}
+                style={
+                  activeTab === "unread"
+                    ? {
+                        background: "#059669",
+                        color: "#ffffff",
+                        border: "none",
+                        boxShadow: "0 2px 8px rgba(5, 150, 105, 0.35)",
+                      }
+                    : { border: "none" }
+                }
               >
                 Unread
-                <span className="tab-badge">{unreadCount}</span>
+                <span
+                  className="tab-badge"
+                  style={
+                    activeTab === "unread"
+                      ? { background: "rgba(255, 255, 255, 0.25)", color: "#ffffff" }
+                      : {}
+                  }
+                >
+                  {unreadCount}
+                </span>
               </button>
 
               <button
-                className={`pill-btn ${activeTab === "allocations" ? "active" : ""}`}
+                className={`filter-pill-btn recyc-pill-btn ${activeTab === "allocations" ? "active" : ""}`}
                 onClick={() => setActiveTab("allocations")}
+                style={
+                  activeTab === "allocations"
+                    ? {
+                        background: "#059669",
+                        color: "#ffffff",
+                        border: "none",
+                        boxShadow: "0 2px 8px rgba(5, 150, 105, 0.35)",
+                      }
+                    : { border: "none" }
+                }
               >
                 Allocations
-                <span className="tab-badge">
+                <span
+                  className="tab-badge"
+                  style={
+                    activeTab === "allocations"
+                      ? { background: "rgba(255, 255, 255, 0.25)", color: "#ffffff" }
+                      : {}
+                  }
+                >
                   {notifications.filter((n) => getCategory(n.title, n.message).key === "allocations").length}
                 </span>
               </button>
@@ -361,11 +470,43 @@ function Recyclingcenter_notification() {
               </div>
             ) : filteredNotifications.length === 0 ? (
               <div className="reader-empty">
-                <FiInbox className="reader-empty-icon" />
-                <p style={{ margin: 0, fontWeight: 600, color: "#475569" }}>No messages found</p>
-                <span style={{ fontSize: "0.8rem", marginTop: "0.25rem" }}>
-                  {searchQuery ? "Try clearing search filter" : "Your facility inbox is clean."}
-                </span>
+                {authError ? (
+                  <>
+                    <FiAlertCircle className="reader-empty-icon" style={{ color: "#e11d48" }} />
+                    <p style={{ margin: 0, fontWeight: 700, color: "#0f172a" }}>Session Expired</p>
+                    <span style={{ fontSize: "0.825rem", marginTop: "0.25rem", color: "#64748b" }}>
+                      Your authentication token has expired. Please log in again to view notifications.
+                    </span>
+                    <button
+                      type="button"
+                      className="inbox-btn"
+                      style={{
+                        background: "#059669",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "10px",
+                        padding: "0.5rem 1rem",
+                        fontWeight: "700",
+                        marginTop: "1rem",
+                        cursor: "pointer"
+                      }}
+                      onClick={() => {
+                        localStorage.clear();
+                        navigate("/");
+                      }}
+                    >
+                      Go to Login
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <FiInbox className="reader-empty-icon" />
+                    <p style={{ margin: 0, fontWeight: 600, color: "#475569" }}>No messages found</p>
+                    <span style={{ fontSize: "0.8rem", marginTop: "0.25rem" }}>
+                      {searchQuery ? "Try clearing search filter" : "Your facility inbox is clean."}
+                    </span>
+                  </>
+                )}
               </div>
             ) : (
               <div className="inbox-list-scroll">

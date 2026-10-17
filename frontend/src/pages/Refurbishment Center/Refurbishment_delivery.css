@@ -1,0 +1,675 @@
+/* Refurbishment_delivery.css - Refurbishment Center Inbound Deliveries & Live Tracking */
+@import "./RefurbishmentCommon.css";
+
+.refurb-delivery-page {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f1f5f9;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.04) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.04) 0px, transparent 50%);
+  font-family: var(--refurb-font-body);
+  color: #0f172a;
+}
+
+.refurb-main-container,
+.refurb-main-content {
+  flex: 1;
+  min-width: 0;
+  padding: 1.5rem 2rem;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+@media (max-width: 992px) {
+  .refurb-main-container,
+  .refurb-main-content {
+    padding: 1rem;
+  }
+}
+
+/* Header Actions Bar */
+.refurb-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.refurb-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+.refurb-refresh-btn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 0.45rem 0.85rem;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.refurb-refresh-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.refurb-user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.95rem;
+  box-shadow: 0 3px 10px rgba(124, 58, 237, 0.25);
+  border: 2px solid #ffffff;
+}
+
+/* Hero Dispatch Banner Card */
+.refurb-hero-banner {
+  background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 50%, #7c3aed 100%);
+  border-radius: 16px;
+  padding: 1.25rem 1.6rem;
+  color: #ffffff;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 6px 18px rgba(109, 40, 217, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.refurb-hero-banner::after {
+  content: "";
+  position: absolute;
+  right: -20px;
+  bottom: -40px;
+  width: 180px;
+  height: 180px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.refurb-hero-content h2 {
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.refurb-hero-content p {
+  font-size: 0.825rem;
+  color: #ddd6fe;
+  margin: 0;
+  max-width: 650px;
+  line-height: 1.45;
+}
+
+/* KPI Summary Cards Grid */
+.refurb-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.refurb-kpi-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
+
+.refurb-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.refurb-kpi-icon.all { background: #f5f3ff; color: #7c3aed; }
+.refurb-kpi-icon.transit { background: #eff6ff; color: #2563eb; }
+.refurb-kpi-icon.delivered { background: #f0fdf4; color: #166534; }
+.refurb-kpi-icon.weight { background: #fef3c7; color: #d97706; }
+
+.refurb-kpi-info h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.refurb-kpi-info p {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* Controls Header & Tabs */
+.control-bar-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem 1.25rem;
+}
+
+/* Search Bar (Sized to match Filter Pills div, 38px height) */
+.refurb-delivery-search,
+.refurb-delivery-page .search-bar {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  background: #ffffff !important;
+  padding: 0 0.85rem !important;
+  border-radius: 10px !important;
+  gap: 0.6rem !important;
+  border: 1px solid #e2e8f0 !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  width: 340px !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+.refurb-delivery-search .refurb-search-icon,
+.refurb-delivery-page .search-bar .search-icon,
+.refurb-delivery-search svg,
+.refurb-delivery-page .search-bar svg {
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  color: #64748b !important;
+  font-size: 0.95rem !important;
+  transition: color 0.2s ease !important;
+  flex-shrink: 0 !important;
+}
+
+.refurb-delivery-search input,
+.refurb-delivery-page .search-bar input {
+  position: static !important;
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-size: 0.825rem !important;
+  font-family: inherit !important;
+  color: #0f172a !important;
+  flex: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+.refurb-delivery-search input:focus,
+.refurb-delivery-page .search-bar input:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  width: 100% !important;
+}
+
+.refurb-delivery-search input::placeholder,
+.refurb-delivery-page .search-bar input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.refurb-delivery-search .refurb-search-clear,
+.refurb-delivery-page .search-bar .search-clear-btn {
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  color: #94a3b8 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  font-size: 0.85rem !important;
+  flex-shrink: 0 !important;
+  transition: color 0.15s ease !important;
+}
+
+.refurb-delivery-search .refurb-search-clear:hover,
+.refurb-delivery-page .search-bar .search-clear-btn:hover {
+  color: #64748b !important;
+}
+
+/* Search Selection / Focus Effect (Violet Glow on Container) */
+.refurb-delivery-search:focus-within,
+.refurb-delivery-page .search-bar:focus-within {
+  border-color: #7c3aed !important;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18) !important;
+  background: #ffffff !important;
+}
+
+.refurb-delivery-search:focus-within .refurb-search-icon,
+.refurb-delivery-page .search-bar:focus-within .search-icon,
+.refurb-delivery-search:focus-within svg,
+.refurb-delivery-page .search-bar:focus-within svg {
+  color: #7c3aed !important;
+}
+
+/* Filter Pills Div (38px height) */
+.refurb-delivery-page .filter-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #f1f5f9;
+  padding: 0.25rem;
+  border-radius: 10px;
+  height: 38px;
+  min-height: 38px;
+  box-sizing: border-box;
+}
+
+.refurb-delivery-page .pill-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.775rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.refurb-delivery-page .pill-btn:hover:not(.active) {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.06);
+}
+
+/* Filter Selection Color: Violet instead of Green */
+.refurb-delivery-page .pill-btn.active,
+.refurb-delivery-page .filter-pills .pill-btn.active {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  border-color: #7c3aed !important;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3) !important;
+}
+
+/* View Toggle Buttons (38px height) */
+.refurb-delivery-page .view-toggle-btns,
+.view-toggle-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #f1f5f9;
+  padding: 0.25rem;
+  border-radius: 10px;
+  height: 38px;
+  min-height: 38px;
+  box-sizing: border-box;
+}
+
+.refurb-delivery-page .view-btn,
+.view-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.refurb-delivery-page .view-btn:hover:not(.active) {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.06);
+}
+
+/* View Toggle Selection Color: Violet */
+.refurb-delivery-page .view-btn.active,
+.refurb-delivery-page .view-toggle-btns .view-btn.active {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3) !important;
+}
+
+/* Cards Grid View */
+.refurb-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.15rem;
+  margin-top: 1rem;
+}
+
+.refurb-delivery-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.15rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+}
+
+.refurb-delivery-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.08);
+  border-color: #ddd6fe;
+}
+
+.refurb-card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.refurb-cat-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f5f3ff;
+  color: #7c3aed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+
+.refurb-card-brand-name {
+  margin: 0 0 0.15rem 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.refurb-card-cat-sub {
+  margin: 0;
+  font-size: 0.775rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.refurb-agent-chip-box {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+}
+
+.refurb-agent-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #7c3aed;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.refurb-agent-name {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #0f172a;
+  display: block;
+}
+
+.refurb-agent-sub {
+  font-size: 0.725rem;
+  color: #64748b;
+}
+
+.btn-refurb-call {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #7c3aed;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3);
+}
+
+.refurb-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.refurb-detail-row .detail-icon {
+  font-size: 0.95rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.refurb-detail-row .detail-label {
+  font-size: 0.675rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.04em;
+}
+
+.refurb-detail-row .detail-val {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Glass Table View */
+.glass-table-wrapper {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.glass-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 950px;
+}
+
+.glass-table th {
+  background: #f8fafc;
+  padding: 0.85rem 1rem;
+  font-size: 0.725rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #475569;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.glass-table td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.825rem;
+  vertical-align: middle;
+}
+
+.glass-table tr:last-child td {
+  border-bottom: none;
+}
+
+.table-row-hover:hover {
+  background: #f8fafc;
+}
+
+.btn-track-live {
+  background: #7c3aed;
+  color: #ffffff;
+  border: none;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.775rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-track-live:hover {
+  background: #6d28d9;
+}
+
+/* Tracking Modal Overlay */
+.refurb-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.refurb-modal-dialog {
+  background: #ffffff;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  width: 100%;
+}
+
+/* Timeline Component */
+.refurb-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  position: relative;
+  padding-left: 0.5rem;
+}
+
+.refurb-timeline-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.1rem;
+  position: relative;
+}
+
+.refurb-timeline-step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 24px;
+  bottom: -1.15rem;
+  width: 2px;
+  background: #e2e8f0;
+  z-index: 1;
+}
+
+.refurb-timeline-step.completed:not(:last-child)::before {
+  background: #059669;
+}
+
+.refurb-timeline-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  z-index: 2;
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.refurb-timeline-step.completed .refurb-timeline-dot {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+}
+
+.refurb-timeline-step.current .refurb-timeline-dot {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2);
+}
+
+.refurb-timeline-content h5 {
+  margin: 0 0 0.15rem 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.refurb-timeline-content p {
+  margin: 0;
+  font-size: 0.775rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.loading-state, .no-data-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #64748b;
+}
+
+.no-data-icon {
+  font-size: 2.5rem;
+  color: #cbd5e1;
+  margin-bottom: 0.5rem;
+}

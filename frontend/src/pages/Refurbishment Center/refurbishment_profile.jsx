@@ -32,7 +32,12 @@ import {
     FiTruck,
     FiUsers,
     FiBriefcase,
-    FiArrowLeft
+    FiArrowLeft,
+    FiBell,
+    FiBox,
+    FiChevronDown,
+    FiInfo,
+    FiUser
 } from "react-icons/fi";
 import "./refurbishment_profile.css";
 
@@ -41,11 +46,13 @@ function RefurbishmentProfile() {
     const fileInputRef = useRef(null);
 
     const [profile, setProfile] = useState(null);
+    const [unreadNotifCount, setUnreadNotifCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
+    const [activeTab, setActiveTab] = useState("personal");
 
     // Profile Picture Upload State
     const [selectedFile, setSelectedFile] = useState(null);
@@ -242,7 +249,25 @@ function RefurbishmentProfile() {
             return;
         }
         loadProfile(token);
+        fetchUnreadNotifCount(token);
     }, [navigate]);
+
+    const fetchUnreadNotifCount = async (token) => {
+        try {
+            const authToken = token || localStorage.getItem("token");
+            const res = await axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
+                headers: { Authorization: `Bearer ${authToken}` }
+            });
+            const list = Array.isArray(res.data) ? res.data : [];
+            const unread = list.filter(n => {
+                const isR = n.isRead !== undefined ? n.isRead : (n.isread !== undefined ? n.isread : n.Isread);
+                return !isR;
+            }).length;
+            setUnreadNotifCount(unread);
+        } catch {
+            setUnreadNotifCount(0);
+        }
+    };
 
     const getMediaUrl = (filename, folderName = "") => {
         if (!filename) return null;
@@ -527,23 +552,42 @@ function RefurbishmentProfile() {
         }
     ];
 
+    const profileTabs = [
+        { id: "personal", label: "Personal Information", icon: <FiShield /> },
+        { id: "address", label: "Facility Address", icon: <FiMapPin /> },
+        { id: "operations", label: "Operations & Capacity", icon: <FiTool /> },
+        { id: "legal", label: "Legal & Compliance", icon: <FiAward /> },
+        { id: "documents", label: "Document Vault", icon: <FiFileText /> },
+        { id: "security", label: "Security & Password", icon: <FiKey /> }
+    ];
+
     return (
-        <div className="refurb-profile-layout">
+        <div className="refurb-dashboard-layout refurb-profile-layout">
             <Sidebar />
 
-            <div className="refurb-profile-main">
+            <main className="refurb-main-content refurb-profile-main">
                 {/* Header Top Bar Ribbon */}
-                <div className="refurb-profile-top-nav">
-                    <div className="refurb-profile-page-title">
-                        <div className="refurb-title-icon-badge">
-                            <FiCpu />
-                        </div>
-                        <div>
-                            <h1>Facility Profile & Credentials</h1>
-                            <p>EcoCycle E-Waste Operations • Certified Refurbishment Center Facility</p>
-                        </div>
+                <div className="refurb-header-ribbon">
+                    <div>
+                        <h1 className="refurb-welcome-title">Facility Profile &amp; Settings</h1>
+                        <p className="refurb-welcome-sub">Refurbishment Center Operations &bull; Credentials &amp; Verification Details</p>
                     </div>
 
+                    <div className="refurb-header-actions">
+                        <button
+                            type="button"
+                            onClick={() => navigate("/refurbishmentcenter_notification")}
+                            title="Notifications"
+                            className="notif-bell-btn"
+                        >
+                            <FiBell style={{ color: "#475569", fontSize: "1.1rem" }} />
+                            {unreadNotifCount > 0 && (
+                                <span className="notif-badge">
+                                    {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                                </span>
+                            )}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Hidden File Input for Photo Upload */}
@@ -587,731 +631,591 @@ function RefurbishmentProfile() {
                     </div>
                 )}
 
-                {/* Flat Simple Profile Header (No Cover Banner) */}
-                <div className="refurb-flat-profile-header">
-                    <div className="refurb-flat-header-left">
-                        <div className="refurb-avatar-frame">
-                            {profileImagePreview ? (
-                                <img
-                                    src={profileImagePreview}
-                                    alt={centerName}
-                                    className="refurb-avatar-img"
-                                    onError={(e) => {
-                                        e.target.onerror = null;
-                                        e.target.style.display = "none";
-                                        e.target.nextSibling.style.display = "flex";
-                                    }}
-                                />
-                            ) : null}
-                            <div
-                                className="refurb-avatar-fallback"
-                                style={{ display: profileImagePreview ? "none" : "flex" }}
-                            >
-                                {avatarInitial}
-                            </div>
-                            <div className="refurb-verified-badge" title="Certified Refurbishment Center">
-                                <FiCheck />
-                            </div>
-
-                            <button
-                                type="button"
-                                className="refurb-avatar-camera-btn"
-                                onClick={() => fileInputRef.current?.click()}
-                                title="Upload facility picture"
-                            >
-                                <FiCamera />
-                            </button>
-                        </div>
-
-                        <div className="refurb-flat-header-info">
-                            <div className="refurb-flat-title-row">
-                                <h2 className="refurb-flat-name">{centerName}</h2>
-                                <span className="refurb-status-pill active">
-                                    <span className="refurb-status-dot"></span>
-                                    Operational Active
-                                </span>
-                                <span className="refurb-id-tag">
-                                    Facility ID: RC-{profile?.RefurbishmentCenterId || "019"}
-                                </span>
-                            </div>
-                            <div className="refurb-flat-subtext">
-                                <span className="refurb-subtext-item">
-                                    <FiMail /> {email}
-                                </span>
-                                <span className="refurb-subtext-item">
-                                    <FiPhone /> {phone}
-                                </span>
-                                <span className="refurb-subtext-item">
-                                    <FiMapPin /> {city}, {state}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="refurb-flat-header-actions">
-                        {!isEditing ? (
-                            <button
-                                type="button"
-                                className="refurb-edit-btn"
-                                onClick={() => setIsEditing(true)}
-                            >
-                                <FiEdit3 /> Edit Profile
-                            </button>
-                        ) : (
-                            <div style={{ display: "flex", gap: "0.5rem" }}>
-                                <button
-                                    type="button"
-                                    className="refurb-save-btn"
-                                    onClick={handleSaveChanges}
-                                    disabled={saving}
-                                >
-                                    <FiSave /> {saving ? "Saving..." : "Save Changes"}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="refurb-cancel-btn"
-                                    onClick={handleCancelEdit}
-                                    disabled={saving}
-                                >
-                                    <FiX /> Cancel
-                                </button>
-                            </div>
-                        )}
-
-                        {!showPasswordSection && (
-                            <button
-                                type="button"
-                                className="refurb-change-pwd-btn"
-                                onClick={() => {
+                {/* 1. Horizontal Profile Navigation Tabs */}
+                <div className="fc-profile-tabs-bar">
+                    {profileTabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            className={`fc-tab-item ${activeTab === tab.id ? "active" : ""}`}
+                            onClick={() => {
+                                if (tab.id !== "security") {
                                     handleResetPasswordForm();
-                                    setShowPasswordSection(true);
-                                }}
-                            >
-                                <FiKey /> Change Password
-                            </button>
-                        )}
-                    </div>
+                                }
+                                setActiveTab(tab.id);
+                            }}
+                        >
+                            <span className="fc-tab-icon">{tab.icon}</span>
+                            <span className="fc-tab-label">{tab.label}</span>
+                        </button>
+                    ))}
                 </div>
 
-                {/* Change Password Card UI (Step 1 & Step 2 Flow Same as Collection Agent) */}
-                {showPasswordSection && (
-                    <div className="refurb-password-change-card">
-                        <div className="refurb-password-card-header">
-                            <div className="refurb-password-card-title-group">
-                                <FiKey style={{ color: "#7c3aed", fontSize: "1.15rem" }} />
-                                <h3 className="refurb-card-title" style={{ margin: 0, fontSize: "1rem", fontWeight: "700" }}>
-                                    {passwordStep === 1 ? "Verify Current Password" : "Set New Password"}
-                                </h3>
-                            </div>
-                            <button
-                                type="button"
-                                className="refurb-password-close-btn"
-                                onClick={handleResetPasswordForm}
-                                title="Close Password Form"
-                            >
-                                <FiX />
-                            </button>
-                        </div>
-
-                        {/* Error Alert Message */}
-                        {passwordError && (
-                            <div style={{
-                                background: "#fef2f2",
-                                border: "1px solid #fecaca",
-                                color: "#dc2626",
-                                padding: "0.65rem 0.85rem",
-                                borderRadius: "10px",
-                                fontSize: "0.8rem",
-                                fontWeight: "600",
-                                marginBottom: "0.85rem",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.5rem"
-                            }}>
-                                <FiAlertCircle style={{ flexShrink: 0 }} />
-                                <span>{passwordError}</span>
-                            </div>
-                        )}
-
-                        {/* STEP 1: Enter Current Password */}
-                        {passwordStep === 1 ? (
-                            <form onSubmit={handleVerifyCurrentPassword} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                                <p style={{ fontSize: "0.825rem", color: "#475569", margin: "0 0 0.4rem 0" }}>
-                                    Enter your current facility account password to proceed:
-                                </p>
-
-                                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.775rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>
-                                        <FiLock style={{ color: "#7c3aed" }} /> Current Password
-                                    </label>
-                                    <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                                        <input
-                                            type={showCurrentPassword ? "text" : "password"}
-                                            className="refurb-input"
-                                            style={{ paddingRight: "2.5rem" }}
-                                            placeholder="Enter current password"
-                                            value={currentPasswordInput}
-                                            onChange={(e) => handleCurrentPasswordChange(e.target.value)}
-                                            autoFocus
-                                        />
-                                        <button
-                                            type="button"
-                                            style={{
-                                                position: "absolute",
-                                                right: "0.75rem",
-                                                background: "transparent",
-                                                border: "none",
-                                                color: "#94a3b8",
-                                                cursor: "pointer",
-                                                fontSize: "1.05rem"
+                {/* 2. Main Profile Card */}
+                <div className="fc-profile-card-container">
+                    {/* TAB 1: Personal Information */}
+                    {activeTab === "personal" && (
+                        <div className="fc-main-card">
+                            <div className="fc-card-header">
+                                <div
+                                    className="fc-topbar-avatar-wrap"
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => fileInputRef.current?.click()}
+                                    title="Change facility picture"
+                                >
+                                    {profileImagePreview ? (
+                                        <img
+                                            src={profileImagePreview}
+                                            alt={centerName}
+                                            className="fc-topbar-avatar-img"
+                                            onError={(e) => {
+                                                e.target.onerror = null;
+                                                e.target.style.display = "none";
+                                                e.target.nextSibling.style.display = "flex";
                                             }}
-                                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                                            tabIndex="-1"
-                                        >
-                                            {showCurrentPassword ? <FiEyeOff /> : <FiEye />}
-                                        </button>
+                                        />
+                                    ) : null}
+                                    <div
+                                        className="fc-topbar-avatar-fallback"
+                                        style={{ display: profileImagePreview ? "none" : "flex" }}
+                                    >
+                                        {avatarInitial}
                                     </div>
-                                    {passwordFormErrors.currentPassword && (
-                                        <span style={{ color: "#ef4444", fontSize: "0.775rem", fontWeight: "600", marginTop: "0.25rem", display: "block" }}>
-                                            {passwordFormErrors.currentPassword}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.5rem" }}>
                                     <button
                                         type="button"
-                                        className="refurb-cancel-btn"
-                                        style={{ flex: 1, justifyContent: "center" }}
-                                        onClick={handleResetPasswordForm}
-                                        disabled={passwordLoading}
+                                        className="fc-topbar-cam-btn"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            fileInputRef.current?.click();
+                                        }}
+                                        title="Change facility picture"
                                     >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="refurb-save-btn"
-                                        style={{ flex: 1.2, justifyContent: "center" }}
-                                        disabled={passwordLoading}
-                                    >
-                                        {passwordLoading ? "Verifying..." : "Verify Password"}
+                                        <FiCamera />
                                     </button>
                                 </div>
-                            </form>
-                        ) : (
-                            <form onSubmit={handleUpdateNewPassword} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                                {/* STEP 2: Current password verified -> Enter New Password & Confirm Password */}
-                                <div style={{
-                                    background: "#f5f3ff",
-                                    border: "1px solid #ddd6fe",
-                                    color: "#6d28d9",
-                                    padding: "0.5rem 0.75rem",
-                                    borderRadius: "8px",
-                                    fontSize: "0.785rem",
-                                    fontWeight: "600",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "0.4rem",
-                                    marginBottom: "0.35rem"
-                                }}>
-                                    <FiCheckCircle style={{ flexShrink: 0 }} />
-                                    <span>Current password verified! Enter your new password below.</span>
-                                </div>
-
-                                {/* Field 1: New Password */}
-                                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.775rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>
-                                        <FiLock style={{ color: "#7c3aed" }} /> New Password
-                                    </label>
-                                    <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                                        <input
-                                            type={showNewPassword ? "text" : "password"}
-                                            className="refurb-input"
-                                            style={{ paddingRight: "2.5rem" }}
-                                            placeholder="Enter new password"
-                                            value={newPasswordInput}
-                                            onChange={(e) => handleNewPasswordChange(e.target.value)}
-                                            autoFocus
-                                        />
-                                        <button
-                                            type="button"
-                                            style={{
-                                                position: "absolute",
-                                                right: "0.75rem",
-                                                background: "transparent",
-                                                border: "none",
-                                                color: "#94a3b8",
-                                                cursor: "pointer",
-                                                fontSize: "1.05rem"
-                                            }}
-                                            onClick={() => setShowNewPassword(!showNewPassword)}
-                                            tabIndex="-1"
-                                        >
-                                            {showNewPassword ? <FiEyeOff /> : <FiEye />}
-                                        </button>
+                                <div className="fc-card-title-wrap">
+                                    <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap", marginBottom: "0.2rem" }}>
+                                        <h2 className="fc-card-title" style={{ margin: 0 }}>{centerName || "Personal Information"}</h2>
+                                        <span className="fc-facility-tag">RC-{profile?.RefurbishmentCenterId || "019"}</span>
                                     </div>
-                                    {passwordFormErrors.newPassword && (
-                                        <span style={{ color: "#ef4444", fontSize: "0.775rem", fontWeight: "600", marginTop: "0.25rem", display: "block" }}>
-                                            {passwordFormErrors.newPassword}
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Field 2: Confirm New Password */}
-                                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                                    <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.775rem", fontWeight: "700", color: "#475569", textTransform: "uppercase" }}>
-                                        <FiLock style={{ color: "#7c3aed" }} /> Confirm New Password
-                                    </label>
-                                    <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                                        <input
-                                            type={showConfirmPassword ? "text" : "password"}
-                                            className="refurb-input"
-                                            style={{ paddingRight: "2.5rem" }}
-                                            placeholder="Re-enter new password"
-                                            value={confirmPasswordInput}
-                                            onChange={(e) => handleConfirmPasswordChange(e.target.value)}
-                                        />
-                                        <button
-                                            type="button"
-                                            style={{
-                                                position: "absolute",
-                                                right: "0.75rem",
-                                                background: "transparent",
-                                                border: "none",
-                                                color: "#94a3b8",
-                                                cursor: "pointer",
-                                                fontSize: "1.05rem"
-                                            }}
-                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                            tabIndex="-1"
-                                        >
-                                            {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
-                                        </button>
-                                    </div>
-                                    {passwordFormErrors.confirmPassword && (
-                                        <span style={{ color: "#ef4444", fontSize: "0.775rem", fontWeight: "600", marginTop: "0.25rem", display: "block" }}>
-                                            {passwordFormErrors.confirmPassword}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.5rem" }}>
-                                    <button
-                                        type="button"
-                                        className="refurb-cancel-btn"
-                                        style={{ flex: 1, justifyContent: "center" }}
-                                        onClick={handleResetPasswordForm}
-                                        disabled={passwordLoading}
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="refurb-save-btn"
-                                        style={{ flex: 1.2, justifyContent: "center" }}
-                                        disabled={passwordLoading}
-                                    >
-                                        {passwordLoading ? "Updating..." : "Update Password"}
-                                    </button>
-                                </div>
-                            </form>
-                        )}
-                    </div>
-                )}
-
-                {/* Main Profile Content (hidden when password updating) */}
-                {!showPasswordSection && (
-                    <>
-                        {/* Quick Metrics Ribbon */}
-                        <div className="refurb-metrics-grid">
-                            <div className="refurb-metric-card">
-                                <div className="refurb-metric-icon purple">
-                                    <FiUsers />
-                                </div>
-                                <div className="refurb-metric-text">
-                                    <div className="refurb-metric-label">Staff Technicians</div>
-                                    <div className="refurb-metric-val">{technicianCount} Techs</div>
+                                    <p className="fc-card-subtitle">
+                                        Update your refurbishment facility details, contact information, and operational collection preferences.
+                                    </p>
                                 </div>
                             </div>
 
-                            <div className="refurb-metric-card">
-                                <div className="refurb-metric-icon emerald">
-                                    <FiBriefcase />
-                                </div>
-                                <div className="refurb-metric-text">
-                                    <div className="refurb-metric-label">Industry Experience</div>
-                                    <div className="refurb-metric-val">{experienceYears} Years</div>
-                                </div>
-                            </div>
-
-                            <div className="refurb-metric-card">
-                                <div className="refurb-metric-icon blue">
-                                    <FiShield />
-                                </div>
-                                <div className="refurb-metric-text">
-                                    <div className="refurb-metric-label">Operating License</div>
-                                    <div className="refurb-metric-val">{licenseNo}</div>
-                                </div>
-                            </div>
-
-                            <div className="refurb-metric-card">
-                                <div className="refurb-metric-icon amber">
-                                    <FiTruck />
-                                </div>
-                                <div className="refurb-metric-text">
-                                    <div className="refurb-metric-label">Pickup Logistics</div>
-                                    <div className="refurb-metric-val">{pickupAvailable === "Yes" ? "Available" : "Not Offered"}</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Profile Details Cards Grid */}
-                        <div className="refurb-details-grid">
-                            {/* Personal & Contact Details */}
-                            <div className="refurb-card">
-                                <div className="refurb-card-header">
-                                    <div className="refurb-card-title-group">
-                                        <div className="refurb-card-icon purple">
-                                            <FiCpu />
-                                        </div>
-                                        <div>
-                                            <h3 className="refurb-card-title">Facility Identity & Contact</h3>
-                                            <p className="refurb-card-subtitle">Registered center and owner contact details</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="refurb-info-list">
-                                    <div className="refurb-info-item full-width">
-                                        <span className="refurb-info-label">Center Name</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                className="refurb-input"
-                                                value={editForm.centerName}
-                                                onChange={(e) => handleFormInputChange("centerName", e.target.value)}
-                                                placeholder="Refurbishment Center Name"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value">{centerName}</span>
-                                        )}
-                                    </div>
-
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">Owner / Managing Person</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                className="refurb-input"
-                                                value={editForm.ownerName}
-                                                onChange={(e) => handleFormInputChange("ownerName", e.target.value)}
-                                                placeholder="Owner Name"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value">{ownerName}</span>
-                                        )}
-                                    </div>
-
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">Contact Phone</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                className="refurb-input"
-                                                value={editForm.phoneNumber}
-                                                onChange={(e) => handleFormInputChange("phoneNumber", e.target.value)}
-                                                placeholder="Phone Number"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value mono">{phone}</span>
-                                        )}
-                                    </div>
-
-                                    <div className="refurb-info-item full-width">
-                                        <span className="refurb-info-label">Email Address (Login ID)</span>
+                            <div className="fc-form-body">
+                                <div className="fc-grid-2">
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">First name / Center Name</label>
                                         <input
                                             type="text"
-                                            className="refurb-input locked"
+                                            className="fc-outline-input"
+                                            value={isEditing ? editForm.centerName : centerName}
+                                            onChange={(e) => handleFormInputChange("centerName", e.target.value)}
+                                            placeholder="Refurbishment Center Name"
+                                            disabled={!isEditing}
+                                        />
+                                    </div>
+
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">Last name / Owner Name</label>
+                                        <input
+                                            type="text"
+                                            className="fc-outline-input"
+                                            value={isEditing ? editForm.ownerName : ownerName}
+                                            onChange={(e) => handleFormInputChange("ownerName", e.target.value)}
+                                            placeholder="Managing Owner / Director"
+                                            disabled={!isEditing}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="fc-field-box">
+                                    <label className="fc-floating-label">Email Address (Login ID)</label>
+                                    <div className="fc-input-with-icon">
+                                        <input
+                                            type="text"
+                                            className="fc-outline-input locked"
                                             value={email}
                                             disabled
-                                            title="Registered email address cannot be changed directly."
+                                            title="Registered authentication email address is locked."
+                                        />
+                                        <FiLock className="fc-field-lock-icon" />
+                                    </div>
+                                </div>
+
+                                <div className="fc-grid-2">
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">Phone Number</label>
+                                        <div className="fc-phone-input-wrap">
+                                            <div className="fc-country-code-btn" title="Country code (+91)">
+                                                <span style={{ fontSize: "1.1rem" }}>🇮🇳</span>
+                                                <span className="fc-code-txt">(+91)</span>
+                                                <FiChevronDown style={{ fontSize: "0.8rem", color: "#64748b" }} />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                className="fc-outline-input fc-phone-field"
+                                                value={isEditing ? editForm.phoneNumber : phone}
+                                                onChange={(e) => handleFormInputChange("phoneNumber", e.target.value)}
+                                                placeholder="Phone number"
+                                                disabled={!isEditing}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">Experience / Established Since</label>
+                                        <div className="fc-date-input-wrap">
+                                            <FiCalendar className="fc-date-icon" />
+                                            <input
+                                                type={isEditing ? "number" : "text"}
+                                                className="fc-outline-input fc-date-field"
+                                                value={isEditing ? editForm.experienceYears : `${experienceYears} Years in Operation`}
+                                                onChange={(e) => handleFormInputChange("experienceYears", e.target.value)}
+                                                placeholder="Years in industry"
+                                                disabled={!isEditing}
+                                            />
+                                            <FiChevronDown className="fc-date-chevron" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="fc-choice-section">
+                                    <label className="fc-floating-label" style={{ marginBottom: "0.6rem" }}>
+                                        Logistics Collection Service Mode
+                                    </label>
+                                    <div className="fc-choice-grid">
+                                        <div
+                                            className={`fc-choice-card ${(isEditing ? editForm.pickupAvailable : pickupAvailable) === "Yes" ? "selected" : ""}`}
+                                            onClick={() => {
+                                                if (isEditing) handleFormInputChange("pickupAvailable", "Yes");
+                                            }}
+                                            style={{ cursor: isEditing ? "pointer" : "default" }}
+                                        >
+                                            {(isEditing ? editForm.pickupAvailable : pickupAvailable) === "Yes" && (
+                                                <div className="fc-choice-check">
+                                                    <FiCheck />
+                                                </div>
+                                            )}
+                                            <div className="fc-choice-icon-wrap">
+                                                <FiTruck />
+                                            </div>
+                                            <div className="fc-choice-label">Pickup Available</div>
+                                        </div>
+
+                                        <div
+                                            className={`fc-choice-card ${(isEditing ? editForm.pickupAvailable : pickupAvailable) !== "Yes" ? "selected" : ""}`}
+                                            onClick={() => {
+                                                if (isEditing) handleFormInputChange("pickupAvailable", "No");
+                                            }}
+                                            style={{ cursor: isEditing ? "pointer" : "default" }}
+                                        >
+                                            {(isEditing ? editForm.pickupAvailable : pickupAvailable) !== "Yes" && (
+                                                <div className="fc-choice-check">
+                                                    <FiCheck />
+                                                </div>
+                                            )}
+                                            <div className="fc-choice-icon-wrap">
+                                                <FiBox />
+                                            </div>
+                                            <div className="fc-choice-label">Drop-off Only</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="fc-info-note">
+                                    <FiInfo className="fc-note-icon" />
+                                    <p>
+                                        In order to access inbound device allocation quotas and dispatch tracking, please ensure your account details remain verified and accurate. Verified by EcoCycle Operations. For more details <span className="fc-link">click here</span>.
+                                    </p>
+                                </div>
+
+                                <div className="fc-card-actions">
+                                    {isEditing ? (
+                                        <>
+                                            <button
+                                                type="button"
+                                                className="fc-btn-save"
+                                                onClick={handleSaveChanges}
+                                                disabled={saving}
+                                            >
+                                                <FiSave /> {saving ? "Saving..." : "Save"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="fc-btn-cancel"
+                                                onClick={handleCancelEdit}
+                                                disabled={saving}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="fc-btn-save"
+                                            onClick={() => setIsEditing(true)}
+                                        >
+                                            <FiEdit3 /> Edit Personal Information
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 2: Facility Address */}
+                    {activeTab === "address" && (
+                        <div className="fc-main-card">
+                            <div className="fc-card-header">
+                                <div className="fc-shield-icon-badge">
+                                    <FiMapPin />
+                                </div>
+                                <div className="fc-card-title-wrap">
+                                    <h2 className="fc-card-title">Facility Address &amp; Location</h2>
+                                    <p className="fc-card-subtitle">
+                                        Physical workshop address for inbound logistics drop-off and inspection transfer receiving.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="fc-form-body">
+                                <div className="fc-grid-2">
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">Building / Shop No.</label>
+                                        <input
+                                            type="text"
+                                            className="fc-outline-input"
+                                            value={isEditing ? editForm.buildingNumber : buildingNo}
+                                            onChange={(e) => handleFormInputChange("buildingNumber", e.target.value)}
+                                            placeholder="Building Number"
+                                            disabled={!isEditing}
+                                        />
+                                    </div>
+
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">Street / Area</label>
+                                        <input
+                                            type="text"
+                                            className="fc-outline-input"
+                                            value={isEditing ? editForm.street : street}
+                                            onChange={(e) => handleFormInputChange("street", e.target.value)}
+                                            placeholder="Street Name"
+                                            disabled={!isEditing}
                                         />
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Location & Facility Address */}
-                            <div className="refurb-card">
-                                <div className="refurb-card-header">
-                                    <div className="refurb-card-title-group">
-                                        <div className="refurb-card-icon blue">
-                                            <FiMapPin />
-                                        </div>
-                                        <div>
-                                            <h3 className="refurb-card-title">Facility Location</h3>
-                                            <p className="refurb-card-subtitle">Physical address of refurbishment workshop</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="refurb-info-list">
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">Building / Shop No.</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                className="refurb-input"
-                                                value={editForm.buildingNumber}
-                                                onChange={(e) => handleFormInputChange("buildingNumber", e.target.value)}
-                                                placeholder="Building Number"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value">{buildingNo}</span>
-                                        )}
-                                    </div>
-
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">Street / Area</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                className="refurb-input"
-                                                value={editForm.street}
-                                                onChange={(e) => handleFormInputChange("street", e.target.value)}
-                                                placeholder="Street Name"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value">{street}</span>
-                                        )}
-                                    </div>
-
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">City / Town</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                className="refurb-input"
-                                                value={editForm.city}
-                                                onChange={(e) => handleFormInputChange("city", e.target.value)}
-                                                placeholder="City"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value">{city}</span>
-                                        )}
-                                    </div>
-
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">District</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                className="refurb-input"
-                                                value={editForm.district}
-                                                onChange={(e) => handleFormInputChange("district", e.target.value)}
-                                                placeholder="District"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value">{district}</span>
-                                        )}
-                                    </div>
-
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">State</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                className="refurb-input"
-                                                value={editForm.state}
-                                                onChange={(e) => handleFormInputChange("state", e.target.value)}
-                                                placeholder="State"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value">{state}</span>
-                                        )}
-                                    </div>
-
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">Pincode</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                className="refurb-input"
-                                                value={editForm.pincode}
-                                                onChange={(e) => handleFormInputChange("pincode", e.target.value)}
-                                                placeholder="Pincode"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value mono">{pincode}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Operations & Capacity */}
-                            <div className="refurb-card">
-                                <div className="refurb-card-header">
-                                    <div className="refurb-card-title-group">
-                                        <div className="refurb-card-icon emerald">
-                                            <FiTool />
-                                        </div>
-                                        <div>
-                                            <h3 className="refurb-card-title">Operations & Capacity</h3>
-                                            <p className="refurb-card-subtitle">Technical capability and services offered</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="refurb-info-list">
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">Technician Count</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="number"
-                                                className="refurb-input"
-                                                value={editForm.technicianCount}
-                                                onChange={(e) => handleFormInputChange("technicianCount", e.target.value)}
-                                                placeholder="Technicians count"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value">{technicianCount} Members</span>
-                                        )}
-                                    </div>
-
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">Experience (Years)</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="number"
-                                                className="refurb-input"
-                                                value={editForm.experienceYears}
-                                                onChange={(e) => handleFormInputChange("experienceYears", e.target.value)}
-                                                placeholder="Years of experience"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value">{experienceYears} Years</span>
-                                        )}
-                                    </div>
-
-                                    <div className="refurb-info-item full-width">
-                                        <span className="refurb-info-label">Device Types Handled</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                className="refurb-input"
-                                                value={editForm.deviceTypes}
-                                                onChange={(e) => handleFormInputChange("deviceTypes", e.target.value)}
-                                                placeholder="Comma separated device types"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value">{deviceTypes}</span>
-                                        )}
-                                    </div>
-
-                                    <div className="refurb-info-item full-width">
-                                        <span className="refurb-info-label">Services Provided</span>
-                                        {isEditing ? (
-                                            <input
-                                                type="text"
-                                                className="refurb-input"
-                                                value={editForm.services}
-                                                onChange={(e) => handleFormInputChange("services", e.target.value)}
-                                                placeholder="Comma separated services"
-                                            />
-                                        ) : (
-                                            <span className="refurb-info-value">{services}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Legal & Compliance (Read-Only Admin Verified) */}
-                            <div className="refurb-card" style={{ background: "#fafafa" }}>
-                                <div className="refurb-card-header">
-                                    <div className="refurb-card-title-group">
-                                        <div className="refurb-card-icon amber">
-                                            <FiShield />
-                                        </div>
-                                        <div>
-                                            <h3 className="refurb-card-title">Legal & Compliance</h3>
-                                            <p className="refurb-card-subtitle">Verified tax and registration records (Admin verified)</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="refurb-info-list">
-                                    <div className="refurb-info-item full-width">
-                                        <span className="refurb-info-label">Business Registration Number</span>
+                                <div className="fc-grid-2">
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">City / Town</label>
                                         <input
                                             type="text"
-                                            className="refurb-input locked mono"
+                                            className="fc-outline-input"
+                                            value={isEditing ? editForm.city : city}
+                                            onChange={(e) => handleFormInputChange("city", e.target.value)}
+                                            placeholder="City"
+                                            disabled={!isEditing}
+                                        />
+                                    </div>
+
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">District</label>
+                                        <input
+                                            type="text"
+                                            className="fc-outline-input"
+                                            value={isEditing ? editForm.district : district}
+                                            onChange={(e) => handleFormInputChange("district", e.target.value)}
+                                            placeholder="District"
+                                            disabled={!isEditing}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="fc-grid-2">
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">State</label>
+                                        <input
+                                            type="text"
+                                            className="fc-outline-input"
+                                            value={isEditing ? editForm.state : state}
+                                            onChange={(e) => handleFormInputChange("state", e.target.value)}
+                                            placeholder="State"
+                                            disabled={!isEditing}
+                                        />
+                                    </div>
+
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">Postal Pincode</label>
+                                        <input
+                                            type="text"
+                                            className="fc-outline-input"
+                                            value={isEditing ? editForm.pincode : pincode}
+                                            onChange={(e) => handleFormInputChange("pincode", e.target.value)}
+                                            placeholder="Pincode"
+                                            disabled={!isEditing}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="fc-info-note">
+                                    <FiInfo className="fc-note-icon" />
+                                    <p>
+                                        Accurate geographical coordinates ensure minimal transit latency for collection agent dispatches.
+                                    </p>
+                                </div>
+
+                                <div className="fc-card-actions">
+                                    {isEditing ? (
+                                        <>
+                                            <button
+                                                type="button"
+                                                className="fc-btn-save"
+                                                onClick={handleSaveChanges}
+                                                disabled={saving}
+                                            >
+                                                <FiSave /> {saving ? "Saving..." : "Save"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="fc-btn-cancel"
+                                                onClick={handleCancelEdit}
+                                                disabled={saving}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="fc-btn-save"
+                                            onClick={() => setIsEditing(true)}
+                                        >
+                                            <FiEdit3 /> Edit Facility Address
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 3: Operations & Capacity */}
+                    {activeTab === "operations" && (
+                        <div className="fc-main-card">
+                            <div className="fc-card-header">
+                                <div className="fc-shield-icon-badge">
+                                    <FiTool />
+                                </div>
+                                <div className="fc-card-title-wrap">
+                                    <h2 className="fc-card-title">Operations &amp; Technical Capacity</h2>
+                                    <p className="fc-card-subtitle">
+                                        Staffing count, years of industry experience, and electronic device categories serviced.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="fc-form-body">
+                                <div className="fc-grid-2">
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">Technician Staff Count</label>
+                                        <input
+                                            type={isEditing ? "number" : "text"}
+                                            className="fc-outline-input"
+                                            value={isEditing ? editForm.technicianCount : `${technicianCount} Certified Technicians`}
+                                            onChange={(e) => handleFormInputChange("technicianCount", e.target.value)}
+                                            placeholder="Technician count"
+                                            disabled={!isEditing}
+                                        />
+                                    </div>
+
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">Industry Experience (Years)</label>
+                                        <input
+                                            type={isEditing ? "number" : "text"}
+                                            className="fc-outline-input"
+                                            value={isEditing ? editForm.experienceYears : `${experienceYears} Years`}
+                                            onChange={(e) => handleFormInputChange("experienceYears", e.target.value)}
+                                            placeholder="Years of experience"
+                                            disabled={!isEditing}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="fc-field-box">
+                                    <label className="fc-floating-label">Device Categories Handled</label>
+                                    <input
+                                        type="text"
+                                        className="fc-outline-input"
+                                        value={isEditing ? editForm.deviceTypes : deviceTypes}
+                                        onChange={(e) => handleFormInputChange("deviceTypes", e.target.value)}
+                                        placeholder="Comma separated device types (e.g. Laptops, Mobiles, Tablets)"
+                                        disabled={!isEditing}
+                                    />
+                                </div>
+
+                                <div className="fc-field-box">
+                                    <label className="fc-floating-label">Refurbishment Services Provided</label>
+                                    <input
+                                        type="text"
+                                        className="fc-outline-input"
+                                        value={isEditing ? editForm.services : services}
+                                        onChange={(e) => handleFormInputChange("services", e.target.value)}
+                                        placeholder="Comma separated services (e.g. Screen Replacement, Battery Repair)"
+                                        disabled={!isEditing}
+                                    />
+                                </div>
+
+                                <div className="fc-info-note">
+                                    <FiInfo className="fc-note-icon" />
+                                    <p>
+                                        Capacity quotas determine daily device allocation limits assigned to your center by administrators.
+                                    </p>
+                                </div>
+
+                                <div className="fc-card-actions">
+                                    {isEditing ? (
+                                        <>
+                                            <button
+                                                type="button"
+                                                className="fc-btn-save"
+                                                onClick={handleSaveChanges}
+                                                disabled={saving}
+                                            >
+                                                <FiSave /> {saving ? "Saving..." : "Save"}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="fc-btn-cancel"
+                                                onClick={handleCancelEdit}
+                                                disabled={saving}
+                                            >
+                                                Cancel
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="fc-btn-save"
+                                            onClick={() => setIsEditing(true)}
+                                        >
+                                            <FiEdit3 /> Edit Operations &amp; Capacity
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* TAB 4: Legal & Compliance */}
+                    {activeTab === "legal" && (
+                        <div className="fc-main-card">
+                            <div className="fc-card-header">
+                                <div className="fc-shield-icon-badge">
+                                    <FiAward />
+                                </div>
+                                <div className="fc-card-title-wrap">
+                                    <h2 className="fc-card-title">Legal &amp; Compliance Credentials</h2>
+                                    <p className="fc-card-subtitle">
+                                        Government authorized registration, GSTIN identification, and pollution board certifications.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="fc-form-body">
+                                <div className="fc-field-box">
+                                    <label className="fc-floating-label">
+                                        Business Registration Number (Verified)
+                                    </label>
+                                    <div className="fc-input-with-icon">
+                                        <input
+                                            type="text"
+                                            className="fc-outline-input locked"
                                             value={regNo}
                                             disabled
                                             title="Verified government business registration number."
                                         />
+                                        <FiShield className="fc-field-lock-icon" style={{ color: "#16a34a" }} />
+                                    </div>
+                                </div>
+
+                                <div className="fc-grid-2">
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">GST Identification Number</label>
+                                        <div className="fc-input-with-icon">
+                                            <input
+                                                type="text"
+                                                className="fc-outline-input locked"
+                                                value={gstNo}
+                                                disabled
+                                                title="GST identification number."
+                                            />
+                                            <FiShield className="fc-field-lock-icon" style={{ color: "#16a34a" }} />
+                                        </div>
                                     </div>
 
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">GST Number</span>
-                                        <input
-                                            type="text"
-                                            className="refurb-input locked mono"
-                                            value={gstNo}
-                                            disabled
-                                            title="GST identification number."
-                                        />
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">Operating License Number</label>
+                                        <div className="fc-input-with-icon">
+                                            <input
+                                                type="text"
+                                                className="fc-outline-input locked"
+                                                value={licenseNo}
+                                                disabled
+                                                title="State authorized e-waste refurbish license number."
+                                            />
+                                            <FiShield className="fc-field-lock-icon" style={{ color: "#16a34a" }} />
+                                        </div>
                                     </div>
+                                </div>
 
-                                    <div className="refurb-info-item">
-                                        <span className="refurb-info-label">Operating License No.</span>
-                                        <input
-                                            type="text"
-                                            className="refurb-input locked mono"
-                                            value={licenseNo}
-                                            disabled
-                                            title="State authorized e-waste refurbish license number."
-                                        />
-                                    </div>
+                                <div className="fc-info-note">
+                                    <FiInfo className="fc-note-icon" />
+                                    <p>
+                                        Legal compliance credentials are authenticated by state pollution control boards and platform compliance officers. To request administrative revisions, please contact support.
+                                    </p>
                                 </div>
                             </div>
                         </div>
+                    )}
 
-                        {/* Document Vault Section */}
-                        <div className="refurb-vault-card">
-                            <div className="refurb-card-header" style={{ marginBottom: "0.5rem" }}>
-                                <div className="refurb-card-title-group">
-                                    <div className="refurb-card-icon slate">
-                                        <FiShield />
-                                    </div>
-                                    <div>
-                                        <h3 className="refurb-card-title">Verification Document Vault</h3>
-                                        <p className="refurb-card-subtitle">
-                                            Uploaded certificates and proof files submitted during onboarding verification
-                                        </p>
-                                    </div>
+                    {/* TAB 5: Document Vault */}
+                    {activeTab === "documents" && (
+                        <div className="fc-main-card">
+                            <div className="fc-card-header">
+                                <div className="fc-shield-icon-badge">
+                                    <FiFileText />
+                                </div>
+                                <div className="fc-card-title-wrap">
+                                    <h2 className="fc-card-title">Verification Document Vault</h2>
+                                    <p className="fc-card-subtitle">
+                                        Official licenses, identity proofs, and facility photographs uploaded during facility onboarding.
+                                    </p>
                                 </div>
                             </div>
 
-                            <div className="refurb-vault-grid">
+                            <div className="fc-docs-grid">
                                 {documentsList.map((doc, idx) => {
                                     const url = getMediaUrl(doc.filename, doc.folder);
                                     const hasFile = Boolean(url);
 
                                     return (
-                                        <div className="refurb-doc-tile" key={idx}>
-                                            <div className="refurb-doc-tile-top">
-                                                <div className="refurb-doc-icon-wrap">
+                                        <div className="fc-doc-tile" key={idx}>
+                                            <div className="fc-doc-top">
+                                                <div className="fc-doc-icon-box">
                                                     {doc.icon}
                                                 </div>
-                                                <h4 className="refurb-doc-name">{doc.title}</h4>
+                                                <h4 className="fc-doc-title">{doc.title}</h4>
                                             </div>
 
-                                            <div className="refurb-doc-tile-bottom">
+                                            <div className="fc-doc-bottom">
                                                 {hasFile ? (
-                                                    <span className="refurb-doc-status verified">
+                                                    <span className="fc-doc-status-badge verified">
                                                         <FiCheckCircle /> Verified
                                                     </span>
                                                 ) : (
-                                                    <span className="refurb-doc-status missing">
+                                                    <span className="fc-doc-status-badge missing">
                                                         Not Uploaded
                                                     </span>
                                                 )}
@@ -1319,7 +1223,7 @@ function RefurbishmentProfile() {
                                                 {hasFile && (
                                                     <button
                                                         type="button"
-                                                        className="refurb-doc-view-btn"
+                                                        className="fc-doc-btn-view"
                                                         onClick={() =>
                                                             setActiveDoc({
                                                                 title: doc.title,
@@ -1328,7 +1232,7 @@ function RefurbishmentProfile() {
                                                             })
                                                         }
                                                     >
-                                                        <FiEye /> View Document
+                                                        <FiEye /> View
                                                     </button>
                                                 )}
                                             </div>
@@ -1336,10 +1240,218 @@ function RefurbishmentProfile() {
                                     );
                                 })}
                             </div>
+
+                            <div className="fc-info-note" style={{ marginTop: "1.5rem" }}>
+                                <FiInfo className="fc-note-icon" />
+                                <p>
+                                    All uploaded documents are encrypted and archived under EcoCycle compliance regulations.
+                                </p>
+                            </div>
                         </div>
-                    </>
-                )}
-            </div>
+                    )}
+
+                    {/* TAB 6: Security & Password */}
+                    {activeTab === "security" && (
+                        <div className="fc-main-card">
+                            <div className="fc-card-header">
+                                <div className="fc-shield-icon-badge">
+                                    <FiKey />
+                                </div>
+                                <div className="fc-card-title-wrap">
+                                    <h2 className="fc-card-title">Security &amp; Password</h2>
+                                    <p className="fc-card-subtitle">
+                                        {passwordStep === 1
+                                            ? "Verify your current account password to proceed with updating your credentials."
+                                            : "Enter and confirm your new secure password for future logins."}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Password Error Alert */}
+                            {passwordError && (
+                                <div style={{
+                                    background: "#fef2f2",
+                                    border: "1px solid #fecaca",
+                                    color: "#dc2626",
+                                    padding: "0.75rem 1rem",
+                                    borderRadius: "10px",
+                                    fontSize: "0.825rem",
+                                    fontWeight: "600",
+                                    marginBottom: "1rem",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "0.5rem"
+                                }}>
+                                    <FiAlertCircle style={{ flexShrink: 0 }} />
+                                    <span>{passwordError}</span>
+                                </div>
+                            )}
+
+                            {passwordStep === 1 ? (
+                                <form onSubmit={handleVerifyCurrentPassword} className="fc-form-body">
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">Current Password</label>
+                                        <div className="fc-input-with-icon">
+                                            <input
+                                                type={showCurrentPassword ? "text" : "password"}
+                                                className="fc-outline-input"
+                                                placeholder="Enter current password"
+                                                value={currentPasswordInput}
+                                                onChange={(e) => handleCurrentPasswordChange(e.target.value)}
+                                                autoFocus
+                                            />
+                                            <button
+                                                type="button"
+                                                style={{
+                                                    position: "absolute",
+                                                    right: "0.75rem",
+                                                    background: "transparent",
+                                                    border: "none",
+                                                    color: "#94a3b8",
+                                                    cursor: "pointer",
+                                                    fontSize: "1.1rem"
+                                                }}
+                                                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                                tabIndex="-1"
+                                            >
+                                                {showCurrentPassword ? <FiEyeOff /> : <FiEye />}
+                                            </button>
+                                        </div>
+                                        {passwordFormErrors.currentPassword && (
+                                            <span style={{ color: "#ef4444", fontSize: "0.775rem", fontWeight: "600", marginTop: "0.3rem" }}>
+                                                {passwordFormErrors.currentPassword}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="fc-card-actions">
+                                        <button
+                                            type="submit"
+                                            className="fc-btn-save"
+                                            disabled={passwordLoading}
+                                        >
+                                            {passwordLoading ? "Verifying..." : "Verify Current Password"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="fc-btn-cancel"
+                                            onClick={handleResetPasswordForm}
+                                            disabled={passwordLoading}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <form onSubmit={handleUpdateNewPassword} className="fc-form-body">
+                                    <div style={{
+                                        background: "#f0fdf4",
+                                        border: "1px solid #bbf7d0",
+                                        color: "#16a34a",
+                                        padding: "0.65rem 0.85rem",
+                                        borderRadius: "10px",
+                                        fontSize: "0.8rem",
+                                        fontWeight: "600",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "0.4rem"
+                                    }}>
+                                        <FiCheckCircle style={{ flexShrink: 0 }} />
+                                        <span>Current password verified! Please set your new credentials below.</span>
+                                    </div>
+
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">New Password</label>
+                                        <div className="fc-input-with-icon">
+                                            <input
+                                                type={showNewPassword ? "text" : "password"}
+                                                className="fc-outline-input"
+                                                placeholder="Enter new password"
+                                                value={newPasswordInput}
+                                                onChange={(e) => handleNewPasswordChange(e.target.value)}
+                                                autoFocus
+                                            />
+                                            <button
+                                                type="button"
+                                                style={{
+                                                    position: "absolute",
+                                                    right: "0.75rem",
+                                                    background: "transparent",
+                                                    border: "none",
+                                                    color: "#94a3b8",
+                                                    cursor: "pointer",
+                                                    fontSize: "1.1rem"
+                                                }}
+                                                onClick={() => setShowNewPassword(!showNewPassword)}
+                                                tabIndex="-1"
+                                            >
+                                                {showNewPassword ? <FiEyeOff /> : <FiEye />}
+                                            </button>
+                                        </div>
+                                        {passwordFormErrors.newPassword && (
+                                            <span style={{ color: "#ef4444", fontSize: "0.775rem", fontWeight: "600", marginTop: "0.3rem" }}>
+                                                {passwordFormErrors.newPassword}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="fc-field-box">
+                                        <label className="fc-floating-label">Confirm New Password</label>
+                                        <div className="fc-input-with-icon">
+                                            <input
+                                                type={showConfirmPassword ? "text" : "password"}
+                                                className="fc-outline-input"
+                                                placeholder="Re-enter new password"
+                                                value={confirmPasswordInput}
+                                                onChange={(e) => handleConfirmPasswordChange(e.target.value)}
+                                            />
+                                            <button
+                                                type="button"
+                                                style={{
+                                                    position: "absolute",
+                                                    right: "0.75rem",
+                                                    background: "transparent",
+                                                    border: "none",
+                                                    color: "#94a3b8",
+                                                    cursor: "pointer",
+                                                    fontSize: "1.1rem"
+                                                }}
+                                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                tabIndex="-1"
+                                            >
+                                                {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+                                            </button>
+                                        </div>
+                                        {passwordFormErrors.confirmPassword && (
+                                            <span style={{ color: "#ef4444", fontSize: "0.775rem", fontWeight: "600", marginTop: "0.3rem" }}>
+                                                {passwordFormErrors.confirmPassword}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="fc-card-actions">
+                                        <button
+                                            type="submit"
+                                            className="fc-btn-save"
+                                            disabled={passwordLoading}
+                                        >
+                                            {passwordLoading ? "Updating..." : "Update Password"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="fc-btn-cancel"
+                                            onClick={handleResetPasswordForm}
+                                            disabled={passwordLoading}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </main>
 
             {/* Document Preview Lightbox Modal */}
             {activeDoc && (

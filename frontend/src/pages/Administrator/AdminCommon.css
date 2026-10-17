@@ -129,11 +129,17 @@ body,
    2. UNIFIED FILTER PILLS & TABS PATTERN
    ========================================================================== */
 
-.filter-pill-group,
-.filter-pills,
+.admin-dashboard-v2 .filter-pill-group,
+.admin-dashboard-v2 .filter-pills,
+.admin-pickup-page .filter-pills,
+.admin-inspection-page .filter-pills,
+.admin-delivery-page .filter-pills,
+.admin-device-page .filter-pills,
+.admin-users-page .filter-pills,
+.manage-page .filter-pills,
 .admin-filter-bar,
-.tab-container,
-.filter-tabs {
+.admin-tab-container,
+.admin-tabs {
   display: flex !important;
   align-items: center !important;
   gap: 0.5rem !important;
@@ -141,7 +147,13 @@ body,
 }
 
 /* Individual Filter Pill Button */
-.pill-btn,
+.admin-dashboard-v2 .pill-btn,
+.admin-pickup-page .pill-btn,
+.admin-inspection-page .pill-btn,
+.admin-delivery-page .pill-btn,
+.admin-device-page .pill-btn,
+.admin-users-page .pill-btn,
+.manage-page .pill-btn,
 .filter-btn,
 .filter-pill,
 .tab-btn,
@@ -162,7 +174,13 @@ body,
   font-family: var(--admin-font-body) !important;
 }
 
-.pill-btn:hover,
+.admin-dashboard-v2 .pill-btn:hover,
+.admin-pickup-page .pill-btn:hover,
+.admin-inspection-page .pill-btn:hover,
+.admin-delivery-page .pill-btn:hover,
+.admin-device-page .pill-btn:hover,
+.admin-users-page .pill-btn:hover,
+.manage-page .pill-btn:hover,
 .filter-btn:hover,
 .filter-pill:hover,
 .tab-btn:hover,
@@ -172,8 +190,14 @@ body,
 }
 
 /* Active State Filter Button */
+.admin-dashboard-v2 .pill-btn.active,
+.admin-pickup-page .pill-btn.active,
+.admin-inspection-page .pill-btn.active,
+.admin-delivery-page .pill-btn.active,
+.admin-device-page .pill-btn.active,
+.admin-users-page .pill-btn.active,
+.manage-page .pill-btn.active,
 .pill-btn--active,
-.pill-btn.active,
 .filter-btn.active,
 .filter-pill.active,
 .tab-btn.active,

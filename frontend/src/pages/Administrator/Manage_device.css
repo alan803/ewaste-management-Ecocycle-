@@ -1058,8 +1058,8 @@
 }
 
 @media (min-width: 769px) {
-  .modal-overlay,
-  .alloc-modal-overlay {
+  .admin-dashboard-v2 .modal-overlay,
+  .admin-dashboard-v2 .alloc-modal-overlay {
     left: 255px !important;
     width: calc(100% - 255px) !important;
   }

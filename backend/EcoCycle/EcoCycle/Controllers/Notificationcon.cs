@@ -169,6 +169,61 @@ namespace EcoCycle.API.Controllers
                     logger.LogWarning(exRc, "Failed auto-checking recycling center notifications for LoginId {LoginId}", loginId);
                 }
 
+                // Auto-check and persist Refurbishment Center allocation notifications ONLY if logged in as Refurbishment Center
+                try
+                {
+                    var refurbishmentCenter = await db.RefurbishmentCenter.FirstOrDefaultAsync(c => c.LoginId == loginId);
+                    if (refurbishmentCenter != null)
+                    {
+                        var refurbRequests = await db.RefurbishmentRequests
+                            .Include(r => r.Device)
+                            .Where(r => r.RefurbishmentCenterId == refurbishmentCenter.RefurbishmentCenterId && (r.Status == "Assigned" || r.Status == "Accepted"))
+                            .ToListAsync();
+
+                        bool hasNewRefurbNotif = false;
+                        foreach (var req in refurbRequests)
+                        {
+                            string b = req.Device?.Brand?.Trim() ?? "";
+                            string m = req.Device?.Model?.Trim() ?? "";
+                            string deviceName = (!string.IsNullOrWhiteSpace(b) || !string.IsNullOrWhiteSpace(m))
+                                ? $"{b} {m}".Trim()
+                                : $"Device #{req.DeviceId}";
+                            string notifTitle = "New Device Allocated for Refurbishment";
+                            string notifMsg = $"Device '{deviceName}' (#{req.DeviceId}) has been allocated to your refurbishment center. Please respond before deadline.";
+
+                            bool alreadyNotified = await db.Notification.AnyAsync(n =>
+                                n.LoginId == loginId &&
+                                n.Title == notifTitle &&
+                                n.Message != null &&
+                                n.Message.Contains($"#{req.DeviceId}") &&
+                                (n.Status == true || n.Status == null));
+
+                            if (!alreadyNotified)
+                            {
+                                db.Notification.Add(new Notification
+                                {
+                                    LoginId = loginId,
+                                    Title = notifTitle,
+                                    Message = notifMsg,
+                                    Isread = false,
+                                    Status = true,
+                                    CreatedAt = req.AssignedAt ?? req.CreatedAt
+                                });
+                                hasNewRefurbNotif = true;
+                            }
+                        }
+
+                        if (hasNewRefurbNotif)
+                        {
+                            await db.SaveChangesAsync();
+                        }
+                    }
+                }
+                catch (Exception exRefurb)
+                {
+                    logger.LogWarning(exRefurb, "Failed auto-checking refurbishment center notifications for LoginId {LoginId}", loginId);
+                }
+
                 var notifications = await db.Notification
                     .Where(n => n.LoginId == loginId && (n.Status == true || n.Status == null))
                     .OrderByDescending(n => n.CreatedAt)

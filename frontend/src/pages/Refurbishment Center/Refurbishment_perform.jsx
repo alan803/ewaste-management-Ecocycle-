@@ -45,7 +45,12 @@ import {
     FiList,
     FiLock,
     FiAlertCircle,
-    FiCreditCard
+    FiCreditCard,
+    FiBell,
+    FiTruck,
+    FiPackage,
+    FiPhone,
+    FiMapPin
 } from "react-icons/fi";
 import { FaLeaf, FaQrcode } from "react-icons/fa";
 import {
@@ -537,6 +542,7 @@ function RefurbishmentPerform() {
     const [showProcessReportModal, setShowProcessReportModal] = useState(false);
     const [reportModalData, setReportModalData] = useState(null);
     const [showNavLockModal, setShowNavLockModal] = useState(false);
+    const [deliveryAssignmentMap, setDeliveryAssignmentMap] = useState({});
 
     // Check if device is completed or certified ready
     const isDeviceCompleted = useMemo(() => {
@@ -552,12 +558,71 @@ function RefurbishmentPerform() {
         if (!requestData) return false;
         if (isDeviceCompleted) return false;
         const statusLower = (requestData.status || "").toLowerCase();
-        const hasStarted = isStarted || Boolean(startedAt) || Boolean(requestData.refurbishmentStartedAt) || statusLower === "inprogress";
-        return hasStarted && !isDeviceCompleted;
+        const procStatusLower = (requestData?.process?.status || "").toLowerCase();
+        const hasStarted = (isStarted || statusLower === "inprogress" || procStatusLower === "inprogress" || Boolean(startedAt)) && !isDeviceCompleted;
+        return hasStarted;
     }, [requestData, isStarted, startedAt, isDeviceCompleted]);
+
+    // Helper to evaluate whether physical delivery to the refurbishment facility is complete
+    const checkDeliveryStatus = (item, assign) => {
+        if (!item && !assign) return false;
+
+        // If request status is already InProgress, Completed, or Certified Ready, bench work has commenced or finished
+        const reqStatus = (item?.status || "").toLowerCase();
+        if (reqStatus === "inprogress" || reqStatus === "completed" || reqStatus === "certified ready" || reqStatus === "refurbished") {
+            return true;
+        }
+
+        // Check lifecycle status on device or request
+        const lcs = (item?.lifecycleStatus || item?.device?.lifecycleStatus || "").toLowerCase().replace(/[^a-z]/g, "");
+        if (["atrefurbishmentcenter", "refurbished", "refurbishmentinprogress", "readyforreuse"].includes(lcs)) {
+            return true;
+        }
+
+        // If lifecycle status explicitly indicates delivery is pending or expired pickup from technician
+        if (["pickupexpired", "allocatedtorefurbishment", "assigned", "scheduled", "pendingpickup", "intransit", "techpickup", "awaitingpickup"].includes(lcs)) {
+            return false;
+        }
+
+        // Check the assignment if present
+        if (assign) {
+            const assignStatus = (assign.status || "").toLowerCase();
+            const delStatus = (assign.deliveryStatus || "").toLowerCase();
+            if (
+                assignStatus === "deliveredtocenter" ||
+                assignStatus === "delivered" ||
+                delStatus === "delivered" ||
+                Boolean(assign.deliveredAt) ||
+                Boolean(assign.deliveryDeliveredAt)
+            ) {
+                return true;
+            }
+            return false;
+        }
+
+        // Direct timestamps on item
+        if (Boolean(item?.deliveredAt) || Boolean(item?.deliveryDeliveredAt)) {
+            return true;
+        }
+
+        return false;
+    };
+
+    const checkIsDeliveryCompleted = (itemOrData) => {
+        if (!itemOrData) return false;
+        if (itemOrData.isDeliveryCompleted !== undefined) {
+            return Boolean(itemOrData.isDeliveryCompleted);
+        }
+        const devId = itemOrData.deviceId || itemOrData.device?.deviceId;
+        const assign = itemOrData.deliveryAssignment || (devId ? deliveryAssignmentMap[devId] : null);
+        return checkDeliveryStatus(itemOrData, assign);
+    };
 
     // Master Device Models from Price Master
     const [masterModels, setMasterModels] = useState([]);
+    const [centerProfile, setCenterProfile] = useState(null);
+    const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+    const [centerImgError, setCenterImgError] = useState(false);
 
     useEffect(() => {
         const fetchMasterModels = async () => {
@@ -571,6 +636,24 @@ function RefurbishmentPerform() {
             }
         };
         fetchMasterModels();
+
+        const token = localStorage.getItem("token");
+        if (token) {
+            axios.get("https://ecocycle.runasp.net/api/RefurbishmentCenter/myprofile", {
+                headers: { Authorization: `Bearer ${token}` }
+            }).then(res => setCenterProfile(res.data)).catch(() => {});
+
+            axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
+                headers: { Authorization: `Bearer ${token}` }
+            }).then(res => {
+                const list = Array.isArray(res.data) ? res.data : [];
+                const unread = list.filter(n => {
+                    const isR = n.isRead !== undefined ? n.isRead : (n.isread !== undefined ? n.isread : n.Isread);
+                    return !isR;
+                }).length;
+                setUnreadNotifCount(unread);
+            }).catch(() => {});
+        }
     }, []);
 
     // Dynamic Category Profile
@@ -1574,32 +1657,55 @@ function RefurbishmentPerform() {
             setLoadingAllocated(true);
             const authToken = token || localStorage.getItem("token");
             let list = [];
-            try {
-                const res = await axios.get("https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/my-requests", {
+            let assignments = [];
+
+            const [reqRes, assignRes] = await Promise.all([
+                axios.get("https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/my-requests", {
                     headers: { Authorization: `Bearer ${authToken}` }
-                });
-                list = res.data || [];
-            } catch {
-                try {
-                    const adminRes = await axios.get("https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/admin/requests", {
-                        headers: { Authorization: `Bearer ${authToken}` }
-                    });
-                    list = adminRes.data || [];
-                } catch {
-                    list = [];
+                }).catch(() => axios.get("https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/admin/requests", {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                })).catch(() => ({ data: [] })),
+                axios.get("https://ecocycle.runasp.net/api/CollectionAssignment/admin/all-assignments", {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                }).catch(() => ({ data: [] }))
+            ]);
+
+            list = Array.isArray(reqRes.data) ? reqRes.data : [];
+            assignments = Array.isArray(assignRes.data) ? assignRes.data : [];
+
+            // Map delivery assignments destined for refurbishment center by deviceId
+            const assignMap = {};
+            const refurbAssigns = assignments.filter(a => {
+                const aType = String(a.assignmentType || "").toLowerCase();
+                return aType === "techniciantorefurbishmentcenter" || Boolean(a.refurbishmentCenterId);
+            });
+            const sortedAssigns = [...refurbAssigns].sort((a, b) => (a.collectionAssignmentId || 0) - (b.collectionAssignmentId || 0));
+            sortedAssigns.forEach(a => {
+                if (a.deviceId) {
+                    assignMap[a.deviceId] = a;
                 }
-            }
+            });
+            setDeliveryAssignmentMap(assignMap);
+
             // Filter out any rejected or cancelled requests completely
             const cleanList = (Array.isArray(list) ? list : []).filter(item => {
                 const s = (item.status || "").toLowerCase();
                 return s !== "rejected" && s !== "cancelled";
+            }).map(item => {
+                const assign = assignMap[item.deviceId];
+                const isDelivered = checkDeliveryStatus(item, assign);
+                return {
+                    ...item,
+                    deliveryAssignment: assign || null,
+                    isDeliveryCompleted: isDelivered
+                };
             });
 
             setAllocatedList(cleanList);
-            return cleanList;
+            return { cleanList, assignMap };
         } catch (err) {
             console.error("Error fetching allocated devices:", err);
-            return [];
+            return { cleanList: [], assignMap: {} };
         } finally {
             setLoadingAllocated(false);
         }
@@ -1614,9 +1720,10 @@ function RefurbishmentPerform() {
         }
 
         const init = async () => {
-            await fetchAllocatedDevices(token);
+            const result = await fetchAllocatedDevices(token);
+            const currentAssignMap = result?.assignMap || {};
             if (id) {
-                fetchDetails(id);
+                fetchDetails(id, currentAssignMap);
             } else {
                 setRequestData(null);
                 setLoading(false);
@@ -1689,11 +1796,11 @@ function RefurbishmentPerform() {
     const handleSelectAllocatedDevice = (reqId) => {
         if (!reqId) return;
         const currentReqId = requestData?.refurbishmentRequestId || (id ? Number(id) : null);
-        if (isProcessLocked && currentReqId && currentReqId !== reqId) {
+        if (isProcessLocked && currentReqId && Number(currentReqId) !== Number(reqId)) {
             setShowNavLockModal(true);
             return;
         }
-        if (currentReqId === reqId) {
+        if (currentReqId && Number(currentReqId) === Number(reqId)) {
             handleDeselectDevice();
             return;
         }
@@ -1732,7 +1839,7 @@ function RefurbishmentPerform() {
         });
     }, [allocatedList, allocatedFilter, allocatedSearch]);
 
-    const fetchDetails = async (reqId) => {
+    const fetchDetails = async (reqId, currentAssignMap = null) => {
         try {
             setLoading(true);
             const token = localStorage.getItem("token");
@@ -1761,7 +1868,16 @@ function RefurbishmentPerform() {
                         console.log("No inspection endpoint data:", e);
                     }
                 }
-                const enrichedData = { ...res.data, inspection: currentInspection };
+                const devId = res.data?.device?.deviceId;
+                const assign = (currentAssignMap && devId ? currentAssignMap[devId] : null) || (devId ? deliveryAssignmentMap[devId] : null);
+                const isDelivered = checkDeliveryStatus(res.data, assign);
+
+                const enrichedData = {
+                    ...res.data,
+                    inspection: currentInspection,
+                    deliveryAssignment: assign || null,
+                    isDeliveryCompleted: isDelivered
+                };
                 setRequestData(enrichedData);
                 const dev = enrichedData.device;
                 const proc = enrichedData.process;
@@ -2255,6 +2371,16 @@ function RefurbishmentPerform() {
         const currentReqId = targetReqId || requestData?.refurbishmentRequestId || Number(id);
         if (isProcessLocked && targetReqId && currentReqId !== targetReqId) {
             setShowNavLockModal(true);
+            return;
+        }
+
+        const targetItem = allocatedList.find(i => i.refurbishmentRequestId === currentReqId) || 
+            (requestData?.refurbishmentRequestId === currentReqId ? requestData : null);
+        if (targetItem && !checkIsDeliveryCompleted(targetItem)) {
+            setServerMsg({
+                type: "error",
+                text: "Cannot start SLA. The physical device has not yet arrived or delivery to this refurbishment facility has not been completed."
+            });
             return;
         }
         try {
@@ -2850,36 +2976,84 @@ function RefurbishmentPerform() {
     const device = requestData?.device || {};
     const citizen = requestData?.citizen || {};
     const inspection = requestData?.inspection || {};
+    const getCenterMediaUrl = (filename, folderName = "center-photo") => {
+        if (!filename) return null;
+        if (filename.startsWith("data:") || filename.startsWith("blob:") || filename.startsWith("http://") || filename.startsWith("https://")) {
+            return filename;
+        }
+        const clean = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
+        if (clean.includes("/") || clean.includes("\\")) {
+            return `https://ecocycle.runasp.net/uploads/${clean.replace("\\", "/")}`;
+        }
+        return `https://ecocycle.runasp.net/uploads/refurbishment/${folderName}/${clean}`;
+    };
+
+    const centerFacilityName = centerProfile?.CenterName || centerProfile?.centerName || centerProfile?.OwnerName || centerProfile?.ownerName || localStorage.getItem("firstName") || "Refurbishment Facility";
+    const rawCenterPhoto = centerProfile?.CenterPhoto || centerProfile?.centerPhoto || centerProfile?.ShopPhoto || centerProfile?.shopPhoto || centerProfile?.ProfileImage || centerProfile?.profileImage || centerProfile?.Photo || centerProfile?.photo;
+    const centerPhotoUrl = rawCenterPhoto ? getCenterMediaUrl(rawCenterPhoto, "center-photo") : null;
 
     return (
-        <div className="refurb-perform-layout">
+        <div className="refurb-dashboard-layout refurb-perform-layout">
             <Sidebar isLocked={isProcessLocked} onBlockedNav={() => setShowNavLockModal(true)} />
 
-            <main className="refurb-perform-main">
+            <main className="refurb-main-content refurb-perform-main">
                 {/* Header Ribbon */}
                 <div className="refurb-header-ribbon">
                     <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", flexWrap: "nowrap" }}>
-                        <button
-                            type="button"
-                            className="refurb-perform-back-btn"
-                            onClick={handleBackNav}
-                            title={isProcessLocked ? "SLA Session Locked - Finish Refurbishment First" : "Back to Dashboard"}
-                            style={{ background: "none", border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                        >
-                            <FiArrowLeft />
-                        </button>
+                        
                         <div className="refurb-page-title-box">
-                            <h2 className="refurb-welcome-title" style={{ display: "flex", alignItems: "center", gap: "0.45rem", margin: 0 }}>
+                            <h1 className="refurb-welcome-title" style={{ display: "flex", alignItems: "center", gap: "0.45rem", margin: 0 }}>
                                 <FiCpu style={{ color: "#7c3aed" }} /> Refurbishment Workspace
-                            </h2>
+                            </h1>
                             <p className="refurb-welcome-sub">Diagnostics &bull; Component Repair &bull; Data Destruction &bull; QC Certification</p>
                         </div>
                     </div>
-
-                    <div style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
-                        <span className="refurb-profile-bench-badge">
+        
+                    <div className="refurb-header-actions">
+                        <span className="refurb-profile-bench-badge" style={{ padding: "0.4rem 0.8rem", borderRadius: "9999px", background: "#f5f3ff", color: "#7c3aed", border: "1px solid #ddd6fe", fontSize: "0.78rem", fontWeight: 700 }}>
                             {profile.isPhone ? "Mobile Bench" : profile.isTV ? "Display Bench" : profile.isAppliance ? "Appliance Bench" : "Laptop/PC Bench"}
                         </span>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (isProcessLocked) setShowNavLockModal(true);
+                                else navigate("/refurbishmentcenter_notification");
+                            }}
+                            title="Notifications"
+                            className="notif-bell-btn"
+                        >
+                            <FiBell style={{ color: "#475569", fontSize: "1.1rem" }} />
+                            {unreadNotifCount > 0 && (
+                                <span className="notif-badge">
+                                    {unreadNotifCount > 9 ? "9+" : unreadNotifCount}
+                                </span>
+                            )}
+                        </button>
+
+                        <div
+                            className="refurb-profile-pill"
+                            title={`Facility Profile - ${centerFacilityName}`}
+                            style={{ cursor: isProcessLocked ? "not-allowed" : "pointer" }}
+                            onClick={() => {
+                                if (isProcessLocked) setShowNavLockModal(true);
+                                else navigate("/refurbishment_profile");
+                            }}
+                        >
+                            {centerPhotoUrl && !centerImgError ? (
+                                <img
+                                    src={centerPhotoUrl}
+                                    alt={centerFacilityName}
+                                    className="refurb-shop-img"
+                                    onError={() => setCenterImgError(true)}
+                                />
+                            ) : (
+                                <div className="refurb-avatar">
+                                    {centerFacilityName.charAt(0).toUpperCase()}
+                                </div>
+                            )}
+                            <span className="refurb-pill-name">{centerFacilityName}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -2903,87 +3077,118 @@ function RefurbishmentPerform() {
                     </div>
                 )}
 
-                {/* Allocated Devices Queue Section */}
-                <div className="refurb-panel-card" style={{ marginBottom: "1.5rem" }}>
-                    <div className="refurb-panel-header">
-                        <div>
-                            <h2 className="refurb-panel-title">Allocated Devices Queue</h2>
-                            <p className="refurb-panel-subtitle">
-                                Browse and select any device allocated to your refurbishment center to assess, wipe, repair, and certify
-                            </p>
-                        </div>
-
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", flexWrap: "wrap", marginLeft: "auto" }}>
-                            <div className="refurb-search-box">
-                                <FiSearch className="refurb-search-icon" />
-                                <input
-                                    type="text"
-                                    placeholder="Search device, ID, citizen..."
-                                    value={allocatedSearch}
-                                    onChange={(e) => setAllocatedSearch(e.target.value)}
-                                    className="refurb-search-input"
-                                />
-                                {allocatedSearch && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setAllocatedSearch("")}
-                                        className="refurb-search-clear-btn"
-                                        title="Clear search"
-                                    >
-                                        <FiX />
-                                    </button>
-                                )}
-                            </div>
-
-                            <div className="refurb-tab-pills">
-                                {["All", "Active", "Completed"].map((tab) => (
-                                    <button
-                                        key={tab}
-                                        type="button"
-                                        className={`refurb-tab-btn ${allocatedFilter === tab ? "active" : ""}`}
-                                        onClick={() => setAllocatedFilter(tab)}
-                                    >
-                                        {tab}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="view-toggle-btns">
-                                <button
-                                    type="button"
-                                    className={`view-btn ${allocatedViewMode === "grid" ? "active" : ""}`}
-                                    onClick={() => setAllocatedViewMode("grid")}
-                                    title="Grid View"
-                                >
-                                    <FiGrid />
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`view-btn ${allocatedViewMode === "table" ? "active" : ""}`}
-                                    onClick={() => setAllocatedViewMode("table")}
-                                    title="Table View"
-                                >
-                                    <FiList />
-                                </button>
-                            </div>
-                        </div>
+                {/* Main Controls Panel */}
+                <div className="control-bar-panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", gap: "1rem", flexWrap: "wrap" }}>
+                    <div>
+                        <h3 style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: "1.25rem", fontWeight: 700, margin: "0 0 0.2rem", color: "#0f172a" }}>Allocated Devices Queue</h3>
+                        <p style={{ margin: 0, fontSize: "0.8rem", color: "#64748b" }}>
+                            Browse and select any device allocated to your refurbishment center to assess, wipe, repair, and certify
+                        </p>
                     </div>
 
-                    {loadingAllocated ? (
-                            <div style={{ textAlign: "center", padding: "3rem 1rem", color: "#64748b" }}>
-                                <FiRefreshCw className="spin-icon" style={{ fontSize: "1.8rem", color: "#7c3aed", marginBottom: "0.5rem" }} />
-                                <p style={{ margin: 0, fontSize: "0.875rem" }}>Loading allocated devices queue...</p>
-                            </div>
-                        ) : filteredAllocatedList.length === 0 ? (
-                            <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: "#64748b" }}>
-                                <FiBox style={{ fontSize: "2.5rem", color: "#cbd5e1", marginBottom: "0.5rem" }} />
-                                <h4 style={{ margin: "0 0 0.25rem 0", color: "#334155" }}>No allocated devices found</h4>
-                                <p style={{ margin: 0, fontSize: "0.85rem" }}>
-                                    {allocatedSearch ? `No matches for "${allocatedSearch}"` : `No items in this category.`}
-                                </p>
-                            </div>
-                        ) : allocatedViewMode === "grid" ? (
-                            <div className="refurb-cards-grid">
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", flexWrap: "wrap", marginLeft: "auto" }}>
+                        <div className="refurb-delivery-search">
+                            <FiSearch className="refurb-search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Search device, ID, citizen..."
+                                value={allocatedSearch}
+                                onChange={(e) => setAllocatedSearch(e.target.value)}
+                            />
+                            {allocatedSearch && (
+                                <button
+                                    type="button"
+                                    className="refurb-search-clear"
+                                    onClick={() => setAllocatedSearch("")}
+                                    title="Clear search"
+                                >
+                                    <FiX />
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="filter-pills">
+                            {["All", "Active", "Completed"].map((tab) => (
+                                <button
+                                    key={tab}
+                                    type="button"
+                                    className={`pill-btn ${allocatedFilter === tab ? "active" : ""}`}
+                                    onClick={() => setAllocatedFilter(tab)}
+                                >
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
+
+                        {requestData && (
+                            <button
+                                type="button"
+                                onClick={handleDeselectDevice}
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "5px",
+                                    height: "38px",
+                                    padding: "0 0.85rem",
+                                    background: "#ede9fe",
+                                    color: "#6d28d9",
+                                    border: "1px solid #ddd6fe",
+                                    borderRadius: "10px",
+                                    fontSize: "0.78rem",
+                                    fontWeight: 700,
+                                    cursor: "pointer",
+                                    transition: "all 0.15s ease",
+                                    boxSizing: "border-box"
+                                }}
+                                title="Deselect active device and return to queue overview"
+                            >
+                                <span>Selected: DEV #{requestData.device?.deviceId || id}</span>
+                                <FiX style={{ fontSize: "0.95rem" }} />
+                            </button>
+                        )}
+
+                        <div className="view-toggle-btns">
+                            <button
+                                type="button"
+                                className={`view-btn ${allocatedViewMode === "grid" ? "active" : ""}`}
+                                onClick={() => setAllocatedViewMode("grid")}
+                                title="Grid View"
+                            >
+                                <FiGrid />
+                            </button>
+                            <button
+                                type="button"
+                                className={`view-btn ${allocatedViewMode === "table" ? "active" : ""}`}
+                                onClick={() => setAllocatedViewMode("table")}
+                                title="Table View"
+                            >
+                                <FiList />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+
+                {/* Content Section */}
+                {loadingAllocated ? (
+                    <div className="loading-state" style={{ marginBottom: "1.5rem" }}>
+                        <div className="loading-spinner"></div>
+                        <p style={{ margin: 0, fontSize: "0.875rem" }}>Loading allocated devices queue...</p>
+                    </div>
+                ) : filteredAllocatedList.length === 0 ? (
+                    <div className="empty-repaired-state" style={{ marginBottom: "1.5rem" }}>
+                        <div className="empty-icon-wrap">
+                            <FiCheckSquare />
+                        </div>
+                        <h4 className="empty-title">No Allocated Devices Found</h4>
+                        <p className="empty-desc">
+                            {allocatedSearch
+                                ? `No devices matching "${allocatedSearch}". Try a different keyword.`
+                                : `No allocated devices found under this category.`}
+                        </p>
+                    </div>
+                ) : allocatedViewMode === "grid" ? (
+                    <div className="refurb-cards-grid" style={{ marginBottom: "1.5rem" }}>
                                 {filteredAllocatedList.map((item) => {
                                     const isSelected = (requestData?.refurbishmentRequestId === item.refurbishmentRequestId) ||
                                         (!requestData && Number(id) === item.refurbishmentRequestId);
@@ -3010,7 +3215,6 @@ function RefurbishmentPerform() {
                                                         {getCategoryIcon(item.categoryName)}
                                                     </div>
                                                     <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                                                        <span className="refurb-tag-id">DEV #{item.deviceId}</span>
                                                         {isCompleted ? (
                                                             <span className="refurb-status-chip success">
                                                                 <FiCheckCircle /> Completed
@@ -3023,11 +3227,7 @@ function RefurbishmentPerform() {
                                                             <span className="refurb-status-chip" style={{ background: "#f5f3ff", color: "#7c3aed", borderColor: "#ddd6fe" }}>
                                                                 <span className="refurb-pulse-dot" style={{ display: "inline-block", marginRight: "4px" }}></span> On Bench
                                                             </span>
-                                                        ) : (
-                                                            <span className="refurb-status-chip" style={{ background: "#eff6ff", color: "#2563eb", borderColor: "#bfdbfe" }}>
-                                                                Assigned
-                                                            </span>
-                                                        )}
+                                                        ) : null}
                                                     </div>
                                                 </div>
 
@@ -3045,14 +3245,40 @@ function RefurbishmentPerform() {
                                                             </div>
                                                             <div>
                                                                 <span className="refurb-agent-name">{item.customerName}</span>
-                                                                <span className="refurb-agent-sub">{item.customerCity || "City Hub"}</span>
+                                                                <span className="refurb-agent-sub">{item.customerPhone ? `${item.customerPhone} • ` : ""}{item.customerCity || "City Hub"}</span>
                                                             </div>
                                                         </div>
+                                                        {item.customerPhone && (
+                                                            <a href={`tel:${item.customerPhone}`} className="btn-refurb-call" title="Call Citizen" onClick={(e) => e.stopPropagation()}>
+                                                                <FiPhone />
+                                                            </a>
+                                                        )}
                                                     </div>
                                                 )}
+
+                                                {/* Origin & Destination Details */}
+                                                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.75rem" }}>
+                                                    <div className="refurb-detail-row">
+                                                        <FiUser className="detail-icon" style={{ color: "#3b82f6" }} />
+                                                        <div>
+                                                            <div className="detail-label">Origin (Inspection Hub)</div>
+                                                            <div className="detail-val">{item.technicianName || item.inspectionCenterName || "Technician Hub"}</div>
+                                                            <div style={{ fontSize: "0.75rem", color: "#64748b" }}>{item.technicianAddress || item.customerCity || "Inspection Center"}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="refurb-detail-row">
+                                                        <FiMapPin className="detail-icon" style={{ color: "#7c3aed" }} />
+                                                        <div>
+                                                            <div className="detail-label">Destination (Refurbishment Facility)</div>
+                                                            <div className="detail-val">{centerFacilityName}</div>
+                                                            <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Condition: {item.condition || "Inspected"} {item.weight && Number(item.weight) > 0 ? `(${item.weight} kg)` : ""}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div className="refurb-card-actions" style={{ marginTop: "1rem" }}>
+                                            <div className="refurb-card-actions" style={{ marginTop: "1rem", paddingTop: "0.85rem", borderTop: "1px dashed #e2e8f0" }}>
                                                 {isCompleted ? (
                                                     <button
                                                         type="button"
@@ -3096,24 +3322,11 @@ function RefurbishmentPerform() {
                                                         </button>
                                                     )
                                                 ) : (
-                                                    <div style={{ display: "flex", gap: "0.4rem", width: "100%" }}>
-                                                        {!isSelected && (
-                                                            <button
-                                                                type="button"
-                                                                className="refurb-btn-view"
-                                                                style={{ flex: 1, justifyContent: "center" }}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleSelectAllocatedDevice(item.refurbishmentRequestId);
-                                                                }}
-                                                            >
-                                                                Select
-                                                            </button>
-                                                        )}
+                                                    checkIsDeliveryCompleted(item) ? (
                                                         <button
                                                             type="button"
                                                             className="refurb-btn-accept"
-                                                            style={{ flex: 1.5, justifyContent: "center" }}
+                                                            style={{ width: "100%", justifyContent: "center" }}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 handleStartProcess(item.refurbishmentRequestId);
@@ -3122,7 +3335,30 @@ function RefurbishmentPerform() {
                                                         >
                                                             <FiPlay /> Start SLA
                                                         </button>
-                                                    </div>
+                                                    ) : (
+                                                        <Link
+                                                            to={`/refurbishment_delivery?device=${item.deviceId}`}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            style={{
+                                                                width: "100%",
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                                justifyContent: "center",
+                                                                gap: "0.35rem",
+                                                                padding: "0.5rem",
+                                                                background: "#fef3c7",
+                                                                color: "#b45309",
+                                                                border: "1px solid #fde68a",
+                                                                borderRadius: "8px",
+                                                                fontSize: "0.78rem",
+                                                                fontWeight: 700,
+                                                                textDecoration: "none"
+                                                            }}
+                                                            title="Physical delivery to center is pending. SLA cannot be started yet. Click to view delivery status."
+                                                        >
+                                                            <FiTruck /> Delivery Pending
+                                                        </Link>
+                                                    )
                                                 )}
                                             </div>
                                         </div>
@@ -3130,8 +3366,8 @@ function RefurbishmentPerform() {
                                 })}
                             </div>
                         ) : (
-                            <div className="refurb-table-wrapper">
-                                <table className="refurb-table">
+                            <div className="glass-table-wrapper" style={{ marginBottom: "1.5rem" }}>
+                                <table className="glass-table">
                                     <thead>
                                         <tr>
                                             <th>REQ &amp; DEV ID</th>
@@ -3153,7 +3389,9 @@ function RefurbishmentPerform() {
                                             return (
                                                 <tr
                                                     key={item.refurbishmentRequestId || item.deviceId}
-                                                    style={{ background: isSelected ? "#faf5ff" : "inherit" }}
+                                                    onClick={() => handleSelectAllocatedDevice(item.refurbishmentRequestId)}
+                                                    style={{ background: isSelected ? "#faf5ff" : "inherit", cursor: "pointer" }}
+                                                    title={isSelected ? "Click row to deselect" : "Click row to select"}
                                                 >
                                                     <td>
                                                         <span style={{ fontWeight: 800, color: "#7c3aed", display: "block" }}>
@@ -3213,18 +3451,7 @@ function RefurbishmentPerform() {
                                                                 >
                                                                     <FiCheckCircle /> View Report
                                                                 </button>
-                                                            ) : isSelected ? (
-                                                                <span 
-                                                                    style={{ fontSize: "0.78rem", fontWeight: 700, color: "#7c3aed", padding: "0.35rem 0.75rem", background: "#ede9fe", borderRadius: "8px", cursor: "pointer" }}
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleDeselectDevice();
-                                                                    }}
-                                                                    title="Click to deselect"
-                                                                >
-                                                                    Selected
-                                                                </span>
-                                                            ) : (
+                                                            ) : isTransferred ? (
                                                                 <button
                                                                     type="button"
                                                                     className="refurb-action-btn"
@@ -3233,21 +3460,47 @@ function RefurbishmentPerform() {
                                                                         handleSelectAllocatedDevice(item.refurbishmentRequestId);
                                                                     }}
                                                                 >
-                                                                    Select
+                                                                    <FiEye /> View Details
                                                                 </button>
-                                                            )}
-                                                            {!isCompleted && !isTransferred && !isInProgress && (
-                                                                <button
-                                                                    type="button"
-                                                                    className="refurb-action-btn success"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleStartProcess(item.refurbishmentRequestId);
-                                                                    }}
-                                                                    disabled={isStartingProcess}
-                                                                >
-                                                                    <FiPlay /> Start
-                                                                </button>
+                                                            ) : isInProgress ? (
+                                                                <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#7c3aed", padding: "0.3rem 0.6rem", background: "#f5f3ff", borderRadius: "6px" }}>
+                                                                    <span className="refurb-pulse-dot" style={{ display: "inline-block", marginRight: "4px" }}></span> On Bench
+                                                                </span>
+                                                            ) : (
+                                                                checkIsDeliveryCompleted(item) ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="refurb-action-btn success"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleStartProcess(item.refurbishmentRequestId);
+                                                                        }}
+                                                                        disabled={isStartingProcess}
+                                                                    >
+                                                                        <FiPlay /> Start
+                                                                    </button>
+                                                                ) : (
+                                                                    <Link
+                                                                        to={`/refurbishment_delivery?device=${item.deviceId}`}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        style={{
+                                                                            fontSize: "0.72rem",
+                                                                            fontWeight: 700,
+                                                                            color: "#b45309",
+                                                                            background: "#fef3c7",
+                                                                            border: "1px solid #fde68a",
+                                                                            padding: "0.3rem 0.6rem",
+                                                                            borderRadius: "6px",
+                                                                            display: "inline-flex",
+                                                                            alignItems: "center",
+                                                                            gap: "4px",
+                                                                            textDecoration: "none"
+                                                                        }}
+                                                                        title="Delivery to center is pending. SLA cannot be started yet."
+                                                                    >
+                                                                        <FiTruck /> Delivery Pending
+                                                                    </Link>
+                                                                )
                                                             )}
                                                         </div>
                                                     </td>
@@ -3259,7 +3512,6 @@ function RefurbishmentPerform() {
                             </div>
                         )
                     }
-                </div>
 
                 {loading ? (
                     <div className="refurb-panel-card" style={{ textAlign: "center", padding: "3.5rem 1rem", color: "#64748b" }}>
@@ -3642,26 +3894,45 @@ function RefurbishmentPerform() {
                                 </div>
                             </div>
 
-                            <div className="refurb-prestart-hero-action">
-                                <button
-                                    type="button"
-                                    className="refurb-start-cta-btn"
-                                    onClick={handleStartProcess}
-                                    disabled={isStartingProcess}
-                                >
-                                    {isStartingProcess ? (
-                                        <>
-                                            <FiRefreshCw className="spin-icon" /> Initializing Refurbishment...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <FiPlay /> Start Refurbishment Process
-                                        </>
-                                    )}
-                                </button>
-                                <div className="refurb-start-cta-hint">
-                                    <FiClock /> Triggers 10-Day SLA Completion Window
-                                </div>
+                            <div className="refurb-prestart-hero-action" style={{ textAlign: "right", maxWidth: "340px" }}>
+                                {checkIsDeliveryCompleted(requestData) ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className="refurb-start-cta-btn"
+                                            onClick={handleStartProcess}
+                                            disabled={isStartingProcess}
+                                        >
+                                            {isStartingProcess ? (
+                                                <>
+                                                    <FiRefreshCw className="spin-icon" /> Initializing Refurbishment...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FiPlay /> Start Refurbishment Process
+                                                </>
+                                            )}
+                                        </button>
+                                        <div className="refurb-start-cta-hint">
+                                            <FiClock /> Triggers 10-Day SLA Completion Window
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div style={{ background: "#fef3c7", border: "1px solid #fde68a", borderRadius: "12px", padding: "0.85rem 1rem", textAlign: "left" }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#92400e", fontWeight: 700, fontSize: "0.88rem", marginBottom: "0.3rem" }}>
+                                            <FiTruck style={{ fontSize: "1.1rem" }} /> Awaiting Physical Delivery
+                                        </div>
+                                        <p style={{ margin: 0, fontSize: "0.78rem", color: "#78350f", lineHeight: 1.4 }}>
+                                            Device is awaiting arrival from the technician hub. SLA start will be enabled once physical delivery is received at the facility.
+                                        </p>
+                                        <Link
+                                            to={`/refurbishment_delivery?device=${device?.deviceId || ""}`}
+                                            style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "0.78rem", color: "#7c3aed", fontWeight: 700, marginTop: "0.5rem", textDecoration: "none" }}
+                                        >
+                                            Track Inbound Delivery <FiArrowRight />
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -3871,22 +4142,40 @@ function RefurbishmentPerform() {
                                         </li>
                                     </ul>
 
-                                    <button
-                                        type="button"
-                                        className="refurb-start-cta-btn large full-width"
-                                        onClick={handleStartProcess}
-                                        disabled={isStartingProcess}
-                                    >
-                                        {isStartingProcess ? (
-                                            <>
-                                                <FiRefreshCw className="spin-icon" /> Starting Refurbishment...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <FiPlay /> Begin Refurbishment Process
-                                            </>
-                                        )}
-                                    </button>
+                                    {checkIsDeliveryCompleted(requestData) ? (
+                                        <button
+                                            type="button"
+                                            className="refurb-start-cta-btn large full-width"
+                                            onClick={handleStartProcess}
+                                            disabled={isStartingProcess}
+                                        >
+                                            {isStartingProcess ? (
+                                                <>
+                                                    <FiRefreshCw className="spin-icon" /> Starting Refurbishment...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FiPlay /> Begin Refurbishment Process
+                                                </>
+                                            )}
+                                        </button>
+                                    ) : (
+                                        <div style={{ background: "#fffbeb", border: "1px dashed #f59e0b", borderRadius: "10px", padding: "0.9rem", textAlign: "center", marginTop: "1rem" }}>
+                                            <div style={{ color: "#b45309", fontWeight: 700, fontSize: "0.88rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                                                <FiAlertTriangle /> Delivery Incomplete
+                                            </div>
+                                            <p style={{ margin: "0.35rem 0 0.5rem 0", fontSize: "0.78rem", color: "#92400e" }}>
+                                                Physical device has not arrived at the facility yet. SLA timer cannot be initiated.
+                                            </p>
+                                            <Link
+                                                to={`/refurbishment_delivery?device=${device?.deviceId || ""}`}
+                                                className="refurb-btn-view"
+                                                style={{ display: "inline-flex", justifyContent: "center", width: "100%", padding: "0.45rem", fontSize: "0.8rem", textDecoration: "none" }}
+                                            >
+                                                <FiTruck /> View Inbound Transit Status
+                                            </Link>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

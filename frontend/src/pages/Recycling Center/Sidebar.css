@@ -1,4 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap");
+@import "./RecyclingCommon.css";
 
 .admin-sidebar {
   --sb-bg-gradient: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
@@ -24,7 +25,7 @@
   z-index: 1000 !important;
   box-shadow: 2px 0 16px rgba(15, 23, 42, 0.03) !important;
   border-right: 1px solid var(--sb-border) !important;
-  font-family: "Poppins", "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  font-family: var(--recyc-font-body) !important;
   -webkit-font-smoothing: antialiased !important;
   -moz-osx-font-smoothing: grayscale !important;
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
@@ -68,9 +69,9 @@
 }
 
 .admin-sb-brand-name {
-  font-family: "Outfit", sans-serif;
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-family: var(--recyc-font-heading);
+  font-size: 1.15rem;
+  font-weight: 700;
   color: var(--secondary-slate);
   letter-spacing: -0.02em;
   line-height: 1;

@@ -1,0 +1,353 @@
+/* Refurbished_devices.css - Repaired & Certified Devices Management */
+@import "./RefurbishmentCommon.css";
+@import "./Refurbishmentcenter_dashboard.css";
+
+.refurbished-devices-page {
+  background-color: #f1f5f9;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.04) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.04) 0px, transparent 50%);
+  min-height: 100vh;
+}
+
+/* Quality Grade Badges */
+.grade-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.725rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-family: var(--refurb-font-body, inherit);
+}
+
+.grade-badge.grade-a {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.grade-badge.grade-b {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.grade-badge.grade-c {
+  background: #fefce8;
+  color: #a16207;
+  border: 1px solid #fef08a;
+}
+
+/* Device Spec Badges */
+.spec-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.spec-chip.highlight {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #7c3aed;
+  font-weight: 700;
+}
+
+/* Replaced Components List in Cards */
+.components-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+
+.comp-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #ede9fe;
+  color: #6d28d9;
+  border-radius: 4px;
+  padding: 0.15rem 0.45rem;
+}
+
+/* Device Value Box */
+.device-value-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 0.95rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.device-value-lbl {
+  font-size: 0.725rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.device-value-amt {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #059669;
+  font-family: var(--refurb-font-heading, inherit);
+}
+
+.device-cost-amt {
+  font-size: 0.825rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+/* Button variants */
+.btn-cert-view {
+  height: 38px;
+  padding: 0 1rem;
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.825rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.25);
+  transition: all 0.2s ease;
+  font-family: var(--refurb-font-body, inherit);
+}
+
+.btn-cert-view:hover {
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Certificate Modal Frame */
+.cert-printable-container {
+  background: #ffffff;
+  padding: 1.75rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.06);
+}
+
+.cert-border-outer {
+  border: 4px double #7c3aed;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.cert-border-inner {
+  border: 1px solid #ddd6fe;
+  padding: 2.25rem 2.5rem;
+  background: radial-gradient(circle at center, #ffffff 60%, #faf5ff 100%);
+  position: relative;
+  border-radius: 4px;
+}
+
+.cert-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-25deg);
+  font-size: 5.5rem;
+  font-weight: 900;
+  color: rgba(124, 58, 237, 0.04);
+  pointer-events: none;
+  white-space: nowrap;
+  font-family: var(--refurb-font-heading, inherit);
+  text-transform: uppercase;
+}
+
+.cert-header {
+  text-align: center;
+  border-bottom: 2px solid #7c3aed;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.cert-brand-title {
+  font-family: var(--refurb-font-heading, inherit);
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #581c87;
+  letter-spacing: -0.02em;
+  margin: 0.35rem 0 0.15rem;
+}
+
+.cert-brand-sub {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #7c3aed;
+  margin: 0;
+}
+
+.cert-main-title {
+  font-family: var(--refurb-font-heading, inherit);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 1.25rem 0 0.5rem;
+  text-align: center;
+}
+
+.cert-body-text {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #334155;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.cert-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.85rem;
+  background: rgba(245, 243, 255, 0.6);
+  border: 1px solid #ddd6fe;
+  padding: 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.cert-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.cert-detail-lbl {
+  font-size: 0.675rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 0.04em;
+}
+
+.cert-detail-val {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cert-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px dashed #cbd5e1;
+}
+
+.cert-stamp-box {
+  width: 90px;
+  height: 90px;
+  border: 3px dashed #7c3aed;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #7c3aed;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  transform: rotate(-10deg);
+  opacity: 0.85;
+}
+
+.cert-qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cert-qr-box {
+  width: 70px;
+  height: 70px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.25rem;
+  color: #1e293b;
+  border-radius: 6px;
+}
+
+.cert-signature-box {
+  text-align: right;
+}
+
+.cert-sig-line {
+  width: 140px;
+  border-bottom: 1.5px solid #0f172a;
+  margin-bottom: 0.35rem;
+}
+
+.cert-sig-title {
+  font-size: 0.725rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cert-sig-sub {
+  font-size: 0.675rem;
+  color: #64748b;
+}
+
+/* Empty state */
+.empty-repaired-state {
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+}
+
+.empty-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #f5f3ff;
+  color: #7c3aed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.85rem;
+  margin: 0 auto 1.25rem;
+}
+
+.empty-title {
+  font-family: var(--refurb-font-heading, inherit);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 0.4rem;
+}
+
+.empty-desc {
+  font-size: 0.85rem;
+  color: #64748b;
+  max-width: 420px;
+  margin: 0 auto 1.25rem;
+}

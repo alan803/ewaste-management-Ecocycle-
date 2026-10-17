@@ -1,0 +1,942 @@
+/* ==========================================================================
+   RefurbishmentCommon.css - Unified Typography System
+   Exact match to Administrator/Admindashboard.jsx & AdminCommon.css
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700;800&display=swap");
+
+:root {
+  --refurb-font-body: "Plus Jakarta Sans", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --refurb-font-heading: "Space Grotesk", sans-serif;
+  
+  --refurb-primary: #7c3aed;
+  --refurb-primary-dark: #6d28d9;
+  --refurb-primary-light: #f5f3ff;
+  --refurb-primary-border: #ddd6fe;
+  
+  --refurb-text-dark: #0f172a;
+  --refurb-text-main: #1e293b;
+  --refurb-text-muted: #64748b;
+  --refurb-text-light: #94a3b8;
+  
+  --refurb-bg-page: #f8fafc;
+  --refurb-border-subtle: #e2e8f0;
+  --refurb-border-strong: #cbd5e1;
+}
+
+/* ==========================================================================
+   1. GLOBAL PAGE & SHELL TYPOGRAPHY & UNIFIED MAIN CONTENT SIZING
+   ========================================================================== */
+body {
+  font-family: var(--refurb-font-body) !important;
+  color: var(--refurb-text-dark) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  -webkit-font-smoothing: antialiased;
+}
+
+.refurb-dashboard-layout,
+.refurb-delivery-page,
+.refurb-perform-layout,
+.refurb-profile-layout,
+.refurb-notif-app {
+  display: flex !important;
+  min-height: 100vh !important;
+  background-color: #f1f5f9 !important;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.04) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(5, 150, 105, 0.04) 0px, transparent 50%) !important;
+  font-family: var(--refurb-font-body) !important;
+  color: var(--refurb-text-dark) !important;
+  letter-spacing: -0.011em !important;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.refurb-main-content,
+.refurb-main-container,
+.refurb-perform-main,
+.refurb-profile-main {
+  flex: 1 !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  width: auto !important;
+  padding: 1.5rem 2rem !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+  font-family: var(--refurb-font-body);
+}
+
+@media (max-width: 992px) {
+  .refurb-main-content,
+  .refurb-main-container,
+  .refurb-perform-main,
+  .refurb-profile-main {
+    padding: 1rem !important;
+  }
+}
+
+/* ==========================================================================
+   2. TOPBAR & PAGE HEADER TITLES & SUBTITLES (Matches Admin Command Brand)
+   ========================================================================== */
+.refurb-welcome-title,
+.refurb-topbar-title,
+.refurb-brand-title,
+.refurb-header-ribbon h1,
+.refurb-delivery-header h1,
+.refurb-perform-header h1,
+.inbox-title-area h1,
+.page-title h1 {
+  font-family: var(--refurb-font-heading) !important;
+  font-size: 1.35rem !important;
+  font-weight: 700 !important;
+  color: var(--refurb-text-dark) !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.25 !important;
+  margin: 0 !important;
+}
+
+.refurb-welcome-sub,
+.refurb-topbar-sub,
+.refurb-delivery-header p,
+.refurb-perform-header p,
+.page-subtitle {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.825rem !important;
+  color: var(--refurb-text-muted) !important;
+  font-weight: 500 !important;
+  margin: 0.2rem 0 0 0 !important;
+}
+
+/* ==========================================================================
+   2.1 TOPBAR ACTION BUTTONS (Bell & Profile Pill with Identical 38px Height)
+   ========================================================================== */
+.notif-bell-btn {
+  position: relative !important;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  max-width: 38px !important;
+  max-height: 38px !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  border: 1px solid var(--refurb-border, #e2e8f0) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+.refurb-profile-pill {
+  position: relative !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  border: 1px solid var(--refurb-border, #e2e8f0) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.6rem !important;
+  padding: 3px 0.85rem 3px 3px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  box-sizing: border-box !important;
+  text-decoration: none !important;
+  flex-shrink: 0 !important;
+}
+
+.notif-bell-btn:hover,
+.refurb-profile-pill:hover {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  transform: translateY(-1px);
+}
+
+.refurb-profile-pill .refurb-shop-img {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  border-radius: 7px !important;
+  object-fit: cover !important;
+  display: block !important;
+  flex-shrink: 0 !important;
+}
+
+.refurb-profile-pill .refurb-avatar {
+  width: 30px !important;
+  height: 30px !important;
+  min-width: 30px !important;
+  min-height: 30px !important;
+  border-radius: 7px !important;
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%) !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 700 !important;
+  font-size: 0.875rem !important;
+  font-family: var(--refurb-font-heading) !important;
+  flex-shrink: 0 !important;
+}
+
+.refurb-pill-name {
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  white-space: nowrap !important;
+  max-width: 220px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 1 !important;
+  letter-spacing: -0.01em !important;
+  display: inline-block !important;
+}
+
+/* ==========================================================================
+   3. PANEL, CARD & SECTION HEADINGS (Matches Admin Panel Titles)
+   ========================================================================== */
+.refurb-panel-title,
+.refurb-card-title,
+.chart-title,
+.section-title h2,
+.section-title h3,
+.inbox-toolbar-title,
+.reader-title,
+.modal-title,
+.refurb-card-brand-name {
+  font-family: var(--refurb-font-heading) !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  color: var(--refurb-text-dark) !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.3 !important;
+  margin: 0 0 0.35rem 0 !important;
+}
+
+.refurb-panel-subtitle,
+.refurb-card-subtitle,
+.chart-subtitle {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.825rem !important;
+  color: var(--refurb-text-muted) !important;
+  font-weight: 500 !important;
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}
+
+/* ==========================================================================
+   4. KPI & METRIC NUMERICAL VALUES (Matches Admin Metric Value)
+   ========================================================================== */
+.refurb-kpi-val,
+.metric-value-row h2,
+.refurb-stat-number,
+.kpi-metric-val {
+  font-family: var(--refurb-font-heading) !important;
+  font-size: 1.65rem !important;
+  font-weight: 700 !important;
+  color: var(--refurb-text-dark) !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.refurb-kpi-lbl,
+.metric-label,
+.refurb-stat-label {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  color: var(--refurb-text-muted) !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  margin-top: 0.25rem !important;
+}
+
+/* ==========================================================================
+   5. TABLE TYPOGRAPHY (Matches Admin Tables)
+   ========================================================================== */
+.refurb-table th,
+table.refurb-table th,
+.refurb-delivery-table th {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  color: var(--refurb-text-muted) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  padding: 0.85rem 1rem !important;
+  line-height: 1.2 !important;
+}
+
+.refurb-table td,
+table.refurb-table td,
+.refurb-delivery-table td {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  color: var(--refurb-text-main) !important;
+  padding: 0.85rem 1rem !important;
+  line-height: 1.4 !important;
+}
+
+/* Table Bold Highlights */
+.refurb-table td strong,
+.refurb-table td b,
+.refurb-table .primary-cell {
+  font-weight: 700 !important;
+  color: var(--refurb-text-dark) !important;
+}
+
+/* Table Secondary/Helper info */
+.refurb-table td small,
+.refurb-table td .sub-cell,
+.refurb-table td .text-muted {
+  font-size: 0.775rem !important;
+  color: var(--refurb-text-muted) !important;
+  font-weight: 500 !important;
+}
+
+/* ==========================================================================
+   6. BADGES, CHIPS, PILLS & STATUS TAGS (Matches Admin Status Badges)
+   ========================================================================== */
+.refurb-badge,
+.refurb-kpi-badge,
+.refurb-stage-badge,
+.status-pill,
+.refurb-deadline-badge,
+.refurb-tag {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.725rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em !important;
+  line-height: 1.2 !important;
+  border-radius: 9999px !important;
+}
+
+/* ==========================================================================
+   7. NAVIGATION TABS & FILTER PILLS
+   ========================================================================== */
+.refurb-tab-btn,
+.refurb-dashboard-layout .pill-btn,
+.refurb-delivery-page .pill-btn,
+.refurb-perform-layout .pill-btn,
+.refurb-profile-layout .pill-btn,
+.refurb-notif-app .pill-btn,
+.filter-tab {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+}
+
+.refurb-tab-btn.active,
+.refurb-dashboard-layout .pill-btn.active,
+.refurb-delivery-page .pill-btn.active,
+.refurb-perform-layout .pill-btn.active,
+.refurb-profile-layout .pill-btn.active,
+.refurb-notif-app .pill-btn.active {
+  font-weight: 700 !important;
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  border-color: #7c3aed !important;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3) !important;
+}
+
+.refurb-dashboard-layout .view-btn.active,
+.refurb-dashboard-layout .view-toggle-btns .view-btn.active {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3) !important;
+}
+
+/* ==========================================================================
+   8. BUTTONS & INTERACTIVE CONTROLS
+   ========================================================================== */
+.refurb-btn-accept,
+.refurb-btn-reject,
+.refurb-btn-view,
+.refurb-action-btn,
+.refurb-modal-close-btn,
+.btn-primary,
+.btn-secondary {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.825rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* ==========================================================================
+   9. MODAL HEADINGS & CONTENT (Matches Admin Modals)
+   ========================================================================== */
+.refurb-modal-header h3,
+.refurb-modal-card h3 {
+  font-family: var(--refurb-font-heading) !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.refurb-modal-header p,
+.refurb-modal-card p {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+}
+
+.refurb-spec-label {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.685rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+}
+
+.refurb-spec-val {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+}
+
+/* ==========================================================================
+   10. SIDEBAR NAVIGATION TYPOGRAPHY (Matches Admin Sidebar)
+   ========================================================================== */
+.refurb-sidebar-brand .refurb-brand-title {
+  font-family: var(--refurb-font-heading) !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+}
+
+.refurb-sidebar-brand .refurb-brand-sub {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.725rem !important;
+  font-weight: 600 !important;
+}
+
+.refurb-group-title {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+.refurb-sidebar-link {
+  font-family: var(--refurb-font-body) !important;
+  font-size: 0.825rem !important;
+  font-weight: 600 !important;
+}
+
+.refurb-sidebar-link.active {
+  font-weight: 700 !important;
+}
+
+/* ==========================================================================
+   11. UNIFIED CONTROL BAR, SEARCHBAR, FILTER PILLS, VIEW TOGGLES & CARD GRID
+   Exact match to Refurbishment_delivery.jsx / Refurbishment_delivery.css
+   ========================================================================== */
+
+/* Main Controls Panel (Independent Header Bar) */
+.control-bar-panel {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 1rem 1.25rem !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  box-sizing: border-box !important;
+}
+
+/* Sized Search Bar (38px height to match pills & view buttons) */
+.refurb-delivery-search,
+.refurb-search-box {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  background: #ffffff !important;
+  padding: 0 0.85rem !important;
+  border-radius: 10px !important;
+  gap: 0.6rem !important;
+  border: 1px solid #e2e8f0 !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  width: 340px !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+
+.refurb-delivery-search .refurb-search-icon,
+.refurb-search-box .refurb-search-icon,
+.refurb-delivery-search svg,
+.refurb-search-box svg {
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  color: #64748b !important;
+  font-size: 0.95rem !important;
+  transition: color 0.2s ease !important;
+  flex-shrink: 0 !important;
+}
+
+.refurb-delivery-search input,
+.refurb-search-box input,
+.refurb-search-input {
+  position: static !important;
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-size: 0.825rem !important;
+  font-family: inherit !important;
+  color: #0f172a !important;
+  flex: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+.refurb-delivery-search input:focus,
+.refurb-search-box input:focus,
+.refurb-search-input:focus {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  width: 100% !important;
+}
+
+.refurb-delivery-search input::placeholder,
+.refurb-search-box input::placeholder,
+.refurb-search-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+.refurb-delivery-search .refurb-search-clear,
+.refurb-search-box .refurb-search-clear-btn,
+.refurb-search-clear {
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  color: #94a3b8 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  font-size: 0.85rem !important;
+  flex-shrink: 0 !important;
+  transition: color 0.15s ease !important;
+}
+
+.refurb-delivery-search .refurb-search-clear:hover,
+.refurb-search-box .refurb-search-clear-btn:hover,
+.refurb-search-clear:hover {
+  color: #64748b !important;
+}
+
+.refurb-delivery-search:focus-within,
+.refurb-search-box:focus-within {
+  border-color: #7c3aed !important;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18) !important;
+  background: #ffffff !important;
+}
+
+.refurb-delivery-search:focus-within .refurb-search-icon,
+.refurb-search-box:focus-within .refurb-search-icon,
+.refurb-delivery-search:focus-within svg,
+.refurb-search-box:focus-within svg {
+  color: #7c3aed !important;
+}
+
+/* Filter Pills Div (38px height) */
+.refurb-dashboard-layout .filter-pills,
+.refurb-delivery-page .filter-pills,
+.refurb-perform-layout .filter-pills,
+.refurb-profile-layout .filter-pills,
+.refurb-notif-app .filter-pills,
+.refurb-tab-pills {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
+  background: #f1f5f9 !important;
+  padding: 0.25rem !important;
+  border-radius: 10px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  box-sizing: border-box !important;
+}
+
+.refurb-dashboard-layout .filter-pills .pill-btn,
+.refurb-delivery-page .filter-pills .pill-btn,
+.refurb-perform-layout .filter-pills .pill-btn,
+.refurb-profile-layout .filter-pills .pill-btn,
+.refurb-notif-app .filter-pills .pill-btn,
+.refurb-tab-btn {
+  border: none !important;
+  background: transparent !important;
+  color: #64748b !important;
+  padding: 0.4rem 0.85rem !important;
+  border-radius: 8px !important;
+  font-size: 0.775rem !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  line-height: 1 !important;
+  font-family: inherit !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.refurb-dashboard-layout .filter-pills .pill-btn:hover:not(.active),
+.refurb-delivery-page .filter-pills .pill-btn:hover:not(.active),
+.refurb-perform-layout .filter-pills .pill-btn:hover:not(.active),
+.refurb-profile-layout .filter-pills .pill-btn:hover:not(.active),
+.refurb-notif-app .filter-pills .pill-btn:hover:not(.active),
+.refurb-tab-btn:hover:not(.active) {
+  color: #7c3aed !important;
+  background: rgba(124, 58, 237, 0.06) !important;
+}
+
+.refurb-dashboard-layout .filter-pills .pill-btn.active,
+.refurb-delivery-page .filter-pills .pill-btn.active,
+.refurb-perform-layout .filter-pills .pill-btn.active,
+.refurb-profile-layout .filter-pills .pill-btn.active,
+.refurb-notif-app .filter-pills .pill-btn.active,
+.refurb-tab-btn.active {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  border-color: #7c3aed !important;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3) !important;
+}
+
+/* View Toggle Buttons (38px height) */
+.view-toggle-btns {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.25rem !important;
+  background: #f1f5f9 !important;
+  padding: 0.25rem !important;
+  border-radius: 10px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  box-sizing: border-box !important;
+}
+
+.view-btn {
+  border: none !important;
+  background: transparent !important;
+  color: #64748b !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.95rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  padding: 0 !important;
+}
+
+.refurb-dashboard-layout .view-btn:hover:not(.active) {
+  color: #7c3aed !important;
+  background: rgba(124, 58, 237, 0.06) !important;
+}
+
+.refurb-dashboard-layout .view-btn.active,
+.refurb-dashboard-layout .view-toggle-btns .view-btn.active {
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3) !important;
+}
+
+/* Cards Grid & Unified Cards */
+.refurb-cards-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  gap: 1.15rem !important;
+  margin-top: 1rem !important;
+}
+
+.refurb-delivery-card,
+.refurb-item-card {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  padding: 1.15rem !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  transition: all 0.2s ease !important;
+  box-sizing: border-box !important;
+}
+
+.refurb-delivery-card:hover,
+.refurb-item-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.08) !important;
+  border-color: #ddd6fe !important;
+}
+
+.refurb-card-top-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 0.75rem !important;
+}
+
+.refurb-cat-icon-box {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+  background: #f5f3ff !important;
+  color: #7c3aed !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.1rem !important;
+  flex-shrink: 0 !important;
+}
+
+.refurb-card-brand-name {
+  margin: 0 0 0.15rem 0 !important;
+  font-size: 1.05rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  font-family: inherit !important;
+  line-height: 1.3 !important;
+}
+
+.refurb-card-cat-sub {
+  margin: 0 !important;
+  font-size: 0.775rem !important;
+  color: #64748b !important;
+  font-weight: 600 !important;
+}
+
+.refurb-agent-chip-box {
+  background: #f8fafc !important;
+  border: 1px solid #f1f5f9 !important;
+  border-radius: 12px !important;
+  padding: 0.65rem 0.85rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-top: 0.75rem !important;
+  box-sizing: border-box !important;
+}
+
+.refurb-agent-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  flex-shrink: 0 !important;
+}
+
+.refurb-agent-name {
+  font-size: 0.825rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  display: block !important;
+}
+
+.refurb-agent-sub {
+  font-size: 0.725rem !important;
+  color: #64748b !important;
+  display: block !important;
+}
+
+.btn-refurb-call {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  background: #7c3aed !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-decoration: none !important;
+  font-size: 0.85rem !important;
+  box-shadow: 0 2px 6px rgba(124, 58, 237, 0.3) !important;
+  flex-shrink: 0 !important;
+  transition: all 0.2s ease !important;
+}
+
+.btn-refurb-call:hover {
+  background: #6d28d9 !important;
+  transform: scale(1.05) !important;
+}
+
+.refurb-detail-row {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 0.6rem !important;
+}
+
+.refurb-detail-row .detail-icon {
+  font-size: 0.95rem !important;
+  margin-top: 0.15rem !important;
+  flex-shrink: 0 !important;
+}
+
+.refurb-detail-row .detail-label {
+  font-size: 0.675rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  color: #64748b !important;
+  letter-spacing: 0.04em !important;
+}
+
+.refurb-detail-row .detail-val {
+  font-size: 0.825rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+
+/* Table Wrappers */
+.glass-table-wrapper,
+.refurb-table-wrapper {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  overflow-x: auto !important;
+  margin-top: 1rem !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+}
+
+.glass-table {
+  width: 100% !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 0.825rem !important;
+}
+
+.glass-table th {
+  padding: 0.85rem 1rem !important;
+  background: #f8fafc !important;
+  color: #64748b !important;
+  font-weight: 700 !important;
+  text-align: left !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  font-size: 0.725rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.03em !important;
+}
+
+.glass-table td {
+  padding: 0.85rem 1rem !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #1e293b !important;
+  vertical-align: middle !important;
+}
+
+.glass-table tbody tr:last-child td {
+  border-bottom: none !important;
+}
+
+.glass-table tbody tr:hover td {
+  background: #f8fafc !important;
+}
+
+/* Loading & Empty States */
+.loading-state,
+.no-data-state {
+  text-align: center !important;
+  padding: 3rem 1rem !important;
+  color: #64748b !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  margin-top: 1rem !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+}
+
+.loading-spinner {
+  width: 32px !important;
+  height: 32px !important;
+  border: 3px solid #e2e8f0 !important;
+  border-top-color: #7c3aed !important;
+  border-radius: 50% !important;
+  animation: refurb-common-spin 0.8s linear infinite !important;
+  margin: 0 auto 0.75rem !important;
+}
+
+@keyframes refurb-common-spin {
+  to { transform: rotate(360deg); }
+}
+
+.no-data-icon {
+  font-size: 2.5rem !important;
+  color: #cbd5e1 !important;
+  margin-bottom: 0.5rem !important;
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Modern Unified Empty State (Matching Refurbished_devices.jsx) */
+.empty-repaired-state,
+.refurb-empty-state {
+  text-align: center !important;
+  padding: 3.5rem 1.5rem !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.02) !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
+
+.empty-icon-wrap {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 50% !important;
+  background: #f5f3ff !important;
+  color: #7c3aed !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 1.85rem !important;
+  margin: 0 auto 1.25rem !important;
+}
+
+.empty-title {
+  font-family: var(--refurb-font-heading, "Space Grotesk", sans-serif) !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  margin: 0 0 0.4rem !important;
+}
+
+.empty-desc {
+  font-size: 0.85rem !important;
+  color: #64748b !important;
+  max-width: 440px !important;
+  margin: 0 auto !important;
+  line-height: 1.5 !important;
+}
+
+

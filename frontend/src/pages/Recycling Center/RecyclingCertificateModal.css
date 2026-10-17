@@ -2,6 +2,8 @@
    OFFICIAL ECOCYCLE "GREEN AWARD" E-WASTE RECYCLING CERTIFICATE
    ========================================================================== */
 
+@import "./RecyclingCommon.css";
+
 /* Overlay */
 .recyc-cert-modal-overlay {
     position: fixed;
@@ -17,6 +19,7 @@
     justify-content: center;
     padding: 20px;
     overflow-y: auto;
+    font-family: var(--recyc-font-body);
     animation: certFadeIn 0.25s ease-out;
 }
 
@@ -59,9 +62,10 @@
     align-items: center;
     gap: 8px;
     color: #f8fafc;
-    font-weight: 600;
-    font-size: 14px;
-    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    font-family: var(--recyc-font-heading);
+    letter-spacing: -0.01em;
 }
 
 .cert-check-icon {
@@ -104,11 +108,11 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 20px;
+    padding: 9px 18px;
     border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    font-family: 'Poppins', sans-serif;
+    font-size: 0.825rem;
+    font-weight: 700;
+    font-family: var(--recyc-font-body);
     cursor: pointer;
     transition: all 0.2s;
     border: none;
@@ -157,7 +161,7 @@
     box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
     position: relative;
     color: #1e293b;
-    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--recyc-font-body);
     display: flex;
     flex-direction: column;
     border: 8px solid #eceae3;
@@ -213,9 +217,9 @@
 }
 
 .cert-headline-sub {
-    font-family: 'Poppins', 'Outfit', sans-serif;
-    font-size: 20px;
-    font-weight: 500;
+    font-family: var(--recyc-font-heading);
+    font-size: 1.15rem;
+    font-weight: 600;
     color: #4a5568;
     margin: 4px 0 0 2px;
     letter-spacing: 0.02em;
@@ -266,7 +270,7 @@
     padding: 0 10px;
     font-weight: 700;
     color: #0f172a;
-    font-family: 'Poppins', sans-serif;
+    font-family: var(--recyc-font-body);
     vertical-align: baseline;
     line-height: 1.2;
 }
@@ -307,9 +311,9 @@
 
 .cert-entity-name {
     font-size: 15px;
-    font-weight: 800;
+    font-weight: 700;
     color: #0f172a;
-    font-family: 'Poppins', sans-serif;
+    font-family: var(--recyc-font-heading);
     letter-spacing: 0.02em;
     text-transform: capitalize;
 }
@@ -447,9 +451,9 @@
 
 .ecocycle-title {
     font-size: 20px;
-    font-weight: 900;
+    font-weight: 700;
     letter-spacing: 0.06em;
-    font-family: 'Outfit', 'Montserrat', sans-serif;
+    font-family: var(--recyc-font-heading);
     color: #ffffff;
     display: flex;
     align-items: baseline;

@@ -1,4 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap");
+@import "./RecyclingCommon.css";
 
 .recyc-perform-layout {
   --primary: #10b981;
@@ -14,7 +15,7 @@
   display: flex;
   min-height: 100vh;
   background: var(--bg-gradient);
-  font-family: "Poppins", "Outfit", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--recyc-font-body);
   color: var(--text-main);
   position: relative;
   overflow-x: hidden;
@@ -120,7 +121,7 @@
   color: #fff;
   font-size: 0.62rem;
   font-weight: 700;
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-body);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -146,35 +147,46 @@
 /* Filter Pills & View Toggles matching recycling_delivery.css */
 .filter-pills {
   display: flex;
-  align-items: center;
-  gap: 0.35rem;
   background: #f1f5f9;
   padding: 0.25rem;
   border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  gap: 0.2rem;
 }
 
+.filter-pill-btn,
 .pill-btn {
   border: none;
   background: transparent;
-  color: #64748b;
-  padding: 0.4rem 0.85rem;
-  border-radius: 8px;
-  font-size: 0.775rem;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
+  color: #64748b;
+  border-radius: 7px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
+.filter-pill-btn:hover,
 .pill-btn:hover {
   color: #0f172a;
 }
 
+.filter-pill-btn.active,
 .pill-btn.active {
   background: #ffffff;
   color: #059669;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
 }
 
+.panel-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* View Toggle Buttons */
 .view-toggle-btns {
   display: flex;
   align-items: center;
@@ -182,6 +194,7 @@
   background: #f1f5f9;
   padding: 0.25rem;
   border-radius: 10px;
+  border: 1px solid #e2e8f0;
 }
 
 .view-btn {
@@ -196,13 +209,22 @@
   justify-content: center;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.recyc-perform-layout .view-btn:hover:not(.active),
+.view-btn:hover:not(.active) {
+  color: #059669 !important;
+  background: rgba(5, 150, 105, 0.08) !important;
+}
+
+.recyc-perform-layout .view-btn.active,
+.recyc-perform-layout .view-toggle-btns .view-btn.active,
+.view-toggle-btns .view-btn.active,
 .view-btn.active {
-  background: #ffffff;
-  color: #059669;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+  background: #059669 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35) !important;
 }
 
 .glass-profile-chip:hover {
@@ -217,7 +239,7 @@
   color: #fff;
   font-size: 0.75rem;
   font-weight: 700;
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-heading);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -232,9 +254,10 @@
 }
 
 .command-brand h1 {
-  font-family: "Outfit", "Poppins", sans-serif;
-  font-size: 1.3rem;
+  font-family: var(--recyc-font-heading);
+  font-size: 1.35rem;
   font-weight: 700;
+  letter-spacing: -0.02em;
   margin: 0;
   color: var(--secondary);
 }
@@ -318,8 +341,8 @@
 }
 
 .panel-title {
-  font-family: "Outfit", "Poppins", sans-serif;
-  font-size: 1.1rem;
+  font-family: var(--recyc-font-heading);
+  font-size: 1.15rem;
   font-weight: 700;
   margin: 0 0 0.15rem;
   color: var(--secondary);
@@ -646,7 +669,7 @@
   font-weight: 800;
   color: var(--secondary);
   margin: 0.3rem 0;
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-heading);
 }
 
 .recyc-cert-sub {
@@ -922,7 +945,7 @@
   background: #ffffff;
   border: 1.5px solid #cbd5e1;
   color: #334155;
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-body);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -954,7 +977,7 @@
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border: none;
   color: #ffffff;
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-body);
   font-size: 0.875rem;
   font-weight: 700;
   letter-spacing: 0.01em;
@@ -985,7 +1008,7 @@
   background: rgba(241, 245, 249, 0.8);
   border: 1.5px solid #e2e8f0;
   color: #475569;
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-body);
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
@@ -1008,7 +1031,7 @@
   background: linear-gradient(135deg, #059669 0%, #047857 100%);
   border: none;
   color: #ffffff;
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-body);
   font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
@@ -1026,35 +1049,35 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.6rem;
-  width: 100%;
-  padding: 0.75rem 1.25rem;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  color: #ffffff;
-  font-family: "Outfit", "Poppins", sans-serif;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  gap: 0.4rem;
+  width: auto;
+  padding: 0.42rem 0.95rem;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #059669;
+  font-family: var(--recyc-font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  margin-top: 0.5rem;
 }
 
 .btn-dashboard-redirect:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
-  transform: translateY(-2px);
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
 }
 
 .btn-dashboard-redirect svg {
-  font-size: 1.05rem;
+  font-size: 0.85rem;
   transition: transform 0.2s ease;
 }
 
 .btn-dashboard-redirect:hover svg {
-  transform: translateX(4px);
+  transform: translateX(2px);
 }
 
 /* Premium Modern Action Buttons & Delete Controls */
@@ -1065,7 +1088,7 @@
   gap: 0.45rem;
   padding: 0.55rem 1.15rem;
   border-radius: 10px;
-  font-family: "Outfit", "Poppins", sans-serif;
+  font-family: var(--recyc-font-body);
   font-size: 0.825rem;
   font-weight: 700;
   cursor: pointer;
@@ -1611,7 +1634,7 @@
 
 .recyc-kpi-value {
   font-size: 1.2rem;
-  font-family: "Outfit", sans-serif;
+  font-family: var(--recyc-font-heading);
 }
 
 .recyc-kpi-sub {

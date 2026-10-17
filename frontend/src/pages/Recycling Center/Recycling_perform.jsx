@@ -411,7 +411,7 @@ function RecyclingPerform() {
     // Queue Filtering & View Controls (Matching Refurbishment)
     const [allocatedFilter, setAllocatedFilter] = useState("All"); // "All" | "Active" | "Completed"
     const [allocatedSearch, setAllocatedSearch] = useState("");
-    const [allocatedViewMode, setAllocatedViewMode] = useState("grid"); // "grid" | "table"
+    const [allocatedViewMode, setAllocatedViewMode] = useState("table"); // 'table' | 'grid'
 
     // Recycling Process Lifecycle & 10-Day SLA Deadline State
     const [isStarted, setIsStarted] = useState(false);
@@ -431,12 +431,32 @@ function RecyclingPerform() {
     const [deviceProfile, setDeviceProfile] = useState(() => getDeviceProfile("Computers and laptops", 5.0));
 
     // Profile state
-    const [centerName] = useState(() => {
+    const [centerName, setCenterName] = useState(() => {
         return localStorage.getItem("centerName") ||
                localStorage.getItem("userName") ||
                localStorage.getItem("username") ||
                "EcoCycle Recycling Facility";
     });
+    const [centerPhoto, setCenterPhoto] = useState(() => {
+        return localStorage.getItem("centerPhoto") || localStorage.getItem("profilePhoto") || "";
+    });
+    const [imgError, setImgError] = useState(false);
+
+    const getMediaUrl = (filename, folderName = "Center Photo") => {
+        if (!filename) return null;
+        if (filename.startsWith("http://") || filename.startsWith("https://") || filename.startsWith("blob:") || filename.startsWith("data:")) {
+            return filename;
+        }
+        const cleanName = filename.replace(/^uploads[\\/]/, "").replace(/^[\\/]/, "");
+        if (cleanName.includes("/") || cleanName.includes("\\")) {
+            return `https://ecocycle.runasp.net/uploads/${cleanName.replace(/\\/g, "/")}`;
+        }
+        return folderName
+            ? `https://ecocycle.runasp.net/uploads/recycling/${folderName}/${cleanName}`
+            : `https://ecocycle.runasp.net/uploads/${cleanName}`;
+    };
+
+    const centerPhotoUrl = centerPhoto ? getMediaUrl(centerPhoto, "Center Photo") : null;
 
     // STEP 1: Physical Assessment & Live Custom Inputs
     const [visibleDamage, setVisibleDamage] = useState([]);
@@ -622,7 +642,29 @@ function RecyclingPerform() {
         fetchMaterialPrices();
         fetchMasterComponentTypes(token);
         fetchUnreadNotifCount(token);
+        fetchCenterProfile(token);
     }, [navigate]);
+
+    const fetchCenterProfile = async (token) => {
+        try {
+            const res = await axios.get("https://ecocycle.runasp.net/api/RecyclingCenter/myprofile", {
+                headers: { Authorization: `Bearer ${token || localStorage.getItem("token")}` }
+            });
+            const data = res.data || {};
+            const name = data.CenterName || data.centerName || data.OwnerName || data.ownerName || "";
+            const photo = data.CenterPhoto || data.centerPhoto || data.Photo || data.photo || data.profilePhoto;
+            if (name) {
+                setCenterName(name);
+                localStorage.setItem("centerName", name);
+            }
+            if (photo) {
+                setCenterPhoto(photo);
+                localStorage.setItem("centerPhoto", photo);
+            }
+        } catch {
+            // Optional profile fetch
+        }
+    };
 
     const fetchMasterComponentTypes = async (token) => {
         try {
@@ -1127,6 +1169,20 @@ function RecyclingPerform() {
             return true;
         });
     }, [requests, allocatedFilter, allocatedSearch, searchQuery]);
+
+    const activeAllocatedCount = useMemo(() => {
+        return requests.filter(item => {
+            const s = (item.status || "").toLowerCase();
+            return s !== "completed" && (item.processingLifecycleStatus || "").toLowerCase() !== "completed";
+        }).length;
+    }, [requests]);
+
+    const completedAllocatedCount = useMemo(() => {
+        return requests.filter(item => {
+            const s = (item.status || "").toLowerCase();
+            return s === "completed" || (item.processingLifecycleStatus || "").toLowerCase() === "completed";
+        }).length;
+    }, [requests]);
 
     // Step Navigation with Progress Locking
     const handleNextStep = (targetStep) => {
@@ -2384,34 +2440,32 @@ function RecyclingPerform() {
                 <div className="ambient-glow ambient-glow--2"></div>
 
                 {/* Topbar Header */}
-                <header className="recyc-topbar">
-                    <div className="topbar-left">
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                            <button
-                                className="glass-btn"
-                                onClick={() => {
-                                    if (isProcessLocked) {
-                                        setShowNavLockModal(true);
-                                        return;
-                                    }
-                                    navigate("/recyclingcenter_dashboard");
-                                }}
-                                title="Back to Dashboard"
-                            >
-                                <FiArrowLeft />
-                            </button>
-                            <div className="command-brand">
-                                <h1>Industrial Recycling Station</h1>
-                            </div>
+                <header className="recyc-dashboard-topbar">
+                    <div className="topbar-title-group">
+                        <div className="topbar-header-row">
+                            <h1>Industrial Recycling Station</h1>
                         </div>
-                        <p className="command-subtitle">
+                        <p className="topbar-subtitle">
                             Physical inspection, component removal, hazard isolation &amp; material recovery digital logging
                         </p>
                     </div>
 
-                    <div className="topbar-right">
+                    <div className="topbar-right-group">
+                        <div className="search-bar">
+                            <FiSearch className="search-icon" />
+                            <input
+                                type="text"
+                                placeholder="Search brand, model, ID..."
+                                value={allocatedSearch}
+                                onChange={(e) => {
+                                    setAllocatedSearch(e.target.value);
+                                    setSearchQuery(e.target.value);
+                                }}
+                            />
+                        </div>
+
                         <button
-                            className="glass-btn notif-bell-btn"
+                            className="icon-button notif-bell-btn"
                             onClick={() => {
                                 if (isProcessLocked) {
                                     setShowNavLockModal(true);
@@ -2427,12 +2481,31 @@ function RecyclingPerform() {
                             )}
                         </button>
 
-                        <div className="glass-profile-chip">
-                            <div className="glass-profile-avatar">
-                                R
-                            </div>
-                            <span className="glass-profile-name">{centerName}</span>
-                        </div>
+                        <Link
+                            to="/recycle_profile"
+                            className="profile-chip"
+                            title={`Facility Profile - ${centerName}`}
+                            onClick={(e) => {
+                                if (isProcessLocked) {
+                                    e.preventDefault();
+                                    setShowNavLockModal(true);
+                                }
+                            }}
+                        >
+                            {centerPhotoUrl && !imgError ? (
+                                <img
+                                    src={centerPhotoUrl}
+                                    alt={centerName}
+                                    className="profile-avatar-img"
+                                    onError={() => setImgError(true)}
+                                />
+                            ) : (
+                                <div className="profile-avatar">
+                                    {(centerName || "R").charAt(0).toUpperCase()}
+                                </div>
+                            )}
+                            <span className="profile-name">{centerName}</span>
+                        </Link>
                     </div>
                 </header>
 
@@ -2446,68 +2519,33 @@ function RecyclingPerform() {
                             </p>
                         </div>
 
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", flexWrap: "wrap", marginLeft: "auto" }}>
-                            {/* Search Box matching recycling_delivery.jsx */}
-                            <div className="search-box-v2" style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                                <FiSearch className="search-icon" style={{ position: "absolute", left: "0.85rem", color: "#94a3b8", fontSize: "0.95rem" }} />
-                                <input
-                                    type="text"
-                                    placeholder="Search brand, model, ID..."
-                                    value={allocatedSearch}
-                                    onChange={(e) => setAllocatedSearch(e.target.value)}
-                                    style={{
-                                        padding: "0.45rem 1rem 0.45rem 2.3rem",
-                                        border: "1px solid #e2e8f0",
-                                        borderRadius: "10px",
-                                        background: "#ffffff",
-                                        fontSize: "0.8rem",
-                                        color: "#0f172a",
-                                        width: "240px",
-                                        outline: "none",
-                                        boxShadow: "0 1px 3px rgba(0,0,0,0.02)"
-                                    }}
-                                />
-                                {allocatedSearch && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setAllocatedSearch("")}
-                                        style={{
-                                            position: "absolute",
-                                            right: "0.6rem",
-                                            background: "transparent",
-                                            border: "none",
-                                            color: "#94a3b8",
-                                            cursor: "pointer",
-                                            display: "flex",
-                                            alignItems: "center"
-                                        }}
-                                    >
-                                        <FiX />
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Filter Pills matching recycling_delivery.jsx */}
+                        <div className="panel-controls-right" style={{ marginLeft: "auto" }}>
+                            {/* Filter Pills matching Recyclingcenter_dashboard.jsx */}
                             <div className="filter-pills">
-                                {["All", "Active", "Completed"].map((tab) => (
+                                {[
+                                    { id: "All", label: "All", count: requests.length },
+                                    { id: "Active", label: "Active", count: activeAllocatedCount },
+                                    { id: "Completed", label: "Completed", count: completedAllocatedCount }
+                                ].map((tab) => (
                                     <button
-                                        key={tab}
+                                        key={tab.id}
                                         type="button"
-                                        className={`pill-btn ${allocatedFilter === tab ? "active" : ""}`}
-                                        onClick={() => setAllocatedFilter(tab)}
+                                        className={`filter-pill-btn ${allocatedFilter === tab.id ? "active" : ""}`}
+                                        onClick={() => setAllocatedFilter(tab.id)}
                                     >
-                                        {tab}
+                                        {tab.label} ({tab.count})
                                     </button>
                                 ))}
                             </div>
 
-                            {/* View Toggle matching recycling_delivery.jsx */}
+                            {/* View Toggle matching Recyclingcenter_dashboard.jsx */}
                             <div className="view-toggle-btns">
                                 <button
                                     type="button"
                                     className={`view-btn ${allocatedViewMode === "grid" ? "active" : ""}`}
                                     onClick={() => setAllocatedViewMode("grid")}
                                     title="Grid View"
+                                    style={allocatedViewMode === "grid" ? { background: "#059669", color: "#ffffff", boxShadow: "0 2px 8px rgba(5, 150, 105, 0.35)" } : {}}
                                 >
                                     <FiGrid />
                                 </button>
@@ -2516,6 +2554,7 @@ function RecyclingPerform() {
                                     className={`view-btn ${allocatedViewMode === "table" ? "active" : ""}`}
                                     onClick={() => setAllocatedViewMode("table")}
                                     title="Table View"
+                                    style={allocatedViewMode === "table" ? { background: "#059669", color: "#ffffff", boxShadow: "0 2px 8px rgba(5, 150, 105, 0.35)" } : {}}
                                 >
                                     <FiList />
                                 </button>
@@ -2526,24 +2565,15 @@ function RecyclingPerform() {
                     {loading ? (
                         <p style={{ color: "#64748b", textAlign: "center", padding: "2rem 0" }}>Loading allocated devices queue...</p>
                     ) : filteredAllocatedList.length === 0 ? (
-                        <div style={{ textAlign: "center", padding: "1.5rem 0.5rem" }}>
-                            <p style={{ color: "#64748b", fontSize: "0.85rem", marginBottom: "0.85rem" }}>
-                                No accepted devices match this filter. Accept allocation requests from dashboard first.
+                        <div className="empty-container">
+                            <FiBox style={{ fontSize: "2.5rem", color: "#cbd5e1" }} />
+                            <h4>No devices found</h4>
+                            <p>
+                                {allocatedSearch
+                                    ? `No matches for "${allocatedSearch}"`
+                                    : "No accepted devices match this filter. Accept allocation requests from dashboard first."}
                             </p>
-                            <button
-                                type="button"
-                                className="btn-dashboard-redirect"
-                                onClick={() => {
-                                    if (isProcessLocked) {
-                                        setShowNavLockModal(true);
-                                        return;
-                                    }
-                                    navigate("/recyclingcenter_dashboard");
-                                }}
-                            >
-                                <span>Go to Recycling Queue Dashboard</span>
-                                <FiChevronRight />
-                            </button>
+                            
                         </div>
                     ) : allocatedViewMode === "grid" ? (
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "0.85rem" }}>

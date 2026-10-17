@@ -19,10 +19,12 @@ import InspectionReport from "./pages/Inspection Technician/Inspection_report";
 import RefurbishmentCenter_signup from "./pages/signup/refurbishmentcenter_signup";
 import Refurbishment_dashboard from "./pages/Refurbishment Center/Refurbishmentcenter_dashboard";
 import RefurbishmentPerform from "./pages/Refurbishment Center/Refurbishment_perform";
+import RefurbishmentDelivery from "./pages/Refurbishment Center/Refurbishment_delivery";
 import RecyclingCenter_signup from "./pages/signup/recyclingcenter_signup";
 import Recycling_dashboard from "./pages/Recycling Center/Recyclingcenter_dashboard";
 import RecyclingPerform from "./pages/Recycling Center/Recycling_perform";
 import RecyclingDelivery from "./pages/Recycling Center/recycling_delivery";
+import RecyclingAnalytics from "./pages/Recycling Center/Recycling_analytics";
 import Verify_otp from "./pages/forgot password/Verify_otp";
 import Reset_passwprd from "./pages/forgot password/Reset_passwprd";
 import Manage_collectionagent from "./pages/Administrator/Manage_collectionagent";
@@ -52,6 +54,8 @@ import Refurbishmentcenter_notification from "./pages/Refurbishment Center/Refur
 import Profile from "./pages/Collection Agent/Profile";
 import Insp_profile from "./pages/Inspection Technician/Insp_profile";
 import RefurbishmentProfile from "./pages/Refurbishment Center/refurbishment_profile";
+import RefurbishedDevices from "./pages/Refurbishment Center/Refurbished_devices";
+import RefurbishmentAnalytics from "./pages/Refurbishment Center/Refurbishment_analytics";
 import RecycleProfile from "./pages/Recycling Center/recycle_profile";
 import Pickup_collectionagent from "./pages/Administrator/Pickup_collectionagent";
 import Pickupdetails from "./pages/citizen/Pickupdetails";
@@ -160,6 +164,18 @@ function App() {
             <Route path="/refurbishment/perform" element={<RefurbishmentPerform/>}/>
             <Route path="/refurbishment/perform/:id" element={<RefurbishmentPerform/>}/>
             <Route path="/refurbishment/process/:id" element={<RefurbishmentPerform/>}/>
+            <Route path="/refurbishment_delivery" element={<RefurbishmentDelivery/>}/>
+            <Route path="/refurbishmentcenter_delivery" element={<RefurbishmentDelivery/>}/>
+            <Route path="/refurbishment/deliveries" element={<RefurbishmentDelivery/>}/>
+            <Route path="/refurbishmentcenter/deliveries" element={<RefurbishmentDelivery/>}/>
+            <Route path="/refurbished_devices" element={<RefurbishedDevices/>}/>
+            <Route path="/refurbished-devices" element={<RefurbishedDevices/>}/>
+            <Route path="/refurbishment/repaired-devices" element={<RefurbishedDevices/>}/>
+            <Route path="/refurbishmentcenter_repaired" element={<RefurbishedDevices/>}/>
+            <Route path="/refurbishment_analytics" element={<RefurbishmentAnalytics/>}/>
+            <Route path="/refurbishment-analytics" element={<RefurbishmentAnalytics/>}/>
+            <Route path="/refurbishmentcenter_analytics" element={<RefurbishmentAnalytics/>}/>
+            <Route path="/refurbishment/analytics" element={<RefurbishmentAnalytics/>}/>
             <Route path="/recycling/profile" element={<RecycleProfile/>}/>
             <Route path="/recycle_profile" element={<RecycleProfile/>}/>
             <Route path="/recyclingcenter_profile" element={<RecycleProfile/>}/>
@@ -171,6 +187,10 @@ function App() {
             <Route path="/recyclingcenter_delivery" element={<RecyclingDelivery/>}/>
             <Route path="/recycling/deliveries" element={<RecyclingDelivery/>}/>
             <Route path="/recyclingcenter/deliveries" element={<RecyclingDelivery/>}/>
+            <Route path="/recycling_analytics" element={<RecyclingAnalytics/>}/>
+            <Route path="/recyclingcenter_analytics" element={<RecyclingAnalytics/>}/>
+            <Route path="/recycling/analytics" element={<RecyclingAnalytics/>}/>
+            <Route path="/recycling_analysis" element={<RecyclingAnalytics/>}/>
             <Route path="/collectionagent-pickup" element={<Pickup_collectionagent/>}/>
             <Route path="/collectionagent/pickups" element={<Pickups/>}/>
             <Route path="/agent-pickups" element={<Pickups/>}/>

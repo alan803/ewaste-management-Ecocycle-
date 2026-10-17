@@ -640,11 +640,20 @@ namespace EcoCycle.Controllers
                     device.ProcessingDecision = "EcoCycle Refurbished Device";
 
                     // Notification for Citizen
-                    if (device.User?.Login != null)
+                    int citizenLoginId = device.User?.LoginId > 0 
+                        ? device.User.LoginId 
+                        : (device.User?.Login?.LoginId ?? 0);
+
+                    if (citizenLoginId == 0 && device.UserId > 0)
+                    {
+                        citizenLoginId = await db.Users.Where(u => u.UserId == device.UserId).Select(u => u.LoginId).FirstOrDefaultAsync();
+                    }
+
+                    if (citizenLoginId > 0)
                     {
                         db.Notification.Add(new Notification
                         {
-                            LoginId = device.User.Login.LoginId,
+                            LoginId = citizenLoginId,
                             Title = "Device Successfully Refurbished!",
                             Message = $"Your {device.Brand} {device.Model} (#{device.DeviceId}) has completed the 7-step EcoCycle refurbishment and is certified Ready for Reuse ({process.QualityGrade}).",
                             Isread = false,
@@ -654,11 +663,15 @@ namespace EcoCycle.Controllers
                     }
 
                     // Notification for Refurbishment Center
-                    if (req.RefurbishmentCenter?.Login != null)
+                    int centerLoginId = req.RefurbishmentCenter?.LoginId > 0 
+                        ? req.RefurbishmentCenter.LoginId 
+                        : (req.RefurbishmentCenter?.Login?.LoginId ?? 0);
+
+                    if (centerLoginId > 0)
                     {
                         db.Notification.Add(new Notification
                         {
-                            LoginId = req.RefurbishmentCenter.Login.LoginId,
+                            LoginId = centerLoginId,
                             Title = "Refurbishment Workflow Completed",
                             Message = $"Device #{device.DeviceId} ({device.Brand} {device.Model}) marked Certified Ready for Reuse with value ₹{process.RefurbishedValue:N0}.",
                             Isread = false,
