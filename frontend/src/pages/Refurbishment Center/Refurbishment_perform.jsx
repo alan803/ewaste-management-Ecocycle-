@@ -61,6 +61,12 @@ import {
 } from "../../utils/pricing";
 import "./Refurbishment_perform.css";
 
+const LOCAL_API_BASE = "http://localhost:5278/api";
+const PROD_API_BASE = "https://ecocycle.runasp.net/api";
+const isLocalhost = typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+const API_BASE = isLocalhost ? LOCAL_API_BASE : PROD_API_BASE;
+
 // Standard preset wiping methods compliant with security frameworks
 const standardWipingMethods = [
     "NIST SP 800-88 Rev 1 Overwrite",
@@ -563,6 +569,31 @@ function RefurbishmentPerform() {
         return hasStarted;
     }, [requestData, isStarted, startedAt, isDeviceCompleted]);
 
+    // Check whether the committed process deadline has passed
+    const isDeadlineOverdue = useMemo(() => {
+        if (!deadlineDate || isDeviceCompleted) return false;
+        return new Date(deadlineDate).getTime() < Date.now();
+    }, [deadlineDate, isDeviceCompleted]);
+
+    // Helper to format process deadline cleanly with day, date, and time
+    const formatDeadlineDisplay = (dateInput) => {
+        if (!dateInput) return "10-Day Standard Window";
+        try {
+            const d = new Date(dateInput);
+            if (isNaN(d.getTime())) return "10-Day Standard Window";
+            return d.toLocaleDateString("en-IN", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        } catch {
+            return "10-Day Standard Window";
+        }
+    };
+
     // Helper to evaluate whether physical delivery to the refurbishment facility is complete
     const checkDeliveryStatus = (item, assign) => {
         if (!item && !assign) return false;
@@ -627,7 +658,7 @@ function RefurbishmentPerform() {
     useEffect(() => {
         const fetchMasterModels = async () => {
             try {
-                const res = await axios.get("https://ecocycle.runasp.net/api/DeviceModel/GetAll");
+                const res = await axios.get(`${API_BASE}/DeviceModel/GetAll`);
                 if (Array.isArray(res.data)) {
                     setMasterModels(res.data);
                 }
@@ -639,11 +670,11 @@ function RefurbishmentPerform() {
 
         const token = localStorage.getItem("token");
         if (token) {
-            axios.get("https://ecocycle.runasp.net/api/RefurbishmentCenter/myprofile", {
+            axios.get(`${API_BASE}/RefurbishmentCenter/myprofile`, {
                 headers: { Authorization: `Bearer ${token}` }
             }).then(res => setCenterProfile(res.data)).catch(() => {});
 
-            axios.get("https://ecocycle.runasp.net/api/Notificationcon/my_notifications", {
+            axios.get(`${API_BASE}/Notificationcon/my_notifications`, {
                 headers: { Authorization: `Bearer ${token}` }
             }).then(res => {
                 const list = Array.isArray(res.data) ? res.data : [];
@@ -1242,7 +1273,7 @@ function RefurbishmentPerform() {
 
         if (!results || results.length === 0 || !techDetails) {
             try {
-                const res = await axios.get(`https://ecocycle.runasp.net/api/DeviceInspection/results/${dev.deviceId}`);
+                const res = await axios.get(`${API_BASE}/DeviceInspection/results/${dev.deviceId}`);
                 const data = res.data;
                 if (Array.isArray(data)) {
                     results = data;
@@ -1611,17 +1642,33 @@ function RefurbishmentPerform() {
 
     // Live 10-Day SLA Countdown Timer
     useEffect(() => {
-        if (!isStarted || !deadlineDate) {
+        if (!deadlineDate) {
             setSlaTimeLeft("");
             return;
         }
 
         const calcTime = () => {
+            if (isDeviceCompleted) {
+                setSlaTimeLeft("Completed within SLA");
+                return;
+            }
+
             const now = new Date().getTime();
-            const diff = new Date(deadlineDate).getTime() - now;
+            const targetTime = new Date(deadlineDate).getTime();
+            const diff = targetTime - now;
 
             if (diff <= 0) {
-                setSlaTimeLeft("0 Days Left (SLA Expired)");
+                const overdueDiff = Math.abs(diff);
+                const overdueDays = Math.floor(overdueDiff / (1000 * 60 * 60 * 24));
+                const overdueHours = Math.floor((overdueDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const overdueMins = Math.floor((overdueDiff % (1000 * 60 * 60)) / (1000 * 60));
+                if (overdueDays > 0) {
+                    setSlaTimeLeft(`Overdue by ${overdueDays}d ${overdueHours}h`);
+                } else if (overdueHours > 0) {
+                    setSlaTimeLeft(`Overdue by ${overdueHours}h ${overdueMins}m`);
+                } else {
+                    setSlaTimeLeft("SLA Limit Passed");
+                }
                 return;
             }
 
@@ -1640,7 +1687,7 @@ function RefurbishmentPerform() {
         calcTime();
         const timer = setInterval(calcTime, 1000);
         return () => clearInterval(timer);
-    }, [isStarted, deadlineDate]);
+    }, [deadlineDate, isDeviceCompleted]);
 
     // Category Icon Helper
     const getCategoryIcon = (categoryName) => {
@@ -1660,12 +1707,12 @@ function RefurbishmentPerform() {
             let assignments = [];
 
             const [reqRes, assignRes] = await Promise.all([
-                axios.get("https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/my-requests", {
+                axios.get(`${API_BASE}/AllocateRefurbishmentCenter/my-requests`, {
                     headers: { Authorization: `Bearer ${authToken}` }
-                }).catch(() => axios.get("https://ecocycle.runasp.net/api/AllocateRefurbishmentCenter/admin/requests", {
+                }).catch(() => axios.get(`${API_BASE}/AllocateRefurbishmentCenter/admin/requests`, {
                     headers: { Authorization: `Bearer ${authToken}` }
                 })).catch(() => ({ data: [] })),
-                axios.get("https://ecocycle.runasp.net/api/CollectionAssignment/admin/all-assignments", {
+                axios.get(`${API_BASE}/CollectionAssignment/admin/all-assignments`, {
                     headers: { Authorization: `Bearer ${authToken}` }
                 }).catch(() => ({ data: [] }))
             ]);
@@ -1843,7 +1890,7 @@ function RefurbishmentPerform() {
         try {
             setLoading(true);
             const token = localStorage.getItem("token");
-            const res = await axios.get(`https://ecocycle.runasp.net/api/RefurbishmentProcess/details/${reqId}`, {
+            const res = await axios.get(`${API_BASE}/RefurbishmentProcess/details/${reqId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -1851,7 +1898,7 @@ function RefurbishmentPerform() {
                 let currentInspection = res.data.inspection;
                 if (!currentInspection?.results || currentInspection.results.length === 0) {
                     try {
-                        const inspRes = await axios.get(`https://ecocycle.runasp.net/api/DeviceInspection/results/${res.data.device.deviceId}`);
+                        const inspRes = await axios.get(`${API_BASE}/DeviceInspection/results/${res.data.device.deviceId}`);
                         if (inspRes.data) {
                             if (Array.isArray(inspRes.data)) {
                                 currentInspection = { ...(currentInspection || {}), results: inspRes.data };
@@ -1888,16 +1935,26 @@ function RefurbishmentPerform() {
                 const processStarted = statusStr === "inprogress" || statusStr === "completed" || statusStr === "transferredtorecycling";
 
                 setIsStarted(processStarted);
-                if (startedTimestamp && processStarted) {
-                    const sDate = new Date(startedTimestamp);
-                    setStartedAt(sDate);
-                    // 10 Days SLA Deadline
-                    const dDate = new Date(sDate.getTime() + 10 * 24 * 60 * 60 * 1000);
-                    setDeadlineDate(dDate);
+                if (startedTimestamp) {
+                    setStartedAt(new Date(startedTimestamp));
+                } else if (res.data.assignedAt) {
+                    setStartedAt(new Date(res.data.assignedAt));
                 } else {
                     setStartedAt(null);
-                    setDeadlineDate(null);
                 }
+
+                // Dedicated Process Deadline: resolve from dedicated column, with fallback to 10 days from started/assigned/now
+                let resolvedDeadline = null;
+                if (res.data.processDeadline) {
+                    resolvedDeadline = new Date(res.data.processDeadline);
+                } else if (startedTimestamp) {
+                    resolvedDeadline = new Date(new Date(startedTimestamp).getTime() + 10 * 24 * 60 * 60 * 1000);
+                } else if (res.data.assignedAt) {
+                    resolvedDeadline = new Date(new Date(res.data.assignedAt).getTime() + 10 * 24 * 60 * 60 * 1000);
+                } else {
+                    resolvedDeadline = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+                }
+                setDeadlineDate(resolvedDeadline);
 
                 // Step 2 Sanitization: Do NOT pre-fill defaults so user types / selects them
                 setDdcCertNum(proc?.certificateNumber || "");
@@ -2003,7 +2060,7 @@ function RefurbishmentPerform() {
         try {
             setLoading(true);
             const token = localStorage.getItem("token");
-            const res = await axios.get(`https://ecocycle.runasp.net/api/RefurbishmentProcess/details/${targetReqId}`, {
+            const res = await axios.get(`${API_BASE}/RefurbishmentProcess/details/${targetReqId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (res.data) {
@@ -2368,8 +2425,20 @@ function RefurbishmentPerform() {
 
     // Handler to Start Refurbishment Process with 10-Day SLA Deadline
     const handleStartProcess = async (targetReqId = null) => {
-        const currentReqId = targetReqId || requestData?.refurbishmentRequestId || Number(id);
-        if (isProcessLocked && targetReqId && currentReqId !== targetReqId) {
+        // If called directly via onClick={handleStartProcess}, targetReqId is the React event object
+        const validParamId = (targetReqId && typeof targetReqId !== "object" && !isNaN(Number(targetReqId)))
+            ? Number(targetReqId)
+            : null;
+        const currentReqId = validParamId || requestData?.refurbishmentRequestId || (id ? Number(id) : null);
+        if (!currentReqId) {
+            setServerMsg({
+                type: "error",
+                text: "Invalid refurbishment request ID. Cannot initiate process."
+            });
+            return;
+        }
+
+        if (isProcessLocked && validParamId && currentReqId !== validParamId) {
             setShowNavLockModal(true);
             return;
         }
@@ -2387,23 +2456,27 @@ function RefurbishmentPerform() {
             setIsStartingProcess(true);
             const token = localStorage.getItem("token");
 
-            const res = await axios.post(`https://ecocycle.runasp.net/api/RefurbishmentProcess/start/${currentReqId}`, {}, {
+            const res = await axios.post(`${API_BASE}/RefurbishmentProcess/start/${currentReqId}`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
             const startTimestamp = res.data?.startedAt ? new Date(res.data.startedAt) : new Date();
-            const deadlineTimestamp = res.data?.deadline ? new Date(res.data.deadline) : new Date(startTimestamp.getTime() + 10 * 24 * 60 * 60 * 1000);
+            const deadlineTimestamp = (res.data?.processDeadline || res.data?.deadline)
+                ? new Date(res.data.processDeadline || res.data.deadline)
+                : new Date(startTimestamp.getTime() + 10 * 24 * 60 * 60 * 1000);
 
             // Update allocated list status in local state
             setAllocatedList(prev => prev.map(item =>
-                item.refurbishmentRequestId === currentReqId ? { ...item, status: "InProgress", refurbishmentStartedAt: startTimestamp } : item
+                item.refurbishmentRequestId === currentReqId
+                    ? { ...item, status: "InProgress", refurbishmentStartedAt: startTimestamp, processDeadline: deadlineTimestamp.toISOString() }
+                    : item
             ));
 
             if (!requestData || requestData.refurbishmentRequestId === currentReqId) {
                 setStartedAt(startTimestamp);
                 setDeadlineDate(deadlineTimestamp);
                 setIsStarted(true);
-                setRequestData(prev => prev ? { ...prev, status: "InProgress", refurbishmentStartedAt: startTimestamp } : prev);
+                setRequestData(prev => prev ? { ...prev, status: "InProgress", refurbishmentStartedAt: startTimestamp, processDeadline: deadlineTimestamp.toISOString() } : prev);
             } else {
                 navigate(`/refurbishment_perform/${currentReqId}`);
                 fetchDetails(currentReqId);
@@ -2435,29 +2508,10 @@ function RefurbishmentPerform() {
         const adjustedVal = Number(profile?.adjustedDeviceValue || Math.round(refPrice * agePct * conditionPct));
         const repairCost = Number(totalRepairExpense || 0);
 
-        let lowerBound = 0;
-        let upperBound = 0;
-
-        if (adjustedVal >= 15000) {
-            // High-value devices (e.g. ₹30,000 adjusted, ₹4,000 repair) -> ₹20,000 – ₹28,000
-            upperBound = Math.round(Math.min(adjustedVal * 0.95, Math.max(adjustedVal - repairCost * 0.75, adjustedVal * 0.80)) / 100) * 100;
-            lowerBound = Math.round(Math.max(1000, adjustedVal * 0.65 - repairCost) / 100) * 100;
-        } else if (adjustedVal >= 5000) {
-            // Mid-range devices (e.g. ₹8,000 adjusted, ₹1,200 repair) -> ₹4,500 – ₹7,400
-            upperBound = Math.round(Math.min(adjustedVal * 0.92, Math.max(adjustedVal - repairCost * 0.65, adjustedVal * 0.75)) / 50) * 50;
-            lowerBound = Math.round(Math.max(500, adjustedVal * 0.55 - repairCost * 0.80) / 50) * 50;
-        } else {
-            // Lower price range devices (e.g. ₹2,500 adjusted, ₹400 repair) -> ₹800 – ₹2,300
-            upperBound = Math.round(Math.min(adjustedVal * 0.90, Math.max(adjustedVal - repairCost * 0.50, adjustedVal * 0.70)) / 20) * 20;
-            lowerBound = Math.round(Math.max(150, adjustedVal * 0.40 - repairCost * 0.50) / 20) * 20;
-        }
-
-        // Safety guarantee
-        if (lowerBound >= upperBound) {
-            lowerBound = Math.max(100, Math.round(upperBound * 0.60));
-        }
-
-        const defaultSuggested = Math.round(((lowerBound + upperBound) / 2) / 100) * 100;
+        // Estimated Value (adjustedVal) directly sets the fixed final buyout price
+        const upperBound = Math.round(adjustedVal);
+        const lowerBound = Math.round(adjustedVal);
+        const defaultSuggested = Math.round(adjustedVal);
 
         return {
             refPrice,
@@ -2473,12 +2527,12 @@ function RefurbishmentPerform() {
         };
     }, [profile, totalRepairExpense]);
 
-    // Initialize suggested center buyout offer based on dynamic benchmark valuation
+    // Center Buyout Offer is fixed to the system-calculated Estimated Value (Final Price)
     useEffect(() => {
-        if (offerBounds?.defaultSuggested && (!refurbishedValue || refurbishedValue === 8000 || refurbishedValue === 7363 || refurbishedValue === 3100)) {
-            setRefurbishedValue(offerBounds.defaultSuggested);
+        if (offerBounds?.adjustedVal) {
+            setRefurbishedValue(offerBounds.adjustedVal);
         }
-    }, [offerBounds?.defaultSuggested]);
+    }, [offerBounds?.adjustedVal]);
 
     // Handle price / cost update for existing item in table (strictly clamped between 0 and 500,000)
     const handleUpdateItemCost = (itemId, val) => {
@@ -2712,11 +2766,11 @@ function RefurbishmentPerform() {
 
     // Process Center Buyout Settlement Payment to EcoCycle Escrow (Test Mode)
     const handleProcessSettlementPayment = async (isQuickSimulation = false) => {
-        const enteredOffer = Number(refurbishedValue);
-        if (isNaN(enteredOffer) || enteredOffer < offerBounds.lowerBound || enteredOffer > offerBounds.upperBound) {
+        const finalVal = Number(offerBounds.adjustedVal || refurbishedValue || 0);
+        if (finalVal <= 0) {
             setServerMsg({
                 type: "error",
-                text: `Center buyout offer (₹${enteredOffer.toLocaleString("en-IN")}) is outside the permitted policy range (₹${Number(offerBounds.lowerBound).toLocaleString("en-IN")} – ₹${Number(offerBounds.upperBound).toLocaleString("en-IN")}). Please adjust to a realistic value.`
+                text: "Invalid buyout valuation. Please ensure device valuation is calculated."
             });
             return;
         }
@@ -2724,13 +2778,12 @@ function RefurbishmentPerform() {
         try {
             setIsPayingSettlement(true);
             const token = localStorage.getItem("token");
-            const finalVal = enteredOffer || 5000;
 
             // Option 1: 1-Click Instant Test Simulation (bypasses popup for fast dev testing)
             if (isQuickSimulation) {
                 const simTxnId = `pay_test_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
                 const simOrderId = `order_test_${Date.now()}`;
-                await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
+                await axios.post(`${API_BASE}/Settlement/center-pay-settlement`, {
                     deviceId: device?.deviceId || Number(id),
                     finalRealizableValue: finalVal,
                     paymentMethod: "Razorpay (Test Sandbox)",
@@ -2753,7 +2806,7 @@ function RefurbishmentPerform() {
 
             // Option 2: Razorpay Interactive Test Checkout Modal
             // 1. Create Razorpay payment order on backend
-            const orderRes = await axios.post("https://ecocycle.runasp.net/api/Settlement/create-center-order", {
+            const orderRes = await axios.post(`${API_BASE}/Settlement/create-center-order`, {
                 deviceId: device?.deviceId || Number(id),
                 amount: finalVal,
                 notes: paymentNotes || `[TEST MODE] Refurbishment buyout settlement for Device #${device?.deviceId || id}`
@@ -2764,7 +2817,7 @@ function RefurbishmentPerform() {
             if (!window.Razorpay) {
                 // If script not loaded, offer direct simulation fallback
                 const simTxnId = `pay_test_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
-                await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
+                await axios.post(`${API_BASE}/Settlement/center-pay-settlement`, {
                     deviceId: device?.deviceId || Number(id),
                     finalRealizableValue: finalVal,
                     paymentMethod: "Razorpay (Test Sandbox)",
@@ -2796,7 +2849,7 @@ function RefurbishmentPerform() {
                     try {
                         setIsPayingSettlement(true);
                         // 3. Record verified test payment on backend
-                        await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
+                        await axios.post(`${API_BASE}/Settlement/center-pay-settlement`, {
                             deviceId: device?.deviceId || Number(id),
                             finalRealizableValue: finalVal,
                             paymentMethod: "Razorpay (Test Sandbox)",
@@ -2854,13 +2907,13 @@ function RefurbishmentPerform() {
     const handleSubmitRefurbishment = async (outcomeOverride = null) => {
         const activeOutcome = outcomeOverride || finalOutcome;
 
-        // Policy tolerance check on center buyout offer
+        // Center buyout offer is fixed to the system-calculated Estimated Value
         if (activeOutcome === "Refurbished") {
-            const enteredOffer = Number(refurbishedValue);
-            if (isNaN(enteredOffer) || enteredOffer < offerBounds.lowerBound || enteredOffer > offerBounds.upperBound) {
+            const finalVal = Number(offerBounds.adjustedVal || refurbishedValue || 0);
+            if (finalVal <= 0) {
                 setServerMsg({
                     type: "error",
-                    text: `Center buyout offer (₹${enteredOffer.toLocaleString("en-IN")}) is outside the permitted policy range (₹${Number(offerBounds.lowerBound).toLocaleString("en-IN")} – ₹${Number(offerBounds.upperBound).toLocaleString("en-IN")}). Please adjust to a realistic value.`
+                    text: "Invalid buyout valuation. Please ensure device valuation is calculated."
                 });
                 return;
             }
@@ -2870,7 +2923,7 @@ function RefurbishmentPerform() {
                 setShowPaymentModal(true);
                 setServerMsg({
                     type: "info",
-                    text: `Please complete and authorize the EcoCycle Buyout Settlement payment of ₹${enteredOffer.toLocaleString("en-IN")} before finalizing certification.`
+                    text: `Please complete and authorize the EcoCycle Buyout Settlement payment of ₹${finalVal.toLocaleString("en-IN")} before finalizing certification.`
                 });
                 return;
             }
@@ -2928,7 +2981,7 @@ function RefurbishmentPerform() {
                 transferReason: finalRemarks
             };
 
-            const res = await axios.post("https://ecocycle.runasp.net/api/RefurbishmentProcess/submit", payload, {
+            const res = await axios.post(`${API_BASE}/RefurbishmentProcess/submit`, payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -2936,7 +2989,7 @@ function RefurbishmentPerform() {
             if (activeOutcome === "Refurbished") {
                 const finalVal = Number(refurbishedValue) || 5000;
                 const txnToUse = paymentTransactionId || `PAY_REF_${Date.now()}`;
-                await axios.post("https://ecocycle.runasp.net/api/Settlement/center-pay-settlement", {
+                await axios.post(`${API_BASE}/Settlement/center-pay-settlement`, {
                     deviceId: device?.deviceId || Number(id),
                     finalRealizableValue: finalVal,
                     paymentMethod: paymentMethod || "Razorpay",
@@ -3275,6 +3328,35 @@ function RefurbishmentPerform() {
                                                             <div style={{ fontSize: "0.75rem", color: "#64748b" }}>Condition: {item.condition || "Inspected"} {item.weight && Number(item.weight) > 0 ? `(${item.weight} kg)` : ""}</div>
                                                         </div>
                                                     </div>
+
+                                                    {/* Dedicated Process Deadline Info Row */}
+                                                    <div className="refurb-detail-row" style={{ background: "#f8fafc", padding: "0.45rem 0.65rem", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                                                        <FiCalendar className="detail-icon" style={{ color: item.processDeadline && new Date(item.processDeadline).getTime() < Date.now() ? "#dc2626" : "#7c3aed" }} />
+                                                        <div style={{ flex: 1, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                                            <div>
+                                                                <div className="detail-label" style={{ fontSize: "0.68rem" }}>Process Deadline</div>
+                                                                <div className="detail-val" style={{ fontSize: "0.8rem", fontWeight: 700 }}>
+                                                                    {item.processDeadline ? new Date(item.processDeadline).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "10-Day SLA Window"}
+                                                                </div>
+                                                            </div>
+                                                            {item.processDeadline && (
+                                                                <span style={{
+                                                                    fontSize: "0.7rem",
+                                                                    fontWeight: 700,
+                                                                    padding: "2px 6px",
+                                                                    borderRadius: "4px",
+                                                                    background: new Date(item.processDeadline).getTime() < Date.now() ? "#fee2e2" : "#f5f3ff",
+                                                                    color: new Date(item.processDeadline).getTime() < Date.now() ? "#b91c1c" : "#7c3aed",
+                                                                    border: `1px solid ${new Date(item.processDeadline).getTime() < Date.now() ? "#fca5a5" : "#ddd6fe"}`
+                                                                }}>
+                                                                    {new Date(item.processDeadline).getTime() < Date.now() ? "Overdue" : (() => {
+                                                                        const daysLeft = Math.ceil((new Date(item.processDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                                                                        return daysLeft <= 1 ? "1d left" : `${daysLeft}d left`;
+                                                                    })()}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -3373,6 +3455,7 @@ function RefurbishmentPerform() {
                                             <th>REQ &amp; DEV ID</th>
                                             <th>Device &amp; Category</th>
                                             <th>Citizen &amp; City</th>
+                                            <th>Process Deadline</th>
                                             <th>Status</th>
                                             <th style={{ textAlign: "right" }}>Actions</th>
                                         </tr>
@@ -3416,6 +3499,29 @@ function RefurbishmentPerform() {
                                                         <div style={{ fontSize: "0.75rem", color: "#64748b" }}>
                                                             {item.customerCity || "City Hub"}
                                                         </div>
+                                                    </td>
+                                                    <td>
+                                                        {item.processDeadline ? (
+                                                            <div>
+                                                                <div style={{ fontWeight: 700, color: "#1e1b4b", fontSize: "0.825rem", display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                                                                    <FiCalendar style={{ color: "#7c3aed" }} />
+                                                                    {new Date(item.processDeadline).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                                                </div>
+                                                                <div style={{ fontSize: "0.72rem", color: new Date(item.processDeadline).getTime() < Date.now() ? "#dc2626" : "#64748b", display: "flex", alignItems: "center", gap: "0.25rem", marginTop: "2px" }}>
+                                                                    <FiClock />
+                                                                    {new Date(item.processDeadline).getTime() < Date.now() ? (
+                                                                        <strong style={{ color: "#dc2626" }}>Overdue</strong>
+                                                                    ) : (
+                                                                        (() => {
+                                                                            const daysLeft = Math.ceil((new Date(item.processDeadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                                                                            return daysLeft <= 1 ? "Due today / tomorrow" : `${daysLeft} days remaining`;
+                                                                        })()
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <span style={{ fontSize: "0.78rem", color: "#64748b" }}>10-Day SLA</span>
+                                                        )}
                                                     </td>
                                                     <td>
                                                         {isCompleted ? (
@@ -3900,7 +4006,7 @@ function RefurbishmentPerform() {
                                         <button
                                             type="button"
                                             className="refurb-start-cta-btn"
-                                            onClick={handleStartProcess}
+                                            onClick={() => handleStartProcess(requestData?.refurbishmentRequestId || id)}
                                             disabled={isStartingProcess}
                                         >
                                             {isStartingProcess ? (
@@ -4062,22 +4168,69 @@ function RefurbishmentPerform() {
                                 </div>
                             </div>
 
-                            {/* Right Sidebar Column: 10-Day SLA & Workflow Roadmap */}
+                            {/* Right Sidebar Column: Dedicated Process Deadline & Workflow Roadmap */}
                             <div className="refurb-prestart-side-col">
-                                {/* 10-Day SLA Commitment Card */}
+                                {/* 10-Day SLA Commitment Card with Dedicated Process Deadline */}
                                 <div className="refurb-sla-commitment-card">
                                     <div className="refurb-sla-badge-row">
                                         <div className="refurb-sla-icon-circle">
                                             <FiClock />
                                         </div>
-                                        <div>
-                                            <div className="refurb-sla-badge-title">10-Day SLA Target</div>
-                                            <div className="refurb-sla-badge-sub">Standard Turnaround</div>
+                                        <div style={{ flex: 1 }}>
+                                            <div className="refurb-sla-badge-title">Refurbishment Process Deadline</div>
+                                            <div className="refurb-sla-badge-sub">10-Day SLA Compliance Commitment</div>
+                                        </div>
+                                        {isDeadlineOverdue ? (
+                                            <span className="refurb-sla-pill-tag overdue">
+                                                <FiAlertTriangle /> Overdue
+                                            </span>
+                                        ) : (
+                                            <span className="refurb-sla-pill-tag active">
+                                                <span className="refurb-sla-pulse-emerald"></span> Active SLA
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Dedicated Spotlight for Process Deadline */}
+                                    <div className="refurb-sla-deadline-spotlight">
+                                        <div className="refurb-sla-spotlight-lbl">
+                                            <FiCalendar /> Official Process Deadline
+                                        </div>
+                                        <div className="refurb-sla-spotlight-date">
+                                            {formatDeadlineDisplay(deadlineDate || requestData?.processDeadline)}
+                                        </div>
+                                        <div className="refurb-sla-spotlight-countdown">
+                                            <span className={`refurb-sla-countdown-badge ${isDeadlineOverdue ? "overdue" : "ontrack"}`}>
+                                                <FiClock /> {slaTimeLeft || "10 Days Standard Window"}
+                                            </span>
+                                            <span className="refurb-sla-reg-note">Registered in SLA Ledger</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Lifecycle Milestones Row */}
+                                    <div className="refurb-sla-milestones-row">
+                                        <div className="refurb-sla-milestone">
+                                            <span className="m-lbl">Allocated Date</span>
+                                            <span className="m-val">
+                                                {requestData?.assignedAt
+                                                    ? new Date(requestData.assignedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                                                    : "Confirmed"}
+                                            </span>
+                                        </div>
+                                        <div className="refurb-sla-milestone">
+                                            <span className="m-lbl">SLA Window</span>
+                                            <span className="m-val">10 Days Standard</span>
+                                        </div>
+                                        <div className="refurb-sla-milestone">
+                                            <span className="m-lbl">Facility Delivery</span>
+                                            <span className="m-val highlight">
+                                                {checkIsDeliveryCompleted(requestData) ? "✓ Intake Verified" : "Pending Arrival"}
+                                            </span>
                                         </div>
                                     </div>
 
                                     <p className="refurb-sla-desc">
-                                        Once initiated, this device is committed to an official <strong>10-Day Refurbishment SLA</strong>. The complete multi-stage workflow must be concluded within this 10-day window.
+                                        This device is committed to an official <strong>10-Day Refurbishment SLA</strong>. Complete all inspection diagnostics, NIST SP 800-88 sanitization, repairs, and certification before this deadline.
                                     </p>
 
                                     <div className="refurb-sla-stats-box">
@@ -4146,7 +4299,7 @@ function RefurbishmentPerform() {
                                         <button
                                             type="button"
                                             className="refurb-start-cta-btn large full-width"
-                                            onClick={handleStartProcess}
+                                            onClick={() => handleStartProcess(requestData?.refurbishmentRequestId || id)}
                                             disabled={isStartingProcess}
                                         >
                                             {isStartingProcess ? (
@@ -4196,7 +4349,7 @@ function RefurbishmentPerform() {
                                         Refurbishment Process Active &bull; 10-Day SLA Window
                                     </div>
                                     <div className="refurb-sla-active-sub">
-                                        Started: <strong>{startedAt ? new Date(startedAt).toLocaleString() : "Active"}</strong> &bull; Deadline: <strong>{deadlineDate ? new Date(deadlineDate).toLocaleString() : "10 Days from Start"}</strong>
+                                        Started: <strong>{startedAt ? new Date(startedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Active"}</strong> &bull; Process Deadline: <strong>{deadlineDate ? formatDeadlineDisplay(deadlineDate) : "10 Days from Start"}</strong>
                                     </div>
                                 </div>
                             </div>
@@ -5480,14 +5633,14 @@ function RefurbishmentPerform() {
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.5rem" }}>
                                         <div>
                                             <h4 style={{ margin: 0, fontSize: "1rem", fontWeight: 800, color: "#0f172a", display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                                                <FiDollarSign style={{ color: "#059669" }} /> Center Buyout Offer &amp; Valuation Policy
+                                                <FiDollarSign style={{ color: "#059669" }} /> Center Buyout Valuation &amp; Final Price
                                             </h4>
                                             <p style={{ margin: "0.2rem 0 0 0", fontSize: "0.8rem", color: "#64748b" }}>
-                                                The center decides its actual buyout offer based on market demand and business margin. The system enforces policy tolerance to prevent invalid/manipulated values.
+                                                The buyout offer is fixed to the system-calculated Estimated Value. The center cannot edit this price as it represents the certified fair market valuation.
                                             </p>
                                         </div>
-                                        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.35rem 0.75rem", borderRadius: "8px", fontSize: "0.8rem", fontWeight: 700, color: "#166534" }}>
-                                            Allowed Range: ₹{Number(offerBounds.lowerBound).toLocaleString("en-IN")} – ₹{Number(offerBounds.upperBound).toLocaleString("en-IN")}
+                                        <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", padding: "0.4rem 0.85rem", borderRadius: "8px", fontSize: "0.825rem", fontWeight: 800, color: "#166534", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                                            <FiLock style={{ color: "#16a34a" }} /> Fixed Final Price: ₹{Number(offerBounds.adjustedVal).toLocaleString("en-IN")}
                                         </div>
                                     </div>
 
@@ -5517,8 +5670,8 @@ function RefurbishmentPerform() {
                                             <span style={{ fontSize: "0.7rem", color: "#94a3b8" }}>Condition &amp; Diagnostics</span>
                                         </div>
 
-                                        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "0.75rem", borderRadius: "10px" }}>
-                                            <span style={{ fontSize: "0.72rem", color: "#166534", fontWeight: 700, textTransform: "uppercase" }}>Estimated Value</span>
+                                        <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", padding: "0.75rem", borderRadius: "10px" }}>
+                                            <span style={{ fontSize: "0.72rem", color: "#166534", fontWeight: 700, textTransform: "uppercase" }}>Estimated Value (Final)</span>
                                             <div style={{ fontSize: "1.15rem", fontWeight: 900, color: "#15803d", marginTop: "0.2rem" }}>
                                                 ₹{Number(offerBounds.adjustedVal).toLocaleString("en-IN")}
                                             </div>
@@ -5534,87 +5687,69 @@ function RefurbishmentPerform() {
                                         </div>
                                     </div>
 
-                                    {/* Center Offer Input & Real-time Validation */}
+                                    {/* Center Fixed Offer & Transparent Valuation Equation */}
                                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.25rem", alignItems: "flex-start" }}>
                                         <div>
-                                            <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#334155", marginBottom: "0.35rem" }}>
-                                                Center's Actual Decided Offer (₹) *
-                                            </label>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.35rem" }}>
+                                                <label style={{ fontSize: "0.8rem", fontWeight: 700, color: "#334155", margin: 0 }}>
+                                                    Final Decided Buyout Offer (₹) *
+                                                </label>
+                                                <span style={{ fontSize: "0.72rem", color: "#16a34a", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                                                    <FiLock /> Fixed / Non-Editable
+                                                </span>
+                                            </div>
                                             <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                                                <span style={{ position: "absolute", left: "0.85rem", fontWeight: 800, color: "#64748b", fontSize: "1rem" }}>₹</span>
+                                                <span style={{ position: "absolute", left: "0.85rem", fontWeight: 800, color: "#059669", fontSize: "1.1rem" }}>₹</span>
                                                 <input
                                                     type="number"
-                                                    min={offerBounds.lowerBound}
-                                                    max={offerBounds.upperBound}
-                                                    step="100"
+                                                    readOnly={true}
+                                                    disabled={false}
                                                     className="refurb-select"
                                                     style={{
                                                         paddingLeft: "2rem",
-                                                        fontSize: "1.1rem",
+                                                        paddingRight: "5.5rem",
+                                                        fontSize: "1.15rem",
                                                         fontWeight: 800,
-                                                        borderColor: Number(refurbishedValue) >= offerBounds.lowerBound && Number(refurbishedValue) <= offerBounds.upperBound ? "#10b981" : "#ef4444"
+                                                        borderColor: "#10b981",
+                                                        backgroundColor: "#f8fafc",
+                                                        color: "#0f172a",
+                                                        cursor: "not-allowed"
                                                     }}
-                                                    value={refurbishedValue === 0 ? "0" : (refurbishedValue ?? "")}
-                                                    onChange={(e) => {
-                                                        const raw = e.target.value;
-                                                        if (raw === "") {
-                                                            setRefurbishedValue("");
-                                                        } else {
-                                                            const num = Number(raw);
-                                                            setRefurbishedValue(isNaN(num) ? 0 : Math.max(0, Math.min(1000000, num)));
-                                                        }
-                                                    }}
-                                                    onBlur={() => {
-                                                        if (refurbishedValue === "" || isNaN(Number(refurbishedValue))) {
-                                                            setRefurbishedValue(offerBounds.defaultSuggested);
-                                                        }
-                                                    }}
+                                                    value={offerBounds.adjustedVal || refurbishedValue || 0}
                                                 />
+                                                <span style={{
+                                                    position: "absolute",
+                                                    right: "0.75rem",
+                                                    background: "#e2e8f0",
+                                                    color: "#475569",
+                                                    fontSize: "0.7rem",
+                                                    fontWeight: 700,
+                                                    padding: "0.2rem 0.5rem",
+                                                    borderRadius: "4px",
+                                                    textTransform: "uppercase",
+                                                    letterSpacing: "0.03em"
+                                                }}>
+                                                    Fixed
+                                                </span>
                                             </div>
 
                                             {/* Real-time Status Badge */}
                                             <div style={{ marginTop: "0.5rem" }}>
-                                                {Number(refurbishedValue) >= offerBounds.lowerBound && Number(refurbishedValue) <= offerBounds.upperBound ? (
-                                                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", color: "#166534", background: "#f0fdf4", padding: "0.4rem 0.75rem", borderRadius: "8px", border: "1px solid #bbf7d0", fontWeight: 600 }}>
-                                                        <FiCheckCircle /> Reasonable &amp; Valid Center Offer (within ₹{Number(offerBounds.lowerBound).toLocaleString("en-IN")} – ₹{Number(offerBounds.upperBound).toLocaleString("en-IN")})
-                                                    </div>
-                                                ) : Number(refurbishedValue) < offerBounds.lowerBound ? (
-                                                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", color: "#991b1b", background: "#fef2f2", padding: "0.4rem 0.75rem", borderRadius: "8px", border: "1px solid #fecaca", fontWeight: 600 }}>
-                                                        <FiAlertCircle /> Offer of ₹{Number(refurbishedValue || 0).toLocaleString("en-IN")} is below minimum policy threshold of ₹{Number(offerBounds.lowerBound).toLocaleString("en-IN")}.
-                                                    </div>
-                                                ) : (
-                                                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.8rem", color: "#991b1b", background: "#fef2f2", padding: "0.4rem 0.75rem", borderRadius: "8px", border: "1px solid #fecaca", fontWeight: 600 }}>
-                                                        <FiAlertCircle /> Offer of ₹{Number(refurbishedValue || 0).toLocaleString("en-IN")} exceeds maximum allowable limit of ₹{Number(offerBounds.upperBound).toLocaleString("en-IN")}.
-                                                    </div>
-                                                )}
+                                                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.82rem", color: "#166534", background: "#f0fdf4", padding: "0.45rem 0.75rem", borderRadius: "8px", border: "1px solid #bbf7d0", fontWeight: 600 }}>
+                                                    <FiCheckCircle style={{ flexShrink: 0 }} /> Fixed Valuation: The Estimated Value of ₹{Number(offerBounds.adjustedVal).toLocaleString("en-IN")} is the final non-negotiable buyout price.
+                                                </div>
                                             </div>
 
-                                            {/* Quick Preset Buttons */}
-                                            <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.6rem", flexWrap: "wrap" }}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setRefurbishedValue(offerBounds.lowerBound)}
-                                                    style={{ background: "#f1f5f9", border: "1px solid #cbd5e1", padding: "0.25rem 0.55rem", borderRadius: "6px", fontSize: "0.72rem", fontWeight: 600, color: "#475569", cursor: "pointer" }}
-                                                >
-                                                    Min Limit (₹{Number(offerBounds.lowerBound).toLocaleString("en-IN")})
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setRefurbishedValue(offerBounds.defaultSuggested)}
-                                                    style={{ background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "0.25rem 0.55rem", borderRadius: "6px", fontSize: "0.72rem", fontWeight: 700, color: "#047857", cursor: "pointer" }}
-                                                >
-                                                    Recommended (₹{Number(offerBounds.defaultSuggested).toLocaleString("en-IN")})
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setRefurbishedValue(offerBounds.upperBound)}
-                                                    style={{ background: "#eff6ff", border: "1px solid #bfdbfe", padding: "0.25rem 0.55rem", borderRadius: "6px", fontSize: "0.72rem", fontWeight: 600, color: "#1d4ed8", cursor: "pointer" }}
-                                                >
-                                                    Max Limit (₹{Number(offerBounds.upperBound).toLocaleString("en-IN")})
-                                                </button>
+                                            {/* Transparent Formula Box */}
+                                            <div style={{ marginTop: "0.6rem", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "0.6rem 0.85rem", fontSize: "0.76rem" }}>
+                                                <div style={{ fontWeight: 700, color: "#1e293b", marginBottom: "0.25rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                                                    <span>📐 Valuation Equation:</span>
+                                                </div>
+                                                <div style={{ fontFamily: "monospace", color: "#0f172a", fontWeight: 700, fontSize: "0.82rem" }}>
+                                                    ₹{Number(offerBounds.refPrice).toLocaleString("en-IN")} <span style={{ color: "#64748b" }}>(Ref)</span> × {Math.round(offerBounds.agePct * 100)}% <span style={{ color: "#64748b" }}>(Age)</span> × {Math.round(offerBounds.conditionPct * 100)}% <span style={{ color: "#64748b" }}>(Condition)</span> = ₹{Number(offerBounds.adjustedVal).toLocaleString("en-IN")}
+                                                </div>
                                             </div>
                                         </div>
-
                                         <div>
                                             <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 700, color: "#334155", marginBottom: "0.35rem" }}>
                                                 Certificate ID *

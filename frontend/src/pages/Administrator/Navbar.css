@@ -444,3 +444,70 @@
   background: #f3e8ff;
   color: #7e22ce;
 }
+
+/* Unpaid User Pricing Alert Indicator for Completed Devices */
+.admin-sb-unpaid-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  background-color: #f59e0b;
+  border-radius: 50%;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.4);
+  animation: adminPulseWarn 2s infinite ease-in-out;
+}
+
+.admin-sb-unpaid-pill {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(180, 83, 9, 0.08);
+  flex-shrink: 0;
+}
+
+.admin-sb-link:hover .admin-sb-unpaid-pill {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.admin-sb-link.active .admin-sb-unpaid-pill {
+  background: #ffffff;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.admin-sb-unpaid-icon {
+  font-size: 0.75rem;
+  color: #d97706;
+  flex-shrink: 0;
+}
+
+.admin-sb-unpaid-badge-num {
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+@keyframes adminPulseWarn {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 0.75;
+  }
+}

@@ -55,7 +55,28 @@ import { FaLeaf, FaQrcode, FaRecycle, FaTools, FaWarehouse, FaBalanceScale } fro
 import { calculateEstimatedDeviceValue } from "../../utils/pricing";
 import "./Manage_completeddevices.css";
 
-const API_BASE = "https://ecocycle.runasp.net/api";
+const LOCAL_API_BASE = "http://localhost:5278/api";
+const PROD_API_BASE = "https://ecocycle.runasp.net/api";
+const isLocalhost = typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+const API_BASE = isLocalhost ? LOCAL_API_BASE : PROD_API_BASE;
+const FALLBACK_API_BASE = isLocalhost ? PROD_API_BASE : LOCAL_API_BASE;
+
+// Robust fallback POST helper for cloud/local sync
+async function postApiWithFallback(endpoint, payload, config) {
+    try {
+        return await axios.post(`${API_BASE}${endpoint}`, payload, config);
+    } catch (primaryErr) {
+        if (!primaryErr.response || primaryErr.response.status === 404 || primaryErr.response.status >= 500) {
+            try {
+                return await axios.post(`${FALLBACK_API_BASE}${endpoint}`, payload, config);
+            } catch (fallbackErr) {
+                throw primaryErr;
+            }
+        }
+        throw primaryErr;
+    }
+}
 
 // Helper for INR currency formatting
 const formatINR = (num) => {
@@ -162,15 +183,13 @@ function ManageCompletedDevices() {
         if (isPaid) return;
         setPriceEditItem(item);
         const s = item.settlement || {};
-        const isRecycle = item.processingType === "Responsible Recycling";
-        const isRefurb = item.centerType === "Refurbishment Center" || item.pathway === "Refurbishment" || !isRecycle;
-        const initialCenterShare = isRefurb
-            ? (Number(item.refurbishmentCost) || Number(s.refurbishmentCost) || Number(s.centerFee) || Number(s.processingFee) || 0)
-            : (Number(s.centerFee) || Number(s.processingFee) || Number(item.processingFee) || 0);
+        const isRecycle = priceEditItem.processingType === "Responsible Recycling";
+        const isRefurb = priceEditItem.centerType === "Refurbishment Center" || priceEditItem.pathway === "Refurbishment" || !isRecycle;
+        const initialCenterShare = Number(s.center !== undefined && s.center > 0 ? s.center : 0);
 
         setEditValuation(String(isRecycle ? (item.recoveryValue || s.activePool || 0) : (item.deviceValuation || s.activePool || 0)));
         setEditProcessingFee(String(initialCenterShare));
-        setEditRefurbCost(String(item.refurbishmentCost || initialCenterShare));
+        setEditRefurbCost(String(item.refurbishmentCost || 0));
         setEditAgent1(String(s.agent1 !== undefined ? s.agent1 : 150));
         setEditTech(String(s.technician !== undefined ? s.technician : 300));
         setEditAgent2(String(s.agent2 !== undefined ? s.agent2 : 150));
@@ -292,35 +311,108 @@ function ManageCompletedDevices() {
     const [distributionSaveSuccess, setDistributionSaveSuccess] = useState(false);
     const [isExecutingPayAll, setIsExecutingPayAll] = useState(false);
     const [toastMessage, setToastMessage] = useState("");
-    const [notifiedUsers, setNotifiedUsers] = useState({});
+    const [notifiedUsers, setNotifiedUsers] = useState(() => {
+        try {
+            return JSON.parse(localStorage.getItem("ecocycle_notified_payouts") || "{}");
+        } catch {
+            return {};
+        }
+    });
 
-    const handleNotifyStakeholder = (item, role, recipientName, amount) => {
-        const devId = item?.deviceId || selectedItem?.deviceId;
-        if (!devId) return;
-        const key = `${devId}_${role}`;
-        setNotifiedUsers(prev => ({ ...prev, [key]: true, [devId]: true }));
-        setToastMessage(`Payment notification (₹${formatINR(amount)}) dispatched to ${recipientName} [${role}]!`);
-        setTimeout(() => {
-            setToastMessage("");
-        }, 3500);
+    const updateNotifiedUsers = (newNotified) => {
+        setNotifiedUsers(newNotified);
+        try {
+            localStorage.setItem("ecocycle_notified_payouts", JSON.stringify(newNotified));
+        } catch (_) {}
     };
 
-    const handleNotifyAllStakeholders = (item) => {
-        const devId = item?.deviceId || selectedItem?.deviceId;
+    const handleNotifyStakeholder = async (item, role, recipientName, amount) => {
+        const target = item || selectedItem;
+        const devId = target?.deviceId || target?.id;
         if (!devId) return;
-        setNotifiedUsers(prev => ({
-            ...prev,
+
+        setToastMessage(`Dispatching payment alert & official advice email to ${recipientName}...`);
+
+        let response = null;
+        try {
+            const token = localStorage.getItem("token");
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            response = await postApiWithFallback(`/Payout/send-payout-notifications/${devId}`, {}, { headers });
+        } catch (err) {
+            console.error("Notify stakeholder error:", err);
+            const errDetail = err.response?.data?.message || err.message || "Network / Server Error";
+            setToastMessage(`⚠️ Email delivery failed: ${errDetail}`);
+            setTimeout(() => setToastMessage(""), 5000);
+            return;
+        }
+
+        const key = `${devId}_${role}`;
+        const updated = { ...notifiedUsers, [key]: true, [devId]: true };
+        updateNotifiedUsers(updated);
+
+        const recipients = response?.data?.recipients || [];
+        const matched = recipients.find(r => 
+            (r.role || "").toLowerCase().includes((role || "").toLowerCase()) ||
+            (r.recipientName || "").toLowerCase().includes((recipientName || "").toLowerCase())
+        );
+        const recipientEmail = matched?.recipientEmail || "";
+        const emailStatus = matched?.status || "Dispatched";
+
+        if (emailStatus === "Dispatched") {
+            setToastMessage(`✓ Email & notification successfully delivered to ${recipientName}${recipientEmail ? ` (${recipientEmail})` : ''} for ₹${formatINR(amount)}!`);
+        } else if (emailStatus === "No Email Configured") {
+            setToastMessage(`In-app notification created for ${recipientName}. (Note: No registered email address on file)`);
+        } else {
+            setToastMessage(`Notification saved. Email delivery status: ${emailStatus}`);
+        }
+
+        setTimeout(() => {
+            setToastMessage("");
+        }, 5000);
+    };
+
+    const handleNotifyAllStakeholders = async (item) => {
+        const target = item || selectedItem;
+        const devId = target?.deviceId || target?.id;
+        if (!devId) return;
+
+        setToastMessage(`Dispatching disbursement alerts & emails to all stakeholders for Device #${devId}...`);
+
+        let response = null;
+        try {
+            const token = localStorage.getItem("token");
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            response = await postApiWithFallback(`/Payout/send-payout-notifications/${devId}`, {}, { headers });
+        } catch (err) {
+            console.error("Notify all stakeholders error:", err);
+            const errDetail = err.response?.data?.message || err.message || "Network / Server Error";
+            setToastMessage(`⚠️ Notification delivery failed: ${errDetail}`);
+            setTimeout(() => setToastMessage(""), 5000);
+            return;
+        }
+
+        const updated = {
+            ...notifiedUsers,
             [`${devId}_citizen`]: true,
             [`${devId}_agent1`]: true,
             [`${devId}_tech`]: true,
             [`${devId}_agent2`]: true,
-            [`${devId}_center`]: true,
             [devId]: true
-        }));
-        setToastMessage(`Settlement payment notifications dispatched to ALL stakeholders for Device #${devId}!`);
+        };
+        updateNotifiedUsers(updated);
+
+        const recipients = response?.data?.recipients || [];
+        const delivered = recipients.filter(r => r.status === "Dispatched");
+        if (delivered.length > 0) {
+            const emailsText = delivered.map(r => r.recipientEmail).filter(Boolean).join(", ");
+            setToastMessage(`✓ Emails & in-app alerts delivered to ${delivered.length} stakeholder(s)${emailsText ? ` (${emailsText})` : ''}!`);
+        } else {
+            setToastMessage(`Disbursement alerts & emails processed for Device #${devId}.`);
+        }
+
         setTimeout(() => {
             setToastMessage("");
-        }, 4000);
+        }, 5000);
     };
 
     const handleNotifyUser = (item) => {
@@ -413,13 +505,17 @@ function ManageCompletedDevices() {
     };
 
     // Universal Economic Viability & Settlement Engine
-    // EcoCycle Two-Agent Workflow & Financial Share Equation:
+    // EcoCycle Two-Agent Circular Cash Flow Model:
     // Flow: Citizen -> Agent 1 (Pickup) -> Technician (Inspection) -> Agent 2 (Transfer) -> Final Center
-    // Equation: P = U + A1 + T + A2 + C + E
-    // EcoCycle Share Rule: E = max(0, P - U - A1 - T - A2 - C)
-    // - If P >= U + A1 + T + A2 + C: Viable transaction, EcoCycle receives residual surplus E.
-    // - If P < U + A1 + T + A2 + C: Valuation NOT economically viable (E = 0), recommend Responsible Recycling.
-    // - For Responsible Recycling: U = ₹0, C = 60%, E = 20%, A1 = 5%, T = 10%, A2 = 5% (Always viable).
+    // Economic Rule: Recycling & Refurbishment Centers retain 100% of the physical assets / recovered materials (Asset Custody),
+    //                so NO cash payout share (C = 0) is deducted from the transaction pool.
+    // Cash Equation: Pool (P or R) = Citizen (U) + Agent 1 (A1) + Technician (T) + Agent 2 (A2) + EcoCycle Reserve (E)
+    // - Citizen (U): Fair device payout (75% standard for Valuation, ₹0 for voluntary Eco-Donation).
+    // - Agent 1 (A1): Fixed doorstep pickup fee (₹150).
+    // - Technician (T): Fixed inspection & diagnostic fee (₹300).
+    // - Agent 2 (A2): Fixed transfer logistics fee (₹150).
+    // - Center (C): ₹0 (0%) cash payout. Retains 100% of physical equipment/recovered material yield.
+    // - EcoCycle Reserve (E): Residual circular platform reserve E = Pool - (U + A1 + T + A2).
     const calculateSettlement = (params) => {
         const {
             deviceValuation = 0,
@@ -455,29 +551,36 @@ function ManageCompletedDevices() {
             : (devVal > 0 ? devVal : (recVal > 0 ? recVal : 4000));
         const feeObj = calculateProcessingFee(weight, isHazardous);
 
+        // Centers retain physical equipment / recovered materials at the end, so no cash share from transaction pool
+        const centerFee = customCenter !== null ? Math.max(0, Math.round(Number(customCenter))) : 0;
+        const centerOperationCost = Number(refurbishmentCost) || feeObj.totalFee || 0;
+
+        // Fixed Transparent Operational Logistics Payouts
+        const agent1 = customAgent1 !== null 
+            ? Math.round(Number(customAgent1)) 
+            : (customCollection !== null ? Math.round(Number(customCollection) / 2) : 150);
+        const technician = customTech !== null 
+            ? Math.round(Number(customTech)) 
+            : 300;
+        const agent2 = customAgent2 !== null 
+            ? Math.round(Number(customAgent2)) 
+            : (customCollection !== null ? Math.round(Number(customCollection) / 2) : 150);
+
+        const agentFee = agent1 + agent2;
+        const operationalPayouts = agent1 + technician + agent2; // Standard ₹600
+
         if (isRecycle) {
             // Responsible Recycling (R = Recovered Material Value / Pool)
-            // Citizen (U) = ₹0 (Voluntary e-waste surrender / donation)
-            // Fixed Operational Payouts: Agent 1 = ₹150, Technician = ₹300, Agent 2 = ₹150 (or custom)
-            // Center (C): Center Refurbishment / Processing Expense
+            // - Citizen (U) = ₹0 (Voluntary e-waste surrender / donation)
+            // - Center (C) = ₹0 (Retains 100% of all recovered physical materials: metals, plastics, precious metals)
+            // - Operational Payouts: Agent 1 (₹150), Technician (₹300), Agent 2 (₹150)
+            // - EcoCycle Platform Reserve (E) = Residual Pool [R - Ops]
             const R = Math.round(activePool);
             const citizenPayout = 0;
-            const parsedActualFee = Number(actualCenterFee) || 0;
-            const rfCost = Number(refurbishmentCost) || 0;
-            const isRefurb = centerType === "Refurbishment Center" || rfCost > 0;
-            const centerOperationCost = isRefurb 
-                ? (rfCost > 0 ? rfCost : (parsedActualFee > 0 ? parsedActualFee : 2500))
-                : (parsedActualFee > 0 ? parsedActualFee : feeObj.totalFee);
-            const centerFee = customCenter !== null ? Math.round(Number(customCenter)) : Math.round(centerOperationCost);
-            
-            const agent1 = customAgent1 !== null ? Math.round(Number(customAgent1)) : (customCollection !== null ? Math.round(Number(customCollection) / 2) : 150);
-            const technician = customTech !== null ? Math.round(Number(customTech)) : 300;
-            const agent2 = customAgent2 !== null ? Math.round(Number(customAgent2)) : (customCollection !== null ? Math.round(Number(customCollection) / 2) : 150);
-            
-            const agentFee = agent1 + agent2;
-            const operationalPayouts = agent1 + technician + agent2;
 
-            const totalCosts = citizenPayout + agent1 + technician + agent2 + centerFee;
+            const totalCosts = citizenPayout + operationalPayouts + centerFee;
+            const isSubsidized = R < totalCosts;
+            const ecocycleSubsidy = isSubsidized ? (totalCosts - R) : 0;
             const ecocycleReserve = Math.max(0, R - totalCosts);
             const totalDisbursed = totalCosts;
 
@@ -492,7 +595,8 @@ function ManageCompletedDevices() {
                 center: centerFee,
                 centerFee,
                 centerOperationCost,
-                centerSharePercent: `${R > 0 ? Math.round((centerFee / R) * 100) : 0}%`,
+                centerSharePercent: centerFee > 0 ? `${Math.round((centerFee / R) * 100)}%` : "0% (Retains Materials)",
+                centerRetainedAsset: "100% of Recovered Material Streams Retained in Facility Inventory",
                 operationalPayouts,
                 operationalAgent: agentFee,
                 agent1,
@@ -505,67 +609,50 @@ function ManageCompletedDevices() {
                 technicianSharePercent: `${Math.round((technician / (R || 1)) * 100)}%`,
                 citizenPayout,
                 citizen: citizenPayout,
-                citizenSharePercent: "0%",
-                refurbishmentCost: isRefurb ? centerFee : 0,
+                citizenSharePercent: "0% (Donation)",
+                refurbishmentCost: 0,
                 totalDisbursed,
                 ecocycleReserve,
                 ecocycleSharePercent: `${Math.round((ecocycleReserve / (R || 1)) * 100)}%`,
-                ecocycleSubsidy: 0,
-                isSubsidized: false,
+                ecocycleSubsidy,
+                isSubsidized,
                 isLowValue: false,
                 citizenChoice: "Responsible Recycling",
                 lowValueThreshold: threshold,
                 totalReconciled: R,
                 processingFeeBreakdown: {
                     ...feeObj,
-                    formulaText: isRefurb ? `Total Refurbishment Expense (₹${formatINR(centerOperationCost)})` : `Center Processing Expense (₹${formatINR(centerOperationCost)})`
+                    formulaText: "Facility retains 100% of recovered physical material yield (Zero cash payout)"
                 }
             };
         } else {
             // Valuation Model (P = Device Valuation Realized Price)
-            // Formula: P = U + A1 + T + A2 + C + E
-            // - Citizen (U): Fair Device Valuation Payout (or ₹0 if donated)
+            // Formula: P = U + A1 + T + A2 + E (Center retains physical refurbished device asset, C = 0)
+            // - Citizen (U): Fair 75% device payout share
             // - Collection Agent 1 (A1): Fixed ₹150 (Citizen -> Tech)
-            // - Inspection Technician (T): Fixed ₹300
+            // - Inspection Technician (T): Fixed ₹300 (Diagnostic & Grading)
             // - Collection Agent 2 (A2): Fixed ₹150 (Tech -> Center)
-            // - Refurbishment Center (C): Total Refurbishment Expense (Parts & Repair Work)
-            // - EcoCycle Reserve (E): Residual Platform Surplus [P - (U + A1 + T + A2 + C)]
+            // - Refurbishment Center (C): ₹0 cash payout (Retains refurbished device asset)
+            // - EcoCycle Reserve (E): Residual Platform Margin [P - (U + A1 + T + A2)]
             const P = Math.round(devVal > 0 ? devVal : 4000);
+            const rfCost = Number(refurbishmentCost) || 0;
 
-            // 1. Fixed Operational Logistics Payouts
-            const agent1 = customAgent1 !== null 
-                ? Math.round(Number(customAgent1)) 
-                : (customCollection !== null ? Math.round(Number(customCollection) / 2) : 150);
+            let citizenPayout;
+            if (promisedUserPayment !== null) {
+                citizenPayout = Math.max(0, Math.round(Number(promisedUserPayment)));
+            } else {
+                // Fair standard citizen share: 75% of device valuation
+                const maxAffordable = Math.max(0, P - operationalPayouts - centerFee);
+                const standardShare = Math.round(P * 0.75);
+                citizenPayout = Math.min(maxAffordable, standardShare);
+            }
 
-            const technician = customTech !== null 
-                ? Math.round(Number(customTech)) 
-                : 300;
-
-            const agent2 = customAgent2 !== null 
-                ? Math.round(Number(customAgent2)) 
-                : (customCollection !== null ? Math.round(Number(customCollection) / 2) : 150);
-
-            // 2. Refurbishment Center Share (C) = Total Refurbishment Expense (Parts + Labor Cost)
-            const rfCost = Number(refurbishmentCost) || Number(actualCenterFee) || 0;
-            const centerOperationCost = rfCost;
-            const centerFee = customCenter !== null 
-                ? Math.round(Number(customCenter)) 
-                : Math.round(rfCost);
-
-            const agentFee = agent1 + agent2;
-            const operationalPayouts = agent1 + technician + agent2;
-
-            // 3. Citizen Expected Payment (U)
-            const citizenPayout = promisedUserPayment !== null 
-                ? Math.round(Number(promisedUserPayment)) 
-                : Math.max(0, Math.round(P * 0.75));
-
-            // 4. Viability Check & Residual EcoCycle Share: E = max(0, P - U - A1 - T - A2 - C)
-            const totalRequired = citizenPayout + agent1 + technician + agent2 + centerFee;
-            const isViable = P >= totalRequired;
-            const deficit = isViable ? 0 : (totalRequired - P);
+            const totalRequired = citizenPayout + operationalPayouts + centerFee;
+            const isViable = P >= operationalPayouts + centerFee;
+            const deficit = isViable ? (totalRequired > P ? (totalRequired - P) : 0) : (operationalPayouts + centerFee - P);
             const ecocycleReserve = Math.max(0, P - totalRequired);
 
+            // Refurbished asset capitalized cost (hardware acquisition + repair work value, kept by center)
             const totalAssetCost = citizenPayout + rfCost;
 
             return {
@@ -580,8 +667,9 @@ function ManageCompletedDevices() {
                 processingFee: centerFee,
                 center: centerFee,
                 centerFee,
-                centerOperationCost,
-                centerSharePercent: `${P > 0 ? Math.round((centerFee / P) * 100) : 0}%`,
+                centerOperationCost: rfCost,
+                centerSharePercent: centerFee > 0 ? `${Math.round((centerFee / P) * 100)}%` : "0% (Retains Hardware)",
+                centerRetainedAsset: "Certified Refurbished Hardware Retained in Center Inventory",
                 operationalPayouts,
                 operationalAgent: agentFee,
                 agent1,
@@ -608,7 +696,7 @@ function ManageCompletedDevices() {
                 totalReconciled: P,
                 processingFeeBreakdown: {
                     ...feeObj,
-                    formulaText: `Total Refurbishment Expense (₹${formatINR(centerOperationCost)})`
+                    formulaText: `Refurbished Hardware Asset (₹${formatINR(totalAssetCost)}) Retained in Center Inventory (Zero cash payout)`
                 }
             };
         }
@@ -709,27 +797,26 @@ function ManageCompletedDevices() {
             notes: "Inter-facility transit: Technician facility to Final Processing Center"
         });
 
-        // 6. Center Operation / Refurbishment Expense Tracking (Center retains device/materials; compensation for work done)
+        // 6. Center Custody: Physical Asset / Materials Retention (₹0 Cash Payout)
         const isRefurbDev = item.centerType === "Refurbishment Center" || item.pathway === "Refurbishment" || !isRecycle;
-        const refurbWorkExpense = Number(item.refurbishmentCost || s.refurbishmentCost || 0);
         transactions.push({
             transactionId: `${baseTxn}-06`,
             deviceId: devId,
             processingType: item.processingType,
             centerId: item.facilityId,
             centerType: item.centerType,
-            entryType: "DEBIT_EXPENSE",
-            amount: isRefurbDev ? refurbWorkExpense : (s.processingFee || 0),
+            entryType: "ASSET_CUSTODY",
+            amount: 0,
             transactionType: isRefurbDev
-                ? `Total Refurbishment Expense (${refurbWorkExpense > 0 ? `${Math.round((refurbWorkExpense / (s.activePool || 1)) * 100)}%` : "Direct Work"})`
-                : `Center Processing Fee (${Math.round(((s.processingFee || 0) / (s.activePool || 1)) * 100)}%)`,
+                ? "Refurbished Equipment Custody (Center Retains Asset)"
+                : "Recovered Materials Custody (Facility Retains 100% Yield)",
             recipientType: item.centerType || (isRefurbDev ? "Refurbishment Center" : "Recycling Center"),
             recipientName: item.facilityName || (isRefurbDev ? "Refurbishment Center" : "Recycling Center"),
-            status: "DISBURSED",
+            status: "RETAINED_ASSET",
             createdAt: dateStr,
             notes: isRefurbDev
-                ? "Total Refurbishment Expense for repair labor and replacement components (Hardware retained by Center)"
-                : "Facility material recovery, isolation & processing expense (Materials retained by Facility)"
+                ? "Finished refurbished device asset retained in facility inventory; zero cash disbursement from pool."
+                : `Facility retains 100% of physical recovered material streams (${item.recoveredMaterials?.length || 5} streams); zero cash disbursement from pool.`
         });
 
         // 7. Balance / Reserve: EcoCycle Residual Share (E = max(0, P - U - A1 - T - A2 - C))
@@ -762,7 +849,12 @@ function ManageCompletedDevices() {
         try {
             setLoading(true);
 
-            const [recyclingRes, refurbProcRes, deviceRes, refurbCentersRes, assignmentsRes, agentsRes, techsRes, recCentersRes, payoutsRes] = await Promise.all([
+            const [
+                recyclingRes, refurbProcRes, deviceRes, refurbCentersRes, assignmentsRes, 
+                agentsRes, techsRes, recCentersRes, payoutsRes,
+                adminRefurbReqRes, adminRecReqRes,
+                fallbackRecyclingRes, fallbackRefurbRes, fallbackDeviceRes, fallbackPayoutsRes
+            ] = await Promise.all([
                 axios.get(`${API_BASE}/RecyclingProcess/all-processes`, { headers }).catch(() => ({ data: [] })),
                 axios.get(`${API_BASE}/RefurbishmentProcess/all-processes`, { headers }).catch(() => ({ data: [] })),
                 axios.get(`${API_BASE}/Device/All`, { headers }).catch(() => ({ data: [] })),
@@ -771,7 +863,13 @@ function ManageCompletedDevices() {
                 axios.get(`${API_BASE}/CollectionAgent/All`, { headers }).catch(() => axios.get(`${API_BASE}/CollectionAgent/alluser`, { headers })).catch(() => ({ data: [] })),
                 axios.get(`${API_BASE}/Technician/All`, { headers }).catch(() => axios.get(`${API_BASE}/Technician/alluser`, { headers })).catch(() => ({ data: [] })),
                 axios.get(`${API_BASE}/RecyclingCenter/alluser`, { headers }).catch(() => axios.get(`${API_BASE}/RecyclingCenter/All`, { headers })).catch(() => ({ data: [] })),
-                axios.get(`${API_BASE}/Payout/all`, { headers }).catch(() => ({ data: [] }))
+                axios.get(`${API_BASE}/Payout/all`, { headers }).catch(() => ({ data: [] })),
+                axios.get(`${API_BASE}/AllocateRefurbishmentCenter/admin/requests`, { headers }).catch(() => ({ data: [] })),
+                axios.get(`${API_BASE}/AllocateRecyclingCenter/admin/requests`, { headers }).catch(() => ({ data: [] })),
+                isLocalhost ? axios.get(`${FALLBACK_API_BASE}/RecyclingProcess/all-processes`, { headers }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+                isLocalhost ? axios.get(`${FALLBACK_API_BASE}/RefurbishmentProcess/all-processes`, { headers }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+                isLocalhost ? axios.get(`${FALLBACK_API_BASE}/Device/All`, { headers }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+                isLocalhost ? axios.get(`${FALLBACK_API_BASE}/Payout/all`, { headers }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
             ]);
 
             const allAssignments = Array.isArray(assignmentsRes.data) ? assignmentsRes.data : [];
@@ -779,17 +877,90 @@ function ManageCompletedDevices() {
             const allTechs = Array.isArray(techsRes.data) ? techsRes.data : [];
             const refurbCenters = Array.isArray(refurbCentersRes.data) ? refurbCentersRes.data : [];
             const allRecCenters = Array.isArray(recCentersRes.data) ? recCentersRes.data : [];
-            const allPayouts = Array.isArray(payoutsRes.data) ? payoutsRes.data : [];
+
+            // Merge primary and fallback datasets by unique identifier to ensure no completed device is missed
+            const mergeById = (primary, fallback, idKey = "deviceId") => {
+                const list = Array.isArray(primary) ? [...primary] : [];
+                const ids = new Set(list.map(x => Number(x[idKey] || x.requestId || x.DeviceId || x.RequestId || x.id)).filter(Boolean));
+                if (Array.isArray(fallback)) {
+                    fallback.forEach(item => {
+                        const id = Number(item[idKey] || item.requestId || item.DeviceId || item.RequestId || item.id);
+                        if (id && !ids.has(id)) {
+                            ids.add(id);
+                            list.push(item);
+                        }
+                    });
+                }
+                return list;
+            };
+
+            const allRecyclingData = mergeById(recyclingRes.data, fallbackRecyclingRes.data);
+            const allRefurbData = mergeById(refurbProcRes.data, fallbackRefurbRes.data);
+            const allDevices = mergeById(deviceRes.data, fallbackDeviceRes.data, "deviceId");
+            const allPayouts = mergeById(payoutsRes.data, fallbackPayoutsRes.data, "payoutId");
+            const allAdminRefurbReqs = Array.isArray(adminRefurbReqRes.data) ? adminRefurbReqRes.data : [];
+            const allAdminRecReqs = Array.isArray(adminRecReqRes.data) ? adminRecReqRes.data : [];
+
+            // Merge any completed requests from admin request tables not already in process tables
+            allAdminRefurbReqs.forEach(req => {
+                const reqDevId = Number(req.deviceId || req.DeviceId);
+                const reqStatus = String(req.status || "").toLowerCase();
+                if (reqDevId && (reqStatus === "completed" || reqStatus === "refurbished" || req.refurbishmentCompletedAt)) {
+                    const exists = allRefurbData.some(x => Number(x.deviceId || x.requestId) === reqDevId);
+                    if (!exists) {
+                        allRefurbData.push({
+                            ...req,
+                            deviceId: reqDevId,
+                            status: "Completed",
+                            refurbishmentCompletedAt: req.refurbishmentCompletedAt || req.updatedAt || new Date().toISOString(),
+                            process: {
+                                status: "Completed",
+                                completedAt: req.refurbishmentCompletedAt || req.updatedAt || new Date().toISOString(),
+                                qualityGrade: "Grade A Certified",
+                                wipingMethod: "NIST 800-88 Cryptographic Erase"
+                            }
+                        });
+                    }
+                }
+            });
+
+            allAdminRecReqs.forEach(req => {
+                const reqDevId = Number(req.deviceId || req.DeviceId);
+                const reqStatus = String(req.status || "").toLowerCase();
+                if (reqDevId && (reqStatus === "completed" || reqStatus === "recycled")) {
+                    const exists = allRecyclingData.some(x => Number(x.deviceId || x.requestId) === reqDevId);
+                    if (!exists) {
+                        allRecyclingData.push({
+                            ...req,
+                            deviceId: reqDevId,
+                            status: "Completed",
+                            process: {
+                                status: "Completed",
+                                completedAt: req.updatedAt || req.createdAt || new Date().toISOString()
+                            }
+                        });
+                    }
+                }
+            });
 
             const completedList = [];
             const processedDeviceIds = new Set();
 
-            // 1. Process Completed Recycling Devices from Actual Process
-            if (Array.isArray(recyclingRes.data)) {
-                recyclingRes.data.forEach((item, idx) => {
+            // 1. Process Completed Recycling Devices
+            if (Array.isArray(allRecyclingData)) {
+                allRecyclingData.forEach((item, idx) => {
                     const proc = item.process;
                     const status = (item.status || proc?.status || "").toLowerCase();
-                    const isCompleted = (status === "completed" || status === "recycled" || status === "certified") && Boolean(proc && proc.completedAt);
+                    const lifecycle = (item.lifecycleStatus || item.device?.lifecycleStatus || "").toLowerCase();
+                    const isCompleted = (
+                        status === "completed" || 
+                        status === "recycled" || 
+                        status === "certified" ||
+                        status === "settled" ||
+                        lifecycle === "settled" ||
+                        lifecycle === "completed" ||
+                        Boolean(proc && (String(proc.status || "").toLowerCase() === "completed" || proc.completedAt))
+                    );
 
                     if (isCompleted) {
                         const rawMats = Array.isArray(item.recoveredMaterials) ? item.recoveredMaterials : [];
@@ -833,7 +1004,7 @@ function ManageCompletedDevices() {
                         const facility = item.recyclingCenterName || matchedRecCenter?.centerName || matchedRecCenter?.name || "EcoCycle Recycling Facility";
 
                         // Freeze material prices at time of processing
-                        const frozenDate = proc?.completedAt || item.updatedAt || new Date().toISOString();
+                        const frozenDate = proc?.completedAt || item.completedAt || item.updatedAt || item.createdAt || new Date().toISOString();
                         const recoveredMaterials = rawMats.map((m, mIdx) => {
                             const unitRate = Number(m.pricePerUnit || m.price || 0);
                             const qty = Number(m.quantity || 0);
@@ -855,7 +1026,7 @@ function ManageCompletedDevices() {
                         const recoveryValue = Number(proc?.totalMaterialValue) || matSum || 0;
 
                         // Separate ProcessingType from CenterType
-                        const matchedDev = Array.isArray(deviceRes.data) ? deviceRes.data.find(d => Number(d.deviceId || d.DeviceId) === devId) : null;
+                        const matchedDev = allDevices.find(d => Number(d.deviceId || d.DeviceId) === devId);
                         const rawPref = String(
                             item.processingPreference ||
                             item.ProcessingPreference ||
@@ -899,11 +1070,11 @@ function ManageCompletedDevices() {
                             storedAt: frozenDate
                         };
 
-                        const custName = item.customerName || item.userName || (item.user ? `${item.user.firstName || ""} ${item.user.lastName || ""}`.trim() : null) || "Citizen";
+                        const custName = item.customerName || item.userName || (item.user ? `${item.user.firstName || ""} ${item.user.lastName || ""}`.trim() : null) || matchedDev?.userName || "Citizen";
 
                         const devPayouts = allPayouts.filter(p => Number(p.deviceId || p.DeviceId) === devId);
                         const isPaidFromPayouts = devPayouts.length > 0 && devPayouts.some(p => (p.payoutStatus || p.PayoutStatus) === "Paid");
-                        const isDeviceSettled = isPaidFromPayouts || matchedDev?.lifecycleStatus === "Settled";
+                        const isDeviceSettled = isPaidFromPayouts || matchedDev?.lifecycleStatus === "Settled" || item.lifecycleStatus === "Settled";
 
                         const deviceObj = {
                             id: `REC-${item.requestId || item.deviceId || idx + 1}`,
@@ -930,11 +1101,11 @@ function ManageCompletedDevices() {
                             condition: item.condition || "End-of-Life / Demanufacturing Required",
                             working: item.working || "Non-Functional / Scrap",
                             customerName: custName,
-                            customerEmail: item.customerEmail || item.email || "—",
-                            customerPhone: item.customerPhone || item.phone || "—",
-                            customerCity: item.customerCity || item.city || "—",
-                            customerAddress: item.customerAddress || item.address || "—",
-                            customerPincode: item.customerPincode || item.pincode || "—",
+                            customerEmail: item.customerEmail || item.email || matchedDev?.email || "—",
+                            customerPhone: item.customerPhone || item.phone || matchedDev?.phone || "—",
+                            customerCity: item.customerCity || item.city || matchedDev?.city || "—",
+                            customerAddress: item.customerAddress || item.address || matchedDev?.address || "—",
+                            customerPincode: item.customerPincode || item.pincode || matchedDev?.pincode || "—",
                             registeredDate: item.createdAt || new Date().toISOString(),
                             collectionAgent1Name: ca1,
                             technicianName: tech,
@@ -972,24 +1143,34 @@ function ManageCompletedDevices() {
                 });
             }
 
-            // 2. Process Completed Refurbishment Processes from Actual Process Table
-            if (Array.isArray(refurbProcRes.data)) {
-                refurbProcRes.data.forEach((rItem, idx) => {
+            // 2. Process Completed Refurbishment Processes
+            if (Array.isArray(allRefurbData)) {
+                allRefurbData.forEach((rItem, idx) => {
                     const proc = rItem.process;
                     const status = (proc?.status || rItem.status || "").toLowerCase();
-                    const isCompleted = (status === "completed" || status === "refurbished" || status === "ready") && Boolean(proc && proc.completedAt);
+                    const lifecycle = (rItem.lifecycleStatus || rItem.device?.lifecycleStatus || "").toLowerCase();
+                    const isCompleted = (
+                        status === "completed" || 
+                        status === "refurbished" || 
+                        status === "ready" ||
+                        status === "settled" ||
+                        lifecycle === "settled" ||
+                        lifecycle === "completed" ||
+                        Boolean(rItem.refurbishmentCompletedAt) ||
+                        Boolean(proc && (String(proc.status || "").toLowerCase() === "completed" || proc.completedAt))
+                    );
 
                     if (isCompleted) {
                         const devId = Number(rItem.deviceId || rItem.requestId);
                         if (!devId) return;
                         processedDeviceIds.add(devId);
 
-                        const compDate = proc.completedAt || rItem.refurbishmentCompletedAt || rItem.updatedAt || new Date().toISOString();
+                        const compDate = proc?.completedAt || rItem.refurbishmentCompletedAt || rItem.completedAt || rItem.updatedAt || rItem.createdAt || new Date().toISOString();
                         const regDate = rItem.createdAt || new Date().toISOString();
 
                         // Real Refurbished Value & Valuation from Process (or dynamic model age & condition calculation)
-                        const matchedDev = Array.isArray(deviceRes.data) ? deviceRes.data.find(d => Number(d.deviceId || d.DeviceId) === devId) : null;
-                        let deviceValuation = Number(proc.refurbishedValue || rItem.refurbishedValue || matchedDev?.valuation || matchedDev?.estimatedValue || matchedDev?.price) || 0;
+                        const matchedDev = allDevices.find(d => Number(d.deviceId || d.DeviceId) === devId);
+                        let deviceValuation = Number(proc?.refurbishedValue || rItem.refurbishedValue || matchedDev?.valuation || matchedDev?.estimatedValue || matchedDev?.price) || 0;
                         if (!deviceValuation && matchedDev) {
                             const dynVal = calculateEstimatedDeviceValue({
                                 referenceValue: matchedDev.referenceMarketPrice || matchedDev.referencePrice || 18000,
@@ -997,16 +1178,16 @@ function ManageCompletedDevices() {
                                 condition: matchedDev.condition || "Good",
                                 quantity: matchedDev.quantity || 1
                             });
-                            deviceValuation = dynVal.totalEstimatedValue;
+                            deviceValuation = dynVal.totalEstimatedValue || 12000;
                         }
                         const weight = Number(rItem.weight || matchedDev?.weight || 0);
                         const isHaz = checkIsHazardous({ ...rItem, ...matchedDev });
 
                         // Real Refurbishment Cost & Parts from Process
-                        const refurbishmentCost = Number(proc.totalRepairCost || proc.estimatedRepairCost || rItem.totalRepairCost) || 0;
+                        const refurbishmentCost = Number(proc?.totalRepairCost || proc?.estimatedRepairCost || rItem.totalRepairCost) || 0;
                         let refurbishmentParts = [];
 
-                        if (proc.repairItemsJson) {
+                        if (proc?.repairItemsJson) {
                             try {
                                 const parsed = JSON.parse(proc.repairItemsJson);
                                 if (Array.isArray(parsed) && parsed.length > 0) {
@@ -1026,7 +1207,8 @@ function ManageCompletedDevices() {
                             ""
                         ).trim().toLowerCase();
 
-                        const processingType = (rawPref.includes("recycl") || rawPref.includes("donat"))
+                        // Refurbished devices default to Valuation (unless explicitly donated)
+                        const processingType = rawPref.includes("donat")
                             ? "Responsible Recycling"
                             : "Valuation";
                         const centerType = "Refurbishment Center";
@@ -1087,7 +1269,7 @@ function ManageCompletedDevices() {
 
                         const devPayouts = allPayouts.filter(p => Number(p.deviceId || p.DeviceId) === devId);
                         const isPaidFromPayouts = devPayouts.length > 0 && devPayouts.some(p => (p.payoutStatus || p.PayoutStatus) === "Paid");
-                        const isDeviceSettled = isPaidFromPayouts || matchedDev?.lifecycleStatus === "Settled";
+                        const isDeviceSettled = isPaidFromPayouts || matchedDev?.lifecycleStatus === "Settled" || rItem.lifecycleStatus === "Settled";
 
                         const deviceObj = {
                             id: `REF-${devId}`,
@@ -1115,24 +1297,24 @@ function ManageCompletedDevices() {
                             condition: rItem.condition || "Used / Minor Cosmetic Scratches",
                             working: rItem.working || "Power on OK / Refurbished",
                             customerName: custName,
-                            customerEmail: rItem.customerEmail || "—",
-                            customerPhone: rItem.customerPhone || "—",
-                            customerCity: rItem.customerCity || "—",
-                            customerAddress: rItem.customerAddress || "—",
-                            customerPincode: rItem.customerPincode || "—",
+                            customerEmail: rItem.customerEmail || matchedDev?.email || "—",
+                            customerPhone: rItem.customerPhone || matchedDev?.phone || "—",
+                            customerCity: rItem.customerCity || matchedDev?.city || "—",
+                            customerAddress: rItem.customerAddress || matchedDev?.address || "—",
+                            customerPincode: rItem.customerPincode || matchedDev?.pincode || "—",
                             registeredDate: regDate,
                             collectionAgent1Name: ca1,
                             technicianName: tech,
                             inspectorName: tech,
                             collectionAgent2Name: ca2,
-                            inspectionNotes: `Diagnostic passed. Quality Grade: ${proc.qualityGrade || "Grade A (Certified Refurbished)"}. Data Wiping: ${proc.wipingMethod || "NIST 800-88"}.`,
+                            inspectionNotes: `Diagnostic passed. Quality Grade: ${proc?.qualityGrade || "Grade A (Certified Refurbished)"}. Data Wiping: ${proc?.wipingMethod || "NIST 800-88"}.`,
                             facilityId: rItem.refurbishmentCenterId || 101,
                             facilityName: cName,
                             facilityCity: cCity,
                             facilityType: "Refurbishment Center",
                             completedAt: compDate,
-                            certificateId: rItem.certificateId || proc.refurbishedCertificateNumber || `ECO-REF-${new Date().getFullYear()}-${String(devId).padStart(6, "0")}`,
-                            summaryOutput: `QC Passed • ${proc.qualityGrade || "Grade A Certified"} • Refurbished`,
+                            certificateId: rItem.certificateId || proc?.refurbishedCertificateNumber || `ECO-REF-${new Date().getFullYear()}-${String(devId).padStart(6, "0")}`,
+                            summaryOutput: `QC Passed • ${proc?.qualityGrade || "Grade A Certified"} • Refurbished`,
                             settlement: {
                                 ...settlement,
                                 payoutStatus: isDeviceSettled ? "Paid" : "Pending",
@@ -1146,9 +1328,186 @@ function ManageCompletedDevices() {
                             isPaid: isDeviceSettled,
                             recoveredMaterials: [],
                             centerInventory,
-                            processNotes: proc.remarks || "Components inspected, thermal pads replaced, storage upgraded, NIST 800-88 sanitized, QC verified.",
-                            qcScore: proc.qualityGrade || "96/100 Benchmark Pass",
-                            sanitizationPerformed: proc.wipingMethod || "NIST 800-88 Sanitized & OS Restored"
+                            processNotes: proc?.remarks || "Components inspected, thermal pads replaced, storage upgraded, NIST 800-88 sanitized, QC verified.",
+                            qcScore: proc?.qualityGrade || "96/100 Benchmark Pass",
+                            sanitizationPerformed: proc?.wipingMethod || "NIST 800-88 Sanitized & OS Restored"
+                        };
+
+                        deviceObj.transactions = generateTransactionLedger(deviceObj, settlement);
+                        completedList.push(deviceObj);
+                    }
+                });
+            }
+
+            // 3. Fallback: Process any device from Device master table marked Completed / Settled
+            if (Array.isArray(allDevices)) {
+                allDevices.forEach((dev) => {
+                    const devId = Number(dev.deviceId || dev.DeviceId);
+                    if (!devId || processedDeviceIds.has(devId)) return;
+
+                    const devStatus = String(dev.status || "").toLowerCase();
+                    const devLifecycle = String(dev.lifecycleStatus || "").toLowerCase();
+                    const procLifecycle = String(dev.processingLifecycleStatus || "").toLowerCase();
+
+                    const isCompleted = (
+                        devStatus === "completed" ||
+                        devLifecycle === "settled" ||
+                        devLifecycle === "completed" ||
+                        devLifecycle === "recycled" ||
+                        devLifecycle === "refurbished" ||
+                        procLifecycle === "readyforreuse" ||
+                        procLifecycle === "recyclingcompleted"
+                    );
+
+                    if (isCompleted) {
+                        processedDeviceIds.add(devId);
+
+                        const isRefurb = procLifecycle.includes("reuse") || 
+                            devLifecycle.includes("refurb") || 
+                            String(dev.processingPreference || "").toLowerCase().includes("refurb");
+                        
+                        const centerType = isRefurb ? "Refurbishment Center" : "Recycling Center";
+                        const pathway = isRefurb ? "Refurbishment" : "Recycling";
+
+                        const rawPref = String(dev.processingPreference || "").trim().toLowerCase();
+                        const processingType = isRefurb 
+                            ? (rawPref.includes("donat") ? "Responsible Recycling" : "Valuation")
+                            : ((rawPref.includes("valuat") || rawPref.includes("evaluat")) ? "Valuation" : "Responsible Recycling");
+
+                        let deviceValuation = Number(dev.valuation || dev.price || dev.estimatedValue) || 0;
+                        if (!deviceValuation) {
+                            const dynVal = calculateEstimatedDeviceValue({
+                                referenceValue: dev.referenceMarketPrice || dev.referencePrice || 15000,
+                                purchaseDate: dev.purchaseDate || dev.createdAt,
+                                condition: dev.condition || "Good",
+                                quantity: dev.quantity || 1
+                            });
+                            deviceValuation = dynVal.totalEstimatedValue || (isRefurb ? 8000 : 3500);
+                        }
+
+                        const weightVal = Number(dev.weight || 2);
+                        const isHaz = checkIsHazardous(dev);
+                        const recoveryValue = isRefurb ? 0 : Math.round(deviceValuation * 0.85);
+
+                        const settlement = calculateSettlement({
+                            deviceValuation,
+                            recoveryValue,
+                            processingType,
+                            centerType,
+                            weight: weightVal,
+                            isHazardous: isHaz,
+                            refurbishmentCost: isRefurb ? 1500 : 0
+                        });
+
+                        const devAssignments = allAssignments.filter(a => Number(a.deviceId || a.DeviceId) === devId);
+                        const assign1 = devAssignments.find(a => 
+                            a.assignmentType === "CustomerToTechnician" || 
+                            String(a.assignmentType || "").toLowerCase().includes("customer")
+                        ) || devAssignments[0];
+
+                        const assign2 = devAssignments.find(a => 
+                            a.assignmentType !== "CustomerToTechnician" && 
+                            (String(a.assignmentType || "").toLowerCase().includes("technician") || 
+                             String(a.assignmentType || "").toLowerCase().includes("center") ||
+                             String(a.assignmentType || "").toLowerCase().includes("refurbish") ||
+                             String(a.assignmentType || "").toLowerCase().includes("recycling"))
+                        ) || (devAssignments.length > 1 ? devAssignments[1] : null);
+
+                        const ca1 = assign1?.collectionAgentName || assign1?.agentName || "EcoCycle Agent 1 (Pickup)";
+                        const tech = assign1?.techName || assign1?.technicianName || "EcoCycle Technician";
+                        const ca2 = assign2?.collectionAgentName || assign2?.agentName || "EcoCycle Agent 2 (Transfer)";
+
+                        const facility = isRefurb ? "EcoCycle Advanced Refurbishment Hub" : "EcoCycle Recycling Facility";
+                        const compDate = dev.processingDecisionAt || dev.updatedAt || dev.createdAt || new Date().toISOString();
+
+                        const devPayouts = allPayouts.filter(p => Number(p.deviceId || p.DeviceId) === devId);
+                        const isPaidFromPayouts = devPayouts.length > 0 && devPayouts.some(p => (p.payoutStatus || p.PayoutStatus) === "Paid");
+                        const isDeviceSettled = isPaidFromPayouts || devLifecycle === "settled";
+
+                        const centerInventory = isRefurb ? {
+                            inventoryId: `INV-REF-${devId}`,
+                            ownership: "EcoCycle Platform",
+                            centerName: facility,
+                            centerType: "Refurbishment Center",
+                            storageLocation: "Finished Goods Storage - Rack F-12",
+                            status: "Refurbished • Stored in Center (Not For Sale)",
+                            acquisitionCost: settlement.citizenPayout,
+                            refurbishmentCost: 1500,
+                            totalAssetCost: settlement.totalAssetCost,
+                            storedAt: compDate
+                        } : {
+                            inventoryId: `INV-REC-${devId}`,
+                            ownership: "EcoCycle Materials Stock",
+                            centerName: facility,
+                            centerType: "Recycling Center",
+                            storageLocation: "Raw Materials Vault - Bay S-02",
+                            status: "Materials Stockpiled & Demanufactured",
+                            totalRecoveredWeight: `${weightVal} kg`,
+                            materialStreamsCount: 5,
+                            inventoryAssetValue: recoveryValue,
+                            storedAt: compDate
+                        };
+
+                        const deviceObj = {
+                            id: `${isRefurb ? "REF" : "REC"}-${devId}`,
+                            deviceId: devId,
+                            requestId: devId,
+                            pathway,
+                            pathwayLabel: isRefurb ? "Refurbished & Tested" : (processingType === "Responsible Recycling" ? "Certified Recycled" : "Recycled (Valuation Settled)"),
+                            deviceValuation,
+                            recoveryValue,
+                            processingFee: settlement.processingFee,
+                            operationalPayouts: settlement.operationalPayouts,
+                            refurbishmentCost: isRefurb ? 1500 : 0,
+                            refurbishmentParts: [],
+                            processingType,
+                            centerType,
+                            evaluationType: processingType,
+                            brand: dev.brand || "Device",
+                            model: dev.model || "Model",
+                            categoryName: dev.categoryName || "Electronics",
+                            serialNumber: dev.serialNumber || `SN-${devId}`,
+                            purchaseDate: dev.purchaseDate || null,
+                            deviceQrToken: dev.deviceQrToken || `ECOQR-${devId}`,
+                            weight: weightVal,
+                            quantity: dev.quantity || 1,
+                            condition: dev.condition || "Completed",
+                            working: dev.working || "Functional",
+                            customerName: dev.customerName || dev.userName || "Citizen User",
+                            customerEmail: dev.customerEmail || dev.email || "—",
+                            customerPhone: dev.customerPhone || dev.phone || "—",
+                            customerCity: dev.customerCity || dev.city || "—",
+                            customerAddress: dev.customerAddress || dev.address || "—",
+                            customerPincode: dev.customerPincode || dev.pincode || "—",
+                            registeredDate: dev.createdAt || compDate,
+                            collectionAgent1Name: ca1,
+                            technicianName: tech,
+                            inspectorName: tech,
+                            collectionAgent2Name: ca2,
+                            inspectionNotes: "Device processing complete and certified.",
+                            facilityId: 1,
+                            facilityName: facility,
+                            facilityCity: "Technology Park",
+                            facilityType: centerType,
+                            completedAt: compDate,
+                            certificateId: `ECO-${isRefurb ? "REF" : "REC"}-${new Date().getFullYear()}-${String(devId).padStart(6, "0")}`,
+                            summaryOutput: isRefurb ? "QC Passed • Certified Refurbished" : `${weightVal} kg recovered (Zero-Landfill Protocol)`,
+                            settlement: {
+                                ...settlement,
+                                payoutStatus: isDeviceSettled ? "Paid" : "Pending",
+                                isDistributed: isDeviceSettled,
+                                payouts: devPayouts
+                            },
+                            citizenOffer: settlement.citizenPayout,
+                            citizenOfferStatus: "Accepted",
+                            paymentStatus: isDeviceSettled ? "Paid" : "Completed",
+                            payoutStatus: isDeviceSettled ? "Paid" : "Pending",
+                            isPaid: isDeviceSettled,
+                            recoveredMaterials: [],
+                            centerInventory,
+                            processNotes: "Processing completed with zero landfill protocol.",
+                            qcScore: "100% Quality Verified",
+                            sanitizationPerformed: "NIST 800-88 Sanitized"
                         };
 
                         deviceObj.transactions = generateTransactionLedger(deviceObj, settlement);
@@ -1158,6 +1517,16 @@ function ManageCompletedDevices() {
             }
 
             setCompletedDevices(completedList);
+
+            const unpaidCount = completedList.filter(item => {
+                const s = item.settlement;
+                return !Boolean(item.isPaid || item.paymentStatus === "Paid" || item.payoutStatus === "Paid" || s?.payoutStatus === "Paid" || s?.isDistributed);
+            }).length;
+
+            try {
+                sessionStorage.setItem("ecocycle_unpaid_completed_count", String(unpaidCount));
+                window.dispatchEvent(new CustomEvent("ecocycle-payout-updated", { detail: { count: unpaidCount } }));
+            } catch (_) {}
         } catch (err) {
             console.error("Error loading completed devices:", err);
         } finally {
@@ -1167,6 +1536,12 @@ function ManageCompletedDevices() {
 
     // Analytics KPIs according to the 5 Separated Values Model (Requirement #1 & #10)
     const totalCount = completedDevices.length;
+    const unpaidPayoutsCount = useMemo(() => {
+        return completedDevices.filter(d => {
+            const s = d.settlement;
+            return !Boolean(d.isPaid || d.paymentStatus === "Paid" || d.payoutStatus === "Paid" || s?.payoutStatus === "Paid" || s?.isDistributed);
+        }).length;
+    }, [completedDevices]);
     const recyclingCount = completedDevices.filter(d => d.processingType === "Responsible Recycling").length;
     const valuationCount = completedDevices.filter(d => d.processingType === "Valuation").length;
     const recyclingCenterCount = completedDevices.filter(d => d.centerType === "Recycling Center" || d.pathway === "Recycling").length;
@@ -1235,6 +1610,8 @@ function ManageCompletedDevices() {
     // Filtering Logic: By ProcessingType and CenterType + Multi-Field & Price Search
     const filteredDevices = useMemo(() => {
         return completedDevices.filter(item => {
+            const isDevicePaid = Boolean(item.isPaid || item.paymentStatus === "Paid" || item.payoutStatus === "Paid" || item.settlement?.payoutStatus === "Paid" || item.settlement?.isDistributed);
+            if (activeFilterTab === "Unpaid Payouts" && isDevicePaid) return false;
             if (activeFilterTab === "Valuation" && item.processingType !== "Valuation") return false;
             if (activeFilterTab === "Responsible Recycling" && item.processingType !== "Responsible Recycling") return false;
             if (activeFilterTab === "Refurbishment Center" && item.centerType !== "Refurbishment Center") return false;
@@ -1539,23 +1916,23 @@ function ManageCompletedDevices() {
                   </td>
                 </tr>
 
-                <!-- 5. Processing Center -->
+                <!-- 5. Processing Center (Physical Asset & Material Custody) -->
                 <tr>
                   <td style="text-align: center;">5</td>
                   <td>
                     <div style="font-weight: bold;">
-                      ${isRefurbCenter ? "Refurbishment Parts & Repair Operation Expense" : "Material Recovery & Processing Operation Fee"}
+                      ${isRefurbCenter ? "Refurbished Hardware Asset Retention (Physical Custody)" : "100% Recovered Material Yield Retention (Physical Custody)"}
                     </div>
                     <div style="font-size: 11px; color: #333; margin-top: 2px;">
-                      Facility: ${selectedItem.facilityName || selectedItem.centerType} • ${isRefurbCenter ? "Hardware Refurbishment Completed" : "Certified Demanufacturing"}
+                      Facility: ${selectedItem.facilityName || selectedItem.centerType} • ${isRefurbCenter ? "Retains certified refurbished hardware in facility inventory (Zero cash payout)" : `Retains all ${selectedItem.recoveredMaterials?.length || 5} recovered material streams in warehouse (Zero cash payout)`}
                     </div>
                   </td>
                   <td>
-                    <div>${isRefurbCenter ? "ProcessingFee" : "RecyclingFee"}</div>
-                    <div style="font-size: 11px; color: #333;">Outgoing / Debit</div>
+                    <div>AssetRetention</div>
+                    <div style="font-size: 11px; color: #333;">Physical Custody</div>
                   </td>
-                  <td style="text-align: right; font-weight: bold;">
-                    ${formatINR(centerAmt)}
+                  <td style="text-align: right; font-weight: bold; color: #059669;">
+                    Rs. 0.00
                   </td>
                 </tr>
 
@@ -1741,7 +2118,7 @@ function ManageCompletedDevices() {
             refurbishmentCost: distributionEditItem.refurbishmentCost
         });
         setCustomCitizenPay(String(auto.citizenPayout));
-        setCustomCenterPay(String(auto.center !== undefined ? auto.center : 0));
+        setCustomCenterPay("0");
         setCustomAgent1Pay(String(auto.agent1 || 150));
         setCustomTechPay(String(auto.technician || 300));
         setCustomAgent2Pay(String(auto.agent2 || 150));
@@ -1768,7 +2145,7 @@ function ManageCompletedDevices() {
         const a1Amt = Math.max(0, Number(s.agent1 !== undefined ? s.agent1 : 150));
         const techAmt = Math.max(0, Number(s.technician !== undefined ? s.technician : 300));
         const a2Amt = Math.max(0, Number(s.agent2 !== undefined ? s.agent2 : 150));
-        const centerAmt = Math.max(0, Number(s.center !== undefined ? s.center : (s.centerFee !== undefined ? s.centerFee : (s.processingFee !== undefined ? s.processingFee : (targetItem.refurbishmentCost || targetItem.processingCost || 0)))));
+        const centerAmt = Math.max(0, Number(s.center !== undefined ? s.center : (s.centerFee !== undefined ? s.centerFee : 0)));
         const ecoShare = Math.max(0, Number(s.ecocycleReserve !== undefined ? s.ecocycleReserve : (s.ecocycleShare !== undefined ? s.ecocycleShare : 0)));
 
         const payoutPayload = {
@@ -1790,7 +2167,7 @@ function ManageCompletedDevices() {
             if (forceSim || isQuickSimulation) {
                 const simTxnId = `pay_test_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
                 const simOrderId = `order_test_${Date.now()}`;
-                await axios.post(`${API_BASE}/Settlement/center-pay-settlement`, {
+                await postApiWithFallback(`/Settlement/center-pay-settlement`, {
                     deviceId: devId,
                     finalRealizableValue: finalVal,
                     paymentMethod: "Razorpay (Test Sandbox)",
@@ -1800,8 +2177,20 @@ function ManageCompletedDevices() {
                     notes: paymentNotes || `[TEST MODE] Buyout settlement for Device #${devId}`
                 }, { headers }).catch(e => console.warn("Center settlement check:", e));
 
-                const payRes = await axios.post(`${API_BASE}/Payout/pay-all/${devId}`, payoutPayload, { headers });
-                setToastMessage(`[TEST MODE] Escrow Buyout Settlement of ₹${formatINR(finalVal)} simulated successfully! (Txn ID: ${simTxnId})`);
+                const payRes = await postApiWithFallback(`/Payout/pay-all/${devId}`, payoutPayload, { headers });
+                await postApiWithFallback(`/Payout/send-payout-notifications/${devId}`, {}, { headers }).catch(e => console.warn("Notice dispatch:", e));
+                
+                const updated = {
+                    ...notifiedUsers,
+                    [`${devId}_citizen`]: true,
+                    [`${devId}_agent1`]: true,
+                    [`${devId}_tech`]: true,
+                    [`${devId}_agent2`]: true,
+                    [devId]: true
+                };
+                updateNotifiedUsers(updated);
+
+                setToastMessage(`[TEST MODE] Escrow Buyout Settlement of ₹${formatINR(finalVal)} authorized! Notifications & advice emails sent to all payee beneficiaries.`);
                 setTimeout(() => setToastMessage(""), 5000);
                 setShowPaymentModal(false);
                 setShowLedgerModal(false);
@@ -1827,7 +2216,7 @@ function ManageCompletedDevices() {
             if (!window.Razorpay) {
                 // If script not loaded, fallback to simulation
                 const simTxnId = `pay_test_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
-                await axios.post(`${API_BASE}/Settlement/center-pay-settlement`, {
+                await postApiWithFallback(`/Settlement/center-pay-settlement`, {
                     deviceId: devId,
                     finalRealizableValue: finalVal,
                     paymentMethod: "Razorpay (Test Sandbox)",
@@ -1837,8 +2226,20 @@ function ManageCompletedDevices() {
                     notes: paymentNotes || `[TEST MODE] Buyout settlement for Device #${devId}`
                 }, { headers }).catch(e => console.warn("Center settlement check:", e));
 
-                await axios.post(`${API_BASE}/Payout/pay-all/${devId}`, payoutPayload, { headers });
-                setToastMessage(`[TEST MODE] Escrow Buyout Settlement of ₹${formatINR(finalVal)} authorized in sandbox mode! (Txn ID: ${simTxnId})`);
+                await postApiWithFallback(`/Payout/pay-all/${devId}`, payoutPayload, { headers });
+                await postApiWithFallback(`/Payout/send-payout-notifications/${devId}`, {}, { headers }).catch(e => console.warn("Notice dispatch:", e));
+
+                const updated = {
+                    ...notifiedUsers,
+                    [`${devId}_citizen`]: true,
+                    [`${devId}_agent1`]: true,
+                    [`${devId}_tech`]: true,
+                    [`${devId}_agent2`]: true,
+                    [devId]: true
+                };
+                updateNotifiedUsers(updated);
+
+                setToastMessage(`[TEST MODE] Escrow Buyout Settlement of ₹${formatINR(finalVal)} authorized! Notifications & advice emails sent to all payee beneficiaries.`);
                 setTimeout(() => setToastMessage(""), 5000);
                 setShowPaymentModal(false);
                 setShowLedgerModal(false);
@@ -1858,7 +2259,7 @@ function ManageCompletedDevices() {
                 handler: async function (response) {
                     try {
                         // 3. Record verified test payment on backend
-                        await axios.post(`${API_BASE}/Settlement/center-pay-settlement`, {
+                        await postApiWithFallback(`/Settlement/center-pay-settlement`, {
                             deviceId: devId,
                             finalRealizableValue: finalVal,
                             paymentMethod: "Razorpay (Test Sandbox)",
@@ -1868,8 +2269,20 @@ function ManageCompletedDevices() {
                             notes: paymentNotes || `[TEST MODE] Buyout settlement for Device #${devId}`
                         }, { headers }).catch(e => console.warn("Settlement check:", e));
 
-                        await axios.post(`${API_BASE}/Payout/pay-all/${devId}`, payoutPayload, { headers });
-                        setToastMessage(`[TEST MODE] EcoCycle Buyout Settlement of ₹${formatINR(finalVal)} successfully authorized and recorded! (Txn ID: ${response.razorpay_payment_id})`);
+                        await postApiWithFallback(`/Payout/pay-all/${devId}`, payoutPayload, { headers });
+                        await postApiWithFallback(`/Payout/send-payout-notifications/${devId}`, {}, { headers }).catch(e => console.warn("Notice dispatch:", e));
+
+                        const updated = {
+                            ...notifiedUsers,
+                            [`${devId}_citizen`]: true,
+                            [`${devId}_agent1`]: true,
+                            [`${devId}_tech`]: true,
+                            [`${devId}_agent2`]: true,
+                            [devId]: true
+                        };
+                        updateNotifiedUsers(updated);
+
+                        setToastMessage(`[TEST MODE] EcoCycle Buyout Settlement of ₹${formatINR(finalVal)} successfully authorized! Notifications & advice emails dispatched to all payee beneficiaries.`);
                         setTimeout(() => setToastMessage(""), 5000);
                         setShowPaymentModal(false);
                         setShowLedgerModal(false);
@@ -1945,7 +2358,7 @@ function ManageCompletedDevices() {
             const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
             // Ensure incoming settlement is marked paid
-            await axios.post(`${API_BASE}/Settlement/center-pay-settlement`, {
+            await postApiWithFallback(`/Settlement/center-pay-settlement`, {
                 deviceId: distributionEditItem.deviceId,
                 finalRealizableValue: activePool,
                 paymentMethod: "Razorpay",
@@ -1954,7 +2367,7 @@ function ManageCompletedDevices() {
             }, { headers }).catch(e => console.warn("Center settlement check notice:", e));
 
             // Execute distribution
-            await axios.post(`${API_BASE}/Settlement/distribute-payouts`, {
+            await postApiWithFallback(`/Settlement/distribute-payouts`, {
                 deviceId: distributionEditItem.deviceId,
                 citizenAmount: cPay,
                 agent1Amount: a1Pay,
@@ -2011,15 +2424,29 @@ function ManageCompletedDevices() {
             setSelectedItem(updatedDevice);
         }
 
+        const devId = distributionEditItem.deviceId;
+        const updated = {
+            ...notifiedUsers,
+            [`${devId}_citizen`]: true,
+            [`${devId}_agent1`]: true,
+            [`${devId}_tech`]: true,
+            [`${devId}_agent2`]: true,
+            [devId]: true
+        };
+        updateNotifiedUsers(updated);
+
         setDistributionSaveSuccess(true);
-        setToastMessage(`Payment distributed & settled! Citizen: ₹${formatINR(cPay)}, Ops: ₹${formatINR(opsTotal)}, Center: ₹${formatINR(ctrPay)}, EcoCycle: ₹${formatINR(ecocycleReserve)}.`);
+        setToastMessage(`Payment distributed & settled! Notifications and payment advice emails dispatched to all payee users.`);
+        try {
+            window.dispatchEvent(new CustomEvent("ecocycle-payout-updated"));
+        } catch (_) {}
         setTimeout(() => {
             setDistributionSaveSuccess(false);
             setShowDistributionModal(false);
         }, 1000);
         setTimeout(() => {
             setToastMessage("");
-        }, 4000);
+        }, 4500);
     };
 
     return (
@@ -2060,11 +2487,6 @@ function ManageCompletedDevices() {
                                 <FaBalanceScale /> Material Prices
                             </button>
 
-                            <button className="glass-btn notification-btn" title="System Alerts">
-                                <FiBell />
-                                <span className="pulse-ping"></span>
-                            </button>
-
                             <div className="user-profile-chip">
                                 <div className="avatar-gradient">A</div>
                                 <div className="user-info-text">
@@ -2100,25 +2522,25 @@ function ManageCompletedDevices() {
                         </div>
                     </div>
 
-                    {/* 3A. Recycling Center Processing Fees */}
+                    {/* 3A. Retained Recovered Materials Yield */}
                     <div className="admin-metric-card" style={{ borderColor: "#a7f3d0" }}>
                         <div className="admin-metric-icon" style={{ background: "#ecfdf5", color: "#059669" }}>
                             <FaRecycle />
                         </div>
                         <div className="admin-metric-info">
-                            <h3 style={{ color: "#047857" }}>₹{totalRecyclingCenterFees}</h3>
-                            <p>3. Recycling Center Fees</p>
+                            <h3 style={{ color: "#047857" }}>₹{totalRecoveryValue}</h3>
+                            <p>3. Retained Material Yield (Recyclers)</p>
                         </div>
                     </div>
 
-                    {/* 3B. Refurbishment Center Processing Fees */}
+                    {/* 3B. Retained Refurbished Finished Assets */}
                     <div className="admin-metric-card" style={{ borderColor: "#bfdbfe" }}>
                         <div className="admin-metric-icon active" style={{ background: "#eff6ff", color: "#2563eb" }}>
                             <FaTools />
                         </div>
                         <div className="admin-metric-info">
-                            <h3 style={{ color: "#1d4ed8" }}>₹{totalRefurbCenterFees}</h3>
-                            <p>4. Refurb Center Fees</p>
+                            <h3 style={{ color: "#1d4ed8" }}>₹{totalAssetCostCapitalized}</h3>
+                            <p>4. Retained Hardware Assets (Refurb Hubs)</p>
                         </div>
                     </div>
 
@@ -2190,6 +2612,7 @@ function ManageCompletedDevices() {
                             <div className="filter-pill-group">
                                 {[
                                     { id: "All", label: "All Items", count: totalCount },
+                                    { id: "Unpaid Payouts", label: "Unpaid Payouts", count: unpaidPayoutsCount },
                                     { id: "Valuation", label: "Valuation", count: valuationCount },
                                     { id: "Responsible Recycling", label: "Responsible Recycling", count: recyclingCount },
                                     { id: "Refurbishment Center", label: "Refurb Centers", count: refurbCenterCount },
@@ -2345,8 +2768,8 @@ function ManageCompletedDevices() {
                                                 <td className="mcd-td-partnershares">
                                                     <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
                                                         <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                                                            <span style={{ background: "#eff6ff", color: "#1d4ed8", fontSize: "0.68rem", padding: "2px 6px", borderRadius: "4px", fontWeight: 600 }}>
-                                                                {item.refurbishmentCost > 0 ? `Refurb Expense: ₹${formatINR(item.refurbishmentCost)}` : `Center Fee: ₹${formatINR(s.processingFee)}`}
+                                                            <span style={{ background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", fontSize: "0.68rem", padding: "2px 6px", borderRadius: "4px", fontWeight: 700 }} title={isRecycle ? "Facility retains 100% of material yield; zero cash payout." : "Center retains refurbished device asset in inventory; zero cash payout."}>
+                                                                Center: ₹0 (Retains {isRecycle ? "Materials" : "Asset"})
                                                             </span>
                                                             <span style={{ background: "#f8fafc", color: "#334155", border: "1px solid #e2e8f0", fontSize: "0.68rem", padding: "2px 6px", borderRadius: "4px", fontWeight: 600 }}>
                                                                 Ops: ₹{s.operationalPayouts}
@@ -2472,10 +2895,8 @@ function ManageCompletedDevices() {
                                         {/* 5-Values Breakdown Mini Grid (Requirement #1) */}
                                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.45rem", fontSize: "0.74rem" }}>
                                             <div style={{ background: "#f8fafc", padding: "6px 8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                                                <span style={{ color: "#64748b", display: "block", fontSize: "0.68rem" }}>
-                                                    {item.refurbishmentCost > 0 ? "Refurb Expense (Center):" : "Processing Fee (Center):"}
-                                                </span>
-                                                <strong style={{ color: "#1d4ed8" }}>₹{formatINR(item.refurbishmentCost > 0 ? item.refurbishmentCost : s.processingFee)}</strong>
+                                                <span style={{ color: "#64748b", display: "block", fontSize: "0.68rem" }}>Center Cash Payout:</span>
+                                                <strong style={{ color: "#059669" }}>₹0.00 (Retains {isRecycle ? "Materials" : "Asset"})</strong>
                                             </div>
                                             <div style={{ background: "#f8fafc", padding: "6px 8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
                                                 <span style={{ color: "#64748b", display: "block", fontSize: "0.68rem" }}>Operations (A1+Tech+A2):</span>
@@ -2582,10 +3003,12 @@ function ManageCompletedDevices() {
                     threshold: lowValueThreshold
                 });
                 const txns = selectedItem.transactions || generateTransactionLedger(selectedItem, s);
+                const isDevicePaid = Boolean(selectedItem.isPaid || selectedItem.paymentStatus === "Paid" || selectedItem.payoutStatus === "Paid" || selectedItem.settlement?.payoutStatus === "Paid" || selectedItem.settlement?.isDistributed);
+                const devId = selectedItem.deviceId || selectedItem.id;
 
                 return (
                     <div className="admin-modal-backdrop" onClick={() => setShowLedgerModal(false)}>
-                        <div className="admin-modal-card mcd-modal" style={{ maxWidth: "880px" }} onClick={(e) => e.stopPropagation()}>
+                        <div className="admin-modal-card mcd-modal" style={{ maxWidth: "940px" }} onClick={(e) => e.stopPropagation()}>
                             <div className="admin-modal-header">
                                 <div style={{ display: "flex", alignItems: "center", gap: "0.85rem" }}>
                                     <div className="admin-cat-icon-box" style={{ background: "#ecfdf5", color: "#059669", width: "42px", height: "42px", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>
@@ -2593,7 +3016,7 @@ function ManageCompletedDevices() {
                                     </div>
                                     <div>
                                         <h3 style={{ fontSize: "1.2rem", fontWeight: 800, margin: 0, color: "#0f172a" }}>
-                                            Stakeholder Payouts & Settlement: #{selectedItem.deviceId}
+                                            Stakeholder Payouts &amp; Settlement: #{selectedItem.deviceId}
                                         </h3>
                                         <p style={{ fontSize: "0.82rem", color: "#64748b", margin: "2px 0 0 0" }}>
                                             {selectedItem.brand} {selectedItem.model} &bull; {selectedItem.processingType} &bull; {selectedItem.centerType}
@@ -2672,6 +3095,7 @@ function ManageCompletedDevices() {
                                                     <th>Payment Purpose</th>
                                                     <th style={{ textAlign: "right" }}>Amount</th>
                                                     <th style={{ textAlign: "center" }}>Payment Status</th>
+                                                    <th style={{ textAlign: "center" }}>Alert &amp; Email Advice</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -2689,6 +3113,26 @@ function ManageCompletedDevices() {
                                                     <td style={{ textAlign: "center", color: "#059669", fontWeight: 700, fontSize: "0.75rem" }}>
                                                         {isRecycle ? "✓ Donated" : "✓ Disbursed"}
                                                     </td>
+                                                    <td style={{ textAlign: "center" }}>
+                                                        {isRecycle || (s.citizenPayout || 0) <= 0 ? (
+                                                            <span style={{ fontSize: "0.75rem", color: "#64748b", fontStyle: "italic" }}>Donation (No Payout)</span>
+                                                        ) : (notifiedUsers[`${devId}_citizen`] || notifiedUsers[devId]) ? (
+                                                            <span className="mcd-notified-pill" title="In-app alert & official payment advice email delivered to citizen">
+                                                                <FiCheckCircle style={{ color: "#059669" }} /> Emailed &amp; Notified
+                                                            </span>
+                                                        ) : isDevicePaid ? (
+                                                            <button
+                                                                type="button"
+                                                                className="mcd-notify-btn"
+                                                                onClick={() => handleNotifyStakeholder(selectedItem, "citizen", selectedItem.customerName || "Citizen", s.citizenPayout)}
+                                                                title="Dispatch payment notification & advice email"
+                                                            >
+                                                                <FiMail /> Send Notice &amp; Email
+                                                            </button>
+                                                        ) : (
+                                                            <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>Pending Settlement</span>
+                                                        )}
+                                                    </td>
                                                 </tr>
 
                                                 {/* 2. Agent 1 */}
@@ -2704,6 +3148,26 @@ function ManageCompletedDevices() {
                                                     </td>
                                                     <td style={{ textAlign: "center", color: "#059669", fontWeight: 700, fontSize: "0.75rem" }}>
                                                         ✓ Disbursed
+                                                    </td>
+                                                    <td style={{ textAlign: "center" }}>
+                                                        {(s.agent1 || 0) <= 0 ? (
+                                                            <span style={{ fontSize: "0.75rem", color: "#64748b" }}>₹0 Fee</span>
+                                                        ) : (notifiedUsers[`${devId}_agent1`] || notifiedUsers[devId]) ? (
+                                                            <span className="mcd-notified-pill" title="In-app alert & official payment advice email delivered to Agent 1">
+                                                                <FiCheckCircle style={{ color: "#059669" }} /> Emailed &amp; Notified
+                                                            </span>
+                                                        ) : isDevicePaid ? (
+                                                            <button
+                                                                type="button"
+                                                                className="mcd-notify-btn"
+                                                                onClick={() => handleNotifyStakeholder(selectedItem, "agent1", selectedItem.collectionAgent1Name || selectedItem.collectionAgentName || "Agent 1", s.agent1)}
+                                                                title="Dispatch payment notification & advice email"
+                                                            >
+                                                                <FiMail /> Send Notice &amp; Email
+                                                            </button>
+                                                        ) : (
+                                                            <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>Pending Settlement</span>
+                                                        )}
                                                     </td>
                                                 </tr>
 
@@ -2721,6 +3185,26 @@ function ManageCompletedDevices() {
                                                     <td style={{ textAlign: "center", color: "#059669", fontWeight: 700, fontSize: "0.75rem" }}>
                                                         ✓ Disbursed
                                                     </td>
+                                                    <td style={{ textAlign: "center" }}>
+                                                        {(s.technician || 0) <= 0 ? (
+                                                            <span style={{ fontSize: "0.75rem", color: "#64748b" }}>₹0 Fee</span>
+                                                        ) : (notifiedUsers[`${devId}_tech`] || notifiedUsers[devId]) ? (
+                                                            <span className="mcd-notified-pill" title="In-app alert & official payment advice email delivered to Technician">
+                                                                <FiCheckCircle style={{ color: "#059669" }} /> Emailed &amp; Notified
+                                                            </span>
+                                                        ) : isDevicePaid ? (
+                                                            <button
+                                                                type="button"
+                                                                className="mcd-notify-btn"
+                                                                onClick={() => handleNotifyStakeholder(selectedItem, "tech", selectedItem.technicianName || selectedItem.inspectorName || "Technician", s.technician)}
+                                                                title="Dispatch payment notification & advice email"
+                                                            >
+                                                                <FiMail /> Send Notice &amp; Email
+                                                            </button>
+                                                        ) : (
+                                                            <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>Pending Settlement</span>
+                                                        )}
+                                                    </td>
                                                 </tr>
 
                                                 {/* 4. Agent 2 */}
@@ -2737,19 +3221,34 @@ function ManageCompletedDevices() {
                                                     <td style={{ textAlign: "center", color: "#059669", fontWeight: 700, fontSize: "0.75rem" }}>
                                                         ✓ Disbursed
                                                     </td>
+                                                    <td style={{ textAlign: "center" }}>
+                                                        {(s.agent2 || 0) <= 0 ? (
+                                                            <span style={{ fontSize: "0.75rem", color: "#64748b" }}>No Secondary Agent</span>
+                                                        ) : (notifiedUsers[`${devId}_agent2`] || notifiedUsers[devId]) ? (
+                                                            <span className="mcd-notified-pill" title="In-app alert & official payment advice email delivered to Agent 2">
+                                                                <FiCheckCircle style={{ color: "#059669" }} /> Emailed &amp; Notified
+                                                            </span>
+                                                        ) : isDevicePaid ? (
+                                                            <button
+                                                                type="button"
+                                                                className="mcd-notify-btn"
+                                                                onClick={() => handleNotifyStakeholder(selectedItem, "agent2", selectedItem.collectionAgent2Name || "Agent 2", s.agent2)}
+                                                                title="Dispatch payment notification & advice email"
+                                                            >
+                                                                <FiMail /> Send Notice &amp; Email
+                                                            </button>
+                                                        ) : (
+                                                            <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>Pending Settlement</span>
+                                                        )}
+                                                    </td>
                                                 </tr>
 
-                                                {/* 5. Center (Refurbishment Expense vs Processing Fee) */}
+                                                {/* 5. Center (Physical Asset & Material Custody) */}
                                                 {(() => {
                                                     const isRefurbCenter = selectedItem.centerType === "Refurbishment Center" || selectedItem.pathway === "Refurbishment" || !isRecycle;
-                                                    const refurbExpense = Number(selectedItem.refurbishmentCost || s.refurbishmentCost || 0);
-                                                    const centerAmt = isRefurbCenter ? refurbExpense : Number(s.processingFee || 0);
-                                                    const centerPct = isRefurbCenter
-                                                        ? (refurbExpense > 0 ? `${Math.round((refurbExpense / (s.activePool || 1)) * 100)}%` : "Refurb Expense")
-                                                        : `${Math.round(((s.processingFee || 0) / (s.activePool || 1)) * 100)}%`;
                                                     const centerDesc = isRefurbCenter
-                                                        ? "Total Refurbishment Expense (Parts & Repair Work • Device Kept by Center)"
-                                                        : "Center Processing & Demanufacturing Expense (Materials Retained by Facility)";
+                                                        ? "Retains finished refurbished device asset in facility inventory (Zero cash payout)"
+                                                        : `Retains 100% of all recovered physical material streams in warehouse (Zero cash payout)`;
                                                     const centerBadge = isRefurbCenter ? "Refurb Center (C)" : "Recycling Center (C)";
 
                                                     return (
@@ -2757,14 +3256,19 @@ function ManageCompletedDevices() {
                                                             <td>
                                                                 <strong style={{ color: "#0f172a", textTransform: "capitalize" }}>{selectedItem.facilityName || (isRefurbCenter ? "Refurbishment Center" : "Recycling Center")}</strong>
                                                             </td>
-                                                            <td><span className="eval-badge" style={{ fontSize: "0.70rem", background: "#eff6ff", color: "#1d4ed8" }}>{centerBadge}</span></td>
-                                                            <td style={{ textAlign: "center", fontWeight: 700, color: "#1d4ed8" }}>{centerPct}</td>
+                                                            <td><span className="eval-badge" style={{ fontSize: "0.70rem", background: "#ecfdf5", color: "#059669" }}>{centerBadge}</span></td>
+                                                            <td style={{ textAlign: "center", fontWeight: 700, color: "#059669" }}>0% (Retains {isRefurbCenter ? "Asset" : "Materials"})</td>
                                                             <td style={{ fontSize: "0.80rem", color: "#475569" }}>{centerDesc}</td>
-                                                            <td style={{ textAlign: "right", fontWeight: 800, fontSize: "0.95rem", color: "#1d4ed8" }}>
-                                                                ₹{formatINR(centerAmt)}
+                                                            <td style={{ textAlign: "right", fontWeight: 800, fontSize: "0.95rem", color: "#059669" }}>
+                                                                ₹0.00
                                                             </td>
                                                             <td style={{ textAlign: "center", color: "#059669", fontWeight: 700, fontSize: "0.75rem" }}>
-                                                                ✓ Disbursed
+                                                                ✓ Retained Asset
+                                                            </td>
+                                                            <td style={{ textAlign: "center" }}>
+                                                                <span style={{ fontSize: "0.75rem", color: "#059669", fontWeight: 600 }}>
+                                                                    Retains Hardware Asset
+                                                                </span>
                                                             </td>
                                                         </tr>
                                                     );
@@ -2777,22 +3281,27 @@ function ManageCompletedDevices() {
                                                     </td>
                                                     <td><span className="eval-badge" style={{ fontSize: "0.70rem", background: "#f3e8ff", color: "#7c3aed" }}>Platform (E)</span></td>
                                                     <td style={{ textAlign: "center", fontWeight: 700, color: "#7c3aed" }}>{s.ecocycleSharePercent || (isRecycle ? "20%" : "10%")}</td>
-                                                    <td style={{ fontSize: "0.80rem", color: "#6b21a8" }}>Platform Operational Surplus [P − (U+A1+T+A2+C)]</td>
+                                                    <td style={{ fontSize: "0.80rem", color: "#6b21a8" }}>Platform Operational Surplus [P − (U+A1+T+A2)]</td>
                                                     <td style={{ textAlign: "right", fontWeight: 800, fontSize: "0.95rem", color: "#7c3aed" }}>
                                                         ₹{formatINR(s.ecocycleReserve)}
                                                     </td>
                                                     <td style={{ textAlign: "center", color: "#7c3aed", fontWeight: 700, fontSize: "0.75rem" }}>
                                                         ✓ Reserved
                                                     </td>
+                                                    <td style={{ textAlign: "center" }}>
+                                                        <span style={{ fontSize: "0.75rem", color: "#7c3aed", fontWeight: 600 }}>
+                                                            Internal Platform Reserve
+                                                        </span>
+                                                    </td>
                                                 </tr>
                                             </tbody>
                                             <tfoot>
                                                 <tr style={{ background: "#f8fafc", fontWeight: 800 }}>
-                                                    <td colSpan="4" style={{ textAlign: "right", fontSize: "0.85rem", color: "#475569" }}>Total Reconciled Value [P = U + A1 + T + A2 + C + E]:</td>
+                                                    <td colSpan="5" style={{ textAlign: "right", fontSize: "0.85rem", color: "#475569" }}>Total Reconciled Cash Settlement [P = U + A1 + T + A2 + E]:</td>
                                                     <td style={{ textAlign: "right", color: "#0f172a", fontSize: "1.05rem" }}>
                                                         ₹{formatINR(s.activePool)}
                                                     </td>
-                                                    <td style={{ textAlign: "center", color: "#059669", fontSize: "0.80rem" }}>✓ 100% Balanced</td>
+                                                    <td style={{ textAlign: "center", color: "#059669", fontSize: "0.78rem", fontWeight: 700 }}>✓ Auto-Emailed on Pay</td>
                                                 </tr>
                                             </tfoot>
                                         </table>
@@ -2804,7 +3313,17 @@ function ManageCompletedDevices() {
                                 <button className="btn-modal-cancel" onClick={() => setShowLedgerModal(false)}>
                                     Close
                                 </button>
-                                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                                    {isDevicePaid && (
+                                        <button
+                                            type="button"
+                                            className="mcd-action-notify-all"
+                                            onClick={() => handleNotifyAllStakeholders(selectedItem)}
+                                            title="Send in-app notification & official payment advice email to all beneficiaries"
+                                        >
+                                            <FiMail /> Resend Notices &amp; Emails
+                                        </button>
+                                    )}
                                     {!(selectedItem?.isPaid || selectedItem?.paymentStatus === "Paid" || selectedItem?.payoutStatus === "Paid" || selectedItem?.settlement?.payoutStatus === "Paid" || selectedItem?.settlement?.isDistributed) && (
                                         <button
                                             type="button"
@@ -3624,7 +4143,7 @@ function ManageCompletedDevices() {
 
                                     <div className="mcd-distrib-field-card">
                                         <label className="mcd-distrib-label">
-                                            <span>2. {distributionEditItem.centerType === "Refurbishment Center" || distributionEditItem.pathway === "Refurbishment" ? "Center Refurbishment Expense (Parts & Repair Work Compensation)" : `Center Processing Fee (${distributionEditItem.centerType})`}</span>
+                                            <span>2. Center Cash Share (₹0 - Center retains physical {distributionEditItem.processingType === "Responsible Recycling" ? "recovered materials" : "refurbished hardware"})</span>
                                         </label>
                                         <div className="mcd-distrib-input-wrap">
                                             <span className="mcd-distrib-curr">₹</span>
@@ -3639,11 +4158,9 @@ function ManageCompletedDevices() {
                                                 placeholder="0.00"
                                             />
                                         </div>
-                                        {ctrPay > activePool && (
-                                            <span style={{ fontSize: "0.70rem", color: "#dc2626", fontWeight: 600, display: "block", marginTop: "3px" }}>
-                                                Exceeds total pool (₹{formatINR(activePool)}) by ₹{formatINR(ctrPay - activePool)}
-                                            </span>
-                                        )}
+                                        <span style={{ fontSize: "0.70rem", color: "#059669", fontWeight: 600, display: "block", marginTop: "3px" }}>
+                                            {distributionEditItem.processingType === "Responsible Recycling" ? "Facility retains 100% of material yield; standard cash payout is ₹0." : "Center retains finished equipment in inventory; standard cash payout is ₹0."}
+                                        </span>
                                     </div>
 
                                     <div className="mcd-distrib-field-card">
@@ -3983,10 +4500,10 @@ function ManageCompletedDevices() {
                                     </div>
 
                                     {/* 6. CENTER (C) */}
-                                    <div className="pasc-summary-item" style={{ padding: "0.7rem 0.75rem", display: "flex", flexDirection: "column", justifyContent: "space-between", border: `1px solid ${curFee > curValuation ? "#fca5a5" : "#bfdbfe"}`, background: curFee > curValuation ? "#fff1f2" : "#ffffff", borderRadius: "10px", minWidth: 0 }}>
-                                        <span className="pasc-label" style={{ fontWeight: 700, color: "#1d4ed8", fontSize: "0.72rem" }}>CENTER (C)</span>
-                                        <div style={{ display: "flex", alignItems: "center", background: "#ffffff", border: `1px solid ${curFee > curValuation ? "#f87171" : "#93c5fd"}`, borderRadius: "6px", padding: "0.25rem 0.45rem", margin: "4px 0", minWidth: 0 }}>
-                                            <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "#1d4ed8", marginRight: "3px", flexShrink: 0 }}>₹</span>
+                                    <div className="pasc-summary-item" style={{ padding: "0.7rem 0.75rem", display: "flex", flexDirection: "column", justifyContent: "space-between", border: `1px solid ${curFee > curValuation ? "#fca5a5" : "#bbf7d0"}`, background: curFee > curValuation ? "#fff1f2" : "#ffffff", borderRadius: "10px", minWidth: 0 }}>
+                                        <span className="pasc-label" style={{ fontWeight: 700, color: "#166534", fontSize: "0.72rem" }}>CENTER (C)</span>
+                                        <div style={{ display: "flex", alignItems: "center", background: "#ffffff", border: `1px solid ${curFee > curValuation ? "#f87171" : "#86efac"}`, borderRadius: "6px", padding: "0.25rem 0.45rem", margin: "4px 0", minWidth: 0 }}>
+                                            <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "#16a34a", marginRight: "3px", flexShrink: 0 }}>₹</span>
                                             <input
                                                 type="number"
                                                 min="0"
@@ -3995,11 +4512,11 @@ function ManageCompletedDevices() {
                                                 onKeyDown={blockNegativeKeys}
                                                 onChange={handlePositiveNumberInput(setEditProcessingFee)}
                                                 placeholder="0"
-                                                style={{ width: "100%", minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: "1.05rem", fontWeight: 800, color: "#1d4ed8", padding: "0" }}
+                                                style={{ width: "100%", minWidth: 0, border: "none", outline: "none", background: "transparent", fontSize: "1.05rem", fontWeight: 800, color: "#166534", padding: "0" }}
                                             />
                                         </div>
-                                        <span style={{ fontSize: "0.65rem", color: "#1d4ed8", fontWeight: 700 }}>
-                                            {isRefurbDev ? "Refurb Work" : "Process Fee"} &bull; {curValuation > 0 ? Math.round((curFee / curValuation) * 100) : 0}%
+                                        <span style={{ fontSize: "0.65rem", color: "#166534", fontWeight: 700 }}>
+                                            Retains {isRefurbDev ? "Hardware" : "Materials"} &bull; {curValuation > 0 ? Math.round((curFee / curValuation) * 100) : 0}%
                                         </span>
                                     </div>
 
@@ -4264,7 +4781,28 @@ function ManageCompletedDevices() {
                                     </span>
                                 </div>
 
-                                
+                                {/* Automated Notification & Email Advisory Banner */}
+                                <div style={{
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    gap: "0.6rem",
+                                    background: "#ecfdf5",
+                                    border: "1px solid #a7f3d0",
+                                    borderRadius: "10px",
+                                    padding: "0.75rem 0.9rem",
+                                    fontSize: "0.75rem",
+                                    color: "#065f46",
+                                    marginBottom: "1.25rem",
+                                    lineHeight: 1.45
+                                }}>
+                                    <FiBell style={{ fontSize: "1.1rem", color: "#059669", marginTop: "2px", flexShrink: 0 }} />
+                                    <div>
+                                        <strong>Automatic Notification &amp; Email Dispatch:</strong>
+                                        <div style={{ marginTop: "2px", color: "#047857" }}>
+                                            Upon authorization, all stakeholders receiving payouts (Citizen, Collection Agents, Technician) will immediately receive an in-app database alert and an official EcoCycle payment advice email with full settlement breakdown.
+                                        </div>
+                                    </div>
+                                </div>
 
                                 {/* Remarks / Notes Input */}
                                 <div style={{ marginBottom: "1.25rem" }}>

@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 import { Link, useLocation } from "react-router-dom";
 import { FaLeaf, FaLaptop } from "react-icons/fa";
 import {
@@ -8,8 +9,6 @@ import {
     FiTruck,
     FiMapPin,
     FiBarChart2,
-    FiShield,
-    FiSettings,
     FiLogOut,
     FiMenu,
     FiX,
@@ -25,18 +24,22 @@ import {
     FiCheckCircle,
     FiClock,
     FiShare2,
-    FiActivity,
     FiDollarSign,
     FiAward,
     FiLayers,
-    FiBell,
-    FiPieChart,
     FiBox,
     FiTag,
-    FiSmartphone
+    FiSmartphone,
+    FiAlertCircle
 } from "react-icons/fi";
 import "./Navbar.css";
 import "./AdminCommon.css";
+
+const LOCAL_API_BASE = "http://localhost:5278/api";
+const PROD_API_BASE = "https://ecocycle.runasp.net/api";
+const API_BASE = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? LOCAL_API_BASE
+    : PROD_API_BASE;
 
 function Navbar() {
     const location = useLocation();
@@ -46,6 +49,124 @@ function Navbar() {
     const [allocationsDropdownOpen, setAllocationsDropdownOpen] = useState(false);
     const [centerAllocationsDropdownOpen, setCenterAllocationsDropdownOpen] = useState(false);
     const [processingCenterDropdownOpen, setProcessingCenterDropdownOpen] = useState(false);
+    const [unpaidPayoutsCount, setUnpaidPayoutsCount] = useState(() => {
+        try {
+            const cached = sessionStorage.getItem("ecocycle_unpaid_completed_count");
+            return cached !== null ? Number(cached) : 0;
+        } catch (_) {
+            return 0;
+        }
+    });
+
+    const checkUnpaidDevices = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+            const [recyclingRes, refurbProcRes, deviceRes, payoutsRes] = await Promise.all([
+                axios.get(`${API_BASE}/RecyclingProcess/all-processes`, { headers }).catch(() => ({ data: [] })),
+                axios.get(`${API_BASE}/RefurbishmentProcess/all-processes`, { headers }).catch(() => ({ data: [] })),
+                axios.get(`${API_BASE}/Device/All`, { headers }).catch(() => ({ data: [] })),
+                axios.get(`${API_BASE}/Payout/all`, { headers }).catch(() => ({ data: [] }))
+            ]);
+
+            const allPayouts = Array.isArray(payoutsRes.data) ? payoutsRes.data : [];
+            const allDevices = Array.isArray(deviceRes.data) ? deviceRes.data : [];
+            const unpaidDeviceIds = new Set();
+
+            // 1. Process Completed Recycling Devices (matching Manage_completeddevices.jsx)
+            if (Array.isArray(recyclingRes.data)) {
+                recyclingRes.data.forEach((item) => {
+                    const proc = item.process;
+                    const status = (item.status || proc?.status || "").toLowerCase();
+                    const lifecycle = (item.lifecycleStatus || item.device?.lifecycleStatus || "").toLowerCase();
+                    const isCompleted = (
+                        status === "completed" || 
+                        status === "recycled" || 
+                        status === "certified" ||
+                        status === "settled" ||
+                        lifecycle === "settled" ||
+                        lifecycle === "completed" ||
+                        Boolean(proc && (String(proc.status || "").toLowerCase() === "completed" || proc.completedAt))
+                    );
+
+                    if (isCompleted) {
+                        const devId = Number(item.deviceId || item.requestId);
+                        if (!devId) return;
+
+                        const matchedDev = allDevices.find(d => Number(d.deviceId || d.DeviceId) === devId);
+                        const devPayouts = allPayouts.filter(p => Number(p.deviceId || p.DeviceId) === devId);
+                        const isPaidFromPayouts = devPayouts.length > 0 && devPayouts.some(p => (p.payoutStatus || p.PayoutStatus) === "Paid");
+                        const isDeviceSettled = isPaidFromPayouts || matchedDev?.lifecycleStatus === "Settled" || item.lifecycleStatus === "Settled";
+
+                        if (!isDeviceSettled) {
+                            unpaidDeviceIds.add(devId);
+                        }
+                    }
+                });
+            }
+
+            // 2. Process Completed Refurbishment Processes (matching Manage_completeddevices.jsx)
+            if (Array.isArray(refurbProcRes.data)) {
+                refurbProcRes.data.forEach((rItem) => {
+                    const proc = rItem.process;
+                    const status = (proc?.status || rItem.status || "").toLowerCase();
+                    const lifecycle = (rItem.lifecycleStatus || rItem.device?.lifecycleStatus || "").toLowerCase();
+                    const isCompleted = (
+                        status === "completed" || 
+                        status === "refurbished" || 
+                        status === "ready" ||
+                        status === "settled" ||
+                        lifecycle === "settled" ||
+                        lifecycle === "completed" ||
+                        Boolean(rItem.refurbishmentCompletedAt) ||
+                        Boolean(proc && (String(proc.status || "").toLowerCase() === "completed" || proc.completedAt))
+                    );
+
+                    if (isCompleted) {
+                        const devId = Number(rItem.deviceId || rItem.requestId);
+                        if (!devId) return;
+
+                        const matchedDev = allDevices.find(d => Number(d.deviceId || d.DeviceId) === devId);
+                        const devPayouts = allPayouts.filter(p => Number(p.deviceId || p.DeviceId) === devId);
+                        const isPaidFromPayouts = devPayouts.length > 0 && devPayouts.some(p => (p.payoutStatus || p.PayoutStatus) === "Paid");
+                        const isDeviceSettled = isPaidFromPayouts || matchedDev?.lifecycleStatus === "Settled" || rItem.lifecycleStatus === "Settled";
+
+                        if (!isDeviceSettled) {
+                            unpaidDeviceIds.add(devId);
+                        }
+                    }
+                });
+            }
+
+            const count = unpaidDeviceIds.size;
+            setUnpaidPayoutsCount(count);
+            try {
+                sessionStorage.setItem("ecocycle_unpaid_completed_count", String(count));
+            } catch (_) {}
+        } catch (err) {
+            console.warn("Error checking unpaid completed devices in Navbar:", err);
+        }
+    };
+
+    useEffect(() => {
+        checkUnpaidDevices();
+        const handleUpdate = (e) => {
+            if (e?.detail?.count !== undefined) {
+                setUnpaidPayoutsCount(Number(e.detail.count));
+            } else {
+                checkUnpaidDevices();
+            }
+        };
+        window.addEventListener("ecocycle-payout-updated", handleUpdate);
+        window.addEventListener("focus", checkUnpaidDevices);
+        const interval = setInterval(checkUnpaidDevices, 15000);
+        return () => {
+            window.removeEventListener("ecocycle-payout-updated", handleUpdate);
+            window.removeEventListener("focus", checkUnpaidDevices);
+            clearInterval(interval);
+        };
+    }, [location.pathname]);
 
     const handleOptionClick = () => {
         setPickupDropdownOpen(false);
@@ -455,10 +576,24 @@ function Navbar() {
                                     className={`admin-sb-link ${isActive("/manage-completeddevices") || isActive("/manage-completed-devices") || isActive("/admin/completed-devices") ? "active" : ""}`}
                                     onClick={closeMobileMenu}
                                 >
-                                    <div className="admin-sb-icon-box icon-box--slate">
+                                    <div className="admin-sb-icon-box icon-box--slate" style={{ position: "relative" }}>
                                         <FiAward />
+                                        {unpaidPayoutsCount > 0 && (
+                                            <span
+                                                className="admin-sb-unpaid-dot"
+                                                title={`${unpaidPayoutsCount} completed device${unpaidPayoutsCount > 1 ? "s" : ""} awaiting payout settlement`}
+                                            />
+                                        )}
                                     </div>
                                     <span className="admin-sb-link-text">Completed Devices</span>
+                                    {unpaidPayoutsCount > 0 && (
+                                        <span
+                                            className="admin-sb-unpaid-pill"
+                                            title={`${unpaidPayoutsCount} completed device${unpaidPayoutsCount > 1 ? "s have" : " has"} unpaid stakeholder payouts`}
+                                        >
+                                            <span className="admin-sb-unpaid-badge-num">{unpaidPayoutsCount}</span>
+                                        </span>
+                                    )}
                                 </Link>
                             </li>
                             <li className="admin-sb-item">
@@ -549,30 +684,6 @@ function Navbar() {
                         <ul className="admin-sb-menu">
                             <li className="admin-sb-item">
                                 <Link
-                                    to="/citizen-reports"
-                                    className={`admin-sb-link ${isActive("/citizen-reports") || isActive("/citizen/reports") ? "active" : ""}`}
-                                    onClick={closeMobileMenu}
-                                >
-                                    <div className="admin-sb-icon-box icon-box--blue">
-                                        <FiActivity />
-                                    </div>
-                                    <span className="admin-sb-link-text">Lifecycle Tracking</span>
-                                </Link>
-                            </li>
-                            <li className="admin-sb-item">
-                                <Link
-                                    to="/admin/reports"
-                                    className={`admin-sb-link ${isActive("/admin/reports") && !location.search ? "active" : ""}`}
-                                    onClick={closeMobileMenu}
-                                >
-                                    <div className="admin-sb-icon-box icon-box--emerald">
-                                        <FiPieChart />
-                                    </div>
-                                    <span className="admin-sb-link-text">Environmental Impact</span>
-                                </Link>
-                            </li>
-                            <li className="admin-sb-item">
-                                <Link
                                     to="/admin/reports?tab=analytics"
                                     className={`admin-sb-link ${location.search.includes("tab=analytics") ? "active" : ""}`}
                                     onClick={closeMobileMenu}
@@ -605,49 +716,6 @@ function Navbar() {
                                         <FiAward />
                                     </div>
                                     <span className="admin-sb-link-text">Certificates</span>
-                                </Link>
-                            </li>
-                        </ul>
-                    </div>
-
-                    {/* SYSTEM */}
-                    <div className="admin-sb-section">
-                        <span className="admin-sb-section-title">SYSTEM</span>
-                        <ul className="admin-sb-menu">
-                            <li className="admin-sb-item">
-                                <Link
-                                    to="/technician-notification"
-                                    className={`admin-sb-link ${isActive("/technician-notification") ? "active" : ""}`}
-                                    onClick={closeMobileMenu}
-                                >
-                                    <div className="admin-sb-icon-box icon-box--blue">
-                                        <FiBell />
-                                    </div>
-                                    <span className="admin-sb-link-text">Notifications</span>
-                                </Link>
-                            </li>
-                            <li className="admin-sb-item">
-                                <Link
-                                    to="/admin/audit"
-                                    className={`admin-sb-link ${isActive("/admin/audit") ? "active" : ""}`}
-                                    onClick={closeMobileMenu}
-                                >
-                                    <div className="admin-sb-icon-box icon-box--slate">
-                                        <FiShield />
-                                    </div>
-                                    <span className="admin-sb-link-text">Audit Logs</span>
-                                </Link>
-                            </li>
-                            <li className="admin-sb-item">
-                                <Link
-                                    to="/admin/settings"
-                                    className={`admin-sb-link ${isActive("/admin/settings") ? "active" : ""}`}
-                                    onClick={closeMobileMenu}
-                                >
-                                    <div className="admin-sb-icon-box icon-box--gray">
-                                        <FiSettings />
-                                    </div>
-                                    <span className="admin-sb-link-text">Settings</span>
                                 </Link>
                             </li>
                         </ul>

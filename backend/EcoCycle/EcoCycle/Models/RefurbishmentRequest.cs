@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace EcoCycle.API.Models
@@ -37,6 +37,8 @@ namespace EcoCycle.API.Models
 
 
         public DateTime? RefurbishmentStartedAt { get; set; }
+
+        public DateTime? ProcessDeadline { get; set; }
 
         public DateTime? RefurbishmentCompletedAt { get; set; }
 

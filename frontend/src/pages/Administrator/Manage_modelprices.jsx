@@ -4,7 +4,6 @@ import Navbar from "./Navbar";
 import {
     FiSmartphone,
     FiTag,
-    FiBell,
     FiPlus,
     FiSearch,
     FiEdit2,
@@ -408,10 +407,6 @@ function ManageModelPrices() {
                         <div className="topbar-actions">
                             <button className="glass-btn notification-btn" title="Refresh Catalog" onClick={fetchData}>
                                 <FiRefreshCw className={loading ? "spin-icon" : ""} />
-                            </button>
-                            <button className="glass-btn notification-btn" title="System Alerts">
-                                <FiBell />
-                                <span className="pulse-ping"></span>
                             </button>
                             <button className="btn-add-price" onClick={toggleAddForm}>
                                 <FiPlus /> {showAddForm ? "Close Form" : "Add New Model Rate"}

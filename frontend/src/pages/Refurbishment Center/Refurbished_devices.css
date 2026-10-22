@@ -113,7 +113,10 @@
 }
 
 /* Button variants */
-.btn-cert-view {
+.refurb-card-actions .btn-cert-view,
+.refurb-modal-footer .btn-cert-view,
+.refurb-actions .btn-cert-view,
+.refurb-main-layout .btn-cert-view {
   height: 38px;
   padding: 0 1rem;
   background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
@@ -132,7 +135,10 @@
   font-family: var(--refurb-font-body, inherit);
 }
 
-.btn-cert-view:hover {
+.refurb-card-actions .btn-cert-view:hover,
+.refurb-modal-footer .btn-cert-view:hover,
+.refurb-actions .btn-cert-view:hover,
+.refurb-main-layout .btn-cert-view:hover {
   box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
   transform: translateY(-1px);
 }

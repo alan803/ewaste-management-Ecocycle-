@@ -521,7 +521,6 @@ function RecyclingPerform() {
     const [activePrices, setActivePrices] = useState([]);
     const [recoveredMaterials, setRecoveredMaterials] = useState([]);
     const [customRecoveredName, setCustomRecoveredName] = useState("");
-    const [customRecoveredPrice, setCustomRecoveredPrice] = useState("");
     const [customRecoveredQty, setCustomRecoveredQty] = useState("0.50");
     const [customRecoveredUnit, setCustomRecoveredUnit] = useState("kg");
     const [hazardousWasteWeight, setHazardousWasteWeight] = useState("0.45");
@@ -1350,13 +1349,15 @@ function RecyclingPerform() {
         ]);
         setMaterialLocations(prev => ({ ...prev, [newKey]: "Onsite Processing" }));
 
+        const resolvedRate = resolveMaterialRate(trimmed);
+
         if (!activePrices.some(p => p.materialName.toLowerCase() === trimmed.toLowerCase())) {
-            setActivePrices(prev => [...prev, { materialName: trimmed, pricePerUnit: 120, unit: "kg" }]);
+            setActivePrices(prev => [...prev, { materialName: trimmed, pricePerUnit: resolvedRate, unit: "kg" }]);
         }
         if (!recoveredMaterials.some(m => m.materialName.toLowerCase() === trimmed.toLowerCase())) {
             setRecoveredMaterials(prev => [
                 ...prev,
-                { id: Date.now(), materialName: trimmed, quantity: "0.30", unit: "kg", pricePerUnit: 120 }
+                { id: Date.now(), materialName: trimmed, quantity: "0.30", unit: "kg", pricePerUnit: resolvedRate }
             ]);
         }
 
@@ -1381,6 +1382,64 @@ function RecyclingPerform() {
         reader.readAsDataURL(file);
     };
 
+    // Auto-resolve market rate (₹/kg) based on catalog prices or benchmark rates
+    const resolveMaterialRate = (name) => {
+        if (!name || typeof name !== "string") return 150;
+        const clean = name.toLowerCase().trim();
+        if (!clean) return 150;
+
+        // 1. Exact match in activePrices
+        const exact = activePrices.find(p => (p.materialName || "").toLowerCase().trim() === clean);
+        if (exact && parseFloat(exact.pricePerUnit) > 0) return parseFloat(exact.pricePerUnit);
+
+        // 2. Substring match in activePrices
+        const substringMatch = activePrices.find(p => {
+            const pName = (p.materialName || "").toLowerCase().trim();
+            return pName.includes(clean) || clean.includes(pName);
+        });
+        if (substringMatch && parseFloat(substringMatch.pricePerUnit) > 0) return parseFloat(substringMatch.pricePerUnit);
+
+        // 3. Word token match in activePrices
+        const tokens = clean.split(/\s+/).filter(t => t.length > 2);
+        const tokenMatch = activePrices.find(p => {
+            const pName = (p.materialName || "").toLowerCase().trim();
+            return tokens.some(t => pName.includes(t));
+        });
+        if (tokenMatch && parseFloat(tokenMatch.pricePerUnit) > 0) return parseFloat(tokenMatch.pricePerUnit);
+
+        // 4. Fallback benchmark rates for common scrap and e-waste materials (₹/kg)
+        const benchmarks = [
+            { keywords: ["cobalt"], rate: 300 },
+            { keywords: ["copper", "wire", "coil", "cabling", "harness"], rate: 750 },
+            { keywords: ["aluminium", "aluminum", "heatsink"], rate: 450 },
+            { keywords: ["steel", "iron", "bracket", "chassis", "metal"], rate: 500 },
+            { keywords: ["pcb", "circuit", "board", "motherboard", "logic"], rate: 1250 },
+            { keywords: ["lithium", "battery", "cell", "li-po", "li-ion"], rate: 750 },
+            { keywords: ["gold"], rate: 6500000 },
+            { keywords: ["platinum"], rate: 2800000 },
+            { keywords: ["palladium"], rate: 2500000 },
+            { keywords: ["silver"], rate: 75000 },
+            { keywords: ["brass", "bronze"], rate: 480 },
+            { keywords: ["nickel"], rate: 600 },
+            { keywords: ["zinc"], rate: 200 },
+            { keywords: ["lead"], rate: 150 },
+            { keywords: ["plastic", "polymer", "abs", "casing", "polycarbonate"], rate: 80 },
+            { keywords: ["glass", "display", "screen", "panel"], rate: 40 },
+            { keywords: ["tantalum", "capacitor"], rate: 2200 },
+            { keywords: ["silicon"], rate: 150 },
+            { keywords: ["magnet", "neodymium"], rate: 1400 },
+            { keywords: ["cable"], rate: 650 }
+        ];
+
+        for (const b of benchmarks) {
+            if (b.keywords.some(k => clean.includes(k))) {
+                return b.rate;
+            }
+        }
+
+        return 200;
+    };
+
     const handleAddMaterial = () => {
         const defaultMat = activePrices.length > 0 ? activePrices[0] : { materialName: "Copper Wire / Coils", unit: "kg", pricePerUnit: 750 };
         setRecoveredMaterials(prev => [
@@ -1399,14 +1458,14 @@ function RecyclingPerform() {
         const trimmed = filterAlphabetOnly(customRecoveredName).trim();
         if (!trimmed) return;
 
-        const price = parseFloat(customRecoveredPrice) || 100;
+        const resolvedRate = resolveMaterialRate(trimmed);
         const qty = parseFloat(customRecoveredQty) || 0.50;
         const unit = customRecoveredUnit || "kg";
 
         if (!activePrices.some(p => p.materialName.toLowerCase() === trimmed.toLowerCase())) {
             setActivePrices(prev => [...prev, {
                 materialName: trimmed,
-                pricePerUnit: price,
+                pricePerUnit: resolvedRate,
                 unit: unit
             }]);
         }
@@ -1418,12 +1477,11 @@ function RecyclingPerform() {
                 materialName: trimmed,
                 quantity: qty.toFixed(2),
                 unit: unit,
-                pricePerUnit: price
+                pricePerUnit: resolvedRate
             }
         ]);
 
         setCustomRecoveredName("");
-        setCustomRecoveredPrice("");
         setCustomRecoveredQty("0.50");
     };
 
@@ -1436,8 +1494,9 @@ function RecyclingPerform() {
             if (m.id === id) {
                 if (field === "materialName") {
                     const sanitized = filterAlphabetOnly(value);
+                    const autoRate = resolveMaterialRate(sanitized);
                     const priceObj = activePrices.find(p => (p.materialName || "").toLowerCase().trim() === sanitized.toLowerCase().trim());
-                    const newPrice = priceObj ? priceObj.pricePerUnit : m.pricePerUnit;
+                    const newPrice = autoRate || (priceObj ? priceObj.pricePerUnit : m.pricePerUnit);
                     const newUnit = priceObj ? priceObj.unit : m.unit;
                     return { ...m, materialName: sanitized, pricePerUnit: newPrice, unit: newUnit };
                 }
@@ -2856,18 +2915,34 @@ function RecyclingPerform() {
                                         </div>
                                         <div className="recyc-complete-actions">
                                             <button
-                                                className="btn-cert-download"
+                                                type="button"
+                                                className="recyc-btn-print-report"
                                                 onClick={handlePrintProcessReport}
                                                 title="Print Full Recycling Process & Audit Report"
                                             >
                                                 <FiPrinter /> Print Process Report
                                             </button>
                                             <button
-                                                className="btn-cert-view"
+                                                type="button"
+                                                className="recyc-btn-download-bill"
                                                 onClick={handlePrintSettlementBill}
                                                 title="Print Official Recycling Settlement Bill"
+                                                style={{
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    gap: "0.5rem",
+                                                    padding: "0.65rem 1.25rem",
+                                                    borderRadius: "9px",
+                                                    background: "#ffffff",
+                                                    color: "#0f172a",
+                                                    fontSize: "0.85rem",
+                                                    fontWeight: 700,
+                                                    border: "1.5px solid #cbd5e1",
+                                                    cursor: "pointer",
+                                                    boxShadow: "0 2px 6px rgba(0, 0, 0, 0.05)"
+                                                }}
                                             >
-                                                <FiFileText /> View / Download Bill
+                                                <FiFileText style={{ color: "#059669", fontSize: "1rem" }} /> View / Download Bill
                                             </button>
                                         </div>
                                     </div>
@@ -3911,32 +3986,27 @@ function RecyclingPerform() {
                                         </div>
 
                                         <div className="recyc-custom-mat-box" style={{ background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: "12px", padding: "0.85rem 1.1rem", marginBottom: "1.25rem" }}>
-                                            <span style={{ fontSize: "0.825rem", fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: "0.35rem", marginBottom: "0.5rem" }}>
-                                                <FiPlus style={{ color: "#10b981" }} /> Add Non-Catalog / Custom Material Stream
-                                            </span>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}>
+                                                <span style={{ fontSize: "0.825rem", fontWeight: 700, color: "#0f172a", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+                                                    <FiPlus style={{ color: "#10b981" }} /> Add Non-Catalog / Custom Material Stream
+                                                </span>
+                                                {customRecoveredName.trim() && (
+                                                    <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#059669", background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "0.2rem 0.6rem", borderRadius: "6px" }}>
+                                                        Market Rate: ₹{resolveMaterialRate(customRecoveredName).toLocaleString()}/kg • Calculated Value: ₹{Math.round(resolveMaterialRate(customRecoveredName) * (parseFloat(customRecoveredQty) || 0)).toLocaleString()}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "center" }}>
                                                 <input
                                                     type="text"
                                                     className="recyc-input-sm"
+                                                    list="catalog-materials-datalist"
                                                     placeholder="Material Name (e.g. Cobalt, Platinum Scrap)"
                                                     value={customRecoveredName}
                                                     onChange={(e) => setCustomRecoveredName(filterAlphabetOnly(e.target.value))}
-                                                    style={{ flex: "2", minWidth: "190px" }}
+                                                    style={{ flex: "3", minWidth: "220px" }}
                                                 />
-                                                <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", flex: "1", minWidth: "120px" }}>
-                                                    <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Rate (₹/kg):</span>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        step="1"
-                                                        className="recyc-input-sm"
-                                                        placeholder="Rate"
-                                                        value={customRecoveredPrice}
-                                                        onChange={(e) => setCustomRecoveredPrice(e.target.value)}
-                                                        style={{ width: "100%" }}
-                                                    />
-                                                </div>
-                                                <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", flex: "1", minWidth: "120px" }}>
+                                                <div style={{ display: "flex", alignItems: "center", gap: "0.3rem", flex: "1", minWidth: "140px" }}>
                                                     <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b" }}>Mass (kg):</span>
                                                     <input
                                                         type="number"
@@ -3954,7 +4024,7 @@ function RecyclingPerform() {
                                                     className="btn-action primary"
                                                     onClick={handleAddCustomRecoveredMaterial}
                                                     disabled={!customRecoveredName.trim()}
-                                                    style={{ padding: "0.45rem 0.95rem", fontSize: "0.8rem" }}
+                                                    style={{ padding: "0.45rem 0.95rem", fontSize: "0.8rem", whiteSpace: "nowrap" }}
                                                 >
                                                     <FiPlus /> Add Material
                                                 </button>

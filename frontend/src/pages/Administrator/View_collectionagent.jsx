@@ -4,7 +4,6 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import {
     FiSearch,
-    FiBell,
     FiLogOut,
     FiArrowLeft,
     FiCheck,
@@ -175,10 +174,6 @@ function View_collectionagent() {
                         </div>
 
                         <div className="topbar-actions">
-                            <button className="glass-btn notification-btn" title="System Alerts">
-                                <FiBell />
-                                <span className="pulse-ping"></span>
-                            </button>
 
                             <div className="user-profile-chip">
                                 <div className="avatar-gradient">A</div>

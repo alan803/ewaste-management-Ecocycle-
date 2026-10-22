@@ -110,8 +110,8 @@ namespace EcoCycle.Controllers
                 if (dto == null)
                     return BadRequest(new { message = "Invalid material price data." });
 
-                if (dto.PricePerKg <= 0 || dto.PricePerKg > 10000)
-                    return BadRequest(new { message = "Price per kg must be greater than 0 and cannot exceed 10,000." });
+                if (dto.PricePerKg <= 0 || dto.PricePerKg > 250000)
+                    return BadRequest(new { message = "Price per kg must be greater than 0 and cannot exceed 250,000." });
 
                 var compType = await _context.ComponentTypes.FindAsync(dto.ComponentTypeId);
                 if (compType == null)
@@ -158,8 +158,8 @@ namespace EcoCycle.Controllers
                 if (price == null)
                     return NotFound(new { message = "Material price record not found." });
 
-                if (dto.PricePerKg <= 0 || dto.PricePerKg > 10000)
-                    return BadRequest(new { message = "Price per kg must be greater than 0 and cannot exceed 10,000." });
+                if (dto.PricePerKg <= 0 || dto.PricePerKg > 250000)
+                    return BadRequest(new { message = "Price per kg must be greater than 0 and cannot exceed 250,000." });
 
                 if (dto.ComponentTypeId > 0)
                 {

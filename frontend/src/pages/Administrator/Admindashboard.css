@@ -556,6 +556,52 @@
   color: var(--text-muted);
 }
 
+.impact-sub-metrics-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed rgba(226, 232, 240, 0.9);
+  flex-wrap: wrap;
+}
+
+.sub-metric-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.sub-metric-chip strong {
+  color: var(--secondary);
+  font-weight: 700;
+}
+
+.chip-bullet {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chip-bullet--emerald {
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.chip-bullet--amber {
+  background: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.chip-bullet--indigo {
+  background: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
 /* ==========================================================================
    Main Content Split View
    ========================================================================== */

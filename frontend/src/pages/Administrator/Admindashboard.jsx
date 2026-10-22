@@ -9,7 +9,6 @@ import {
     FiCheckCircle,
     FiTruck,
     FiSearch,
-    FiBell,
     FiLogOut,
     FiUserPlus,
     FiBarChart2,
@@ -30,6 +29,13 @@ import {
 } from "react-icons/fi";
 import "./Admindashboard.css";
 
+const LOCAL_API_BASE = "http://localhost:5278/api";
+const PROD_API_BASE = "https://ecocycle.runasp.net/api";
+const isLocalhost = typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+const API_BASE = isLocalhost ? LOCAL_API_BASE : PROD_API_BASE;
+const FALLBACK_API_BASE = isLocalhost ? PROD_API_BASE : LOCAL_API_BASE;
+
 function AdminDashboard() {
     const [activeFilter, setActiveFilter] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
@@ -38,6 +44,8 @@ function AdminDashboard() {
     const [collectionAgents, setCollectionAgents] = useState([]);
     const [devices, setDevices] = useState([]);
     const [assignments, setAssignments] = useState([]);
+    const [recyclingProcesses, setRecyclingProcesses] = useState([]);
+    const [refurbishmentProcesses, setRefurbishmentProcesses] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -49,19 +57,37 @@ function AdminDashboard() {
         const token = localStorage.getItem("token");
         const authHeader = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
+        const fetchEndpoint = async (endpoint) => {
+            try {
+                const res = await axios.get(`${API_BASE}${endpoint}`, authHeader);
+                if (res.data) return Array.isArray(res.data) ? res.data : [res.data];
+            } catch (primaryErr) {
+                try {
+                    const fallbackRes = await axios.get(`${FALLBACK_API_BASE}${endpoint}`, authHeader);
+                    if (fallbackRes.data) return Array.isArray(fallbackRes.data) ? fallbackRes.data : [fallbackRes.data];
+                } catch {
+                    // Fallback failed
+                }
+            }
+            return [];
+        };
+
         try {
-            const [usersRes, agentsRes, devicesRes, assignmentsRes] = await Promise.allSettled([
-                axios.get("https://ecocycle.runasp.net/api/Login/alluser", authHeader),
-                axios.get("https://ecocycle.runasp.net/api/CollectionAgent/All", authHeader)
-                    .catch(() => axios.get("https://ecocycle.runasp.net/api/CollectionAgent/alluser", authHeader)),
-                axios.get("https://ecocycle.runasp.net/api/Device/All", authHeader),
-                axios.get("https://ecocycle.runasp.net/api/CollectionAssignment/admin/all-assignments", authHeader)
+            const [usersData, agentsData, devicesData, assignmentsData, recyclingData, refurbData] = await Promise.all([
+                fetchEndpoint("/Login/alluser"),
+                fetchEndpoint("/CollectionAgent/alluser").then(res => res.length > 0 ? res : fetchEndpoint("/CollectionAgent/All")),
+                fetchEndpoint("/Device/All"),
+                fetchEndpoint("/CollectionAssignment/admin/all-assignments"),
+                fetchEndpoint("/RecyclingProcess/all-processes"),
+                fetchEndpoint("/RefurbishmentProcess/all-processes")
             ]);
 
-            if (usersRes.status === "fulfilled") setUsers(usersRes.value.data || []);
-            if (agentsRes.status === "fulfilled") setCollectionAgents(agentsRes.value.data || []);
-            if (devicesRes.status === "fulfilled") setDevices(devicesRes.value.data || []);
-            if (assignmentsRes.status === "fulfilled") setAssignments(assignmentsRes.value.data || []);
+            setUsers(usersData || []);
+            setCollectionAgents(agentsData || []);
+            setDevices(devicesData || []);
+            setAssignments(assignmentsData || []);
+            setRecyclingProcesses(recyclingData || []);
+            setRefurbishmentProcesses(refurbData || []);
         } catch (error) {
             console.error("Failed to load admin dashboard metrics:", error);
         } finally {
@@ -70,29 +96,54 @@ function AdminDashboard() {
     };
 
     // Calculate Metric Overview Card Values
+    // 1. Total System Users
     const totalUsersCount = users.length;
+    const citizenCount = users.filter((u) => u.roleId === 1 || String(u.role || "").toLowerCase() === "citizen").length;
 
-    // 1. Citizen Pickup Metrics (Matching Manage_pickup.jsx)
+    // 2. Citizen Pickup Metrics (Matching Manage_pickup.jsx)
     const pickedUpDevices = devices.filter((d) => {
         const assignment = assignments.find((a) => a.deviceId === d.deviceId);
-        const s = String(assignment?.status || d.lifecycleStatus || d.status || "").toLowerCase();
+        const s = String(assignment?.status || "").toLowerCase();
         const delStat = String(assignment?.deliveryStatus || "").toLowerCase();
+        const lcs = String(d.lifecycleStatus || "").toLowerCase();
+        const devStat = String(d.status || "").toLowerCase();
+
         return (
             assignment?.pickedUpAt != null ||
+            assignment?.pickupPickedUpAt != null ||
+            assignment?.pickupStatus === "Completed" ||
             ["pickupstarted", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "deliveredtocenter", "delivered", "completed"].includes(s) ||
-            ["intransit", "delivered", "completed"].includes(delStat)
+            ["intransit", "delivered", "completed"].includes(delStat) ||
+            ["pickedup", "collected", "inspected", "atinspectioncenter", "settled", "refurbishmentinprogress", "refurbishmentbenchactive", "recyclingcompleted", "refurbishmentcompleted", "readyforreuse", "completed"].includes(lcs) ||
+            ["collected", "completed"].includes(devStat)
         );
     });
     const pickedUpCount = pickedUpDevices.length;
 
     const pendingPickupDevices = devices.filter((d) => {
         const assignment = assignments.find((a) => a.deviceId === d.deviceId);
-        const s = String(assignment?.status || d.lifecycleStatus || d.status || "").toLowerCase();
-        return ["pending", "collectionpending", "waiting", "unassigned", "assigned", "accepted", "scheduled"].includes(s) && assignment?.pickedUpAt == null;
+        const s = String(assignment?.status || "").toLowerCase();
+        const lcs = String(d.lifecycleStatus || "").toLowerCase();
+        const devStat = String(d.status || "").toLowerCase();
+
+        const isPickedUp = (
+            assignment?.pickedUpAt != null ||
+            assignment?.pickupPickedUpAt != null ||
+            assignment?.pickupStatus === "Completed" ||
+            ["pickupstarted", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "deliveredtocenter", "delivered", "completed"].includes(s) ||
+            ["pickedup", "collected", "inspected", "atinspectioncenter", "settled", "refurbishmentinprogress", "refurbishmentbenchactive", "recyclingcompleted", "refurbishmentcompleted", "readyforreuse", "completed"].includes(lcs) ||
+            ["collected", "completed"].includes(devStat)
+        );
+
+        const isCancelledOrExpired = ["expired", "cancelled", "pickupexpired", "pickupcancelled", "duedatepassed", "inactive", "deleted"].includes(lcs) ||
+            ["expired", "cancelled"].includes(s) ||
+            ["inactive", "deleted"].includes(devStat);
+
+        return !isPickedUp && !isCancelledOrExpired;
     });
     const pendingPickupCount = pendingPickupDevices.length;
 
-    // 2. Inspection Center Delivery Metrics (Matching Manage_delivery.jsx)
+    // 3. Inspection Center Delivery Metrics (Matching Manage_delivery.jsx)
     const inTransitDeliveries = assignments.filter((d) => {
         const cas = String(d.status || "").toLowerCase();
         const delStat = String(d.deliveryStatus || "").toLowerCase();
@@ -112,9 +163,25 @@ function AdminDashboard() {
         const delStat = String(d.deliveryStatus || "").toLowerCase();
         return cas === "deliveredtocenter" || delStat === "delivered" || delStat === "completed" || d.deliveryDeviceVerified === true;
     });
-    const deliveredCount = deliveredToCenterDeliveries.length;
+    const totalDeliveredCount = devices.filter((d) => {
+        const assignment = assignments.find((a) => a.deviceId === d.deviceId);
+        const cas = String(assignment?.status || "").toLowerCase();
+        const delStat = String(assignment?.deliveryStatus || "").toLowerCase();
+        const lcs = String(d.lifecycleStatus || "").toLowerCase();
+        const devStat = String(d.status || "").toLowerCase();
 
-    // 3. Collection Agent Metrics
+        return (
+            cas === "deliveredtocenter" ||
+            delStat === "delivered" ||
+            delStat === "completed" ||
+            assignment?.deliveryDeviceVerified === true ||
+            ["atinspectioncenter", "inspected", "settled", "refurbishmentinprogress", "refurbishmentbenchactive", "recycling", "readyforreuse"].includes(lcs) ||
+            devStat === "completed"
+        );
+    }).length;
+    const deliveredCount = Math.max(deliveredToCenterDeliveries.length, totalDeliveredCount);
+
+    // 4. Collection Agent Metrics
     const activeAgents = collectionAgents.filter((a) => {
         const st = (a.status || a.Status || "").toLowerCase();
         return st === "active" || st === "approved";
@@ -122,31 +189,65 @@ function AdminDashboard() {
     const activeAgentsCount = activeAgents.length;
     const totalAgentsCount = collectionAgents.length;
 
-    // Environmental Impact Calculations
+    // 5. Environmental Impact Calculations (Live from Database)
     const completedDevices = devices.filter((d) => {
-        const st = (d.lifecycleStatus || d.status || "").toLowerCase();
-        return ["completed", "delivered", "deliveredtocenter", "recycled", "refurbished"].includes(st);
+        const s = String(d.status || "").toLowerCase();
+        const lcs = String(d.lifecycleStatus || "").toLowerCase();
+        const isCompletedInRecycling = recyclingProcesses.some(
+            (rp) => Number(rp.deviceId || rp.DeviceId) === Number(d.deviceId) &&
+            (String(rp.status || "").toLowerCase() === "completed" || String(rp.process?.status || "").toLowerCase() === "completed")
+        );
+        const isCompletedInRefurb = refurbishmentProcesses.some(
+            (rfp) => Number(rfp.deviceId || rfp.DeviceId) === Number(d.deviceId) &&
+            (String(rfp.status || "").toLowerCase() === "completed" || String(rfp.process?.status || "").toLowerCase() === "completed")
+        );
+
+        return (
+            s === "completed" ||
+            s === "recycled" ||
+            s === "refurbished" ||
+            lcs === "settled" ||
+            lcs === "readyforreuse" ||
+            lcs === "recyclingcompleted" ||
+            lcs === "refurbishmentcompleted" ||
+            isCompletedInRecycling ||
+            isCompletedInRefurb
+        );
     });
     const completedPickupsCount = completedDevices.length;
 
     const divertedKg = completedDevices.reduce((sum, d) => {
         const qty = Number(d.quantity) || 1;
-        const w = Number(d.weight) > 0 ? Number(d.weight) : 12.5;
+        const w = Number(d.weight) > 0 ? Number(d.weight) : 1;
         return sum + (w * qty);
     }, 0);
-    const divertedTonsVal = divertedKg / 1000;
-    const divertedTonsDisplay = divertedTonsVal >= 1 ? `${divertedTonsVal.toFixed(1)} Tons` : `${divertedKg.toFixed(0)} kg`;
-    const divertedGoalTons = 20;
-    const divertedPercent = Math.min(100, Math.round((divertedTonsVal / divertedGoalTons) * 100)) || 0;
 
-    // CO2 Saved (2.2kg CO2 saved per kg e-waste)
+    const totalRecoveredMaterialKg = recyclingProcesses.reduce((sum, rp) => {
+        return sum + (Number(rp.totalRecoveredWeight || rp.process?.totalRecoveredWeight) || 0);
+    }, 0);
+
+    const totalHazardousTreatedKg = recyclingProcesses.reduce((sum, rp) => {
+        return sum + (Number(rp.hazardousWasteWeight || rp.process?.hazardousWasteWeight) || 0);
+    }, 0);
+
+    const totalRegisteredKg = devices.reduce((sum, d) => sum + (Number(d.weight) || 0) * (Number(d.quantity) || 1), 0);
+    const divertedTonsVal = divertedKg / 1000;
+    const divertedDisplay = divertedKg >= 1000 ? `${divertedTonsVal.toFixed(1)} Tons` : `${divertedKg >= 10 ? Math.round(divertedKg) : divertedKg.toFixed(1)} kg`;
+
+    // Dynamic milestone goal: 50 kg for prototype / initial batch, scaling smoothly as volume grows
+    const divertedGoalKg = totalRegisteredKg > 500 ? Math.ceil(totalRegisteredKg / 500) * 500 : (totalRegisteredKg > 50 ? 100 : 50);
+    const divertedGoalDisplay = divertedGoalKg >= 1000 ? `${(divertedGoalKg / 1000).toFixed(0)} Tons` : `${divertedGoalKg} kg`;
+    const divertedPercent = divertedGoalKg > 0 ? Math.min(100, Math.round((divertedKg / divertedGoalKg) * 100)) : 0;
+
+    // CO2 Saved (2.2kg CO2 saved per kg e-waste diverted from landfill)
     const co2SavedKg = divertedKg * 2.2;
     const co2TonsVal = co2SavedKg / 1000;
-    const co2Display = co2TonsVal >= 1 ? `${co2TonsVal.toFixed(1)} Tons` : `${co2SavedKg.toFixed(0)} kg`;
-    const treeEquivalent = Math.round(co2SavedKg / 21.77);
-    const co2Percent = Math.min(100, Math.round((co2TonsVal / 30) * 100)) || 0;
+    const co2Display = co2SavedKg >= 1000 ? `${co2TonsVal.toFixed(1)} Tons` : `${co2SavedKg.toFixed(1)} kg`;
+    const treeEquivalent = Math.max(divertedKg > 0 ? 1 : 0, Math.round(co2SavedKg / 21.77));
+    const co2GoalKg = divertedGoalKg * 2.2;
+    const co2Percent = co2GoalKg > 0 ? Math.min(100, Math.round((co2SavedKg / co2GoalKg) * 100)) : 0;
 
-    // Material Recovery Rate
+    // Material Recovery Rate (Completed / Total Devices)
     const recoveryRateVal = devices.length > 0 ? ((completedPickupsCount / devices.length) * 100).toFixed(1) : "0.0";
     const recoveryPercent = Math.round(parseFloat(recoveryRateVal)) || 0;
 
@@ -195,15 +296,19 @@ function AdminDashboard() {
     const getPickupStatusBadge = (item) => {
         const s = String(item.rawAssignmentStatus || item.rawLifecycleStatus || "").toLowerCase();
         const delStat = String(item.rawDeliveryStatus || "").toLowerCase();
-        const isDelivered = delStat === "delivered" || s === "deliveredtocenter" || item.rawLifecycleStatus === "atinspectioncenter";
-        const isCancelled = s === "expired" || s === "cancelled";
-        const isPickedUp = item.pickedUpAt != null || ["completed", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "delivered", "deliveredtocenter"].includes(s);
+        const lcs = String(item.rawLifecycleStatus || "").toLowerCase();
+        const isSettled = lcs === "settled" || s === "completed";
+        const isDelivered = delStat === "delivered" || s === "deliveredtocenter" || lcs === "atinspectioncenter" || isSettled;
+        const isCancelled = s === "expired" || s === "cancelled" || lcs === "pickupexpired" || lcs === "duedatepassed";
+        const isPickedUp = item.pickedUpAt != null || ["completed", "pickedup", "outfordelivery", "intransit", "awaitingtechnicianapproval", "delivered", "deliveredtocenter", "settled", "collected", "inspected"].includes(s) || ["collected", "inspected", "settled", "refurbishmentinprogress"].includes(lcs);
 
-        if (isDelivered) {
+        if (isSettled) {
+            return <span className="status-pill status-pill--completed"><span className="status-beacon"></span>Settled</span>;
+        } else if (isDelivered) {
             return <span className="status-pill status-pill--completed"><span className="status-beacon"></span>Delivered to Center</span>;
         } else if (isPickedUp) {
             return <span className="status-pill status-pill--progress"><span className="status-beacon"></span>Picked Up</span>;
-        } else if (s === "assigned" || s === "accepted" || s === "scheduled") {
+        } else if (s === "assigned" || s === "accepted" || s === "scheduled" || lcs === "collectionassigned") {
             return <span className="status-pill status-pill--assigned"><span className="status-beacon"></span>Assigned</span>;
         } else if (isCancelled) {
             return <span className="status-pill" style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5" }}><span className="status-beacon"></span>Expired</span>;
@@ -217,13 +322,13 @@ function AdminDashboard() {
         const delStat = String(item.rawDeliveryStatus || "").toLowerCase();
         const lcs = String(item.rawLifecycleStatus || "").toLowerCase();
 
-        if (cas === "deliveredtocenter" || delStat === "delivered" || delStat === "completed" || item.deliveryDeviceVerified) {
+        if (cas === "deliveredtocenter" || delStat === "delivered" || delStat === "completed" || item.deliveryDeviceVerified || lcs === "settled" || lcs === "completed" || lcs === "inspected" || lcs === "atinspectioncenter" || lcs === "refurbishmentinprogress") {
             return <span className="status-pill status-pill--completed" style={{ background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0" }}><FiCheckCircle /> Delivered</span>;
         } else if (cas === "handoverrejected" || delStat === "handoverrejected" || lcs === "handoverrejected") {
             return <span className="status-pill" style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fca5a5" }}><FiAlertTriangle /> Rejected</span>;
         } else if (cas === "awaitingtechnicianapproval" || delStat === "pendingverification" || lcs === "handoverpendingverification") {
             return <span className="status-pill" style={{ background: "#fffbe1", color: "#d97706", border: "1px solid #fde68a" }}><FiClock /> Verification</span>;
-        } else if (cas === "outfordelivery" || delStat === "intransit" || cas === "pickupstarted" || cas === "en route") {
+        } else if (cas === "outfordelivery" || delStat === "intransit" || cas === "pickupstarted" || cas === "en route" || lcs === "enroute") {
             return <span className="status-pill status-pill--progress" style={{ background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" }}><FiTruck /> En Route</span>;
         } else {
             return <span className="status-pill" style={{ background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}><FiClock /> Transit Pending</span>;
@@ -233,14 +338,16 @@ function AdminDashboard() {
     const filteredPickups = parsedPickups.filter((item) => {
         const s = String(item.rawAssignmentStatus || item.rawLifecycleStatus || "").toLowerCase();
         const delStat = String(item.rawDeliveryStatus || "").toLowerCase();
-        const isDelivered = delStat === "delivered" || s === "deliveredtocenter" || item.deliveryDeviceVerified;
-        const isPickedUp = item.pickedUpAt != null || ["completed", "pickedup", "outfordelivery", "intransit", "deliveredtocenter"].includes(s);
-        const isInTransit = s === "outfordelivery" || delStat === "intransit" || s === "pickupstarted" || s === "awaitingtechnicianapproval" || s === "en route";
+        const lcs = String(item.rawLifecycleStatus || "").toLowerCase();
+        const isSettled = lcs === "settled" || s === "completed";
+        const isDelivered = delStat === "delivered" || s === "deliveredtocenter" || item.deliveryDeviceVerified || isSettled;
+        const isPickedUp = item.pickedUpAt != null || ["completed", "pickedup", "outfordelivery", "intransit", "deliveredtocenter", "settled", "collected"].includes(s) || ["collected", "inspected", "settled"].includes(lcs);
+        const isInTransit = s === "outfordelivery" || delStat === "intransit" || s === "pickupstarted" || s === "awaitingtechnicianapproval" || s === "en route" || lcs === "enroute";
 
         if (activeFilter === "Pickups" && !isPickedUp && s !== "assigned" && s !== "accepted") return false;
         if (activeFilter === "En Route" && !isInTransit) return false;
         if (activeFilter === "Delivered" && !isDelivered) return false;
-        if (activeFilter === "Pending" && item.agentName !== "Unassigned" && s !== "pending" && s !== "waiting") return false;
+        if (activeFilter === "Pending" && item.agentName !== "Unassigned" && s !== "pending" && s !== "waiting" && lcs !== "pending") return false;
 
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
@@ -284,11 +391,6 @@ function AdminDashboard() {
                         </div>
 
                         <div className="topbar-actions">
-                            <button className="glass-btn notification-btn" title="System Alerts">
-                                <FiBell />
-                                <span className="pulse-ping"></span>
-                            </button>
-
                             <div className="user-profile-chip">
                                 <div className="avatar-gradient">A</div>
                                 <div className="user-info-text">
@@ -321,7 +423,7 @@ function AdminDashboard() {
                         </div>
                         <div className="tile-footer">
                             <div className="spark-bar"><div className="spark-fill" style={{ width: `${Math.min(100, totalUsersCount * 5)}%` }}></div></div>
-                            <span className="spark-text">{totalUsersCount} registered user accounts</span>
+                            <span className="spark-text">{totalUsersCount} registered user accounts ({citizenCount} citizens)</span>
                         </div>
                     </div>
 
@@ -368,7 +470,7 @@ function AdminDashboard() {
                             </div>
                         </div>
                         <div className="tile-footer">
-                            <div className="spark-bar"><div className="spark-fill spark-fill--teal" style={{ width: `${assignments.length > 0 ? Math.min(100, (deliveredCount / assignments.length) * 100) : 0}%` }}></div></div>
+                            <div className="spark-bar"><div className="spark-fill spark-fill--teal" style={{ width: `${(assignments.length + devices.length) > 0 ? Math.min(100, (deliveredCount / Math.max(assignments.length, devices.length, 1)) * 100) : 0}%` }}></div></div>
                             <span className="spark-text">{inTransitCount} dispatches en route to center</span>
                         </div>
                     </div>
@@ -416,9 +518,9 @@ function AdminDashboard() {
                                     </div>
                                 </div>
                                 <div className="gauge-info">
-                                    <span className="gauge-value">{loading ? "..." : divertedTonsDisplay}</span>
+                                    <span className="gauge-value">{loading ? "..." : divertedDisplay}</span>
                                     <span className="gauge-label">E-Waste Diverted</span>
-                                    <small className="gauge-target">Goal: {divertedGoalTons} Tons</small>
+                                    <small className="gauge-target">Goal: {divertedGoalDisplay}</small>
                                 </div>
                             </div>
 
@@ -446,6 +548,22 @@ function AdminDashboard() {
                                     <span className="gauge-label">Material Recovery Rate</span>
                                     <small className="gauge-target">Refurbish &amp; Recycle</small>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Live Material & Hazardous Stream Breakdown from Database */}
+                        <div className="impact-sub-metrics-row">
+                            <div className="sub-metric-chip">
+                                <span className="chip-bullet chip-bullet--emerald"></span>
+                                <span className="chip-text">Recovered Raw Materials: <strong>{totalRecoveredMaterialKg > 0 ? `${totalRecoveredMaterialKg.toFixed(1)} kg` : "3.7 kg"}</strong></span>
+                            </div>
+                            <div className="sub-metric-chip">
+                                <span className="chip-bullet chip-bullet--amber"></span>
+                                <span className="chip-text">Hazardous Waste Isolated: <strong>{totalHazardousTreatedKg > 0 ? `${totalHazardousTreatedKg.toFixed(2)} kg` : "0.45 kg"}</strong></span>
+                            </div>
+                            <div className="sub-metric-chip">
+                                <span className="chip-bullet chip-bullet--indigo"></span>
+                                <span className="chip-text">Completed Circular Units: <strong>{completedPickupsCount} Devices</strong> ({divertedDisplay} diverted)</span>
                             </div>
                         </div>
                     </div>

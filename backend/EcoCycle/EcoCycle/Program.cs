@@ -11,6 +11,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")
     )
+    .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
 );
 
 builder.Services.AddScoped<EmailService>();
@@ -78,10 +79,18 @@ app.MapGet("/", () => Results.Ok(new { status = "Online", message = "EcoCycle AS
 
 using (var scope = app.Services.CreateScope())
 {
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     try
     {
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         db.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("Database auto-migration warning: " + ex.Message);
+    }
+
+    try
+    {
         db.Database.ExecuteSqlRaw(@"
             IF EXISTS (
                 SELECT * FROM sys.columns 
@@ -200,6 +209,15 @@ using (var scope = app.Services.CreateScope())
             )
             BEGIN
                 ALTER TABLE [dbo].[RecyclingCenterRequests] ADD [ProcessDeadline] DATETIME2 NULL;
+            END
+
+            IF NOT EXISTS (
+                SELECT * FROM sys.columns 
+                WHERE object_id = OBJECT_ID(N'[dbo].[RefurbishmentRequests]') 
+                AND name = N'ProcessDeadline'
+            )
+            BEGIN
+                ALTER TABLE [dbo].[RefurbishmentRequests] ADD [ProcessDeadline] DATETIME2 NULL;
             END
 
             IF NOT EXISTS (

@@ -77,6 +77,52 @@ namespace EcoCycle.Controllers
             return Ok(list);
         }
 
+        public class CreateComponentTypeDto
+        {
+            public string ComponentName { get; set; } = string.Empty;
+            public string HandlingType { get; set; } = "Standard Recycling";
+            public string? Description { get; set; }
+            public bool IsHazardous { get; set; } = false;
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Create([FromBody] CreateComponentTypeDto dto)
+        {
+            try
+            {
+                if (dto == null || string.IsNullOrWhiteSpace(dto.ComponentName))
+                {
+                    return BadRequest(new { message = "Material / Component name is required." });
+                }
+
+                var comp = new ComponentType
+                {
+                    ComponentName = dto.ComponentName.Trim(),
+                    HandlingType = string.IsNullOrWhiteSpace(dto.HandlingType) ? "Standard Processing" : dto.HandlingType.Trim(),
+                    Description = dto.Description?.Trim() ?? $"{dto.ComponentName.Trim()} raw material recovered for processing",
+                    IsHazardous = dto.IsHazardous,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.ComponentTypes.Add(comp);
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    comp.ComponentTypeId,
+                    comp.ComponentName,
+                    comp.HandlingType,
+                    comp.Description,
+                    comp.IsHazardous,
+                    comp.CreatedAt
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error creating component type: " + ex.Message });
+            }
+        }
+
         private async Task SeedInitialComponentTypesIfEmptyAsync()
         {
             try

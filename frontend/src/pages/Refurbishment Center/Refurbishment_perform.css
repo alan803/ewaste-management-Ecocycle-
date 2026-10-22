@@ -312,9 +312,15 @@
     min-width: 0;
     padding: 1.5rem 2rem 3rem 2rem;
     overflow-x: hidden;
-    overflow-y: auto;
     box-sizing: border-box;
-    max-width: 1450px;
+}
+
+@media (min-width: 901px) {
+    .refurb-perform-layout .refurb-perform-main {
+        margin-left: 240px !important;
+        width: calc(100% - 240px) !important;
+        max-width: calc(100% - 240px) !important;
+    }
 }
 
 /* Header Ribbon */
@@ -1145,40 +1151,199 @@
 /* Right Sidebar SLA & Roadmap */
 .refurb-sla-commitment-card {
     background: linear-gradient(135deg, #1e1b4b 0%, #312e81 60%, #4338ca 100%);
-    border-radius: 12px;
-    padding: 1.25rem;
+    border-radius: 14px;
+    padding: 1.35rem;
     color: #ffffff;
-    box-shadow: 0 4px 14px rgba(49, 46, 129, 0.25);
+    box-shadow: 0 8px 24px rgba(49, 46, 129, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    position: relative;
+    overflow: hidden;
+}
+
+.refurb-sla-commitment-card::before {
+    content: "";
+    position: absolute;
+    top: -50px;
+    right: -50px;
+    width: 140px;
+    height: 140px;
+    background: radial-gradient(circle, rgba(129, 140, 248, 0.25) 0%, rgba(129, 140, 248, 0) 70%);
+    pointer-events: none;
 }
 
 .refurb-sla-badge-row {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.85rem;
 }
 
 .refurb-sla-icon-circle {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.15);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.15rem;
+    font-size: 1.25rem;
     color: #a5b4fc;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
 }
 
 .refurb-sla-badge-title {
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 0.98rem;
+    font-weight: 700;
     color: #ffffff;
+    letter-spacing: -0.01em;
 }
 
 .refurb-sla-badge-sub {
-    font-size: 0.72rem;
+    font-size: 0.73rem;
     color: #c7d2fe;
+    margin-top: 1px;
+}
+
+.refurb-sla-pill-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+}
+
+.refurb-sla-pill-tag.active {
+    background: rgba(16, 185, 129, 0.2);
+    color: #6ee7b7;
+    border: 1px solid rgba(52, 211, 153, 0.4);
+}
+
+.refurb-sla-pill-tag.overdue {
+    background: rgba(239, 68, 68, 0.25);
+    color: #fca5a5;
+    border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+.refurb-sla-pulse-emerald {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #34d399;
+    box-shadow: 0 0 8px #34d399;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Dedicated Spotlight for Process Deadline */
+.refurb-sla-deadline-spotlight {
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid rgba(165, 180, 252, 0.25);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    margin: 0.85rem 0;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.06);
+}
+
+.refurb-sla-spotlight-lbl {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #a5b4fc;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.refurb-sla-spotlight-date {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #ffffff;
+    margin: 0.35rem 0;
+    letter-spacing: -0.01em;
+}
+
+.refurb-sla-spotlight-countdown {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed rgba(255, 255, 255, 0.14);
+}
+
+.refurb-sla-countdown-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 6px;
+}
+
+.refurb-sla-countdown-badge.ontrack {
+    background: rgba(16, 185, 129, 0.22);
+    color: #6ee7b7;
+    border: 1px solid rgba(52, 211, 153, 0.35);
+}
+
+.refurb-sla-countdown-badge.overdue {
+    background: rgba(239, 68, 68, 0.28);
+    color: #fca5a5;
+    border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+.refurb-sla-reg-note {
+    font-size: 0.68rem;
+    color: #c7d2fe;
+    font-style: italic;
+    opacity: 0.85;
+}
+
+/* Lifecycle Milestones Row */
+.refurb-sla-milestones-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.45rem;
+    margin-bottom: 0.85rem;
+}
+
+.refurb-sla-milestone {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 8px;
+    padding: 0.45rem 0.55rem;
+}
+
+.refurb-sla-milestone .m-lbl {
+    font-size: 0.62rem;
+    color: #c7d2fe;
+    display: block;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.refurb-sla-milestone .m-val {
+    font-size: 0.75rem;
+    color: #ffffff;
+    font-weight: 700;
+    margin-top: 0.15rem;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.refurb-sla-milestone .m-val.highlight {
+    color: #34d399;
 }
 
 .refurb-sla-desc {
@@ -1192,7 +1357,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.22);
     border-radius: 8px;
     padding: 0.65rem 0.85rem;
     border: 1px solid rgba(255, 255, 255, 0.1);

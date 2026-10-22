@@ -80,7 +80,7 @@ function Sidebar({ isLocked = false, onBlockedNav }) {
 
             {/* Sidebar Navigation */}
             <aside className={`refurb-sidebar-aside ${isMobileOpen ? "open" : ""}`}>
-                <div>
+                <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", overflow: "hidden" }}>
                     {/* Brand Header */}
                     <Link 
                         to="/refurbishmentcenter_dashboard" 

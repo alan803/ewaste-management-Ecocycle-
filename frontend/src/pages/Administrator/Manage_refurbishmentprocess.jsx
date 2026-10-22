@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import Navbar from "./Navbar";
 import {
     FiRefreshCw,
-    FiBell,
     FiCheckCircle,
     FiClock,
     FiUser,
@@ -300,11 +299,6 @@ function ManageRefurbishmentProcess() {
                         </div>
 
                         <div className="topbar-actions">
-                            <button className="glass-btn notification-btn" title="System Alerts">
-                                <FiBell />
-                                <span className="pulse-ping"></span>
-                            </button>
-
                             <div className="user-profile-chip">
                                 <div className="avatar-gradient" style={{ background: "linear-gradient(135deg, #7c3aed, #9333ea)" }}>A</div>
                                 <div className="user-info-text">

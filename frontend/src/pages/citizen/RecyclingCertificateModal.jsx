@@ -129,10 +129,10 @@ function RecyclingCertificateModal({ isOpen, onClose, certificateData, selectedR
             return;
         }
 
-        const themeColor = isRefurb ? "#7c3aed" : "#059669";
-        const themeSubColor = isRefurb ? "#581c87" : "#065f46";
-        const themeLightBg = isRefurb ? "#f5f3ff" : "#ecfdf5";
-        const themeBorderInner = isRefurb ? "#ddd6fe" : "#a7f3d0";
+        const themeColor = "#059669";
+        const themeSubColor = "#065f46";
+        const themeLightBg = "#ecfdf5";
+        const themeBorderInner = "#a7f3d0";
 
         const titleText = isRefurb
             ? "CERTIFICATE OF SUSTAINABLE HARDWARE REFURBISHMENT"
@@ -581,7 +581,7 @@ function RecyclingCertificateModal({ isOpen, onClose, certificateData, selectedR
                 {/* Modal Topbar */}
                 <div className="recyc-cert-modal-topbar no-print">
                     <div className="cert-topbar-title">
-                        <FiCheck className="cert-check-icon" style={{ color: isRefurb ? "#7c3aed" : "#059669" }} />
+                        <FiCheck className="cert-check-icon" style={{ color: "#059669" }} />
                         {isRefurb ? "Official Certificate of Refurbishment & Circular Reuse" : "Official Certificate of E-Waste Recycling"}
                     </div>
                 </div>
@@ -723,7 +723,7 @@ function RecyclingCertificateModal({ isOpen, onClose, certificateData, selectedR
                 <div className="recyc-cert-modal-actions no-print">
                     <button 
                         className="btn-action primary" 
-                        style={{ background: isRefurb ? "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)" : "linear-gradient(135deg, #059669 0%, #047857 100%)" }}
+                        style={{ background: "linear-gradient(135deg, #059669 0%, #047857 100%)" }}
                         onClick={handleDownloadOrPrintPDF}
                     >
                         <FiDownload /> Download Certificate (PDF)

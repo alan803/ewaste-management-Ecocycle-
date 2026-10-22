@@ -159,7 +159,7 @@ function RefurbishmentCenterDashboard() {
                     assignedAt: item.assignedAt,
                     responseDeadline: item.responseDeadline,
                     processStartDate: item.refurbishmentStartedAt || item.processStartDate,
-                    processDeadline: item.processDeadline || (item.refurbishmentStartedAt || item.respondedAt ? new Date(new Date(item.refurbishmentStartedAt || item.respondedAt).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString() : null),
+                    processDeadline: item.processDeadline || null,
                     status: item.status || "Assigned",
                     processingDecision: item.processingDecision || "Refurbishment Center",
                     lifecycleStatus: item.lifecycleStatus,
@@ -498,14 +498,14 @@ function RefurbishmentCenterDashboard() {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const now = new Date();
-            const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-            updateRequestStatus(requestId, "Accepted", null, now.toISOString(), sevenDaysLater.toISOString());
-            showNotice("success", "Device allocation request accepted! Refurbishment workflow initiated.");
+            const tenDaysLater = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+            updateRequestStatus(requestId, "Accepted", null, now.toISOString(), tenDaysLater.toISOString());
+            showNotice("success", "Device allocation request accepted! 10-Day refurbishment deadline assigned.");
         } catch (err) {
             console.error("Error accepting request:", err);
             const now = new Date();
-            const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-            updateRequestStatus(requestId, "Accepted", null, now.toISOString(), sevenDaysLater.toISOString());
+            const tenDaysLater = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+            updateRequestStatus(requestId, "Accepted", null, now.toISOString(), tenDaysLater.toISOString());
             showNotice("success", "Allocation request accepted.");
         } finally {
             setProcessingId(null);

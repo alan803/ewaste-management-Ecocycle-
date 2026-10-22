@@ -249,6 +249,7 @@ namespace EcoCycle.Controllers
                     assignedAt = req.AssignedAt,
                     responseDeadline = req.ResponseDeadline,
                     refurbishmentStartedAt = req.RefurbishmentStartedAt,
+                    processDeadline = req.ProcessDeadline,
                     refurbishmentCompletedAt = req.RefurbishmentCompletedAt,
 
                     center = req.RefurbishmentCenter != null ? new
@@ -378,6 +379,7 @@ namespace EcoCycle.Controllers
                         refurbishmentStartedAt = r.RefurbishmentStartedAt,
                         refurbishmentCompletedAt = r.RefurbishmentCompletedAt,
                         responseDeadline = r.ResponseDeadline,
+                        processDeadline = r.ProcessDeadline,
                         createdAt = r.CreatedAt,
                         updatedAt = r.UpdatedAt,
                         rejectionReason = r.RejectionReason,
@@ -481,6 +483,7 @@ namespace EcoCycle.Controllers
 
                 DateTime now = DateTime.Now;
                 req.RefurbishmentStartedAt = req.RefurbishmentStartedAt ?? now;
+                req.ProcessDeadline = req.ProcessDeadline ?? req.RefurbishmentStartedAt.Value.AddDays(10);
                 req.Status = "InProgress";
                 req.UpdatedAt = now;
 

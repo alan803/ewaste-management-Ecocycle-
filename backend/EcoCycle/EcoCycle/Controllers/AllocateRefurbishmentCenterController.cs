@@ -680,6 +680,7 @@ namespace EcoCycle.Controllers
                     responseDeadline = r.ResponseDeadline,
                     respondedAt = r.RespondedAt,
                     refurbishmentStartedAt = r.RefurbishmentStartedAt,
+                    processDeadline = r.ProcessDeadline,
                     refurbishmentCompletedAt = r.RefurbishmentCompletedAt,
                     rejectionReason = r.RejectionReason,
                     reassignmentCount = r.ReassignmentCount,
@@ -746,6 +747,7 @@ namespace EcoCycle.Controllers
                         responseDeadline = r.ResponseDeadline,
                         respondedAt = r.RespondedAt,
                         refurbishmentStartedAt = r.RefurbishmentStartedAt,
+                        processDeadline = r.ProcessDeadline,
                         refurbishmentCompletedAt = r.RefurbishmentCompletedAt,
                         rejectionReason = r.RejectionReason,
                         reassignmentCount = r.ReassignmentCount,
@@ -819,6 +821,7 @@ namespace EcoCycle.Controllers
             request.Status = "Accepted";
             request.RespondedAt = DateTime.Now;
             request.RefurbishmentStartedAt = DateTime.Now;
+            request.ProcessDeadline = DateTime.Now.AddDays(10);
             request.UpdatedAt = DateTime.Now;
 
             if (request.Device != null)

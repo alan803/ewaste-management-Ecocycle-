@@ -296,6 +296,7 @@ namespace EcoCycle.API.Controllers
             return Ok(devices);
         }
         [HttpGet("All")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAllDevices()
         {
             var today = DateTime.Today;

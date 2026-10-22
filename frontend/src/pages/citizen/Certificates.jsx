@@ -267,10 +267,10 @@ function CitizenCertificates() {
             return;
         }
 
-        const themeColor = isRefurb ? "#7c3aed" : "#059669";
-        const themeSubColor = isRefurb ? "#581c87" : "#065f46";
-        const themeLightBg = isRefurb ? "#f5f3ff" : "#ecfdf5";
-        const themeBorderInner = isRefurb ? "#ddd6fe" : "#a7f3d0";
+        const themeColor = "#059669";
+        const themeSubColor = "#065f46";
+        const themeLightBg = "#ecfdf5";
+        const themeBorderInner = "#a7f3d0";
 
         const titleText = isRefurb
             ? "CERTIFICATE OF SUSTAINABLE HARDWARE REFURBISHMENT"
@@ -863,17 +863,17 @@ function CitizenCertificates() {
                             }
 
                             return (
-                                <div key={dev.deviceId || dev.id} className={`citizen-cert-card ${isRefurb ? "card-refurb" : "card-recyc"}`}>
+                                <div key={dev.deviceId || dev.id} className="citizen-cert-card card-recyc">
                                     {/* Top Card Header with Cert Tag and Download Button */}
                                     <div className="cert-card-top-row">
-                                        <span className={`cert-code-tag ${isRefurb ? "tag-purple" : "tag-green"}`}>
+                                        <span className="cert-code-tag tag-green">
                                             <FiAward /> {certId}
                                         </span>
                                     </div>
 
                                     {/* Device Specification */}
                                     <div className="cert-device-header">
-                                        <div className={`cert-device-icon-box ${isRefurb ? "icon-purple" : "icon-green"}`}>
+                                        <div className="cert-device-icon-box icon-green">
                                             <FiCpu />
                                         </div>
                                         <div className="cert-device-info">
@@ -890,7 +890,7 @@ function CitizenCertificates() {
                                             <span className="metric-label-text">
                                                 {isRefurb ? "Refurbishment Status:" : "Certified Material Mass:"}
                                             </span>
-                                            <strong className="metric-value-text" style={{ color: isRefurb ? "#7c3aed" : "#059669" }}>
+                                            <strong className="metric-value-text" style={{ color: "#059669" }}>
                                                 {isRefurb ? "Grade A Certified" : `${dev.totalRecoveredWeight || dev.weightKg || dev.weight || "1.2"} kg`}
                                             </strong>
                                         </div>
@@ -905,7 +905,7 @@ function CitizenCertificates() {
                                     </div>
 
                                     {/* Compliance Pill */}
-                                    <div className={`cert-compliance-banner ${isRefurb ? "banner-purple" : "banner-green"}`}>
+                                    <div className="cert-compliance-banner banner-green">
                                         <FiShield className="shield-icon" />
                                         <span>
                                             {isRefurb 
@@ -983,7 +983,7 @@ function CitizenCertificates() {
                                     return (
                                         <tr key={dev.deviceId || dev.id}>
                                             <td className="cert-table-id">
-                                                <FiAward className={isRefurb ? "purple-icon" : "green-icon"} />
+                                                <FiAward className="green-icon" />
                                                 <strong>{certId}</strong>
                                             </td>
                                             <td>
@@ -993,7 +993,7 @@ function CitizenCertificates() {
                                                 </div>
                                             </td>
                                             <td>
-                                                <span className={`table-pathway-badge ${isRefurb ? "badge-purple" : "badge-green"}`}>
+                                                <span className="table-pathway-badge badge-green">
                                                     {isRefurb ? "Circular Refurbished" : "Certified Recycled"}
                                                 </span>
                                             </td>

@@ -118,12 +118,12 @@
 
 .recyc-cert-modal-actions .btn-action.primary {
     color: #ffffff;
-    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.25);
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
 }
 
 .recyc-cert-modal-actions .btn-action.primary:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(124, 58, 237, 0.35);
+    box-shadow: 0 6px 16px rgba(5, 150, 105, 0.35);
 }
 
 .recyc-cert-modal-actions .btn-action.glass {
@@ -160,55 +160,55 @@
     font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
 }
 
-/* Purple Theme Default (Refurbishment) */
+/* Green Theme Default (Refurbishment) */
 .cert-document-frame.refurb-theme .cert-border-outer {
-    border: 4px double #7c3aed !important;
+    border: 4px double #059669 !important;
     padding: 8px;
     border-radius: 6px;
 }
 
 .cert-document-frame.refurb-theme .cert-border-inner {
-    border: 1.5px solid #ddd6fe !important;
+    border: 1.5px solid #a7f3d0 !important;
     padding: 2rem 2.25rem;
-    background: radial-gradient(circle at center, #ffffff 60%, #faf5ff 100%) !important;
+    background: radial-gradient(circle at center, #ffffff 60%, #ecfdf5 100%) !important;
     position: relative;
     border-radius: 4px;
 }
 
 .cert-document-frame.refurb-theme .cert-header {
-    border-bottom: 2px solid #7c3aed !important;
+    border-bottom: 2px solid #059669 !important;
 }
 
 .cert-document-frame.refurb-theme .cert-leaf-icon {
-    color: #7c3aed !important;
+    color: #059669 !important;
 }
 
 .cert-document-frame.refurb-theme .cert-brand-title {
-    color: #581c87 !important;
+    color: #065f46 !important;
 }
 
 .cert-document-frame.refurb-theme .cert-brand-sub {
-    color: #7c3aed !important;
+    color: #059669 !important;
 }
 
 .cert-document-frame.refurb-theme .cert-subtitle {
-    color: #7c3aed !important;
+    color: #059669 !important;
 }
 
 .cert-document-frame.refurb-theme .expense-highlight {
-    color: #7c3aed !important;
+    color: #059669 !important;
     font-weight: 700;
 }
 
 .cert-document-frame.refurb-theme .cert-mat-badge {
-    background: #f5f3ff !important;
-    border: 1px solid #ddd6fe !important;
-    color: #6d28d9 !important;
+    background: #ecfdf5 !important;
+    border: 1px solid #a7f3d0 !important;
+    color: #065f46 !important;
 }
 
 .cert-document-frame.refurb-theme .stamp-circle {
-    border: 2.5px dashed #7c3aed !important;
-    color: #7c3aed !important;
+    border: 2.5px dashed #059669 !important;
+    color: #059669 !important;
 }
 
 /* Green Theme (Recycling) */

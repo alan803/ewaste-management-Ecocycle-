@@ -3,7 +3,6 @@ import axios from "axios";
 import Navbar from "./Navbar";
 import {
     FiTag,
-    FiBell,
     FiPlus,
     FiSearch,
     FiEdit2,
@@ -24,9 +23,50 @@ import {
 } from "react-icons/fi";
 import "./Manage_materialprices.css";
 
+const DEFAULT_DATABASE_COMPONENT_TYPES = [
+    { componentTypeId: 1, componentName: "Lithium-Ion Battery Cell", handlingType: "Thermal Neutralization & Dry Storage", description: "High energy density battery cell requiring thermal isolation and non-flammable dry storage.", isHazardous: true },
+    { componentTypeId: 2, componentName: "Printed Circuit Board (PCB)", handlingType: "Hydrometallurgical Acid Stripping", description: "Contains lead solder joints, beryllium copper contacts, and precious gold pins.", isHazardous: true },
+    { componentTypeId: 3, componentName: "CRT Leaded Glass Funnel", handlingType: "Vitrification & Lead Separation", description: "Heavy lead oxide glass funnel requiring closed furnace encapsulation.", isHazardous: true },
+    { componentTypeId: 4, componentName: "Mercury CCFL Backlight Tube", handlingType: "Vapor Capture Decontamination", description: "Elemental mercury vapor in glass backlight tubes requiring vacuum extraction.", isHazardous: true },
+    { componentTypeId: 5, componentName: "Processor Micro-Wafer & Chipset", handlingType: "Chemical Precious Metal Extraction", description: "Gold bonding wires with epoxy encapsulation and silicon substrate.", isHazardous: true },
+    { componentTypeId: 6, componentName: "Insulated Copper Cabling Harness", handlingType: "Granulation & Electrostatic Separation", description: "PVC-sheathed copper wire harness with halogen plastic casing.", isHazardous: true },
+    { componentTypeId: 7, componentName: "Aluminium Heatsink Assembly", handlingType: "Direct Foundry Alloy Smelting", description: "Clean thermal conduction metal ready for direct foundry re-smelting.", isHazardous: false },
+    { componentTypeId: 8, componentName: "Structural Steel & Polymer Housing", handlingType: "Magnetic Shredding & Pelletization", description: "Recyclable structural steel shell and halogen-free housing plastic.", isHazardous: false },
+    { componentTypeId: 9, componentName: "Lithium Battery", handlingType: "Battery Recycling", description: "Rechargeable lithium-ion or lithium-polymer battery", isHazardous: true },
+    { componentTypeId: 10, componentName: "Printed Circuit Board", handlingType: "Electronic Recycling", description: "Electronic circuit boards containing copper and other metals", isHazardous: true },
+    { componentTypeId: 11, componentName: "Copper", handlingType: "Metal Recovery", description: "Copper wiring, coils and conductive components", isHazardous: false },
+    { componentTypeId: 12, componentName: "Aluminium", handlingType: "Metal Recovery", description: "Aluminium frames, heat sinks and structural parts", isHazardous: false },
+    { componentTypeId: 13, componentName: "Steel", handlingType: "Metal Recovery", description: "Steel frames, brackets and structural components", isHazardous: false },
+    { componentTypeId: 14, componentName: "Plastic", handlingType: "Plastic Recycling", description: "Plastic casing and structural components", isHazardous: false },
+    { componentTypeId: 15, componentName: "Glass", handlingType: "Glass Recycling", description: "Glass used in displays and screens", isHazardous: false },
+    { componentTypeId: 16, componentName: "LCD Display", handlingType: "Display Recycling", description: "Liquid crystal display panel", isHazardous: false },
+    { componentTypeId: 17, componentName: "OLED Display", handlingType: "Display Recycling", description: "Organic LED display panel", isHazardous: false },
+    { componentTypeId: 18, componentName: "LED Backlight", handlingType: "Electronic Recycling", description: "LED backlight components used in LCD displays", isHazardous: false },
+    { componentTypeId: 19, componentName: "Rare Earth Materials", handlingType: "Special Handling", description: "Small quantities of rare earth elements used in electronic components", isHazardous: true },
+    { componentTypeId: 20, componentName: "Gold", handlingType: "Precious Metal Recovery", description: "Small quantities used in connectors and circuit boards", isHazardous: false },
+    { componentTypeId: 21, componentName: "Silver", handlingType: "Precious Metal Recovery", description: "Small quantities used in electronic contacts and circuit boards", isHazardous: false },
+    { componentTypeId: 22, componentName: "Tantalum Capacitor", handlingType: "Special Handling", description: "Electronic capacitor containing tantalum", isHazardous: true },
+    { componentTypeId: 23, componentName: "Mercury-containing Component", handlingType: "Hazardous Processing", description: "Components that may contain mercury in certain electronic equipment", isHazardous: true },
+    { componentTypeId: 24, componentName: "Lead-containing Solder", handlingType: "Hazardous Processing", description: "Solder materials that may contain lead", isHazardous: true },
+    { componentTypeId: 25, componentName: "Nickel", handlingType: "Special Handling", description: "Nickel used in batteries, alloys and electronic components", isHazardous: true },
+    { componentTypeId: 26, componentName: "Cobalt", handlingType: "Special Handling", description: "Cobalt used mainly in lithium-ion battery materials", isHazardous: true },
+    { componentTypeId: 27, componentName: "Magnet", handlingType: "Material Recovery", description: "Permanent magnets used in speakers, motors and storage devices", isHazardous: false },
+    { componentTypeId: 28, componentName: "Rubber", handlingType: "Material Recycling", description: "Rubber components, seals and protective materials", isHazardous: false },
+    { componentTypeId: 29, componentName: "Ceramic", handlingType: "Material Recycling", description: "Ceramic materials used in capacitors and electronic components", isHazardous: false },
+    { componentTypeId: 30, componentName: "Power Supply Unit", handlingType: "Electrical Recycling", description: "Power conversion and supply components", isHazardous: true },
+    { componentTypeId: 31, componentName: "Cooling Fan", handlingType: "Material Recycling", description: "Fans used for thermal management", isHazardous: false },
+    { componentTypeId: 32, componentName: "Hard Disk Drive", handlingType: "Data Destruction", description: "Magnetic storage drive containing platters and electronic components", isHazardous: false },
+    { componentTypeId: 33, componentName: "Solid State Drive", handlingType: "Data Destruction", description: "Flash-based storage device", isHazardous: false },
+    { componentTypeId: 34, componentName: "Speaker", handlingType: "Electronic Recycling", description: "Audio speaker and driver components", isHazardous: false },
+    { componentTypeId: 35, componentName: "Camera Module", handlingType: "Electronic Recycling", description: "Camera sensor and optical module", isHazardous: false },
+    { componentTypeId: 36, componentName: "Motor", handlingType: "Metal Recovery", description: "Electric motor used in electronic equipment", isHazardous: false },
+    { componentTypeId: 37, componentName: "Transformer", handlingType: "Electrical Recycling", description: "Electrical transformer used for power conversion", isHazardous: false },
+    { componentTypeId: 38, componentName: "Battery", handlingType: "Battery Recycling", description: "General rechargeable or non-rechargeable battery", isHazardous: true }
+];
+
 function ManageMaterialPrices() {
     const [prices, setPrices] = useState([]);
-    const [componentTypes, setComponentTypes] = useState([]);
+    const [componentTypes, setComponentTypes] = useState(DEFAULT_DATABASE_COMPONENT_TYPES);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
@@ -34,26 +74,12 @@ function ManageMaterialPrices() {
     const [viewMode, setViewMode] = useState("table");
     const [showAddForm, setShowAddForm] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
-    const [successMsg, setSuccessMsg] = useState("");
 
     const todayStr = new Date().toISOString().split("T")[0];
 
-    const toggleAddForm = () => {
-        if (!showAddForm) {
-            setNewRecord({
-                componentTypeId: componentTypes.length > 0 ? String(componentTypes[0].componentTypeId) : "",
-                pricePerKg: "",
-                effectiveFrom: todayStr,
-                effectiveTo: "",
-                isActive: true
-            });
-            setInlineErrors({});
-        }
-        setShowAddForm(prev => !prev);
-    };
-
     // Inline Add Form State & Validation
     const [newRecord, setNewRecord] = useState({
+        materialName: "",
         componentTypeId: "",
         pricePerKg: "",
         effectiveFrom: todayStr,
@@ -67,6 +93,7 @@ function ManageMaterialPrices() {
     const [deleteModalItem, setDeleteModalItem] = useState(null);
     const [editingItem, setEditingItem] = useState(null);
     const [formData, setFormData] = useState({
+        materialName: "",
         componentTypeId: "",
         pricePerKg: "",
         effectiveFrom: todayStr,
@@ -80,13 +107,114 @@ function ManageMaterialPrices() {
         fetchData();
     }, []);
 
+    const toggleAddForm = () => {
+        if (!showAddForm) {
+            setNewRecord({
+                materialName: "",
+                componentTypeId: "",
+                pricePerKg: "",
+                effectiveFrom: todayStr,
+                effectiveTo: "",
+                isActive: true
+            });
+            setInlineErrors({});
+        }
+        setShowAddForm(prev => !prev);
+    };
+
+    // Helper: Find matching component type by ID or exact/partial/keyword name
+    const findMatchingComponent = (identifier) => {
+        if (!identifier && identifier !== 0) return null;
+        const list = Array.isArray(componentTypes) && componentTypes.length > 0 ? componentTypes : DEFAULT_DATABASE_COMPONENT_TYPES;
+
+        // Numeric match
+        const parsedId = parseInt(identifier, 10);
+        if (!isNaN(parsedId) && parsedId > 0) {
+            const byId = list.find(c => c.componentTypeId === parsedId);
+            if (byId) return byId;
+        }
+
+        if (typeof identifier !== "string" || !identifier.trim()) return null;
+        const clean = identifier.trim().toLowerCase();
+
+        // 1. Exact match
+        let match = list.find(c => c.componentName?.toLowerCase() === clean);
+        if (match) return match;
+
+        // 2. Partial match
+        match = list.find(c => c.componentName?.toLowerCase().includes(clean));
+        if (match) return match;
+
+        // 3. Query contains catalog name
+        match = list.find(c => clean.includes(c.componentName?.toLowerCase()));
+        if (match) return match;
+
+        // 4. Keyword match
+        const words = clean.split(/[\s,()_-]+/).filter(w => w.length >= 3);
+        for (const word of words) {
+            match = list.find(c => c.componentName?.toLowerCase().includes(word));
+            if (match) return match;
+        }
+
+        return null;
+    };
+
+    // Helper: Safely resolve a valid database ID from ComponentTypes
+    const getValidDatabaseComponentTypeId = (nameOrId, matchedComp = null) => {
+        if (matchedComp && matchedComp.componentTypeId) {
+            const parsed = parseInt(matchedComp.componentTypeId, 10);
+            if (!isNaN(parsed) && parsed > 0) {
+                return parsed;
+            }
+        }
+
+        const match = findMatchingComponent(nameOrId);
+        if (match && match.componentTypeId) {
+            return match.componentTypeId;
+        }
+
+        return 1;
+    };
+
+    // Helper: Build strictly typed and sanitized payload for ASP.NET MaterialPrice API
+    const buildMaterialPricePayload = (record, targetDbId) => {
+        const parsedPrice = parseFloat(record.pricePerKg);
+        const safePrice = (isNaN(parsedPrice) || parsedPrice < 0) ? 0 : Number(parsedPrice.toFixed(2));
+
+        const safeEffectiveFrom = (record.effectiveFrom && !isNaN(new Date(record.effectiveFrom).getTime()))
+            ? new Date(record.effectiveFrom).toISOString()
+            : new Date().toISOString();
+
+        const safeEffectiveTo = (record.effectiveTo && String(record.effectiveTo).trim() !== "" && !isNaN(new Date(record.effectiveTo).getTime()))
+            ? new Date(record.effectiveTo).toISOString()
+            : null;
+
+        const safeIsActive = record.isActive === true || record.isActive === "true" || record.isActive === "active";
+
+        const validId = (typeof targetDbId === "number" && targetDbId > 0)
+            ? targetDbId
+            : getValidDatabaseComponentTypeId(record.componentTypeId || record.materialName);
+
+        return {
+            componentTypeId: validId,
+            pricePerKg: safePrice,
+            effectiveFrom: safeEffectiveFrom,
+            effectiveTo: safeEffectiveTo,
+            isActive: safeIsActive
+        };
+    };
+
     // Live validation logic
     const validateRecordField = (field, value, record, setErrors) => {
         const today = new Date().toISOString().split("T")[0];
         let err = "";
 
-        if (field === "componentTypeId") {
-            if (!value) err = "Please select a material / component type.";
+        if (field === "materialName" || field === "componentTypeId") {
+            const compId = field === "componentTypeId" ? value : record.componentTypeId;
+            const mat = field === "materialName" ? value : record.materialName;
+            if (!compId && (!mat || !mat.trim())) {
+                err = "Please select a material / component.";
+            }
         }
 
         if (field === "pricePerKg") {
@@ -96,8 +224,8 @@ function ManageMaterialPrices() {
                 err = "Negative values are not allowed.";
             } else if (parseFloat(value) === 0) {
                 err = "Rate must be greater than ₹0.";
-            } else if (parseFloat(value) > 10000) {
-                err = "Rate cannot be greater than ₹10,000.";
+            } else if (parseFloat(value) > 250000) {
+                err = "Rate cannot be greater than ₹250,000.";
             }
         }
 
@@ -121,8 +249,13 @@ function ManageMaterialPrices() {
 
         setErrors(prev => {
             const next = { ...prev };
-            if (err) next[field] = err;
-            else delete next[field];
+            if (field === "materialName" || field === "componentTypeId") {
+                if (err) next.materialName = err;
+                else delete next.materialName;
+            } else {
+                if (err) next[field] = err;
+                else delete next[field];
+            }
 
             // Re-validate effectiveTo if effectiveFrom changes
             if (field === "effectiveFrom" && record.effectiveTo) {
@@ -143,8 +276,8 @@ function ManageMaterialPrices() {
         const today = new Date().toISOString().split("T")[0];
         const errs = {};
 
-        if (!record.componentTypeId) {
-            errs.componentTypeId = "Please select a material / component type.";
+        if (!record.componentTypeId && (!record.materialName || !record.materialName.trim())) {
+            errs.materialName = "Please select a material / component from the catalog.";
         }
 
         if (record.pricePerKg === "" || record.pricePerKg === null || record.pricePerKg === undefined) {
@@ -153,8 +286,8 @@ function ManageMaterialPrices() {
             errs.pricePerKg = "Negative values are not allowed.";
         } else if (parseFloat(record.pricePerKg) === 0) {
             errs.pricePerKg = "Rate must be greater than ₹0.";
-        } else if (parseFloat(record.pricePerKg) > 10000) {
-            errs.pricePerKg = "Rate cannot be greater than ₹10,000.";
+        } else if (parseFloat(record.pricePerKg) > 250000) {
+            errs.pricePerKg = "Rate cannot be greater than ₹250,000.";
         }
 
         if (!record.effectiveFrom) {
@@ -175,16 +308,51 @@ function ManageMaterialPrices() {
         return Object.keys(errs).length === 0;
     };
 
+    const handleComponentSelect = (selectedIdStr, isModal = false) => {
+        const selectedId = parseInt(selectedIdStr, 10);
+        const matched = componentTypes.find(c => c.componentTypeId === selectedId);
+
+        if (isModal) {
+            setFormData(prev => {
+                const updated = {
+                    ...prev,
+                    componentTypeId: !isNaN(selectedId) && selectedId > 0 ? String(selectedId) : "",
+                    materialName: matched ? matched.componentName : ""
+                };
+                validateRecordField("materialName", updated.materialName, updated, setModalErrors);
+                return updated;
+            });
+        } else {
+            setNewRecord(prev => {
+                const updated = {
+                    ...prev,
+                    componentTypeId: !isNaN(selectedId) && selectedId > 0 ? String(selectedId) : "",
+                    materialName: matched ? matched.componentName : ""
+                };
+                validateRecordField("materialName", updated.materialName, updated, setInlineErrors);
+                return updated;
+            });
+        }
+    };
+
+    const handleMaterialNameChange = (nameOrId, isModal = false) => {
+        handleComponentSelect(nameOrId, isModal);
+    };
+
     const handleInlineFieldChange = (field, value) => {
-        const updated = { ...newRecord, [field]: value };
-        setNewRecord(updated);
-        validateRecordField(field, value, updated, setInlineErrors);
+        setNewRecord(prev => {
+            const updated = { ...prev, [field]: value };
+            validateRecordField(field, value, updated, setInlineErrors);
+            return updated;
+        });
     };
 
     const handleModalFieldChange = (field, value) => {
-        const updated = { ...formData, [field]: value };
-        setFormData(updated);
-        validateRecordField(field, value, updated, setModalErrors);
+        setFormData(prev => {
+            const updated = { ...prev, [field]: value };
+            validateRecordField(field, value, updated, setModalErrors);
+            return updated;
+        });
     };
 
     const handleInlineSubmit = async (e) => {
@@ -199,13 +367,11 @@ function ManageMaterialPrices() {
             setErrorMsg("");
             const token = localStorage.getItem("token");
 
-            const payload = {
-                componentTypeId: parseInt(newRecord.componentTypeId),
-                pricePerKg: parseFloat(newRecord.pricePerKg),
-                effectiveFrom: newRecord.effectiveFrom ? new Date(newRecord.effectiveFrom).toISOString() : new Date().toISOString(),
-                effectiveTo: newRecord.effectiveTo ? new Date(newRecord.effectiveTo).toISOString() : null,
-                isActive: newRecord.isActive
-            };
+            const selectedCompId = parseInt(newRecord.componentTypeId, 10);
+            const matchedComp = componentTypes.find(c => c.componentTypeId === selectedCompId) || findMatchingComponent(newRecord.materialName);
+            const validDbId = matchedComp ? matchedComp.componentTypeId : (selectedCompId || 1);
+
+            const payload = buildMaterialPricePayload(newRecord, validDbId);
 
             let newCreatedId = Date.now();
             try {
@@ -215,28 +381,27 @@ function ManageMaterialPrices() {
                 if (res.data && res.data.materialPriceId) {
                     newCreatedId = res.data.materialPriceId;
                 }
-            } catch {
-                // Fallback local update
+            } catch (err) {
+                console.warn("Server POST MaterialPrice notice:", err?.response?.data || err?.message);
             }
 
-            const matchedComp = componentTypes.find(c => String(c.componentTypeId) === String(payload.componentTypeId));
             const addedItem = {
                 materialPriceId: newCreatedId,
                 componentTypeId: payload.componentTypeId,
-                componentName: matchedComp ? matchedComp.componentName : `Material #${payload.componentTypeId}`,
-                handlingType: matchedComp ? matchedComp.handlingType : "Standard Processing",
-                isHazardous: matchedComp ? matchedComp.isHazardous : false,
+                componentName: matchedComp ? matchedComp.componentName : (newRecord.materialName || "Material"),
+                handlingType: matchedComp ? matchedComp.handlingType : "Standard Recycling",
+                isHazardous: matchedComp ? Boolean(matchedComp.isHazardous) : false,
                 pricePerKg: payload.pricePerKg,
                 effectiveFrom: newRecord.effectiveFrom,
-                effectiveTo: newRecord.effectiveTo,
+                effectiveTo: newRecord.effectiveTo || null,
                 isActive: payload.isActive,
                 createdAt: new Date().toISOString().split("T")[0]
             };
 
             setPrices(prev => [addedItem, ...prev]);
-            setSuccessMsg("Material price rate added to table successfully!");
             setNewRecord({
-                componentTypeId: componentTypes.length > 0 ? String(componentTypes[0].componentTypeId) : "",
+                materialName: "",
+                componentTypeId: "",
                 pricePerKg: "",
                 effectiveFrom: todayStr,
                 effectiveTo: "",
@@ -244,7 +409,6 @@ function ManageMaterialPrices() {
             });
             setInlineErrors({});
             setShowAddForm(false);
-            setTimeout(() => setSuccessMsg(""), 3500);
         } catch (err) {
             setErrorMsg("Failed to add material price record.");
         } finally {
@@ -257,16 +421,21 @@ function ManageMaterialPrices() {
             setLoading(true);
             const token = localStorage.getItem("token");
 
-            // Fetch Component Types
+            // Fetch Component Types from API
             let compList = [];
             try {
                 const compRes = await axios.get("https://ecocycle.runasp.net/api/ComponentType", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                compList = compRes.data || [];
+                compList = Array.isArray(compRes.data) ? compRes.data : (compRes.data?.value || []);
             } catch {
                 compList = [];
             }
+
+            if (!compList || compList.length === 0) {
+                compList = [...DEFAULT_DATABASE_COMPONENT_TYPES];
+            }
+
             setComponentTypes(compList);
 
             // Fetch Material Prices from Database
@@ -274,7 +443,8 @@ function ManageMaterialPrices() {
                 const priceRes = await axios.get("https://ecocycle.runasp.net/api/MaterialPrice", {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                setPrices(priceRes.data || []);
+                const priceList = Array.isArray(priceRes.data) ? priceRes.data : (priceRes.data?.value || []);
+                setPrices(priceList);
             } catch {
                 setPrices([]);
             }
@@ -288,7 +458,8 @@ function ManageMaterialPrices() {
     const handleOpenAddModal = () => {
         setEditingItem(null);
         setFormData({
-            componentTypeId: componentTypes.length > 0 ? componentTypes[0].componentTypeId : "",
+            materialName: "",
+            componentTypeId: "",
             pricePerKg: "",
             effectiveFrom: todayStr,
             effectiveTo: "",
@@ -300,8 +471,12 @@ function ManageMaterialPrices() {
 
     const handleOpenEditModal = (item) => {
         setEditingItem(item);
+        const compId = item.componentTypeId ? String(item.componentTypeId) : (
+            findMatchingComponent(item.componentName)?.componentTypeId ? String(findMatchingComponent(item.componentName).componentTypeId) : ""
+        );
         setFormData({
-            componentTypeId: item.componentTypeId || "",
+            materialName: item.componentName || "",
+            componentTypeId: compId,
             pricePerKg: item.pricePerKg || "",
             effectiveFrom: item.effectiveFrom ? item.effectiveFrom.split("T")[0] : todayStr,
             effectiveTo: item.effectiveTo ? item.effectiveTo.split("T")[0] : "",
@@ -323,13 +498,11 @@ function ManageMaterialPrices() {
             setErrorMsg("");
             const token = localStorage.getItem("token");
 
-            const payload = {
-                componentTypeId: parseInt(formData.componentTypeId) || (componentTypes[0] ? componentTypes[0].componentTypeId : 1),
-                pricePerKg: parseFloat(formData.pricePerKg),
-                effectiveFrom: formData.effectiveFrom ? new Date(formData.effectiveFrom).toISOString() : new Date().toISOString(),
-                effectiveTo: formData.effectiveTo ? new Date(formData.effectiveTo).toISOString() : null,
-                isActive: formData.isActive
-            };
+            const selectedCompId = parseInt(formData.componentTypeId, 10);
+            const matchedComp = componentTypes.find(c => c.componentTypeId === selectedCompId) || findMatchingComponent(formData.materialName);
+            const validDbId = matchedComp ? matchedComp.componentTypeId : (selectedCompId || 1);
+
+            const payload = buildMaterialPricePayload(formData, validDbId);
 
             if (editingItem) {
                 // Update
@@ -337,28 +510,26 @@ function ManageMaterialPrices() {
                     await axios.put(`https://ecocycle.runasp.net/api/MaterialPrice/${editingItem.materialPriceId}`, payload, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-                } catch {
-                    // Local fallback
+                } catch (err) {
+                    console.warn("Server PUT MaterialPrice notice:", err?.response?.data || err?.message);
                 }
 
-                const matchedComp = componentTypes.find(c => String(c.componentTypeId) === String(payload.componentTypeId));
                 setPrices(prev => prev.map(p => {
                     if (p.materialPriceId === editingItem.materialPriceId) {
                         return {
                             ...p,
                             componentTypeId: payload.componentTypeId,
-                            componentName: matchedComp ? matchedComp.componentName : p.componentName,
+                            componentName: matchedComp ? matchedComp.componentName : (formData.materialName || p.componentName),
                             handlingType: matchedComp ? matchedComp.handlingType : p.handlingType,
-                            isHazardous: matchedComp ? matchedComp.isHazardous : p.isHazardous,
+                            isHazardous: matchedComp ? Boolean(matchedComp.isHazardous) : p.isHazardous,
                             pricePerKg: payload.pricePerKg,
                             effectiveFrom: formData.effectiveFrom,
-                            effectiveTo: formData.effectiveTo,
+                            effectiveTo: formData.effectiveTo || null,
                             isActive: payload.isActive
                         };
                     }
                     return p;
                 }));
-                setSuccessMsg("Material price record updated successfully!");
             } else {
                 // Create
                 let newCreatedId = Date.now();
@@ -369,30 +540,27 @@ function ManageMaterialPrices() {
                     if (res.data && res.data.materialPriceId) {
                         newCreatedId = res.data.materialPriceId;
                     }
-                } catch {
-                    // Local fallback
+                } catch (err) {
+                    console.warn("Server POST MaterialPrice notice:", err?.response?.data || err?.message);
                 }
 
-                const matchedComp = componentTypes.find(c => String(c.componentTypeId) === String(payload.componentTypeId));
                 const newItem = {
                     materialPriceId: newCreatedId,
                     componentTypeId: payload.componentTypeId,
-                    componentName: matchedComp ? matchedComp.componentName : `Material #${payload.componentTypeId}`,
-                    handlingType: matchedComp ? matchedComp.handlingType : "Standard Processing",
-                    isHazardous: matchedComp ? matchedComp.isHazardous : false,
+                    componentName: matchedComp ? matchedComp.componentName : (formData.materialName || "Material"),
+                    handlingType: matchedComp ? matchedComp.handlingType : "Standard Recycling",
+                    isHazardous: matchedComp ? Boolean(matchedComp.isHazardous) : false,
                     pricePerKg: payload.pricePerKg,
                     effectiveFrom: formData.effectiveFrom,
-                    effectiveTo: formData.effectiveTo,
+                    effectiveTo: formData.effectiveTo || null,
                     isActive: payload.isActive,
                     createdAt: new Date().toISOString().split("T")[0]
                 };
 
                 setPrices(prev => [newItem, ...prev]);
-                setSuccessMsg("New material price record created successfully!");
             }
 
             setShowModal(false);
-            setTimeout(() => setSuccessMsg(""), 3500);
         } catch (err) {
             setErrorMsg("Failed to save material price.");
         } finally {
@@ -412,28 +580,19 @@ function ManageMaterialPrices() {
         try {
             setSaving(true);
             const token = localStorage.getItem("token");
-            const payload = {
-                componentTypeId: item.componentTypeId,
-                pricePerKg: parseFloat(item.pricePerKg),
-                effectiveFrom: item.effectiveFrom ? new Date(item.effectiveFrom).toISOString() : new Date().toISOString(),
-                effectiveTo: item.effectiveTo ? new Date(item.effectiveTo).toISOString() : null,
-                isActive: false
-            };
 
             try {
-                await axios.put(`https://ecocycle.runasp.net/api/MaterialPrice/${id}`, payload, {
+                await axios.delete(`https://ecocycle.runasp.net/api/MaterialPrice/${id}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
-            } catch {
-                // Local fallback
+            } catch (err) {
+                console.warn("Server DELETE MaterialPrice notice:", err?.response?.data || err?.message);
             }
 
-            setPrices(prev => prev.map(p => p.materialPriceId === id ? { ...p, isActive: false } : p));
-            setSuccessMsg(`Material price rule for "${item.componentName || 'selected material'}" is now set to Inactive.`);
+            setPrices(prev => prev.filter(p => p.materialPriceId !== id));
             setDeleteModalItem(null);
-            setTimeout(() => setSuccessMsg(""), 3500);
         } catch {
-            setErrorMsg("Failed to set material price to Inactive.");
+            setErrorMsg("Failed to delete material price record.");
         } finally {
             setSaving(false);
         }
@@ -443,13 +602,8 @@ function ManageMaterialPrices() {
         try {
             setSaving(true);
             const token = localStorage.getItem("token");
-            const payload = {
-                componentTypeId: item.componentTypeId,
-                pricePerKg: parseFloat(item.pricePerKg),
-                effectiveFrom: item.effectiveFrom ? new Date(item.effectiveFrom).toISOString() : new Date().toISOString(),
-                effectiveTo: item.effectiveTo ? new Date(item.effectiveTo).toISOString() : null,
-                isActive: true
-            };
+            const validDbId = getValidDatabaseComponentTypeId(item.componentName, item);
+            const payload = buildMaterialPricePayload({ ...item, isActive: true }, validDbId);
 
             try {
                 await axios.put(`https://ecocycle.runasp.net/api/MaterialPrice/${item.materialPriceId}`, payload, {
@@ -460,8 +614,6 @@ function ManageMaterialPrices() {
             }
 
             setPrices(prev => prev.map(p => p.materialPriceId === item.materialPriceId ? { ...p, isActive: true } : p));
-            setSuccessMsg(`Material price rule for "${item.componentName || 'selected material'}" is restored to Active.`);
-            setTimeout(() => setSuccessMsg(""), 3500);
         } catch {
             setErrorMsg("Failed to restore material price to Active.");
         } finally {
@@ -473,12 +625,11 @@ function ManageMaterialPrices() {
         const updatedStatus = !item.isActive;
         try {
             const token = localStorage.getItem("token");
+            const validDbId = getValidDatabaseComponentTypeId(item.componentName, item);
+            const payload = buildMaterialPricePayload({ ...item, isActive: updatedStatus }, validDbId);
+
             try {
-                await axios.put(`https://ecocycle.runasp.net/api/MaterialPrice/${item.materialPriceId}`, {
-                    componentTypeId: item.componentTypeId,
-                    pricePerKg: item.pricePerKg,
-                    isActive: updatedStatus
-                }, {
+                await axios.put(`https://ecocycle.runasp.net/api/MaterialPrice/${item.materialPriceId}`, payload, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
             } catch {
@@ -486,8 +637,6 @@ function ManageMaterialPrices() {
             }
 
             setPrices(prev => prev.map(p => p.materialPriceId === item.materialPriceId ? { ...p, isActive: updatedStatus } : p));
-            setSuccessMsg(`Material status changed to ${updatedStatus ? "Active" : "Inactive"}.`);
-            setTimeout(() => setSuccessMsg(""), 3000);
         } catch {
             setErrorMsg("Failed to update status.");
         }
@@ -512,6 +661,11 @@ function ManageMaterialPrices() {
     const activeCount = prices.filter(p => p.isActive).length;
     const avgPrice = prices.length > 0 ? (prices.reduce((sum, p) => sum + (parseFloat(p.pricePerKg) || 0), 0) / prices.length).toFixed(2) : "0.00";
     const maxPrice = prices.length > 0 ? Math.max(...prices.map(p => parseFloat(p.pricePerKg) || 0)) : 0;
+
+    // Currently selected components for inline & modal previews
+    const selectedInlineComponent = componentTypes.find(c => String(c.componentTypeId) === String(newRecord.componentTypeId));
+    const selectedModalComponent = componentTypes.find(c => String(c.componentTypeId) === String(formData.componentTypeId));
+
 
     return (
         <div className="matprice-container manage-page">
@@ -543,22 +697,13 @@ function ManageMaterialPrices() {
                         </div>
 
                         <div className="topbar-actions">
-                            <button className="glass-btn notification-btn" title="System Alerts">
-                                <FiBell />
-                                <span className="pulse-ping"></span>
-                            </button>
                             <button className="btn-add-price" onClick={toggleAddForm}>
-                                <FiPlus /> {showAddForm ? "Close Form" : "Add New Material Rate"}
+                                <FiPlus /> {showAddForm ? "Close Form" : "Add Material Rate"}
                             </button>
                         </div>
                     </div>
                 </header>
 
-                {successMsg && (
-                    <div style={{ background: "#dcfce7", border: "1px solid #86efac", color: "#166534", padding: "0.75rem 1.15rem", borderRadius: "12px", marginBottom: "1.1rem", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                        <FiCheckCircle /> {successMsg}
-                    </div>
-                )}
 
                 {errorMsg && (
                     <div style={{ background: "#ffe4e6", border: "1px solid #fca5a5", color: "#9f1239", padding: "0.75rem 1.15rem", borderRadius: "12px", marginBottom: "1.1rem", fontSize: "0.8rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -634,33 +779,34 @@ function ManageMaterialPrices() {
                             <div className="matprice-form-grid">
                                 {/* Row 1: Material / Component Name (Spans 3 cols) & Rate (1 col) */}
                                 <div className="matprice-form-group col-span-3">
-                                    <label>Material / Component Name *</label>
-                                    {componentTypes.length > 0 ? (
-                                        <select
-                                            className={`matprice-form-input ${inlineErrors.componentTypeId ? "input-error" : ""}`}
-                                            value={newRecord.componentTypeId}
-                                            onChange={(e) => handleInlineFieldChange("componentTypeId", e.target.value)}
-                                            required
-                                        >
-                                            <option value="">-- Select Material / Component --</option>
-                                            {componentTypes.map(c => (
-                                                <option key={c.componentTypeId} value={c.componentTypeId}>
-                                                    {c.componentName} ({c.handlingType || (c.isHazardous ? "Hazardous" : "Standard")})
-                                                </option>
-                                            ))}
-                                        </select>
-                                    ) : (
-                                        <input
-                                            type="number"
-                                            className={`matprice-form-input ${inlineErrors.componentTypeId ? "input-error" : ""}`}
-                                            placeholder="Enter Component Type ID"
-                                            value={newRecord.componentTypeId}
-                                            onChange={(e) => handleInlineFieldChange("componentTypeId", e.target.value)}
-                                            required
-                                        />
+                                    <label htmlFor="inline-component-select">Material / Component Name *</label>
+                                    <select
+                                        id="inline-component-select"
+                                        className={`matprice-form-input matprice-form-select ${inlineErrors.materialName ? "input-error" : ""}`}
+                                        value={newRecord.componentTypeId || ""}
+                                        onChange={(e) => handleComponentSelect(e.target.value, false)}
+                                        required
+                                    >
+                                        <option value="">-- Select Material / Component from Catalog ({componentTypes.length} Available) --</option>
+                                        {Array.isArray(componentTypes) && componentTypes.map(c => (
+                                            <option key={c.componentTypeId} value={c.componentTypeId}>
+                                                {c.componentName} — {c.handlingType || "Standard"} {c.isHazardous ? "[Hazardous]" : "[Standard]"}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {inlineErrors.materialName && (
+                                        <span className="error-message"><FiAlertCircle /> {inlineErrors.materialName}</span>
                                     )}
-                                    {inlineErrors.componentTypeId && (
-                                        <span className="error-message"><FiAlertCircle /> {inlineErrors.componentTypeId}</span>
+                                    {selectedInlineComponent && (
+                                        <div className="matprice-selected-preview">
+                                            <span className={`matprice-handling-tag ${selectedInlineComponent.isHazardous ? "handling-tag--hazardous" : "handling-tag--standard"}`}>
+                                                {selectedInlineComponent.isHazardous ? <FiAlertTriangle /> : <FiLayers />}
+                                                {selectedInlineComponent.handlingType || "Standard Recycling"}
+                                            </span>
+                                            {selectedInlineComponent.description && (
+                                                <span className="matprice-selected-desc">{selectedInlineComponent.description}</span>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
 
@@ -670,9 +816,9 @@ function ManageMaterialPrices() {
                                         type="number"
                                         step="0.01"
                                         min="0.01"
-                                        max="10000"
+                                        max="250000"
                                         className={`matprice-form-input ${inlineErrors.pricePerKg ? "input-error" : ""}`}
-                                        placeholder="e.g. 750.00 (Max ₹10,000)"
+                                        placeholder="e.g. 750.00 (Max ₹250,000)"
                                         value={newRecord.pricePerKg}
                                         onChange={(e) => {
                                             const val = e.target.value;
@@ -974,30 +1120,34 @@ function ManageMaterialPrices() {
 
                             <form onSubmit={handleSave}>
                                 <div className="matprice-form-group">
-                                    <label>Component / Material Type</label>
-                                    {componentTypes.length > 0 ? (
-                                        <select
-                                            className={`matprice-form-input ${modalErrors.componentTypeId ? "input-error" : ""}`}
-                                            value={formData.componentTypeId}
-                                            onChange={(e) => handleModalFieldChange("componentTypeId", e.target.value)}
-                                        >
-                                            {componentTypes.map(c => (
-                                                <option key={c.componentTypeId} value={c.componentTypeId}>
-                                                    {c.componentName} ({c.isHazardous ? "Hazardous" : "Standard"})
-                                                </option>
-                                            ))}
-                                        </select>
-                                    ) : (
-                                        <input
-                                            type="number"
-                                            className={`matprice-form-input ${modalErrors.componentTypeId ? "input-error" : ""}`}
-                                            placeholder="Component Type ID"
-                                            value={formData.componentTypeId}
-                                            onChange={(e) => handleModalFieldChange("componentTypeId", e.target.value)}
-                                        />
+                                    <label htmlFor="modal-component-select">Material / Component Name *</label>
+                                    <select
+                                        id="modal-component-select"
+                                        className={`matprice-form-input matprice-form-select ${modalErrors.materialName ? "input-error" : ""}`}
+                                        value={formData.componentTypeId || ""}
+                                        onChange={(e) => handleComponentSelect(e.target.value, true)}
+                                        required
+                                    >
+                                        <option value="">-- Select Material / Component from Catalog ({componentTypes.length} Available) --</option>
+                                        {Array.isArray(componentTypes) && componentTypes.map(c => (
+                                            <option key={c.componentTypeId} value={c.componentTypeId}>
+                                                {c.componentName} — {c.handlingType || "Standard"} {c.isHazardous ? "[Hazardous]" : "[Standard]"}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {modalErrors.materialName && (
+                                        <span className="error-message"><FiAlertCircle /> {modalErrors.materialName}</span>
                                     )}
-                                    {modalErrors.componentTypeId && (
-                                        <span className="error-message"><FiAlertCircle /> {modalErrors.componentTypeId}</span>
+                                    {selectedModalComponent && (
+                                        <div className="matprice-selected-preview">
+                                            <span className={`matprice-handling-tag ${selectedModalComponent.isHazardous ? "handling-tag--hazardous" : "handling-tag--standard"}`}>
+                                                {selectedModalComponent.isHazardous ? <FiAlertTriangle /> : <FiLayers />}
+                                                {selectedModalComponent.handlingType || "Standard Recycling"}
+                                            </span>
+                                            {selectedModalComponent.description && (
+                                                <span className="matprice-selected-desc">{selectedModalComponent.description}</span>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
 
@@ -1007,9 +1157,9 @@ function ManageMaterialPrices() {
                                         type="number"
                                         step="0.01"
                                         min="0.01"
-                                        max="10000"
+                                        max="250000"
                                         className={`matprice-form-input ${modalErrors.pricePerKg ? "input-error" : ""}`}
-                                        placeholder="e.g. 750.00 (Max ₹10,000)"
+                                        placeholder="e.g. 750.00 (Max ₹250,000)"
                                         value={formData.pricePerKg}
                                         onChange={(e) => {
                                             const val = e.target.value;
@@ -1052,8 +1202,6 @@ function ManageMaterialPrices() {
                                     </div>
                                 </div>
 
-
-
                                 <div className="matprice-modal-footer">
                                     <button type="button" className="btn-modal-cancel" onClick={() => setShowModal(false)}>
                                         Cancel
@@ -1066,6 +1214,7 @@ function ManageMaterialPrices() {
                         </div>
                     </div>
                 )}
+
 
                 {/* Delete Confirmation Modal */}
                 {deleteModalItem && (

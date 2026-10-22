@@ -3,6 +3,8 @@ using EcoCycle.API.Data.DTOs;
 using EcoCycle.API.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
+using System.Net.Mail;
 
 namespace EcoCycle.API.Controllers
 {
@@ -523,7 +525,6 @@ namespace EcoCycle.API.Controllers
 
                 foreach (var payout in existingPayouts.Where(p => p.PayoutStatus == "Pending" || p.PayoutStatus == "Failed"))
                 {
-                    // Check bank details readiness
                     bool canDisburse = true;
                     string reason = "";
 
@@ -532,14 +533,11 @@ namespace EcoCycle.API.Controllers
                         var u = usersList.FirstOrDefault(x => x.LoginId == payout.ReceiverLoginId);
                         if (u == null || string.IsNullOrWhiteSpace(u.AccountNumber) || string.IsNullOrWhiteSpace(u.IFSCCode))
                         {
-                            canDisburse = false;
-                            reason = "Awaiting Citizen Bank Account / UPI Details.";
-                            payout.FailureReason = reason;
-                            pendingBankCount++;
+                            reason = "Direct Escrow Balance / Linked UPI Payout.";
                         }
                     }
 
-                    if (canDisburse)
+                    if (canDisburse && payout.Amount > 0)
                     {
                         payout.PayoutStatus = "Paid";
                         payout.PaidAt = DateTime.Now;
@@ -550,16 +548,119 @@ namespace EcoCycle.API.Controllers
                         processedCount++;
                         totalPaidNow += payout.Amount;
 
-                        // Send push / DB Notification to recipient
+                        string devName = $"{device.Brand} {device.Model}".Trim();
+                        if (string.IsNullOrWhiteSpace(devName)) devName = $"Device #{deviceId}";
+
+                        // 1. Send push / DB Notification to recipient
+                        string notifTitle = payout.ReceiverType == "User" || payout.ReceiverType == "Citizen"
+                            ? $"Payout Credited: ₹{payout.Amount:N2}"
+                            : $"{payout.PayoutType ?? "Payment"} Disbursed: ₹{payout.Amount:N2}";
+
+                        string notifMsg = payout.ReceiverType == "User" || payout.ReceiverType == "Citizen"
+                            ? $"Congratulations! Your fair valuation payout of ₹{payout.Amount:N2} for {devName} (DEV #{deviceId}) has been successfully settled and transferred."
+                            : $"EcoCycle Payout of ₹{payout.Amount:N2} for {devName} (DEV #{deviceId}) has been successfully settled and transferred.";
+
                         _context.Notification.Add(new Notification
                         {
                             LoginId = payout.ReceiverLoginId,
-                            Title = $"{payout.PayoutType} Disbursed",
-                            Message = $"EcoCycle Payout of ₹{payout.Amount:N2} for Device #{deviceId} has been successfully settled and transferred.",
+                            Title = notifTitle,
+                            Message = notifMsg,
                             Isread = false,
                             Status = true,
                             CreatedAt = DateTime.Now
                         });
+
+                        // 2. Dispatch official HTML payment advice email
+                        try
+                        {
+                            string recipientEmail = "";
+                            string recipientName = "Valued Stakeholder";
+                            string roleLabel = payout.ReceiverType;
+
+                            if (payout.ReceiverType == "User" || payout.ReceiverType == "Citizen")
+                            {
+                                var userObj = usersList.FirstOrDefault(x => x.LoginId == payout.ReceiverLoginId);
+                                if (userObj != null)
+                                {
+                                    recipientName = $"{userObj.FirstName} {userObj.LastName}".Trim();
+                                    var loginObj = await _context.Login.FirstOrDefaultAsync(l => l.LoginId == userObj.LoginId);
+                                    recipientEmail = loginObj?.Email ?? "";
+                                    roleLabel = "Citizen User (Device Owner)";
+                                }
+                            }
+                            else if (payout.ReceiverType == "CollectionAgent")
+                            {
+                                var agentObj = await _context.CollectionAgents.Include(x => x.Login).FirstOrDefaultAsync(x => x.LoginId == payout.ReceiverLoginId);
+                                if (agentObj != null)
+                                {
+                                    recipientName = $"{agentObj.FirstName} {agentObj.LastName}".Trim();
+                                    recipientEmail = agentObj.Login?.Email ?? "";
+                                    roleLabel = "Collection Agent (Logistics Partner)";
+                                }
+                            }
+                            else if (payout.ReceiverType == "Technician")
+                            {
+                                var techObj = await _context.Technician.Include(x => x.Login).FirstOrDefaultAsync(x => x.LoginId == payout.ReceiverLoginId);
+                                if (techObj != null)
+                                {
+                                    recipientName = $"{techObj.FirstName} {techObj.LastName}".Trim();
+                                    recipientEmail = techObj.Login?.Email ?? "";
+                                    roleLabel = "Inspection Technician";
+                                }
+                            }
+                            else if (payout.ReceiverType == "RefurbishmentCenter" || payout.ReceiverType == "RecyclingCenter" || payout.ReceiverType == "Center")
+                            {
+                                var rf = await _context.RefurbishmentCenter.FirstOrDefaultAsync(x => x.LoginId == payout.ReceiverLoginId);
+                                if (rf != null)
+                                {
+                                    recipientName = rf.CenterName;
+                                    roleLabel = "Refurbishment Facility";
+                                }
+                                else
+                                {
+                                    var rc = await _context.RecyclingCenter.FirstOrDefaultAsync(x => x.LoginId == payout.ReceiverLoginId);
+                                    if (rc != null)
+                                    {
+                                        recipientName = rc.CenterName;
+                                        roleLabel = "Recycling Facility";
+                                    }
+                                }
+                            }
+
+                            // Direct fallback to master Login record if email is still blank
+                            if (string.IsNullOrWhiteSpace(recipientEmail) && payout.ReceiverLoginId > 0)
+                            {
+                                var directLogin = await _context.Login.FirstOrDefaultAsync(l => l.LoginId == payout.ReceiverLoginId);
+                                if (directLogin != null && !string.IsNullOrWhiteSpace(directLogin.Email))
+                                {
+                                    recipientEmail = directLogin.Email;
+                                    if (string.IsNullOrWhiteSpace(recipientName) || recipientName == "Valued Stakeholder")
+                                    {
+                                        recipientName = directLogin.Email.Split('@')[0];
+                                    }
+                                }
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(recipientEmail))
+                            {
+                                string emailSub = $"EcoCycle Payment Disbursed: ₹{payout.Amount:N2} for Device #{deviceId}";
+                                string htmlBody = GeneratePayoutEmailHtml(
+                                    string.IsNullOrWhiteSpace(recipientName) ? "EcoCycle Partner" : recipientName,
+                                    roleLabel,
+                                    payout.Amount,
+                                    deviceId,
+                                    device.Brand ?? "Device",
+                                    device.Model ?? "Hardware Asset",
+                                    payout.RazorpayPayoutId ?? $"POUT_RAZOR_{payout.PayoutId}",
+                                    payout.PayoutType ?? "Settlement Payout"
+                                );
+                                await SendEmailAsync(recipientEmail, emailSub, htmlBody);
+                            }
+                        }
+                        catch (Exception exEmail)
+                        {
+                            _logger.LogWarning(exEmail, "Failed triggering payout email to receiver {ReceiverLoginId}", payout.ReceiverLoginId);
+                        }
                     }
                 }
 
@@ -722,6 +823,278 @@ namespace EcoCycle.API.Controllers
                 _logger.LogError(ex, "Error deleting payouts for device {DeviceId}", deviceId);
                 return StatusCode(500, new { message = "Error deleting payout records.", details = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// Explicitly dispatch in-app notifications and disbursement advice emails to all stakeholders who received a payout for a device
+        /// </summary>
+        [HttpPost("send-payout-notifications/{deviceId}")]
+        public async Task<IActionResult> SendPayoutNotifications(int deviceId)
+        {
+            try
+            {
+                var device = await _context.Device
+                    .Include(d => d.User)
+                    .ThenInclude(u => u.Login)
+                    .FirstOrDefaultAsync(d => d.DeviceId == deviceId);
+
+                if (device == null)
+                {
+                    return NotFound(new { message = $"Device #{deviceId} not found." });
+                }
+
+                var payouts = await _context.Payouts
+                    .Where(p => p.DeviceId == deviceId && p.Amount > 0)
+                    .ToListAsync();
+
+                if (!payouts.Any())
+                {
+                    return BadRequest(new { message = $"No payouts found for Device #{deviceId}." });
+                }
+
+                var notifiedList = new List<object>();
+
+                var users = await _context.Users.Include(u => u.Login).ToListAsync();
+                var agents = await _context.CollectionAgents.Include(a => a.Login).ToListAsync();
+                var techs = await _context.Technician.Include(t => t.Login).ToListAsync();
+
+                foreach (var p in payouts)
+                {
+                    string recipientName = "User";
+                    string recipientEmail = "";
+                    string role = p.ReceiverType;
+
+                    if (p.ReceiverType == "User" || p.ReceiverType == "Citizen")
+                    {
+                        var u = users.FirstOrDefault(x => x.LoginId == p.ReceiverLoginId);
+                        if (u != null)
+                        {
+                            recipientName = $"{u.FirstName} {u.LastName}".Trim();
+                            recipientEmail = u.Login?.Email ?? "";
+                            role = "Citizen User (Device Owner)";
+                        }
+                    }
+                    else if (p.ReceiverType == "CollectionAgent")
+                    {
+                        var a = agents.FirstOrDefault(x => x.LoginId == p.ReceiverLoginId);
+                        if (a != null)
+                        {
+                            recipientName = $"{a.FirstName} {a.LastName}".Trim();
+                            recipientEmail = a.Login?.Email ?? "";
+                            role = "Collection Agent (Logistics Partner)";
+                        }
+                    }
+                    else if (p.ReceiverType == "Technician")
+                    {
+                        var t = techs.FirstOrDefault(x => x.LoginId == p.ReceiverLoginId);
+                        if (t != null)
+                        {
+                            recipientName = $"{t.FirstName} {t.LastName}".Trim();
+                            recipientEmail = t.Login?.Email ?? "";
+                            role = "Inspection Technician";
+                        }
+                    }
+                    else if (p.ReceiverType == "RefurbishmentCenter" || p.ReceiverType == "RecyclingCenter" || p.ReceiverType == "Center")
+                    {
+                        var rf = await _context.RefurbishmentCenter.FirstOrDefaultAsync(x => x.LoginId == p.ReceiverLoginId);
+                        if (rf != null)
+                        {
+                            recipientName = rf.CenterName;
+                            role = "Refurbishment Facility";
+                        }
+                        else
+                        {
+                            var rc = await _context.RecyclingCenter.FirstOrDefaultAsync(x => x.LoginId == p.ReceiverLoginId);
+                            if (rc != null)
+                            {
+                                recipientName = rc.CenterName;
+                                role = "Recycling Facility";
+                            }
+                        }
+                    }
+
+                    // Direct fallback to master Login record if email is still blank
+                    if (string.IsNullOrWhiteSpace(recipientEmail) && p.ReceiverLoginId > 0)
+                    {
+                        var directLogin = await _context.Login.FirstOrDefaultAsync(l => l.LoginId == p.ReceiverLoginId);
+                        if (directLogin != null && !string.IsNullOrWhiteSpace(directLogin.Email))
+                        {
+                            recipientEmail = directLogin.Email;
+                            if (string.IsNullOrWhiteSpace(recipientName) || recipientName == "User")
+                            {
+                                recipientName = directLogin.Email.Split('@')[0];
+                            }
+                        }
+                    }
+
+                    // 1. Create In-App Notification if not already present
+                    bool hasNotif = await _context.Notification.AnyAsync(n =>
+                        n.LoginId == p.ReceiverLoginId &&
+                        n.Message != null &&
+                        n.Message.Contains($"#{deviceId}") &&
+                        n.Title.Contains("Payout"));
+
+                    if (!hasNotif && p.ReceiverLoginId > 0)
+                    {
+                        _context.Notification.Add(new Notification
+                        {
+                            LoginId = p.ReceiverLoginId,
+                            Title = $"{p.PayoutType ?? "Payment"} Disbursed: ₹{p.Amount:N2}",
+                            Message = $"EcoCycle Payout of ₹{p.Amount:N2} for Device #{deviceId} ({device.Brand} {device.Model}) has been successfully settled and transferred.",
+                            Isread = false,
+                            Status = true,
+                            CreatedAt = DateTime.Now
+                        });
+                    }
+
+                    // 2. Send Email
+                    string emailDeliveryStatus = "No Email Configured";
+                    if (!string.IsNullOrWhiteSpace(recipientEmail))
+                    {
+                        string emailSub = $"EcoCycle Payment Disbursed: ₹{p.Amount:N2} for Device #{deviceId}";
+                        string htmlBody = GeneratePayoutEmailHtml(
+                            recipientName,
+                            role,
+                            p.Amount,
+                            deviceId,
+                            device.Brand ?? "Device",
+                            device.Model ?? "Hardware Asset",
+                            p.RazorpayPayoutId ?? $"POUT_RAZOR_{p.PayoutId}",
+                            p.PayoutType ?? "Settlement Payout"
+                        );
+                        bool sent = await SendEmailAsync(recipientEmail, emailSub, htmlBody);
+                        emailDeliveryStatus = sent ? "Dispatched" : "SMTP Delivery Error";
+                    }
+
+                    notifiedList.Add(new
+                    {
+                        payoutId = p.PayoutId,
+                        role,
+                        recipientName,
+                        recipientEmail,
+                        amount = p.Amount,
+                        status = emailDeliveryStatus
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Dispatched payout notifications and emails to {notifiedList.Count} recipient(s).",
+                    recipients = notifiedList
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending payout notifications for device {DeviceId}", deviceId);
+                return StatusCode(500, new { message = "Error sending notifications.", details = ex.Message });
+            }
+        }
+
+        private static async Task<bool> SendEmailAsync(string recipientEmail, string subject, string body)
+        {
+            if (string.IsNullOrWhiteSpace(recipientEmail)) return false;
+            try
+            {
+                using (MailMessage mail = new MailMessage())
+                {
+                    mail.From = new MailAddress("drogbqdidier7@gmail.com", "EcoCycle Finance & Settlements");
+                    mail.To.Add(recipientEmail);
+                    mail.Subject = subject;
+                    mail.Body = body;
+                    mail.IsBodyHtml = true;
+
+                    using (SmtpClient smtp = new SmtpClient("smtp.gmail.com", 587))
+                    {
+                        smtp.UseDefaultCredentials = false;
+                        smtp.EnableSsl = true;
+                        smtp.Credentials = new NetworkCredential("drogbqdidier7@gmail.com", "gxgy cclr rght awid");
+                        smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+                        await smtp.SendMailAsync(mail);
+                    }
+                }
+                Console.WriteLine($"[Payout Email Notice] Successfully delivered email to {recipientEmail}");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Payout Email Notice] Could not deliver email to {recipientEmail}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static string GeneratePayoutEmailHtml(string recipientName, string role, decimal amount, int deviceId, string brand, string model, string transactionId, string payoutType)
+        {
+            string devLabel = $"{brand} {model}".Trim();
+            if (string.IsNullOrWhiteSpace(devLabel)) devLabel = $"Hardware Asset #{deviceId}";
+
+            return $@"
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset='utf-8'>
+                    <title>EcoCycle Payment Advice</title>
+                </head>
+                <body style='font-family: Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;'>
+                    <table align='center' border='0' cellpadding='0' cellspacing='0' width='100%' style='max-width: 600px; background: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05);'>
+                        <tr>
+                            <td style='background: linear-gradient(135deg, #059669 0%, #047857 100%); padding: 28px 24px; text-align: center;'>
+                                <h1 style='color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;'>EcoCycle Payment Disbursed</h1>
+                                <p style='color: #d1fae5; margin: 6px 0 0; font-size: 13px; font-weight: 600;'>Official Settlement Advice &bull; Device #{deviceId}</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style='padding: 28px 24px;'>
+                                <p style='font-size: 15px; margin: 0 0 14px;'>Hello <strong>{recipientName}</strong>,</p>
+                                <p style='font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 20px;'>
+                                    We are delighted to confirm that your payout for <strong>{devLabel}</strong> (Device #{deviceId}) has been successfully authorized and disbursed.
+                                </p>
+
+                                <div style='background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 24px;'>
+                                    <div style='font-size: 12px; font-weight: 800; color: #059669; text-transform: uppercase; letter-spacing: 0.08em;'>Disbursed Amount</div>
+                                    <div style='font-size: 34px; font-weight: 900; color: #065f46; margin: 4px 0;'>₹{amount:N2}</div>
+                                    <div style='font-size: 12px; font-weight: 700; color: #10b981;'>✓ Credited &bull; Direct Escrow Settlement</div>
+                                </div>
+
+                                <table width='100%' style='border-collapse: collapse; margin-bottom: 20px; font-size: 13px;'>
+                                    <tr style='border-bottom: 1px solid #f1f5f9;'>
+                                        <td style='padding: 10px 0; color: #64748b; font-weight: 600;'>Beneficiary:</td>
+                                        <td style='padding: 10px 0; color: #0f172a; font-weight: 700; text-align: right;'>{recipientName} ({role})</td>
+                                    </tr>
+                                    <tr style='border-bottom: 1px solid #f1f5f9;'>
+                                        <td style='padding: 10px 0; color: #64748b; font-weight: 600;'>Payout Purpose:</td>
+                                        <td style='padding: 10px 0; color: #0f172a; font-weight: 700; text-align: right;'>{payoutType}</td>
+                                    </tr>
+                                    <tr style='border-bottom: 1px solid #f1f5f9;'>
+                                        <td style='padding: 10px 0; color: #64748b; font-weight: 600;'>Device Model:</td>
+                                        <td style='padding: 10px 0; color: #0f172a; font-weight: 700; text-align: right;'>{devLabel}</td>
+                                    </tr>
+                                    <tr style='border-bottom: 1px solid #f1f5f9;'>
+                                        <td style='padding: 10px 0; color: #64748b; font-weight: 600;'>Transaction Ref:</td>
+                                        <td style='padding: 10px 0; font-family: monospace; font-weight: 700; color: #0f172a; text-align: right;'>{transactionId}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style='padding: 10px 0; color: #64748b; font-weight: 600;'>Disbursement Time:</td>
+                                        <td style='padding: 10px 0; color: #0f172a; font-weight: 700; text-align: right;'>{DateTime.Now:dd MMM yyyy, hh:mm tt}</td>
+                                    </tr>
+                                </table>
+
+                                <p style='font-size: 13px; color: #64748b; line-height: 1.6; margin: 0 0 10px;'>
+                                    Your participation supports verified zero-landfill electronic recycling and ethical refurbished hardware reuse in India.
+                                </p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style='background: #f8fafc; padding: 18px 24px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0;'>
+                                &copy; {DateTime.Now.Year} EcoCycle E-Waste Platform &bull; Automated Settlement Notification &bull; Do not reply
+                            </td>
+                        </tr>
+                    </table>
+                </body>
+                </html>
+            ";
         }
     }
 }

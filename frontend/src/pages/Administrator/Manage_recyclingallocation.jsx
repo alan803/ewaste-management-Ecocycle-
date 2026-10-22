@@ -3,7 +3,6 @@ import axios from "axios";
 import Navbar from "./Navbar";
 import {
     FiRefreshCw,
-    FiBell,
     FiSearch,
     FiCpu,
     FiTrash2,
@@ -195,11 +194,6 @@ function ManageRecyclingAllocation() {
                         </div>
 
                         <div className="topbar-actions">
-                            <button className="glass-btn notification-btn" title="System Alerts">
-                                <FiBell />
-                                <span className="pulse-ping"></span>
-                            </button>
-
                             <div className="user-profile-chip">
                                 <div className="avatar-gradient">A</div>
                                 <div className="user-info-text">
